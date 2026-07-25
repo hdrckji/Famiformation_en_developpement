@@ -440,18 +440,16 @@ body.mode-borne #app { width: 100%; }
 .insc-grid { display: flex; gap: 12px; }
 .insc-grid > div { flex: 1; }
 @media (max-width: 460px) { .insc-grid { flex-direction: column; gap: 0; } }
-.insc-info { max-width: 560px; margin: 0 auto 12px; text-align: left; background: var(--craie);
-  border: 2px solid #e3eee6; border-radius: 16px; overflow: hidden; }
-.insc-info > summary { list-style: none; cursor: pointer; padding: 15px 18px; font-family: 'Fredoka', sans-serif;
-  font-weight: 600; color: var(--foret); font-size: clamp(1rem, 2.6vw, 1.2rem); display: flex; justify-content: space-between; align-items: center; }
-.insc-info > summary::-webkit-details-marker { display: none; }
-.insc-info > summary::after { content: "▾"; color: var(--pousse); transition: transform .2s; }
-.insc-info[open] > summary::after { transform: rotate(180deg); }
-.insc-info-corps { padding: 0 18px 18px; line-height: 1.55; }
-.insc-info-corps p { margin: 0 0 10px; }
-.insc-liste { list-style: none; padding: 0; margin: 0 0 10px; display: flex; flex-direction: column; gap: 8px; }
-.insc-liste li { line-height: 1.4; }
-.insc-slogan { font-family: 'Fredoka', sans-serif; font-weight: 600; color: var(--pousse); text-align: center; margin: 4px 0 0 !important; }
+/* Deux petits modules horizontaux vers les pages du site (présentation + guide e-mail) */
+.insc-modules { max-width: 560px; margin: 4px auto 14px; display: flex; gap: 12px; }
+.insc-mod { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+  cursor: pointer; background: var(--craie); border: 2px solid #e3eee6; border-radius: 16px; padding: 16px 12px;
+  font-family: 'Fredoka', sans-serif; color: var(--foret); text-align: center;
+  transition: transform .12s, border-color .15s, box-shadow .15s; box-shadow: 0 4px 16px rgba(14,59,36,.07); }
+.insc-mod:hover, .insc-mod:active { transform: translateY(-2px); border-color: var(--pousse); box-shadow: 0 8px 22px rgba(14,59,36,.13); }
+.im-emo { font-size: clamp(1.6rem, 5vw, 2.1rem); line-height: 1; }
+.im-titre { font-weight: 600; font-size: clamp(.9rem, 2.3vw, 1.08rem); line-height: 1.25; }
+@media (max-width: 460px) { .insc-modules { gap: 10px; } .insc-mod { padding: 14px 8px; } }
 .lien-explik { border: none; background: none; cursor: pointer; font-family: 'Fredoka', sans-serif;
   font-weight: 700; color: var(--pousse); font-size: clamp(.95rem, 2.2vw, 1.15rem); padding: 6px 4px;
   text-decoration: underline; text-underline-offset: 3px; }
@@ -2406,18 +2404,20 @@ function ouvreConnexionFami() {
   setTimeout(() => o.querySelector("#cf-id").focus(), 50);
 }
 
-// 📭 Guide « créer une adresse e-mail » : la page du site, dans un cadre (jamais
-// de nouvel onglet), avec un retour. Réutilise l'habillage du module e-mail.
-const URL_CREER_EMAIL = "https://famiformation.com/emails/creer-email.html";
-function ouvreGuideEmail() {
+// 📄 Ouvre une des pages du site (présentation Famiformation, guide « créer une
+// adresse e-mail ») DANS un cadre — jamais de nouvel onglet, avec un retour. Ce
+// sont les pages que Jimmy avait déjà (dossier /emails/ sur famiformation.com).
+const URL_PRESENTATION = "https://famiformation.com/emails/presentation.html";
+const URL_CREER_EMAIL  = "https://famiformation.com/emails/creer-email.html";
+function ouvreCadre(url, titre) {
   const o = document.createElement("div");
   o.className = "ext-overlay";
   o.innerHTML = `<div class="ext-bar">
       <button class="ext-btn ext-home" id="ge-retour"><span>◂</span> Retour</button>
-      <div class="ext-brand">📭 Créer une adresse e-mail</div>
+      <div class="ext-brand">${esc(titre)}</div>
       <div class="ext-nav"></div>
     </div>
-    <iframe class="ext-frame" src="${URL_CREER_EMAIL}" referrerpolicy="no-referrer"></iframe>`;
+    <iframe class="ext-frame" src="${url}" referrerpolicy="no-referrer"></iframe>`;
   document.body.appendChild(o);
   o.querySelector("#ge-retour").addEventListener("click", () => o.remove());
 }
@@ -2448,7 +2448,7 @@ function renderInscription() {
       <div class="insc-etape"><span class="ie-num">2</span><span class="ie-emo">🍦</span>
         <span class="ie-txt">Tu passes à l'accueil récupérer ton <b>ticket glace</b></span></div>
       <div class="insc-etape"><span class="ie-num">3</span><span class="ie-emo">📬</span>
-        <span class="ie-txt">Tu reçois ton lien par e-mail pour <b>jouer au quiz</b></span></div>
+        <span class="ie-txt">Tu reçois ton lien par e-mail pour <b>créer ton compte</b></span></div>
     </div>
 
     <div class="card insc-card" id="insc-card">
@@ -2466,29 +2466,16 @@ function renderInscription() {
         Sans <b>prénom + nom</b>, tu ne seras pas éligible aux récompenses.</p>
     </div>
 
-    <details class="insc-info">
-      <summary>✨ C'est quoi Famiformation ?</summary>
-      <div class="insc-info-corps">
-        <p>La plateforme en ligne de Famiflora qui réunit <b>tout ce dont tu as besoin pour bien travailler</b>,
-          où que tu sois — même livré(e) à toi-même, tu trouves la réponse.</p>
-        <ul class="insc-liste">
-          <li>🎓 <b>Grandir dans ton métier</b>, à ton rythme — tu apprends en ligne quand tu veux.</li>
-          <li>🧰 <b>Ne jamais rester bloqué(e)</b> : tous les outils pour travailler, même seul(e).</li>
-          <li>📅 <b>T'inscrire aux formations</b> en présentiel et réserver ta place.</li>
-          <li>🏆 <b>Progresser</b> avec quelques récompenses à la clé.</li>
-        </ul>
-        <p class="insc-slogan">Apprendre 🌱 Progresser 🌿 Être récompensé(e) 🌸</p>
-      </div>
-    </details>
-
-    <details class="insc-info">
-      <summary>📭 Je n'ai pas d'adresse e-mail</summary>
-      <div class="insc-info-corps">
-        <p>Pas de panique ! Tu peux utiliser ton adresse <b>personnelle</b> ou <b>professionnelle</b> — les deux sont acceptées.</p>
-        <p>Tu n'en as vraiment aucune ? Tu peux en créer une <b>gratuitement en 2 minutes</b>, ou demander un coup de main à l'accueil.</p>
-        <button class="btn ghost" id="ci-guide" style="margin-top:6px;">📖 Voir comment créer une adresse</button>
-      </div>
-    </details>
+    <div class="insc-modules">
+      <button class="insc-mod" id="ci-presentation">
+        <span class="im-emo">✨</span>
+        <span class="im-titre">C'est quoi Famiformation ?</span>
+      </button>
+      <button class="insc-mod" id="ci-guide">
+        <span class="im-emo">📭</span>
+        <span class="im-titre">Je n'ai pas d'adresse e-mail</span>
+      </button>
+    </div>
 
     <div class="home-liens">
       <a href="#" class="lien-explik" id="ci-connexion">🔑 J'ai déjà un compte, me connecter</a>
@@ -2532,7 +2519,8 @@ function renderInscription() {
   };
   $("#ci-ok").addEventListener("click", go);
   $("#ci-email").addEventListener("keydown", (e) => e.key === "Enter" && go());
-  $("#ci-guide").addEventListener("click", ouvreGuideEmail);
+  $("#ci-presentation").addEventListener("click", () => ouvreCadre(URL_PRESENTATION, "✨ C'est quoi Famiformation ?"));
+  $("#ci-guide").addEventListener("click", () => ouvreCadre(URL_CREER_EMAIL, "📭 Créer une adresse e-mail"));
   $("#ci-connexion").addEventListener("click", (e) => { e.preventDefault(); ouvreConnexionFami(); });
   $("#ci-retour").addEventListener("click", (e) => { e.preventDefault(); if (retourAccueilBorne()) return; userView = "auto"; render(); });
 }
@@ -3235,6 +3223,7 @@ function renderHome() {
     <div class="home-tease">🎯 Le but : récolte un max de <b>graines</b> au quiz. Les <b>3 meilleurs gagnent des récompenses</b> !</div>
     <div class="home-liens">
       <button class="lien-explik" id="home-explik">✨ Comment ça marche ?</button>
+      <button class="lien-explik" id="home-famif">❓ C'est quoi Famiformation ?</button>
       <button class="lien-explik" id="home-board">🏆 Voir le classement</button>
     </div>
   </div>`;
@@ -3274,6 +3263,8 @@ function renderHome() {
   }));
   const be = app.querySelector("#home-explik");
   if (be) be.addEventListener("click", ouvreExplication);
+  const bf = app.querySelector("#home-famif");
+  if (bf) bf.addEventListener("click", () => ouvreCadre(URL_PRESENTATION, "✨ C'est quoi Famiformation ?"));
   const bb = app.querySelector("#home-board");
   if (bb) bb.addEventListener("click", () => { userView = "board"; quiz = null; render(); });
 }
