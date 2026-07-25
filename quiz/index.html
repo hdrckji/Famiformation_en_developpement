@@ -2903,7 +2903,7 @@ function renderInscription() {
       <label class="lbl">${t("E-mail", "E-mail")}</label>
       <input class="field" id="ci-email" type="email" autocomplete="email" placeholder="ton.email@exemple.be">
       <button class="btn" id="ci-ok" style="width:100%; margin-top:8px;">${t("Recevoir mon lien de connexion 🎁", "Mijn aanmeldlink ontvangen 🎁")}</button>
-      <p class="hint" style="text-align:center; margin:10px 0 0;">${t("On t'envoie tout de suite un e-mail avec ton lien pour choisir ton mot de passe. Sans <b>prénom + nom</b>, tu ne seras pas éligible aux récompenses.", "We sturen je meteen een e-mail met je link om een wachtwoord te kiezen. Zonder <b>voornaam + naam</b> kom je niet in aanmerking voor de prijzen.")}<br>
+      <p class="hint" style="text-align:center; margin:10px 0 0;">${t("On t'envoie tout de suite un e-mail avec ton lien pour <b>créer ton compte Famiformation</b> (choisir ton mot de passe). Sans <b>prénom + nom</b>, tu ne seras pas éligible aux récompenses.", "We sturen je meteen een e-mail met je link om <b>je Famiformation-account aan te maken</b> (een wachtwoord kiezen). Zonder <b>voornaam + naam</b> kom je niet in aanmerking voor de prijzen.")}<br>
         ${t("En t'inscrivant, tu acceptes notre <a href=\"#\" id=\"ci-rgpd\" class=\"lien\">politique de confidentialité</a>.", "Door je in te schrijven aanvaard je ons <a href=\"#\" id=\"ci-rgpd\" class=\"lien\">privacybeleid</a>.")}</p>
     </div>
 
@@ -2953,7 +2953,7 @@ function renderInscription() {
     $("#insc-card").innerHTML = `<div style="text-align:center; padding:6px 0;">
       <div style="font-size:3rem;">📬</div>
       <h3 style="font-family:'Fredoka',sans-serif; color:var(--pousse); margin:8px 0;">${t("C'est envoyé !", "Verzonden!")}</h3>
-      <p style="font-size:1.05rem; line-height:1.6; margin:0 0 8px;">${t("Regarde ta boîte mail <b>" + esc(email) + "</b> : tu y trouveras ton lien pour choisir ton mot de passe et te connecter au quiz.", "Kijk in je mailbox <b>" + esc(email) + "</b>: daar vind je je link om een wachtwoord te kiezen en aan de quiz deel te nemen.")}</p>
+      <p style="font-size:1.05rem; line-height:1.6; margin:0 0 8px;">${t("Regarde ta boîte mail <b>" + esc(email) + "</b> : tu y trouveras ton lien pour <b>créer ton compte Famiformation</b> (choisir ton mot de passe).", "Kijk in je mailbox <b>" + esc(email) + "</b>: daar vind je je link om <b>je Famiformation-account aan te maken</b> (een wachtwoord kiezen).")}</p>
       <p style="font-size:.95rem; color:#5a6b60; margin:0 0 16px;">${t("🍦 Pense à passer à l'accueil pour ton ticket glace ! Pas reçu le mail ? Regarde dans les spams.", "🍦 Vergeet niet je ijsjesticket op te halen aan het onthaal! Geen mail ontvangen? Kijk in je spam.")}</p>
       <button class="btn" id="ci-fini" style="min-width:180px;">${t("J'ai compris 🌱", "Begrepen 🌱")}</button></div>`;
     $("#ci-fini").addEventListener("click", () => { if (retourAccueilBorne()) return; userView = "auto"; render(); });
