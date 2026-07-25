@@ -507,6 +507,21 @@ body.mode-tele .fami-bulle { display: none; }   /* pas sur la télé */
 .j-herbes-zone { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: center;
   background: #E7F4E4; border: 2px solid var(--pousse); border-radius: 16px; padding: 12px 16px; margin-bottom: 16px; }
 .j-herbes-zone span { font-weight: 600; font-size: .88rem; opacity: .85; text-align: left; flex: 1 1 200px; }
+/* 🎯 Deux façons de gagner des graines de jardin (quiz + herbes) */
+.j-gagner { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center;
+  background: #E7F4E4; border: 2px solid var(--pousse); border-radius: 16px; padding: 12px 16px; margin-bottom: 16px; }
+.j-gagner span { font-weight: 600; font-size: .88rem; opacity: .85; text-align: left; flex: 1 1 220px; }
+/* 🎁 Objectif récompense du jardin : progression (cases + lotus) */
+.j-objectif { background: #FFF7E4; border: 2px dashed #E9A93C; border-radius: 16px; padding: 12px 16px; margin-bottom: 14px; }
+.j-objectif.j-objectif-ok { background: #E7F6E9; border: 2px solid var(--pousse); border-style: solid; }
+.jo-titre { font-family: 'Fredoka', sans-serif; font-weight: 700; color: #7a4a11; margin-bottom: 8px; }
+.j-objectif-ok .jo-titre { color: var(--foret); }
+.jo-ok { font-weight: 600; color: var(--foret); line-height: 1.4; }
+.jo-progress { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.jo-barre { flex: 1 1 160px; height: 12px; background: #f0e2c4; border-radius: 999px; overflow: hidden; }
+.jo-barre > div { height: 100%; background: linear-gradient(90deg, #8DC63F, var(--pousse)); border-radius: 999px; transition: width .3s; }
+.jo-chiffres { font-weight: 700; color: #7a4a11; white-space: nowrap; }
+.jo-aide { font-size: .86rem; color: #8a6a2f; margin-top: 8px; line-height: 1.4; }
 /* Bloc principal (mis en avant) sur l'accueil / l'espace */
 .bm-primaire { border-color: var(--pousse); background: #F1F8EF; }
 /* Espace (gate connexion/création) : 2 blocs centrés */
@@ -1352,6 +1367,21 @@ async function apiRecolteHerbes(name, herbes) {
   });
   return await r.json();
 }
+// 🎯 Quiz du jardin : crédite des graines de JARDIN (bonus) selon le nombre de
+// bonnes réponses. Authentifié par le jeton (le serveur ignore un nom trafiqué).
+async function apiQuizJardin(correct) {
+  if (SIMULATION) {
+    const p = board.find((x) => joueur && x.name.toLowerCase() === joueur.name.toLowerCase());
+    const gain = Math.min(correct, 20) * 10;
+    if (p) { p.bonus = (p.bonus || 0) + gain; return { ok: true, gain, solde: p.score + (p.bonus || 0) - (p.depensees || 0) }; }
+    return { ok: true, gain, solde: (joueur ? joueur.solde : 0) + gain };
+  }
+  const r = await fetch(`${CONFIG.api}?site=${SITE}&action=quiz_jardin`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ jeton: (joueur && joueur.jeton) || "", correct }),
+  });
+  try { return await r.json(); } catch { return { ok: false }; }
+}
 
 /* ============================================================
    🧩 OUTILS
@@ -1418,9 +1448,9 @@ let PLANTES = {
   tournesol:  { emoji: "🌻", nom: "Tournesol",     cout: 80 },
   rosier:     { emoji: "🌹", nom: "Rosier",        cout: 120 },
   arbre:      { emoji: "🌳", nom: "Petit arbre",   cout: 200 },
-  bronze:     { emoji: "🏵️", nom: "Rosette de bronze", cout: 250,  rare: "bronze" },
-  argent:     { emoji: "💮", nom: "Fleur d'argent",    cout: 500,  rare: "argent" },
-  or:         { emoji: "🪷", nom: "Lotus d'or",        cout: 1000, rare: "or" },
+  bronze:     { emoji: "🏵️", nom: "Lotus de bronze", cout: 200,  rare: "bronze" },
+  argent:     { emoji: "💮", nom: "Lotus d'argent",  cout: 400,  rare: "argent" },
+  or:         { emoji: "🪷", nom: "Lotus d'or",      cout: 700,  rare: "or" },
 };
 let JARDIN_CASES = 48;
 
@@ -1633,7 +1663,9 @@ function currentView() {
   if (userView === "espace")    return joueur ? "dashboard" : "espace";
   if (userView === "dashboard") return joueur ? "dashboard" : "espace";
   // Vues qui exigent un compte : sinon on renvoie vers l'espace.
-  if (userView === "quiz")   return phaseNow() === "ouvert" ? "quiz" : (joueur ? "dashboard" : "home");
+  // Le quiz du classement n'est jouable que pendant l'événement ; le quiz DU JARDIN
+  // (rejouable, sans impact classement) reste accessible tant qu'on a un jardin.
+  if (userView === "quiz")   return (phaseNow() === "ouvert" || (quiz && quiz.jardinMode)) ? "quiz" : (joueur ? "dashboard" : "home");
   if (userView === "jardin") return joueur ? "jardin" : "espace";
   if (userView === "herbes") return joueur ? "herbes" : "espace";
   if (userView === "board")  return "board";   // classement : public
@@ -1875,6 +1907,16 @@ function renderQuiz() {
       const apres = stadeDe(quiz.score);
       quiz.vientDePousser = apres.min !== avant.min; // la plante vient de changer de stade
       if (quiz.idx + 1 < quiz.questions.length) { quiz.idx++; renderQuiz(); return; }
+      // 🎯 QUIZ DU JARDIN : on ne touche PAS au classement. On crédite des graines
+      // de jardin (10 par bonne réponse), puis écran dédié + retour au jardin.
+      if (quiz.jardinMode) {
+        quiz.step = "fin"; renderQuiz();
+        const r = await apiQuizJardin(quiz.correct).catch(() => ({ ok: false }));
+        if (r && r.ok) { joueur.solde = r.solde; if (r.recoltees != null) joueur.recoltees = r.recoltees; }
+        quiz.gainJardin = (r && r.gain) || 0;
+        quiz.step = "doneJardin"; renderQuiz();
+        return;
+      }
       // Dernière question : on inscrit la récolte sur le compte (déjà créé).
       quiz.step = "fin"; renderQuiz();
       const time = Math.round((Date.now() - quiz.start) / 1000);
@@ -1891,6 +1933,29 @@ function renderQuiz() {
       quiz.messageCode = await reclamerEnAttente();        // un code scanné avant de jouer ?
       quiz.step = "done"; renderQuiz();
     }));
+    return;
+  }
+
+  // 🎯 Fin d'un QUIZ DU JARDIN : on annonce les graines de jardin gagnées.
+  if (quiz.step === "doneJardin") {
+    app.innerHTML = `<div class="card center">
+      <div style="font-size:3.4rem; line-height:1.1;">🌼</div>
+      <h2 class="q-text" style="margin:8px 0 4px;">Belle récolte pour ton jardin !</h2>
+      <div class="score-big">+${affG(quiz.gainJardin)} 🌰</div>
+      <p class="hint" style="margin-top:12px;"><b>${quiz.correct} bonne${quiz.correct > 1 ? "s" : ""} réponse${quiz.correct > 1 ? "s" : ""} sur ${quiz.questions.length}</b>
+        — ces graines vont <b>directement dans ton jardin</b> (ton classement ne bouge pas).<br>
+        Tu as maintenant <b>${affG(joueur.solde)} 🌰</b> à planter. Rejoue autant que tu veux pour finir ton jardin&nbsp;! 🌱</p>
+      <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:center;">
+        <button class="btn" id="qj-jardin">🌼 Retour au jardin</button>
+        <button class="btn ghost" id="qj-rejouer">🎯 Rejouer un quiz</button>
+      </div>
+    </div>`;
+    $("#qj-jardin").addEventListener("click", async () => { jardin = await apiJardin(); userView = "jardin"; quiz = null; render(); });
+    $("#qj-rejouer").addEventListener("click", () => {
+      quiz = { jardinMode: true, step: "play", pseudo: joueur.name, questions: prepareQuestions(),
+               idx: 0, correct: 0, start: Date.now(), score: 0, streak: 0, qStart: Date.now() };
+      render();
+    });
     return;
   }
 
@@ -2163,24 +2228,36 @@ function renderJardin() {
   // disponible, sinon planter ferait « rapetisser » le joueur.
   const stade = stadeDe(joueur.recoltees ?? (joueur.solde + soldeDepense()));
   const nbPlantees = Object.keys(jardin).length;
+  // 🎁 Éligibilité récompense « jardin » : toutes les cases occupées ET les 3 lotus plantés.
+  const LOTUS = ["or", "argent", "bronze"];
+  const lotusFaits = LOTUS.filter((r) => Object.values(jardin).some((c) => c && c.plante === r)).length;
+  const eligible = nbPlantees >= JARDIN_CASES && lotusFaits === 3;
 
   app.innerHTML = `${DEFS_METAL}<div class="board-wrap">${pillsHtml("jardin")}<div class="card">
     <div class="jardin-solde">
       <span style="display:flex; align-items:center; gap:8px;">${avatarDe(joueur.name)} <strong>${esc(joueur.name)}</strong> <span title="${esc(stade.nom)}" style="font-size:1.3rem;">${stade.emoji}</span></span>
       <span class="montant">${JARDIN_LIBRE ? "🎨 Aperçu — plantes offertes" : affG(joueur.solde) + " 🌰 à planter"}</span>
     </div>
+    ${JARDIN_LIBRE ? "" : `<div class="j-objectif ${eligible ? "j-objectif-ok" : ""}">
+      <div class="jo-titre">🎁 Objectif récompense</div>
+      ${eligible
+        ? `<div class="jo-ok">Bravo&nbsp;! Ton jardin est complet et tes <b>3 lotus</b> sont plantés — tu fais partie des <b>gagnants du jardin</b> 🌟</div>`
+        : `<div class="jo-progress"><div class="jo-barre"><div style="width:${Math.round(nbPlantees / JARDIN_CASES * 100)}%"></div></div>
+           <span class="jo-chiffres"><b>${nbPlantees}/${JARDIN_CASES}</b> cases · <b>${lotusFaits}/3</b> lotus 🪷</span></div>
+           <div class="jo-aide">Remplis <b>toutes</b> tes cases et plante les <b>3 lotus (or, argent, bronze)</b> pour gagner ta récompense.</div>`}
+    </div>`}
     <div class="jardin-explik">
       <b>🌼 Ton jardin, comment ça marche ?</b>
       Choisis une plante dans le catalogue, puis tape une case libre pour la planter.
       Tape une plante déjà en terre pour la <b>revendre</b> et récupérer tes graines.
       Tu as ${JARDIN_CASES} cases rien qu'à toi (${nbPlantees} déjà occupée${nbPlantees > 1 ? "s" : ""}).
-      <span class="je-rassure">💚 Ici, c'est <b>juste pour s'amuser</b>. En plantant, tu verras ton nombre de
-      graines à planter diminuer : <b>c'est normal, ça ne concerne que le jardin</b>.
+      <span class="je-rassure">💚 En plantant, ton nombre de graines à planter diminue : <b>c'est normal, ça ne concerne que le jardin</b>.
       <b>Ton score au classement ne bouge pas</b> — va voir dans « Classement », il sera toujours le même.</span>
     </div>
-    ${JARDIN_LIBRE ? "" : `<div class="j-herbes-zone">
-      <button class="btn" id="j-herbes">🌿 Gagner plus de graines</button>
-      <span>Un mini-jeu rapide : ces graines-là servent aussi <b>uniquement au jardin</b>.</span>
+    ${JARDIN_LIBRE ? "" : `<div class="j-gagner">
+      <button class="btn" id="j-quiz">🎯 Quiz du jardin</button>
+      <button class="btn ghost" id="j-herbes">🌿 Chasse aux herbes</button>
+      <span>Deux façons de récolter des graines pour le jardin (jamais le classement). Le <b>quiz</b> en rapporte le plus, et chaque bonne réponse compte&nbsp;!</span>
     </div>`}
     <div class="catalogue">
       ${Object.entries(PLANTES).map(([cle, p]) => `
@@ -2203,6 +2280,14 @@ function renderJardin() {
   // Aller au mini-jeu pour récolter des graines (absent en mode aperçu gratuit).
   const jh = $("#j-herbes");
   if (jh) jh.addEventListener("click", () => { userView = "herbes"; render(); });
+  const jq = $("#j-quiz");
+  if (jq) jq.addEventListener("click", () => {
+    // Quiz REJOUABLE pour le jardin : mêmes questions (tirage au hasard), mais
+    // chaque bonne réponse rapporte des graines de jardin, PAS le classement.
+    quiz = { jardinMode: true, step: "play", pseudo: joueur.name, questions: prepareQuestions(),
+             idx: 0, correct: 0, start: Date.now(), score: 0, streak: 0, qStart: Date.now() };
+    userView = "quiz"; render();
+  });
 
   // Choisir une plante dans le catalogue
   app.querySelectorAll("[data-plt]").forEach((b) => b.addEventListener("click", () => {

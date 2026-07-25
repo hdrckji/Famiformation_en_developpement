@@ -192,11 +192,14 @@ $PLANTES = [
   'tournesol'  => ['emoji' => '🌻', 'nom' => 'Tournesol',     'cout' => 80],
   'rosier'     => ['emoji' => '🌹', 'nom' => 'Rosier',        'cout' => 120],
   'arbre'      => ['emoji' => '🌳', 'nom' => 'Petit arbre',   'cout' => 200],
-  // 🏆 Les 3 plantes RARES : chères, magnifiques, elles scintillent au jardin.
-  'bronze'     => ['emoji' => '🏵️', 'nom' => 'Rosette de bronze', 'cout' => 250,  'rare' => 'bronze'],
-  'argent'     => ['emoji' => '💮', 'nom' => 'Fleur d\'argent',    'cout' => 500,  'rare' => 'argent'],
-  'or'         => ['emoji' => '🪷', 'nom' => 'Lotus d\'or',        'cout' => 1000, 'rare' => 'or'],
+  // 🏆 Les 3 LOTUS : chers, magnifiques, ils scintillent au jardin. Les avoir
+  // plantés TOUS LES TROIS (+ jardin plein) rend éligible à la récompense.
+  'bronze'     => ['emoji' => '🏵️', 'nom' => 'Lotus de bronze', 'cout' => 200,  'rare' => 'bronze'],
+  'argent'     => ['emoji' => '💮', 'nom' => 'Lotus d\'argent',  'cout' => 400,  'rare' => 'argent'],
+  'or'         => ['emoji' => '🪷', 'nom' => 'Lotus d\'or',      'cout' => 700,  'rare' => 'or'],
 ];
+// 🎁 Éligibilité à la récompense « jardin » : jardin PLEIN + ces 3 lotus plantés.
+$LOTUS_REQUIS = ['or', 'argent', 'bronze'];
 
 // Taille de la grille (8 colonnes × 6 lignes = 48 cases).
 $JARDIN_CASES = 48;
@@ -208,6 +211,12 @@ $JARDIN_CASES = 48;
 $HERBE_GAIN = ['normale' => 1, 'bronze' => 3, 'argent' => 6, 'or' => 12];
 $HERBE_MAX_PAR_HERBE = 300;   // borne le nombre d'herbes d'une sorte par partie
 $HERBE_MAX_GAIN = 80;         // gain maximum crédité en une partie
+
+// 🎯 QUIZ DU JARDIN (rejouable) : la voie « efficace » pour alimenter le jardin.
+// Chaque bonne réponse rapporte des graines de jardin (bonus, PAS le classement).
+// Environ 1 800 graines pour finir le jardin (3 lotus + cases) → ~12 quiz.
+$QUIZ_JARDIN_PAR_BONNE = 10;   // graines de jardin par bonne réponse
+$QUIZ_JARDIN_MAX_BONNES = 20;  // plafond par partie (anti-triche bon enfant)
 
 /**
  * Solde de graines DISPONIBLES pour planter :
@@ -1020,6 +1029,31 @@ switch ($action) {
         }
       }
       return ['ok' => false, 'reason' => 'joueur_inconnu'];
+    });
+    echo json_encode($res, JSON_UNESCAPED_UNICODE);
+    break;
+  }
+
+  // 🎯 QUIZ DU JARDIN : on a rejoué un quiz pour alimenter le jardin. Chaque bonne
+  // réponse rapporte des graines de JARDIN (bonus), JAMAIS le classement. Authentifié
+  // par le JETON (le nom vient du jeton, pas du client), plafonné par partie.
+  case 'quiz_jardin': {
+    $auth = litJeton($input['jeton'] ?? '');
+    if (!$auth) { http_response_code(401); echo json_encode(['ok' => false, 'reason' => 'auth']); break; }
+    $correct = max(0, min((int)($input['correct'] ?? 0), $QUIZ_JARDIN_MAX_BONNES));
+    $gain = $correct * $QUIZ_JARDIN_PAR_BONNE;
+    if ($gain <= 0) { echo json_encode(['ok' => false, 'reason' => 'rien']); break; }
+    $name = $auth['identifiant'];
+    $res = withLock($scoresFile, function (&$board, &$write) use ($name, $gain) {
+      foreach ($board as &$p) {
+        if (mb_strtolower($p['name'] ?? '') === mb_strtolower($name)) {
+          $p['bonus'] = intval($p['bonus'] ?? 0) + $gain;
+          $write = true;
+          return ['ok' => true, 'gain' => $gain, 'solde' => soldeDe($p),
+                  'recoltees' => round(floatval($p['score'] ?? 0), 1), 'nbCodes' => intval($p['codes'] ?? 0)];
+        }
+      }
+      return ['ok' => false, 'reason' => 'inconnu'];
     });
     echo json_encode($res, JSON_UNESCAPED_UNICODE);
     break;
