@@ -148,6 +148,7 @@ let siteAdmin = localStorage.getItem("fj_admin_site") || "mouscron";
 if (!SITES[siteAdmin]) siteAdmin = "mouscron";
 let data = { board: [], codes: [], questions: [] };
 let brouillon = [];      // les questions en cours d'édition
+let filtreTheme = "tous"; // filtre d'affichage de la liste (n'affecte pas l'enregistrement)
 let message = null;
 let adminPlante = null;  // plante sélectionnée pour planter librement dans le jardin
 
@@ -259,6 +260,16 @@ function vueQuestions() {
       <p class="hint">Coche la bonne réponse de chaque question. Une question a besoin d'un
       intitulé et d'au moins deux réponses ; les cases laissées vides sont ignorées.
       <br><strong>Rien n'est enregistré tant que tu n'as pas cliqué sur « Enregistrer ».</strong></p>
+      <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:12px;">
+        <label style="font-weight:800; font-size:.85rem; color:#0E3B24;">🔎 Filtrer par thème</label>
+        <select class="field" id="q-filtre" style="margin:0; max-width:240px;">
+          <option value="tous">Tous les thèmes</option>
+          <option value="entreprise">L'entreprise / le magasin</option>
+          <option value="culture">Culture générale (jardinage)</option>
+          <option value="fun">Fun / anecdote</option>
+        </select>
+        <span class="hint" id="q-filtre-info" style="margin:0;"></span>
+      </div>
       <div id="liste"></div>
       <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:6px;">
         <button class="btn ghost" id="q-ajouter">+ Ajouter une question</button>
@@ -285,8 +296,16 @@ function vueQuestions() {
 
   dessineListe();
 
+  const selFiltre = $("#q-filtre");
+  if (selFiltre) {
+    selFiltre.value = filtreTheme;
+    selFiltre.addEventListener("change", () => { filtreTheme = selFiltre.value; dessineListe(); });
+  }
+
   $("#q-ajouter").addEventListener("click", () => {
-    brouillon.push({ q: "", options: ["", "", "", ""], correct: 0, theme: "entreprise" });
+    // Nouvelle question créée directement dans le thème filtré (pratique pour trier).
+    const t = filtreTheme === "tous" ? "entreprise" : filtreTheme;
+    brouillon.push({ q: "", options: ["", "", "", ""], correct: 0, theme: t });
     dessineListe();
   });
 
@@ -352,7 +371,12 @@ function vueQuestions() {
 function dessineListe() {
   const liste = $("#liste");
   if (!liste) return;
-  liste.innerHTML = brouillon.map((q, i) => `
+  const themeDe = (q) => (q.theme === "anecdote" ? "fun" : (q.theme || "entreprise"));
+  let affiches = 0;
+  liste.innerHTML = brouillon.map((q, i) => {
+    if (filtreTheme !== "tous" && themeDe(q) !== filtreTheme) return "";   // masqué par le filtre
+    affiches++;
+    return `
     <div class="qbloc">
       <div class="qtitre">
         <span class="qnum">Question ${i + 1}</span>
@@ -378,7 +402,17 @@ function dessineListe() {
           <button class="btn ghost small" data-optsuppr="${i}-${j}" ${q.options.length <= 2 ? "disabled" : ""}>✕</button>
         </div>`).join("")}
       <button class="btn ghost small" data-optadd="${i}">+ réponse</button>
-    </div>`).join("") || `<p class="hint">Aucune question pour l'instant. Clique sur « Ajouter une question ».</p>`;
+    </div>`;
+  }).join("");
+  if (!affiches) {
+    liste.innerHTML = brouillon.length
+      ? `<p class="hint">Aucune question dans ce thème. Change le filtre ou clique sur « Ajouter une question ».</p>`
+      : `<p class="hint">Aucune question pour l'instant. Clique sur « Ajouter une question ».</p>`;
+  }
+  const info = $("#q-filtre-info");
+  if (info) info.textContent = filtreTheme === "tous"
+    ? `${brouillon.length} question(s) au total`
+    : `${affiches} question(s) affichée(s) sur ${brouillon.length}`;
 
   const cpt = $("#q-compte");
   if (cpt) {
