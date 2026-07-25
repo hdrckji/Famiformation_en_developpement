@@ -1622,13 +1622,13 @@ function ouvrePolitique() {
   const o = document.createElement("div");
   o.className = "modal-fond";
   o.innerHTML = `<div class="modal">
-    <h3>🔒 Pourquoi on te demande ces informations</h3>
-    <p><b>Ton prénom et ton nom :</b> uniquement pour pouvoir <b>te remettre ta récompense</b> si tu fais partie des 3 meilleurs. Sans eux, on ne peut pas t'identifier le jour de la remise des prix — tu peux jouer quand même, mais tu ne seras pas éligible.</p>
-    <p><b>Ton pseudo (facultatif) :</b> c'est le nom qui s'affiche au <b>classement</b>, si tu préfères ne pas y voir ton vrai nom.</p>
-    <p><b>Ton mot de passe (4 chiffres) :</b> il sert juste à <b>te reconnecter</b> à ton compte depuis un autre appareil (avec ton pseudo ou ton nom).</p>
-    <p><b>Où c'est gardé :</b> uniquement sur le serveur du quiz, le temps de l'événement Famiflora. Rien n'est vendu ni partagé avec qui que ce soit, et il n'y a aucune publicité.</p>
-    <p><b>Tes droits :</b> tu peux demander aux organisateurs de supprimer ton compte à tout moment.</p>
-    <button class="btn" id="conf-ok">J'ai compris 👍</button>
+    <h3>${t("🔒 Pourquoi on te demande ces informations", "🔒 Waarom we deze gegevens vragen")}</h3>
+    <p>${t("<b>Ton prénom et ton nom :</b> uniquement pour pouvoir <b>te remettre ta récompense</b> si tu fais partie des 3 meilleurs. Sans eux, on ne peut pas t'identifier le jour de la remise des prix — tu peux jouer quand même, mais tu ne seras pas éligible.", "<b>Je voornaam en naam:</b> enkel om je <b>je beloning te kunnen geven</b> als je bij de 3 beste hoort. Zonder deze kunnen we je niet identificeren op de dag van de prijsuitreiking — je mag toch spelen, maar je komt niet in aanmerking.")}</p>
+    <p>${t("<b>Ton pseudo (facultatif) :</b> c'est le nom qui s'affiche au <b>classement</b>, si tu préfères ne pas y voir ton vrai nom.", "<b>Je bijnaam (optioneel):</b> dat is de naam die in de <b>ranking</b> verschijnt, als je liever niet je echte naam toont.")}</p>
+    <p>${t("<b>Ton mot de passe (4 chiffres) :</b> il sert juste à <b>te reconnecter</b> à ton compte depuis un autre appareil (avec ton pseudo ou ton nom).", "<b>Je wachtwoord (4 cijfers):</b> dient enkel om je <b>opnieuw aan te melden</b> op een ander toestel (met je bijnaam of je naam).")}</p>
+    <p>${t("<b>Où c'est gardé :</b> uniquement sur le serveur du quiz, le temps de l'événement Famiflora. Rien n'est vendu ni partagé avec qui que ce soit, et il n'y a aucune publicité.", "<b>Waar het bewaard wordt:</b> enkel op de quizserver, voor de duur van het Famiflora-evenement. Niets wordt verkocht of gedeeld, en er is geen enkele reclame.")}</p>
+    <p>${t("<b>Tes droits :</b> tu peux demander aux organisateurs de supprimer ton compte à tout moment.", "<b>Je rechten:</b> je kan de organisatoren op elk moment vragen om je account te verwijderen.")}</p>
+    <button class="btn" id="conf-ok">${t("J'ai compris 👍", "Begrepen 👍")}</button>
   </div>`;
   document.body.appendChild(o);
   const ferme = () => o.remove();
@@ -1644,25 +1644,25 @@ function ouvreExplication() {
   const o = document.createElement("div");
   o.className = "modal-fond";
   o.innerHTML = `<div class="modal explik">
-    <button class="explik-x" id="explik-x" aria-label="Fermer">✕</button>
-    <h2 class="explik-titre">🌱 Comment ça marche ?</h2>
-    <p class="explik-sous">Le grand jeu Famiflora, de la graine au ticket glace.</p>
+    <button class="explik-x" id="explik-x" aria-label="${t("Fermer", "Sluiten")}">✕</button>
+    <h2 class="explik-titre">${t("🌱 Comment ça marche ?", "🌱 Hoe werkt het?")}</h2>
+    <p class="explik-sous">${t("Le grand jeu Famiflora, de la graine au ticket glace.", "Het grote Famiflora-spel, van zaadje tot ijsjesticket.")}</p>
     <div class="explik-steps">
-      <div class="explik-step explik-star"><span class="explik-ico">🏆</span><span class="explik-txt"><b class="eh">Un seul classement ⭐</b>Ta récolte de graines (quiz + codes), c'est tout. Les <b>3 meilleures récoltes repartent avec de très belles récompenses</b> — de quoi viser le podium&nbsp;! Annonce des vainqueurs le ${esc(CONFIG.dateResultats)}.</span></div>
-      <div class="explik-step"><span class="explik-ico">🎯</span><span class="explik-txt"><b class="eh">Réponds au quiz</b><b>${QUIZ_TOTAL} questions</b> tirées au hasard dans un grand réservoir : <b>${QUIZ_THEMES.entreprise} sur l'entreprise et le magasin</b>, <b>${QUIZ_THEMES.culture} de culture générale</b> (jardinage) et <b>${QUIZ_THEMES.fun} questions fun</b>. Deux personnes n'ont donc pas le même questionnaire !</span></div>
-      <div class="explik-step"><span class="explik-ico">🌰</span><span class="explik-txt"><b class="eh">Comment on gagne des graines</b>Chaque bonne réponse rapporte <b>${BAREME.base} graines</b>, avec deux bonus.
+      <div class="explik-step explik-star"><span class="explik-ico">🏆</span><span class="explik-txt"><b class="eh">${t("Un seul classement ⭐", "Eén enkele ranking ⭐")}</b>${t("Ta récolte de graines (quiz + codes), c'est tout. Les <b>3 meilleures récoltes repartent avec de très belles récompenses</b> — de quoi viser le podium&nbsp;! Annonce des vainqueurs le " + esc(CONFIG.dateResultats) + ".", "Je oogst aan zaadjes (quiz + codes), that's it. De <b>3 beste oogsten winnen heel mooie prijzen</b> — mik dus op het podium&nbsp;! Bekendmaking van de winnaars op " + esc(CONFIG.dateResultats) + ".")}</span></div>
+      <div class="explik-step"><span class="explik-ico">🎯</span><span class="explik-txt"><b class="eh">${t("Réponds au quiz", "Beantwoord de quiz")}</b>${t("<b>" + QUIZ_TOTAL + " questions</b> tirées au hasard dans un grand réservoir : <b>" + QUIZ_THEMES.entreprise + " sur l'entreprise et le magasin</b>, <b>" + QUIZ_THEMES.culture + " de culture générale</b> (jardinage) et <b>" + QUIZ_THEMES.fun + " questions fun</b>. Deux personnes n'ont donc pas le même questionnaire !", "<b>" + QUIZ_TOTAL + " vragen</b> willekeurig getrokken uit een grote pot: <b>" + QUIZ_THEMES.entreprise + " over het bedrijf en de winkel</b>, <b>" + QUIZ_THEMES.culture + " algemene kennis</b> (tuinieren) en <b>" + QUIZ_THEMES.fun + " fun-vragen</b>. Twee mensen hebben dus niet dezelfde vragenlijst!")}</span></div>
+      <div class="explik-step"><span class="explik-ico">🌰</span><span class="explik-txt"><b class="eh">${t("Comment on gagne des graines", "Hoe je zaadjes wint")}</b>${t("Chaque bonne réponse rapporte <b>" + BAREME.base + " graines</b>, avec deux bonus.", "Elk juist antwoord levert <b>" + BAREME.base + " zaadjes</b> op, met twee bonussen.")}
         <span class="explik-liste">
-          <span>⚡ <b>Rapidité</b> — jusqu'à +${BAREME.vitesseMax}, plus tu réponds vite (un chrono tourne à l'écran)</span>
-          <span>🔥 <b>Série</b> — jusqu'à +${BAREME.serieMax} pour les bonnes réponses d'affilée, remis à zéro à la moindre erreur</span>
+          <span>${t("⚡ <b>Rapidité</b> — jusqu'à +" + BAREME.vitesseMax + ", plus tu réponds vite (un chrono tourne à l'écran)", "⚡ <b>Snelheid</b> — tot +" + BAREME.vitesseMax + ", hoe sneller je antwoordt (een chrono loopt op het scherm)")}</span>
+          <span>${t("🔥 <b>Série</b> — jusqu'à +" + BAREME.serieMax + " pour les bonnes réponses d'affilée, remis à zéro à la moindre erreur", "🔥 <b>Reeks</b> — tot +" + BAREME.serieMax + " voor juiste antwoorden op rij, terug naar nul bij de minste fout")}</span>
         </span>
-        Une mauvaise réponse ne retire rien. Les codes bonus rapportent aussi des graines.</span></div>
-      <div class="explik-step"><span class="explik-ico">🪪</span><span class="explik-txt"><b class="eh">Ton compte = ton compte Famiformation</b>Pour jouer et garder ta récolte, tu te connectes avec ton <b>compte Famiformation</b> (ton <b>identifiant</b> + ton <b>mot de passe</b>). <b>Pas encore de compte ?</b> Inscris-toi en 2 minutes (prénom, nom, e-mail) : tu reçois ton <b>lien de connexion par mail</b> et ton <b>ticket glace</b> à l'accueil 🍦. Ensuite tu te reconnectes depuis n'importe quel appareil avec les mêmes identifiants.</span></div>
-      <div class="explik-step"><span class="explik-ico">📅</span><span class="explik-txt"><b class="eh">Les dates à retenir</b>Le quiz <b>ouvre le ${CONFIG.dateLancement.toLocaleDateString("fr-BE", { day: "numeric", month: "long" })} à 12h30</b> et <b>ferme le ${CONFIG.dateCloture.toLocaleDateString("fr-BE", { day: "numeric", month: "long" })} au soir</b>. Jusque-là, tu peux <b>rejouer et chercher des codes</b> autant que tu veux. Annonce des vainqueurs le <b>${esc(CONFIG.dateResultats)}</b>.</span></div>
-      <div class="explik-step"><span class="explik-ico">🎁</span><span class="explik-txt"><b class="eh">Traque les codes bonus</b>Des codes sont cachés en magasin : chacun te rapporte <b>+${CONFIG.pointsParCodeBonus} graines</b>. Tu peux en accumuler <b>${CONFIG.maxCodes} au maximum</b> (soit +${CONFIG.pointsParCodeBonus * CONFIG.maxCodes} graines), et elles comptent au classement. <b>Même après avoir fait le quiz</b>, tu peux encore en récupérer : ça te fait remonter ! Ouvre l'œil 👀</span></div>
-      <div class="explik-step"><span class="explik-ico">🌼</span><span class="explik-txt"><b class="eh">Ton jardin — après le quiz</b>Une fois ton quiz terminé, <b>ton jardin s'ouvre</b> : chacun a le sien. Tu y dépenses tes graines pour planter des fleurs, des arbres, des variétés rares… Tu les verras diminuer, <b>c'est normal, ça ne concerne que le jardin</b> : <b>ton score au classement ne bouge pas</b>. Et surtout : <b>va au bout de ton jardin et tu deviens gagnant toi aussi</b> — une <b>vraie récompense</b> t'attend, même sans être sur le podium&nbsp;! (les conditions arrivent bientôt) 🎁</span></div>
-      <div class="explik-step"><span class="explik-ico">🌿</span><span class="explik-txt"><b class="eh">Un mini-jeu bonus</b>La chasse aux mauvaises herbes te donne des graines <b>en plus, uniquement pour planter</b> dans ton jardin. Ça ne compte pas au classement.</span></div>
+        ${t("Une mauvaise réponse ne retire rien. Les codes bonus rapportent aussi des graines.", "Een fout antwoord kost niets. Bonuscodes leveren ook zaadjes op.")}</span></div>
+      <div class="explik-step"><span class="explik-ico">🪪</span><span class="explik-txt"><b class="eh">${t("Ton compte = ton compte Famiformation", "Je account = je Famiformation-account")}</b>${t("Pour jouer et garder ta récolte, tu te connectes avec ton <b>compte Famiformation</b> (ton <b>identifiant</b> + ton <b>mot de passe</b>). <b>Pas encore de compte ?</b> Inscris-toi en 2 minutes (prénom, nom, e-mail) : tu reçois ton <b>lien de connexion par mail</b> et ton <b>ticket glace</b> à l'accueil 🍦. Ensuite tu te reconnectes depuis n'importe quel appareil avec les mêmes identifiants.", "Om te spelen en je oogst te bewaren, meld je je aan met je <b>Famiformation-account</b> (je <b>gebruikersnaam</b> + je <b>wachtwoord</b>). <b>Nog geen account?</b> Schrijf je in op 2 minuten (voornaam, naam, e-mail): je ontvangt je <b>aanmeldlink per mail</b> en je <b>ijsjesticket</b> aan het onthaal 🍦. Daarna meld je je aan op eender welk toestel met dezelfde gegevens.")}</span></div>
+      <div class="explik-step"><span class="explik-ico">📅</span><span class="explik-txt"><b class="eh">${t("Les dates à retenir", "De data om te onthouden")}</b>${t("Le quiz <b>ouvre le " + CONFIG.dateLancement.toLocaleDateString("fr-BE", { day: "numeric", month: "long" }) + " à 12h30</b> et <b>ferme le " + CONFIG.dateCloture.toLocaleDateString("fr-BE", { day: "numeric", month: "long" }) + " au soir</b>. Jusque-là, tu peux <b>rejouer et chercher des codes</b> autant que tu veux. Annonce des vainqueurs le <b>" + esc(CONFIG.dateResultats) + "</b>.", "De quiz <b>opent op " + CONFIG.dateLancement.toLocaleDateString("nl-BE", { day: "numeric", month: "long" }) + " om 12u30</b> en <b>sluit op " + CONFIG.dateCloture.toLocaleDateString("nl-BE", { day: "numeric", month: "long" }) + " 's avonds</b>. Tot dan kan je <b>opnieuw spelen en codes zoeken</b> zoveel je wil. Bekendmaking van de winnaars op <b>" + esc(CONFIG.dateResultats) + "</b>.")}</span></div>
+      <div class="explik-step"><span class="explik-ico">🎁</span><span class="explik-txt"><b class="eh">${t("Traque les codes bonus", "Jaag op de bonuscodes")}</b>${t("Des codes sont cachés en magasin : chacun te rapporte <b>+" + CONFIG.pointsParCodeBonus + " graines</b>. Tu peux en accumuler <b>" + CONFIG.maxCodes + " au maximum</b> (soit +" + (CONFIG.pointsParCodeBonus * CONFIG.maxCodes) + " graines), et elles comptent au classement. <b>Même après avoir fait le quiz</b>, tu peux encore en récupérer : ça te fait remonter ! Ouvre l'œil 👀", "Er liggen codes verstopt in de winkel: elk levert je <b>+" + CONFIG.pointsParCodeBonus + " zaadjes</b> op. Je kan er <b>maximaal " + CONFIG.maxCodes + "</b> verzamelen (dus +" + (CONFIG.pointsParCodeBonus * CONFIG.maxCodes) + " zaadjes), en ze tellen mee in de ranking. <b>Zelfs na de quiz</b> kan je er nog ophalen: zo stijg je! Hou je ogen open 👀")}</span></div>
+      <div class="explik-step"><span class="explik-ico">🌼</span><span class="explik-txt"><b class="eh">${t("Ton jardin — après le quiz", "Je tuin — na de quiz")}</b>${t("Une fois ton quiz terminé, <b>ton jardin s'ouvre</b> : chacun a le sien. Tu y dépenses tes graines pour planter des fleurs, des arbres, des variétés rares… Tu les verras diminuer, <b>c'est normal, ça ne concerne que le jardin</b> : <b>ton score au classement ne bouge pas</b>. Et surtout : <b>va au bout de ton jardin et tu deviens gagnant toi aussi</b> — une <b>vraie récompense</b> t'attend, même sans être sur le podium&nbsp;! (les conditions arrivent bientôt) 🎁", "Zodra je quiz klaar is, <b>opent je tuin</b>: iedereen heeft de zijne. Je geeft er je zaadjes uit om bloemen, bomen en zeldzame soorten te planten… Je ziet ze dalen, <b>dat is normaal, het geldt enkel voor de tuin</b>: <b>je score in de ranking verandert niet</b>. En vooral: <b>werk je tuin af en jij wordt ook een winnaar</b> — een <b>echte beloning</b> wacht op je, ook zonder podium&nbsp;! (de voorwaarden volgen binnenkort) 🎁")}</span></div>
+      <div class="explik-step"><span class="explik-ico">🌿</span><span class="explik-txt"><b class="eh">${t("Un mini-jeu bonus", "Een bonus-minispel")}</b>${t("La chasse aux mauvaises herbes te donne des graines <b>en plus, uniquement pour planter</b> dans ton jardin. Ça ne compte pas au classement.", "Het onkruid vangen geeft je <b>extra zaadjes, enkel om te planten</b> in je tuin. Dat telt niet mee in de ranking.")}</span></div>
     </div>
-    <button class="btn" id="explik-ok" style="width:100%;">J'ai tout compris, à moi de jouer ! 🌱</button>
+    <button class="btn" id="explik-ok" style="width:100%;">${t("J'ai tout compris, à moi de jouer ! 🌱", "Alles begrepen, ik ga spelen! 🌱")}</button>
   </div>`;
   document.body.appendChild(o);
   const ferme = () => o.remove();
@@ -1680,7 +1680,7 @@ async function reclamerEnAttente() {
   videCodeAttente();
   if (res.ok) {
     joueur.solde = res.solde; joueur.recoltees = res.recoltees; joueur.nbCodes = res.nbCodes;
-    return `🎁 Ton code bonus t'a été crédité : +${res.gagne} graines !`;
+    return t("🎁 Ton code bonus t'a été crédité : +" + res.gagne + " graines !", "🎁 Je bonuscode is bijgeschreven: +" + res.gagne + " zaadjes!");
   }
   return "";
 }
@@ -1730,18 +1730,18 @@ function currentView() {
 function renderCountdown() {
   const phase = phaseNow();
   const target = phase === "avant" ? CONFIG.dateLancement : CONFIG.dateCloture;
-  const phaseLabel = phase === "avant" ? "🚀 Lancement dans..."
-    : phase === "ouvert" ? "⏳ Fin du quiz dans..."
-    : `🏆 Résultats le ${CONFIG.dateResultats} !`;
+  const phaseLabel = phase === "avant" ? t("🚀 Lancement dans...", "🚀 Start over...")
+    : phase === "ouvert" ? t("⏳ Fin du quiz dans...", "⏳ Einde van de quiz over...")
+    : t("🏆 Résultats le " + CONFIG.dateResultats + " !", "🏆 Resultaten op " + CONFIG.dateResultats + "!");
   const info = phase === "avant"
-    ? "Quelque chose se prépare... rendez-vous le 29 juillet à 12h30 !"
+    ? t("Quelque chose se prépare... rendez-vous le 29 juillet à 12h30 !", "Er staat iets op til... afspraak op 29 juli om 12u30!")
     : phase === "ouvert"
-      ? "Le quiz est ouvert ! Joue depuis ton téléphone et grimpe au classement."
-      : "Le quiz est terminé. Merci à tous les participants ! 🎉";
+      ? t("Le quiz est ouvert ! Joue depuis ton téléphone et grimpe au classement.", "De quiz is open! Speel via je telefoon en klim in de ranking.")
+      : t("Le quiz est terminé. Merci à tous les participants ! 🎉", "De quiz is afgelopen. Bedankt aan alle deelnemers! 🎉");
 
   const top5 = board.slice(0, 5);
   const top5Html = (phase !== "avant" && top5.length)
-    ? `<div class="cd-top5"><h3>🌟 Top 5 de la récolte</h3>${top5.map((p, i) =>
+    ? `<div class="cd-top5"><h3>${t("🌟 Top 5 de la récolte", "🌟 Top 5 van de oogst")}</h3>${top5.map((p, i) =>
         `<div class="cd-top5-row"><span>${medals[i] || (i + 1) + "."} ${esc(p.name)}</span><span>${affG(p.score)} 🌰</span></div>`
       ).join("")}</div>`
     : "";
@@ -1751,10 +1751,10 @@ function renderCountdown() {
       <div class="cd-phase">${phaseLabel}</div>
       ${phase !== "termine" ? `
       <div class="cd-digits" id="cd-digits">
-        <div class="cd-cell"><div class="cd-num" id="cd-j">--</div><div class="cd-lab">Jours</div></div>
-        <div class="cd-cell"><div class="cd-num" id="cd-h">--</div><div class="cd-lab">Heures</div></div>
-        <div class="cd-cell"><div class="cd-num" id="cd-m">--</div><div class="cd-lab">Minutes</div></div>
-        <div class="cd-cell sec"><div class="cd-num" id="cd-s">--</div><div class="cd-lab">Secondes</div></div>
+        <div class="cd-cell"><div class="cd-num" id="cd-j">--</div><div class="cd-lab">${t("Jours", "Dagen")}</div></div>
+        <div class="cd-cell"><div class="cd-num" id="cd-h">--</div><div class="cd-lab">${t("Heures", "Uren")}</div></div>
+        <div class="cd-cell"><div class="cd-num" id="cd-m">--</div><div class="cd-lab">${t("Minutes", "Minuten")}</div></div>
+        <div class="cd-cell sec"><div class="cd-num" id="cd-s">--</div><div class="cd-lab">${t("Secondes", "Seconden")}</div></div>
       </div>` : ""}
       <div class="cd-sprout" id="cd-sprout">${cdPousse(CONFIG.dateLancement.getTime() - Date.now())}</div>
       <div class="cd-info">${info}</div>
@@ -1812,8 +1812,8 @@ function teleLancement() {
   clearInterval(tickTimer); clearTimeout(tickTimer);
   app.innerHTML = `<div class="tf-wrap tl-wrap">
     <div class="tl-emoji">🎉</div>
-    <div class="tl-titre">C'est parti !</div>
-    <div class="tl-sous">Le grand quiz Famiformation est lancé 🌱</div>
+    <div class="tl-titre">C'est parti ! · We zijn vertrokken!</div>
+    <div class="tl-sous">Le grand quiz Famiformation est lancé 🌱 · De grote Famiformation-quiz is gestart</div>
   </div>`;
   lanceConfettis(9000);
   tickTimer = setTimeout(() => renderTeleBoard(), 15000);   // 15 s de fête
@@ -2125,10 +2125,10 @@ function modaleJardinGagne() {
 // (ou s'est identifié) : il peut circuler entre les deux librement.
 function pillsHtml(active) {
   return `<div class="pills">
-    ${joueur ? `<button data-p="dashboard">🏠 Mon espace</button>` : ""}
-    <button data-p="board" class="${active === "board" ? "on" : ""}">🏆 Classement</button>
-    <button data-p="jardin" class="${active === "jardin" ? "on" : ""}">🌼 Mon jardin</button>
-    <button data-p="reclamer" class="${active === "reclamer" ? "on" : ""}">🎁 Code</button>
+    ${joueur ? `<button data-p="dashboard">${t("🏠 Mon espace", "🏠 Mijn ruimte")}</button>` : ""}
+    <button data-p="board" class="${active === "board" ? "on" : ""}">${t("🏆 Classement", "🏆 Ranking")}</button>
+    <button data-p="jardin" class="${active === "jardin" ? "on" : ""}">${t("🌼 Mon jardin", "🌼 Mijn tuin")}</button>
+    <button data-p="reclamer" class="${active === "reclamer" ? "on" : ""}">${t("🎁 Code", "🎁 Code")}</button>
   </div>`;
 }
 function bindPills() {
@@ -3419,8 +3419,8 @@ function renderSimCode() {
 // Badge « il reste N codes à trouver » (affiché au-dessus du QR sur la télé).
 function tvCodesBadge(cr) {
   if (!cr || cr.restants == null) return "";
-  if (cr.restants <= 0) return `<div class="tv-codes tv-codes-done">✅ Tous les codes ont été trouvés&nbsp;!</div>`;
-  return `<div class="tv-codes">🔎 Il reste <b>${cr.restants}</b> code${cr.restants > 1 ? "s" : ""} à trouver en magasin&nbsp;!</div>`;
+  if (cr.restants <= 0) return `<div class="tv-codes tv-codes-done">✅ Tous les codes ont été trouvés ! · Alle codes gevonden!</div>`;
+  return `<div class="tv-codes">🔎 Il reste <b>${cr.restants}</b> code${cr.restants > 1 ? "s" : ""} à trouver&nbsp;! · Nog <b>${cr.restants}</b> code${cr.restants > 1 ? "s" : ""} te vinden!</div>`;
 }
 
 async function renderTeleBoard() {
@@ -3432,16 +3432,16 @@ async function renderTeleBoard() {
   const top = board.filter((p) => p.quiz_fait !== false && !COMPTES_TEST.includes((p.name || "").toLowerCase())).slice(0, 8);
   const termine = phaseNow() === "termine";
   app.innerHTML = `<div class="tv">
-    <div class="tv-phase">${termine ? "🏆 Classement final" : "🏆 Le classement en direct"}</div>
+    <div class="tv-phase">${termine ? "🏆 Classement final · Eindklassement" : "🏆 Classement en direct · Live ranking"}</div>
     <div class="tv-cols">
       <div class="tv-board">
         ${top.length ? top.map((p, i) => `<div class="tv-row"><span>${medals[i] || (i + 1) + "."} ${esc(p.name)}</span><span>${affG(p.score)} 🌰</span></div>`).join("")
-          : `<div class="tv-row" style="justify-content:center;">Sois le premier à jouer ! 🌱</div>`}
+          : `<div class="tv-row" style="justify-content:center;">Sois le premier à jouer ! 🌱 · Wees de eerste!</div>`}
       </div>
       <div class="tv-qr">
         ${tvCodesBadge(cr)}
         <div class="tv-qr-box">${q ? q.svg : ""}</div>
-        <div class="tv-scan">📱 Scanne pour jouer !</div>
+        <div class="tv-scan">📱 Scanne pour jouer ! · Scan om te spelen!</div>
         <div class="tv-url">${esc(q ? q.url : "")}</div>
       </div>
     </div>
@@ -3466,7 +3466,7 @@ async function renderTeleWinners() {
   if (!top.length) { renderTeleBoard(); return; }
   const ordre = [1, 0, 2];   // 2e à gauche, 1er au centre, 3e à droite
   app.innerHTML = `<div class="tw">
-    <div class="tw-titre">🏆 Le podium des gagnants !</div>
+    <div class="tw-titre">🏆 Le podium des gagnants ! · Het winnaarspodium!</div>
     <div class="tw-podium">
       ${ordre.map((pos) => top[pos] ? `
         <div class="tw-place tw-p${pos + 1}">
@@ -3476,7 +3476,7 @@ async function renderTeleWinners() {
           <div class="tw-bar">${pos + 1}</div>
         </div>` : "").join("")}
     </div>
-    <div class="tw-merci">Bravo et merci à toutes et tous d'avoir joué 🌱</div>
+    <div class="tw-merci">Bravo et merci à toutes et tous d'avoir joué 🌱 · Proficiat en bedankt aan iedereen!</div>
   </div>`;
   lanceConfettis(7000);
   tickTimer = setTimeout(() => renderTeleBoard(), 13000);
@@ -3509,21 +3509,21 @@ function renderChoixSite() {
   clearInterval(tickTimer);
   document.body.classList.remove("mode-borne");
   app.innerHTML = `<div class="home">
-    <h2 class="borne-titre">Tu es dans quel magasin ? 🏬</h2>
-    <p class="borne-sous">Choisis ton magasin pour rejoindre le bon quiz.</p>
+    <h2 class="borne-titre">${t("Tu es dans quel magasin ? 🏬", "In welke winkel ben je? 🏬")}</h2>
+    <p class="borne-sous">${t("Choisis ton magasin pour rejoindre le bon quiz.", "Kies je winkel om bij de juiste quiz te komen.")}</p>
     <div class="borne-modules">
       <a class="borne-mod bm-primaire" href="${urlSite("mouscron")}">
         <span class="bm-emo">🌸</span>
-        <span class="bm-titre">Famiflora Mouscron</span>
-        <span class="bm-desc">Le quiz du magasin de Mouscron</span>
+        <span class="bm-titre">Famiflora ${t("Mouscron", "Moeskroen")}</span>
+        <span class="bm-desc">${t("Le quiz du magasin de Mouscron", "De quiz van de winkel in Moeskroen")}</span>
       </a>
       <a class="borne-mod bm-primaire" href="${urlSite("lapanne")}">
         <span class="bm-emo">🌊</span>
-        <span class="bm-titre">Famiflora La Panne</span>
-        <span class="bm-desc">Le quiz du magasin de La Panne</span>
+        <span class="bm-titre">Famiflora ${t("La Panne", "De Panne")}</span>
+        <span class="bm-desc">${t("Le quiz du magasin de La Panne", "De quiz van de winkel in De Panne")}</span>
       </a>
     </div>
-    <div class="home-tease">Chaque magasin a son propre quiz et son propre classement 🎯</div>
+    <div class="home-tease">${t("Chaque magasin a son propre quiz et son propre classement 🎯", "Elke winkel heeft zijn eigen quiz en eigen ranking 🎯")}</div>
   </div>`;
 }
 
@@ -3626,9 +3626,9 @@ function modaleQuizVerrouille() {
   o.className = "modal-fond";
   o.innerHTML = `<div class="modal code-modal">
     <div class="cm-emoji">🔒</div>
-    <h2 class="cm-titre">Le quiz n'est pas encore ouvert</h2>
-    <p class="cm-sous">Rendez-vous le <b>${labelLancement()}</b> pour jouer et récolter tes graines 🌱</p>
-    <button class="btn" id="cm-ok" style="min-width:180px;">J'ai hâte ! 🌱</button>
+    <h2 class="cm-titre">${t("Le quiz n'est pas encore ouvert", "De quiz is nog niet open")}</h2>
+    <p class="cm-sous">${t("Rendez-vous le <b>" + labelLancement() + "</b> pour jouer et récolter tes graines 🌱", "Afspraak op <b>" + labelLancement() + "</b> om te spelen en zaadjes te oogsten 🌱")}</p>
+    <button class="btn" id="cm-ok" style="min-width:180px;">${t("J'ai hâte ! 🌱", "Ik kijk ernaar uit! 🌱")}</button>
   </div>`;
   document.body.appendChild(o);
   const ferme = () => o.remove();
@@ -3639,8 +3639,8 @@ function modaleQuizVerrouille() {
 // Date de lancement lisible, ex. « 29/07 à 12h » (réglée dans /quiz/admin).
 function labelLancement() {
   const d = CONFIG.dateLancement;
-  const heure = d.getMinutes() ? `${d.getHours()}h${pad(d.getMinutes())}` : `${d.getHours()}h`;
-  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)} à ${heure}`;
+  const heure = d.getMinutes() ? `${d.getHours()}${t("h", "u")}${pad(d.getMinutes())}` : `${d.getHours()}${t("h", "u")}`;
+  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)} ${t("à", "om")} ${heure}`;
 }
 
 // 📧 Le module e-mail DANS la borne : la page emails ET le formulaire s'affichent
@@ -3657,11 +3657,11 @@ function ouvreMailBorne() {
   const o = document.createElement("div");
   o.className = "ext-overlay";
   o.innerHTML = `<div class="ext-bar">
-      <button class="ext-btn ext-home" id="ext-retour"><span>🏠</span> Accueil</button>
+      <button class="ext-btn ext-home" id="ext-retour"><span>🏠</span> ${t("Accueil", "Beginscherm")}</button>
       <div class="ext-brand">🌱 Famiflora</div>
       <div class="ext-nav">
-        <button class="ext-btn" id="ext-emails"><span>📧</span> Page e-mail</button>
-        <button class="ext-btn ext-cta" id="ext-form"><span>📝</span> Le formulaire</button>
+        <button class="ext-btn" id="ext-emails"><span>📧</span> ${t("Page e-mail", "E-mailpagina")}</button>
+        <button class="ext-btn ext-cta" id="ext-form"><span>📝</span> ${t("Le formulaire", "Het formulier")}</button>
       </div>
     </div>
     <iframe class="ext-frame" id="ext-if" title="Famiflora"></iframe>`;
