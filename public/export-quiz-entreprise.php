@@ -12,6 +12,54 @@ require_once 'config.php';
 if (function_exists('verifierConnexion')) { verifierConnexion($db); }
 if (($_SESSION['role'] ?? '') !== 'admin') { header('Location: login.php'); exit(); }
 
+// ============================================================
+// 📥 EXTRACTION BRUTE DE LA TABLE quiz_questions (avant tout le reste) :
+//   ?format=csv → fichier Excel (toutes les colonnes)
+//   ?format=sql → sauvegarde SQL (structure + INSERT, réimportable)
+// Rien à installer : le serveur lit la base et te renvoie un fichier à télécharger.
+// ============================================================
+$format = $_GET['format'] ?? '';
+if ($format === 'csv' || $format === 'sql') {
+    try {
+        $lignes = $db->query("SELECT * FROM quiz_questions ORDER BY id ASC")->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Exception $e) { $lignes = []; }
+    $stamp = date('Ymd_His');
+
+    if ($format === 'csv') {
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="quiz_questions_' . $stamp . '.csv"');
+        $out = fopen('php://output', 'w');
+        fprintf($out, "\xEF\xBB\xBF");   // BOM UTF-8 pour qu'Excel affiche bien les accents
+        if ($lignes) {
+            fputcsv($out, array_keys($lignes[0]), ';');            // en-têtes (Excel FR = point-virgule)
+            foreach ($lignes as $l) { fputcsv($out, $l, ';'); }
+        }
+        fclose($out);
+        exit;
+    }
+
+    // format === 'sql'
+    header('Content-Type: application/sql; charset=utf-8');
+    header('Content-Disposition: attachment; filename="quiz_questions_' . $stamp . '.sql"');
+    echo "-- Sauvegarde de la table quiz_questions — " . date('c') . "\n";
+    echo "-- " . count($lignes) . " ligne(s)\n\n";
+    try {
+        $create = $db->query("SHOW CREATE TABLE quiz_questions")->fetch(PDO::FETCH_ASSOC);
+        if ($create) {
+            $col = isset($create['Create Table']) ? 'Create Table' : (isset($create['create table']) ? 'create table' : null);
+            if ($col) { echo "DROP TABLE IF EXISTS `quiz_questions`;\n" . $create[$col] . ";\n\n"; }
+        }
+    } catch (Exception $e) { /* pas de structure : on garde au moins les données */ }
+    foreach ($lignes as $l) {
+        $cols = '`' . implode('`, `', array_keys($l)) . '`';
+        $vals = implode(', ', array_map(function ($v) use ($db) {
+            return $v === null ? 'NULL' : $db->quote((string) $v);
+        }, array_values($l)));
+        echo "INSERT INTO `quiz_questions` ($cols) VALUES ($vals);\n";
+    }
+    exit;
+}
+
 // 😄 Réponses fausses rigolotes : une piochée par question (jamais la bonne).
 $RIGOLOTES = [
     "Rien du tout, on improvise 😅", "Demander à un collègue 🤷", "Appeler Jimmy 📞",
@@ -64,11 +112,25 @@ header('Content-Type: text/html; charset=utf-8');
   textarea { width: 100%; height: 55vh; font-family: monospace; font-size: 12px; border: 2px solid #cfe3d3; border-radius: 10px; padding: 10px; }
   button { background: #1E7A46; color: #fff; border: 0; border-radius: 999px; padding: 10px 20px; font-weight: 700; cursor: pointer; margin: 10px 0; }
   a { color: #1E7A46; }
+  .dl { display: inline-block; background: #1E7A46; color: #fff; text-decoration: none; border-radius: 999px; padding: 10px 20px; font-weight: 700; margin: 4px 8px 4px 0; }
+  .dl.sec { background: #eef6ef; color: #14532d; border: 2px solid #1E7A46; }
+  .bloc { background: #fff; border: 1px solid #d7e7db; border-radius: 12px; padding: 14px 18px; margin: 16px 0; }
 </style></head><body>
 <h1>📤 Export des questions « entreprise »</h1>
+
+<div class="bloc">
+  <h2 style="margin:0 0 6px; font-size:1.1rem;">📥 Extraire toute la table <code>quiz_questions</code></h2>
+  <p style="margin:0 0 10px;">Télécharge ta table telle quelle, sans passer par la base de données :</p>
+  <a class="dl" href="?format=csv">⬇️ Télécharger en CSV (Excel)</a>
+  <a class="dl sec" href="?format=sql">⬇️ Télécharger en SQL (sauvegarde)</a>
+  <p style="margin:8px 0 0; font-size:.9rem; color:#5a6b60;">Le CSV s'ouvre dans Excel/LibreOffice. Le SQL est une sauvegarde complète (structure + données), réimportable dans n'importe quelle base MySQL.</p>
+</div>
+
+<h2 style="font-size:1.1rem;">🎯 …ou charger directement dans le quiz</h2>
 <div class="stat">
   <b><?= (int) $stats['gardees'] ?></b> question(s) prêtes à importer (thème <b>entreprise</b>, chacune avec une réponse fausse rigolote en plus).<br>
-  Lues dans la base <code>quiz_questions</code> : <?= (int) $stats['lues'] ?> question(s).
+  Lues dans la base <code>quiz_questions</code> : <?= (int) $stats['lues'] ?> question(s).<br>
+  <b>💡 Le plus simple :</b> dans <b>/quiz/admin → Questions</b>, clique sur <b>« 🌱 Charger toutes les questions »</b> — pas besoin de copier-coller.
 </div>
 <p>Copie tout le contenu ci-dessous, va dans <b>/quiz/admin → onglet Questions → « Importer (JSON) »</b>,
    colle-le et clique sur « Ajouter à la liste », puis « Enregistrer ». (À faire pour chaque magasin.)</p>
