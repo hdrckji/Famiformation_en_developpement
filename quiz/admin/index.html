@@ -260,7 +260,22 @@ function vueQuestions() {
       intitulé et d'au moins deux réponses ; les cases laissées vides sont ignorées.
       <br><strong>Rien n'est enregistré tant que tu n'as pas cliqué sur « Enregistrer ».</strong></p>
       <div id="liste"></div>
-      <button class="btn ghost" id="q-ajouter">+ Ajouter une question</button>
+      <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:6px;">
+        <button class="btn ghost" id="q-ajouter">+ Ajouter une question</button>
+        <button class="btn ghost" id="q-importer">📥 Importer (JSON)</button>
+      </div>
+      <div id="q-import-zone" style="display:none; margin-top:12px;">
+        <p class="hint">Colle un tableau JSON de questions, puis « Ajouter à la liste ». Format de chaque
+        question : <code>{"q":"…","options":["…","…"],"correct":0,"theme":"culture"}</code>
+        (thème : <b>entreprise</b>, <b>culture</b> ou <b>anecdote</b> ; <code>correct</code> = index de la bonne réponse, à partir de 0).</p>
+        <textarea class="field" id="q-import-txt" rows="7" placeholder='[ {"q":"…","options":["A","B","C","D"],"correct":2,"theme":"culture"} ]' style="font-family:monospace; font-size:.85rem;"></textarea>
+        <div id="q-import-msg"></div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <button class="btn" id="q-import-ok">Ajouter à la liste</button>
+          <button class="btn ghost" id="q-import-remplacer">Remplacer toute la liste</button>
+          <button class="btn ghost" id="q-import-annuler">Fermer</button>
+        </div>
+      </div>
     </div>
     <div class="barre-bas">
       <button class="btn" id="q-save">💾 Enregistrer les questions</button>
@@ -273,6 +288,46 @@ function vueQuestions() {
   $("#q-ajouter").addEventListener("click", () => {
     brouillon.push({ q: "", options: ["", "", "", ""], correct: 0, theme: "entreprise" });
     dessineListe();
+  });
+
+  // 📥 Import JSON en masse (pour charger d'un coup une banque de questions).
+  $("#q-importer").addEventListener("click", () => {
+    const z = $("#q-import-zone"); z.style.display = z.style.display === "none" ? "block" : "none";
+  });
+  $("#q-import-annuler").addEventListener("click", () => { $("#q-import-zone").style.display = "none"; });
+  const lireImport = () => {
+    const msg = $("#q-import-msg");
+    let arr;
+    try { arr = JSON.parse($("#q-import-txt").value); } catch (e) { msg.innerHTML = `<div class="alert">JSON invalide : ${esc(e.message)}</div>`; return null; }
+    if (!Array.isArray(arr)) { msg.innerHTML = `<div class="alert">Le JSON doit être un tableau [ … ].</div>`; return null; }
+    const propres = [];
+    for (const it of arr) {
+      const q = String(it && it.q || "").trim();
+      const options = Array.isArray(it && it.options) ? it.options.map((o) => String(o).trim()).filter(Boolean) : [];
+      if (!q || options.length < 2) continue;
+      let correct = parseInt(it.correct, 10); if (isNaN(correct) || correct < 0 || correct >= options.length) correct = 0;
+      let theme = String(it && it.theme || "").toLowerCase();
+      if (!["entreprise", "culture", "anecdote"].includes(theme)) theme = "entreprise";
+      propres.push({ q, options, correct, theme });
+    }
+    if (!propres.length) { msg.innerHTML = `<div class="alert">Aucune question valide trouvée (il faut un intitulé et au moins 2 réponses).</div>`; return null; }
+    return propres;
+  };
+  $("#q-import-ok").addEventListener("click", () => {
+    const p = lireImport(); if (!p) return;
+    brouillon = brouillon.concat(p);
+    $("#q-import-zone").style.display = "none"; $("#q-import-txt").value = "";
+    message = { ok: true, texte: `${p.length} question(s) ajoutée(s) à la liste — pense à « Enregistrer ».` };
+    rendre();
+  });
+  $("#q-import-remplacer").addEventListener("click", () => {
+    const p = lireImport(); if (!p) return;
+    modaleConfirm({ titre: "Remplacer toutes les questions ?", texte: `Ça remplace la liste actuelle par les ${p.length} question(s) importées (le magasin ${SITES[siteAdmin]}). Rien n'est enregistré tant que tu ne cliques pas sur « Enregistrer ».`, ok: "Remplacer" }, () => {
+      brouillon = p;
+      $("#q-import-zone").style.display = "none"; $("#q-import-txt").value = "";
+      message = { ok: true, texte: `Liste remplacée par ${p.length} question(s) — pense à « Enregistrer ».` };
+      rendre();
+    });
   });
   $("#q-annuler").addEventListener("click", () => {
     brouillon = JSON.parse(JSON.stringify(data.questions));
