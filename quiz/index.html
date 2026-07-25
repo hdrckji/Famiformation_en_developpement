@@ -646,6 +646,24 @@ body.mode-tele .fami-bulle { display: none; }   /* pas sur la télé */
   font-size: clamp(1.05rem, 2.6vw, 1.3rem); padding: 15px 34px; border-radius: 999px;
   box-shadow: 0 8px 24px rgba(30,122,70,.32); transition: transform .12s, filter .15s; }
 .info-cta:hover, .info-cta:active { transform: translateY(-2px); filter: brightness(1.05); }
+.info-sous { color: var(--pousse); font-family: 'Fredoka', sans-serif; font-weight: 600;
+  font-size: clamp(1rem, 2.6vw, 1.25rem); margin: -2px auto 20px; }
+.info-h2 { font-family: 'Fredoka', sans-serif; font-weight: 700; color: var(--foret); text-align: left;
+  font-size: clamp(1.25rem, 3.4vw, 1.7rem); margin: 30px 0 14px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.info-tag { font-size: .58em; background: var(--pousse); color: #fff; padding: 4px 12px; border-radius: 999px; font-weight: 600; }
+.info-liste { margin: 12px 0 0; padding-left: 20px; text-align: left; color: var(--foret); line-height: 1.6; }
+.info-liste li { margin-bottom: 5px; }
+.info-card .ic-badge { font-size: .6em; padding: 3px 10px; border-radius: 999px; font-weight: 700; margin-left: 4px; vertical-align: middle; }
+.ic-badge.ok { background: #d9f0dd; color: #1c6b34; }
+.ic-badge.warn { background: #fde8cf; color: #9a5a12; }
+.info-details { text-align: left; background: rgba(255,255,255,.72); border: 1px solid #dfeae1;
+  border-radius: 14px; padding: 2px 18px; margin: 0 auto 12px; max-width: 720px; }
+.info-details > summary { list-style: none; cursor: pointer; padding: 14px 0; font-family: 'Fredoka', sans-serif;
+  font-weight: 600; color: var(--foret); display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.info-details > summary::-webkit-details-marker { display: none; }
+.info-details > summary::after { content: "▾"; color: var(--pousse); transition: transform .2s; }
+.info-details[open] > summary::after { transform: rotate(180deg); }
+.info-details p { margin: 0 0 14px; line-height: 1.55; color: #506; }
 .borne-mod { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; cursor: pointer;
   background: var(--craie); border: 3px solid transparent; border-radius: 24px; padding: clamp(30px, 6vh, 60px) 24px;
   min-height: clamp(200px, 34vh, 340px); box-shadow: 0 6px 24px rgba(14,59,36,.1);
@@ -2505,25 +2523,65 @@ const INFOS = {
   },
   email: {
     fr: {
-      titre: "Je n'ai pas d'adresse e-mail", emo: "📭",
-      intro: "Pas de souci ! Tu peux utiliser ton adresse <b>personnelle</b> ou <b>professionnelle</b> — les deux sont acceptées. Et si tu n'en as vraiment aucune, en voici une en 3 étapes.",
-      steps: [
-        "Va sur <b>gmail.com</b> (ou l'appli Gmail) et clique sur « Créer un compte ».",
-        "Choisis un identifiant et un mot de passe, et suis les étapes.",
-        "C'est prêt ! Reviens ici t'inscrire avec cette nouvelle adresse.",
-      ],
-      note: "🙋 Besoin d'aide ? Passe à l'<b>accueil</b> du magasin : on le fait avec toi avec plaisir.",
+      titre: "Créer une adresse e-mail gratuite", emo: "📭",
+      sous: "Pas de panique — on le fait ensemble, étape par étape 🌱",
+      corps: `<div class="info-intro">Pas encore d'adresse e-mail&nbsp;? Aucun souci : en quelques minutes, c'est réglé — et c'est gratuit 👌 <b>Cette adresse vous servira d'adresse de travail (pro) pour Famiflora</b>, pour accéder à Famiformation. Choisissez un format clair, ex. <b>prenom.nom</b>.</div>
+        <h3 class="info-h2">La mission, étape par étape <span class="info-tag">Tous les appareils</span></h3>
+        <div class="info-steps">
+          <div class="info-step"><div class="is-num">1</div><div class="is-txt"><b>Ouvrez Gmail / la page de création.</b> Téléphone : ouvrez l'app <b>Gmail</b>. Ordinateur : allez sur <b>gmail.com</b>.</div></div>
+          <div class="info-step"><div class="is-num">2</div><div class="is-txt"><b>« Ajouter un compte » → « Créer un compte ».</b> Choisissez <b>Google</b>, puis <b>« Pour mon usage personnel »</b>.</div></div>
+          <div class="info-step"><div class="is-num">3</div><div class="is-txt"><b>Prénom et nom.</b> Puis <b>Suivant</b>.</div></div>
+          <div class="info-step"><div class="is-num">4</div><div class="is-txt"><b>Date de naissance et genre.</b> Puis <b>Suivant</b>.</div></div>
+          <div class="info-step"><div class="is-num">5</div><div class="is-txt"><b>Choisissez votre adresse.</b> Une proposition, ou <b>« Créer votre propre adresse Gmail »</b>.</div></div>
+          <div class="info-step"><div class="is-num">6</div><div class="is-txt"><b>Créez un mot de passe.</b> <b>Notez-le bien.</b> Confirmez, puis <b>Suivant</b>.</div></div>
+          <div class="info-step"><div class="is-num">7</div><div class="is-txt"><b>Validez et acceptez.</b> Récapitulatif, paramètres, conditions.</div></div>
+          <div class="info-step"><div class="is-num">🎉</div><div class="is-txt"><b>C'est prêt&nbsp;!</b> Et voilà, votre adresse est née&nbsp;! Utilisez-la pour le formulaire Famiformation.</div></div>
+        </div>
+        <div class="info-note">💡 <b>Si l'adresse est déjà prise</b> — Google le signale et propose des variantes. Personnalisez : <b>prenom.nom.ff</b>, <b>prenom.nom2026</b>, <b>prenom.nom.famiflora</b>… Choisissez-en une facile à retenir.</div>
+        <h3 class="info-h2">Cas par cas <span class="info-tag">Selon l'appareil</span></h3>
+        <div class="info-cards">
+          <div class="info-card"><div class="ic-titre">📱 Cas 1 — Sur téléphone <span class="ic-badge ok">Le plus simple</span></div>
+            <div class="ic-txt">Via l'application <b>Gmail</b>, la création passe le plus souvent <b>sans vérification par SMS</b>. À privilégier.</div>
+            <ol class="info-liste"><li>Écran d'accueil : ouvrez Gmail</li><li>Votre photo → « Ajouter un autre compte »</li><li>Choisir « Google »</li><li>« Créer un compte » → usage personnel</li><li>Prénom / Nom</li><li>Date de naissance &amp; genre</li><li>Choisir / créer l'adresse</li><li>Mot de passe</li><li>Vérifier les informations</li><li>Conditions d'utilisation</li><li>Confirmer → compte créé</li></ol></div>
+          <div class="info-card"><div class="ic-titre">💻 Cas 2 — Sur ordinateur <span class="ic-badge warn">Souvent un SMS</span></div>
+            <div class="ic-txt">Mêmes étapes, mais Google demande souvent, avant la fin, de <b>confirmer que vous n'êtes pas un robot</b> puis de <b>vérifier un numéro par SMS</b>.</div>
+            <ol class="info-liste"><li>Rechercher gmail.com</li><li>Comptes → en ajouter un</li><li>Connexion → « Créer un compte »</li><li>Prénom / Nom</li><li>Date &amp; genre</li><li>Choisir l'adresse</li><li>Mot de passe</li><li>« Confirmez que vous n'êtes pas un robot »</li><li>Fenêtre de navigation privée (InPrivate)</li><li>Créer l'adresse (en privé)</li><li>Mot de passe (en privé)</li><li>« Validez certaines informations »</li><li>Vérification du numéro par SMS</li></ol></div>
+        </div>
+        <details class="info-details"><summary>Pourquoi passer en navigation privée ?</summary><p>On y passe en général <b>quand la création a échoué en mode normal</b>. En mode privé / InPrivate / incognito, le navigateur repart « propre », <b>sans cookies ni historique</b> : Google ne peut plus vous relier aux comptes déjà créés depuis ce navigateur. C'est une tentative pour obtenir une session neuve — mais ce n'est pas magique.</p></details>
+        <details class="info-details"><summary>Si Google bloque : « ce numéro a déjà été utilisé trop de fois »</summary><p>Le mode privé efface les cookies, mais Google se base <b>aussi sur votre adresse IP et sur le numéro de téléphone</b>. Si un même numéro a déjà servi plusieurs fois, il refuse. Solutions : utilisez un <b>autre numéro</b> jamais utilisé, passez plutôt par un <b>téléphone en 4G/5G</b> (Cas 1), ou <b>réessayez le lendemain</b>.</p></details>
+        <details class="info-details"><summary>Pourquoi le 4G/5G aide mieux que le Wi-Fi ?</summary><p>Sur le <b>Wi-Fi du magasin</b>, tout le monde partage la <b>même adresse IP</b> vue par Google. Si beaucoup de comptes sont créés depuis ce même Wi-Fi, Google trouve ça suspect et exige une vérification, voire bloque. En <b>4G/5G</b>, le téléphone utilise <b>sa propre adresse</b> : moins de blocages.</p></details>
+        <div class="info-note">🙋 Besoin d'aide ? <b>admin@famiformation.com</b> ou le service RH.</div>`,
       cta: "Je m'inscris 🌱",
     },
     nl: {
-      titre: "Ik heb geen e-mailadres", emo: "📭",
-      intro: "Geen probleem! Je mag je <b>persoonlijke</b> of <b>professionele</b> adres gebruiken — beide zijn goed. En heb je er echt geen? Maak er eentje in 3 stappen.",
-      steps: [
-        "Ga naar <b>gmail.com</b> (of de Gmail-app) en klik op « Account aanmaken ».",
-        "Kies een gebruikersnaam en een wachtwoord, en volg de stappen.",
-        "Klaar! Kom hier terug en schrijf je in met dat nieuwe adres.",
-      ],
-      note: "🙋 Hulp nodig? Kom langs het <b>onthaal</b> van de winkel: we doen het graag samen met jou.",
+      titre: "Een gratis e-mailadres aanmaken", emo: "📭",
+      sous: "Geen paniek — we doen het samen, stap voor stap 🌱",
+      corps: `<div class="info-intro">Nog geen e-mailadres&nbsp;? Geen probleem : in enkele minuten is het geregeld — en het is gratis 👌 <b>Dit adres wordt uw werkadres (pro) voor Famiflora</b>, om toegang te krijgen tot Famiformation. Kies een duidelijk formaat, bv. <b>voornaam.naam</b>.</div>
+        <h3 class="info-h2">De missie, stap voor stap <span class="info-tag">Alle toestellen</span></h3>
+        <div class="info-steps">
+          <div class="info-step"><div class="is-num">1</div><div class="is-txt"><b>Open Gmail / de aanmaakpagina.</b> Telefoon : open de app <b>Gmail</b>. Computer : ga naar <b>gmail.com</b>.</div></div>
+          <div class="info-step"><div class="is-num">2</div><div class="is-txt"><b>« Account toevoegen » → « Account maken ».</b> Kies <b>Google</b>, dan <b>« Voor mijn persoonlijk gebruik »</b>.</div></div>
+          <div class="info-step"><div class="is-num">3</div><div class="is-txt"><b>Voornaam en naam.</b> Daarna <b>Volgende</b>.</div></div>
+          <div class="info-step"><div class="is-num">4</div><div class="is-txt"><b>Geboortedatum en geslacht.</b> Daarna <b>Volgende</b>.</div></div>
+          <div class="info-step"><div class="is-num">5</div><div class="is-txt"><b>Kies uw adres.</b> Een voorstel, of <b>« Uw eigen Gmail-adres maken »</b>.</div></div>
+          <div class="info-step"><div class="is-num">6</div><div class="is-txt"><b>Maak een wachtwoord.</b> <b>Noteer het goed.</b> Bevestig, dan <b>Volgende</b>.</div></div>
+          <div class="info-step"><div class="is-num">7</div><div class="is-txt"><b>Bevestig en aanvaard.</b> Overzicht, instellingen, voorwaarden.</div></div>
+          <div class="info-step"><div class="is-num">🎉</div><div class="is-txt"><b>Klaar&nbsp;!</b> Voilà, uw adres is geboren&nbsp;! Gebruik het voor het Famiformation-formulier.</div></div>
+        </div>
+        <div class="info-note">💡 <b>Als het adres al bezet is</b> — Google meldt het en stelt varianten voor. Personaliseer : <b>voornaam.naam.ff</b>, <b>voornaam.naam2026</b>, <b>voornaam.naam.famiflora</b>… Kies er één die u makkelijk onthoudt.</div>
+        <h3 class="info-h2">Geval per geval <span class="info-tag">Volgens het toestel</span></h3>
+        <div class="info-cards">
+          <div class="info-card"><div class="ic-titre">📱 Geval 1 — Op de telefoon <span class="ic-badge ok">Het eenvoudigst</span></div>
+            <div class="ic-txt">Via de app <b>Gmail</b> lukt het meestal <b>zonder sms-verificatie</b>. Aan te raden.</div>
+            <ol class="info-liste"><li>Startscherm : open Gmail</li><li>Uw foto → « Nog een account toevoegen »</li><li>Kies « Google »</li><li>« Account maken » → persoonlijk gebruik</li><li>Voornaam / Naam</li><li>Geboortedatum &amp; geslacht</li><li>Adres kiezen / maken</li><li>Wachtwoord</li><li>Gegevens controleren</li><li>Gebruiksvoorwaarden</li><li>Bevestigen → account aangemaakt</li></ol></div>
+          <div class="info-card"><div class="ic-titre">💻 Geval 2 — Op de computer <span class="ic-badge warn">Vaak een sms</span></div>
+            <div class="ic-txt">Dezelfde stappen, maar Google vraagt vaak, vóór het einde, om te <b>bevestigen dat u geen robot bent</b> en een <b>nummer per sms te verifiëren</b>.</div>
+            <ol class="info-liste"><li>gmail.com zoeken</li><li>Accounts → één toevoegen</li><li>Aanmelden → « Account maken »</li><li>Voornaam / Naam</li><li>Datum &amp; geslacht</li><li>Adres kiezen</li><li>Wachtwoord</li><li>« Bevestig dat u geen robot bent »</li><li>Privévenster (InPrivate)</li><li>Adres aanmaken (privé)</li><li>Wachtwoord (privé)</li><li>« Valideer bepaalde gegevens »</li><li>Sms-verificatie van het nummer</li></ol></div>
+        </div>
+        <details class="info-details"><summary>Waarom privé-navigatie ?</summary><p>Meestal <b>wanneer het aanmaken in normale modus mislukt is</b>. In privé / InPrivate / incognito start de browser « schoon », <b>zonder cookies of geschiedenis</b> : Google kan u niet meer koppelen aan eerder aangemaakte accounts. Een poging voor een nieuwe sessie — maar geen magie.</p></details>
+        <details class="info-details"><summary>Als Google blokkeert : « dit nummer is al te vaak gebruikt »</summary><p>Privémodus wist cookies, maar Google kijkt <b>ook naar uw IP-adres en telefoonnummer</b>. Als hetzelfde nummer al meermaals werd gebruikt, weigert het. Oplossingen : gebruik een <b>ander nummer</b>, probeer via een <b>telefoon op 4G/5G</b> (Geval 1), of <b>probeer morgen opnieuw</b>.</p></details>
+        <details class="info-details"><summary>Waarom helpt 4G/5G beter dan wifi ?</summary><p>Op de <b>winkelwifi</b> deelt iedereen <b>hetzelfde IP-adres</b> voor Google. Veel accounts vanaf dezelfde wifi = verdacht, dus verificatie of blokkering. Op <b>4G/5G</b> heeft uw telefoon <b>een eigen adres</b> : minder blokkades.</p></details>
+        <div class="info-note">🙋 Hulp nodig ? <b>admin@famiformation.com</b> of de HR-dienst.</div>`,
       cta: "Ik schrijf me in 🌱",
     },
   },
@@ -2540,6 +2598,10 @@ function ouvrePageInfo(cle) {
       `<div class="info-step"><div class="is-num">${i + 1}</div><div class="is-txt">${s}</div></div>`).join("")}</div>` : "";
     const note = d.note ? `<div class="info-note">${d.note}</div>` : "";
     const slogan = d.slogan ? `<div class="info-slogan">${d.slogan}</div>` : "";
+    // Contenu : soit un « corps » HTML libre (guide e-mail), soit la structure
+    // par blocs (cartes/étapes/note/slogan) de la présentation.
+    const contenu = d.corps ? d.corps : `${cards}${steps}${note}${slogan}`;
+    const sous = d.sous ? `<p class="info-sous">${d.sous}</p>` : "";
     o.innerHTML = `<div class="ext-bar">
         <button class="ext-btn ext-home" id="ge-retour"><span>◂</span> ${infoLang === "fr" ? "Retour" : "Terug"}</button>
         <div class="ext-brand">${esc(d.titre)}</div>
@@ -2551,8 +2613,9 @@ function ouvrePageInfo(cle) {
       <div class="info-body"><div class="info-wrap">
         <div class="info-emo">${d.emo}</div>
         <h1 class="info-titre">${d.titre}</h1>
-        <p class="info-intro">${d.intro}</p>
-        ${cards}${steps}${note}${slogan}
+        ${sous}
+        ${d.intro ? `<p class="info-intro">${d.intro}</p>` : ""}
+        ${contenu}
         <button class="info-cta" id="info-cta">${d.cta}</button>
       </div></div>`;
     o.querySelector("#ge-retour").addEventListener("click", () => o.remove());
