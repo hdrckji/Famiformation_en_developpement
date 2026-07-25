@@ -2706,94 +2706,27 @@ function renderEspaceAncien() {
   $("#esp-retour").addEventListener("click", () => { if (retourAccueilBorne()) return; userView = "auto"; render(); });
 }
 
-// 🔑 SE CONNECTER à sa carte de jardinier (pseudo + code) → tableau de bord.
+// 🔑 SE CONNECTER : on passe désormais par le COMPTE FAMIFORMATION. L'ancien
+// système pseudo + code à 4 chiffres est abandonné → on ouvre la modale de
+// connexion Famiformation par-dessus l'accueil. (Le code bonus mis de côté sera
+// crédité automatiquement après la connexion, via reclamerEnAttente.)
 function renderRetrouver() {
   clearInterval(tickTimer);
-  app.innerHTML = `<div class="card">
-    <div class="center"><div style="font-size:2.6rem;">🔑</div>
-      <h2 class="q-text" style="margin:8px 0 12px;">Me connecter</h2></div>
-    ${jardinMsg ? `<div class="alert">${esc(jardinMsg)}</div>` : ""}
-    <label class="lbl">Ton pseudo <b>ou</b> ton nom</label>
-    <input class="field" id="r-pseudo" placeholder="Ex : SuperMarie ou Marie Dupont" maxlength="60">
-    <label class="lbl">Ton mot de passe (4 chiffres)</label>
-    <input class="field" id="r-code" inputmode="numeric" maxlength="4" placeholder="••••">
-    <button class="btn" id="r-ok" style="width:100%;">Me connecter 🌱</button>
-    <p class="center" style="margin-top:12px;"><a href="#" id="r-retour" class="lien">◂ Retour</a></p>
-  </div>`;
-  const go = async () => {
-    const pseudo = $("#r-pseudo").value.trim();
-    const code = $("#r-code").value.replace(/\D/g, "").slice(0, 4);
-    if (pseudo.length < 2 || code.length !== 4) { jardinMsg = "Entre ton pseudo (ou ton nom) et ton mot de passe à 4 chiffres."; renderRetrouver(); return; }
-    $("#r-ok").disabled = true;
-    const res = await apiLoginJoueur(pseudo, code).catch(() => null);
-    if (!res || !res.exists) { jardinMsg = "Aucun compte trouvé… Essaie avec ton pseudo OU ton nom, ou crée ton compte."; renderRetrouver(); return; }
-    if (res.mauvais_code) { jardinMsg = "Mot de passe incorrect 🔒"; renderRetrouver(); return; }
-    joueur = { name: res.name, code, solde: res.solde, recoltees: res.recoltees, nbCodes: res.nbCodes, quizFait: res.quiz_fait !== false };
-    sauveMoi(res.name, code);
-    const msg = await reclamerEnAttente();
-    jardinMsg = msg || null;
-    userView = "dashboard"; quiz = null;
-    render();
-  };
-  $("#r-ok").addEventListener("click", go);
-  $("#r-code").addEventListener("keydown", (e) => e.key === "Enter" && go());
-  $("#r-retour").addEventListener("click", (e) => { e.preventDefault(); jardinMsg = null; if (retourAccueilBorne()) return; userView = "espace"; quiz = null; render(); });
+  if (joueur) { userView = "dashboard"; render(); return; }
+  userView = "auto";
+  renderHome();
+  ouvreConnexionFami();
 }
 
-// ✨ CRÉER SA CARTE DE JARDINIER (avant de jouer). Pseudo + code + (option) nom,
-// avec consentement RGPD. Réserve le compte côté serveur, puis → tableau de bord.
-let creationSaisie = { pseudo: "", code: "", nom: "", prenom: "" };
+// ✨ « Créer un compte » = s'INSCRIRE à Famiformation (prénom, nom, e-mail →
+// lien de connexion par mail). On redirige donc vers la page d'inscription.
 function renderCreation() {
   clearInterval(tickTimer);
-  app.innerHTML = `<div class="card">
-    <div class="center"><div style="font-size:2.6rem;">✨</div>
-      <h2 class="q-text" style="margin:8px 0 12px;">Crée ton compte</h2></div>
-    ${jardinMsg ? `<div class="alert">${esc(jardinMsg)}</div>` : ""}
-    <label class="lbl">Ton prénom</label>
-    <input class="field" id="c-prenom" placeholder="Ex : Marie" maxlength="30" value="${esc(creationSaisie.prenom)}">
-    <label class="lbl">Ton nom</label>
-    <input class="field" id="c-nom" placeholder="Ex : Dupont" maxlength="30" value="${esc(creationSaisie.nom)}">
-    <label class="lbl">Ton pseudo <span style="font-weight:600; opacity:.65;">(facultatif)</span></label>
-    <input class="field" id="c-pseudo" placeholder="Ex : SuperMarie" maxlength="24" value="${esc(creationSaisie.pseudo)}">
-    <p class="hint" style="margin:-6px 0 12px;">Si tu mets un pseudo, c'est <b>lui</b> qui s'affichera au classement. Sinon, ce sera ton nom.</p>
-    <label class="lbl">Ton mot de passe (4 chiffres)</label>
-    <input class="field" id="c-code" inputmode="numeric" maxlength="4" placeholder="Ex : ton année de naissance" value="${esc(creationSaisie.code)}">
-    <p class="mini-warn">⚠️ Retiens bien ton <b>pseudo (ou ton nom)</b> et ton <b>mot de passe</b> : c'est avec ça que tu te reconnectes.</p>
-    <p class="mini-warn" style="background:#FFF6E6; border-color:#F2C94C;">🏆 Sans ton <b>prénom et nom</b>, tu ne pourras pas recevoir de récompense.</p>
-    <p class="center" style="margin:12px 0;"><a href="#" id="c-conf" class="lien conf">🔒 Pourquoi on te demande ça ?</a></p>
-    <button class="btn" id="c-ok" style="width:100%;">Créer mon compte 🌱</button>
-    <p class="center" style="margin-top:12px;"><a href="#" id="c-retour" class="lien">◂ J'ai déjà un compte / Retour</a></p>
-  </div>`;
-  const memo = () => { creationSaisie = { pseudo: $("#c-pseudo").value, code: $("#c-code").value, nom: $("#c-nom").value, prenom: $("#c-prenom").value }; };
-  $("#c-conf").addEventListener("click", (e) => { e.preventDefault(); memo(); ouvrePolitique(); });
-  const go = async () => {
-    const prenom = $("#c-prenom").value.trim();
-    const nomFam = $("#c-nom").value.trim();
-    const pseudo = $("#c-pseudo").value.trim();
-    const code = $("#c-code").value.replace(/\D/g, "").slice(0, 4);
-    creationSaisie = { pseudo, code, nom: nomFam, prenom };
-    const nom = [prenom, nomFam].filter(Boolean).join(" ").trim();   // « Prénom Nom »
-    // Ce qui s'affiche au classement (et sert d'identifiant) : le pseudo s'il y en
-    // a un, sinon le nom. Il faut donc au moins l'un des deux.
-    const identite = pseudo || nom;
-    if (identite.length < 2) { jardinMsg = "Donne au moins ton nom (ou un pseudo) 🙂"; renderCreation(); return; }
-    if (code.length !== 4) { jardinMsg = "Ton mot de passe doit faire 4 chiffres 🔢"; renderCreation(); return; }
-    $("#c-ok").disabled = true;
-    const res = await apiRegister(identite, code, nomFam, prenom).catch(() => ({ erreur: true }));
-    if (res.pris) { jardinMsg = `« ${identite} » est déjà utilisé ! Ajoute un pseudo différent — ou connecte-toi si c'est bien toi.`; renderCreation(); return; }
-    if (!res.ok) { jardinMsg = "Petit souci, réessaie."; renderCreation(); return; }
-    joueur = { name: res.name, code, solde: res.solde || 0, recoltees: res.recoltees || 0, nbCodes: res.nbCodes || 0, quizFait: res.quiz_fait !== false };
-    sauveMoi(res.name, code);
-    creationSaisie = { pseudo: "", code: "", nom: "", prenom: "" };
-    const msg = await reclamerEnAttente();
-    jardinMsg = msg || null;
-    userView = "dashboard"; quiz = null;
-    render();
-  };
-  $("#c-ok").addEventListener("click", go);
-  $("#c-code").addEventListener("keydown", (e) => e.key === "Enter" && go());
-  $("#c-retour").addEventListener("click", (e) => { e.preventDefault(); jardinMsg = null; memo(); userView = "retrouver"; render(); });
+  if (joueur) { userView = "dashboard"; render(); return; }
+  userView = "inscription"; quiz = null;
+  render();
 }
+
 
 // 🧭 TABLEAU DE BORD (une fois connecté) : 3 gros blocs — faire le quiz (verrouillé
 // avant le lancement), mon jardin (verrouillé tant que le quiz n'est pas fait),
@@ -3014,16 +2947,18 @@ async function renderReclamer() {
     o.innerHTML = `<div class="modal code-modal">
       <div class="cm-emoji">🎉</div>
       <h2 class="cm-titre">Félicitations !</h2>
-      <p class="cm-sous">Vous avez trouvé un code bonus — <b>+${CONFIG.pointsParCodeBonus} 🌰</b> à récupérer.</p>
-      <p class="cm-consigne">Connectez-vous pour récupérer vos graines</p>
+      <p class="cm-sous">Tu as trouvé un code bonus — <b>+${CONFIG.pointsParCodeBonus} 🌰</b> à récupérer.</p>
+      <p class="cm-consigne">Connecte-toi avec ton compte Famiformation pour récupérer tes graines</p>
       <div class="cm-modules">
         <button class="cm-mod" data-cm="login"><span class="cm-mod-emo">🔑</span><span class="cm-mod-titre">Je me connecte</span></button>
-        <button class="cm-mod" data-cm="signup"><span class="cm-mod-emo">🌱</span><span class="cm-mod-titre">Je crée mon compte</span></button>
+        <button class="cm-mod" data-cm="signup"><span class="cm-mod-emo">🌱</span><span class="cm-mod-titre">Je m'inscris</span></button>
       </div>
     </div>`;
     document.body.appendChild(o);
-    o.querySelector('[data-cm="login"]').addEventListener("click", () => { o.remove(); codeAReclamer = null; userView = "retrouver"; quiz = null; render(); });
-    o.querySelector('[data-cm="signup"]').addEventListener("click", () => { o.remove(); codeAReclamer = null; userView = "auto"; quiz = null; render(); });
+    // Le code reste « en attente » (metCodeAttente plus haut) : il sera crédité
+    // automatiquement dès qu'on se connecte avec son compte Famiformation.
+    o.querySelector('[data-cm="login"]').addEventListener("click", () => { o.remove(); codeAReclamer = null; ouvreConnexionFami(); });
+    o.querySelector('[data-cm="signup"]').addEventListener("click", () => { o.remove(); codeAReclamer = null; userView = "inscription"; quiz = null; render(); });
     o.addEventListener("click", (e) => { if (e.target === o) { o.remove(); if (retourAccueilBorne()) return; codeAReclamer = null; userView = "reclamer"; render(); } });
     return;
   }
