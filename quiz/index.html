@@ -2150,13 +2150,13 @@ function bindPills() {
 function renderBoard() {
   clearInterval(tickTimer);
   const fini = phaseNow() === "termine";
-  const titre = `<div class="board-titre">${fini ? "🏆 Résultats finaux <span>— merci d'avoir joué !</span>" : "🏆 Classement en direct"}</div>`;
+  const titre = `<div class="board-titre">${fini ? t("🏆 Résultats finaux <span>— merci d'avoir joué !</span>", "🏆 Eindresultaten <span>— bedankt voor het spelen!</span>") : t("🏆 Classement en direct", "🏆 Live ranking")}</div>`;
   // On ne montre QUE ceux qui ont joué (un compte réservé mais pas encore joué
   // n'apparaît pas). Le serveur filtre déjà ; ici c'est utile en simulation.
   const lignes = board.filter((p) => p.quiz_fait !== false && !COMPTES_TEST.includes((p.name || "").toLowerCase()));
   if (!lignes.length) {
     app.innerHTML = `${pillsHtml("board")}<div class="card center">${titre}
-      <p class="hint">${fini ? "Le quiz est terminé." : "Sois le premier ou la première à jouer ! 🌱"}</p></div>`;
+      <p class="hint">${fini ? t("Le quiz est terminé.", "De quiz is afgelopen.") : t("Sois le premier ou la première à jouer ! 🌱", "Wees de eerste om te spelen! 🌱")}</p></div>`;
     bindPills();
     return;
   }
@@ -2166,10 +2166,10 @@ function renderBoard() {
   const moiHtml = (moiRang >= 0) ? `<div class="moi-score">
       <div class="moi-rang">${moiRang < 3 ? medals[moiRang] : "#" + (moiRang + 1)}</div>
       <div class="moi-info">
-        <div class="moi-nom">${esc(lignes[moiRang].name)} — c'est toi ! 🌱</div>
-        <div class="moi-pts">${affG(lignes[moiRang].score)} graines récoltées${moiRang < 3 ? " · sur le podium ! 🎉" : ""}</div>
+        <div class="moi-nom">${esc(lignes[moiRang].name)} — ${t("c'est toi ! 🌱", "dat ben jij! 🌱")}</div>
+        <div class="moi-pts">${affG(lignes[moiRang].score)} ${t("graines récoltées", "zaadjes geoogst")}${moiRang < 3 ? t(" · sur le podium ! 🎉", " · op het podium! 🎉") : ""}</div>
       </div>
-      <button class="btn" id="moi-jardin">🌼 Mon jardin</button>
+      <button class="btn" id="moi-jardin">${t("🌼 Mon jardin", "🌼 Mijn tuin")}</button>
     </div>` : "";
   const top3 = lignes.slice(0, 3);
   const rest = lignes.slice(3);
@@ -2193,9 +2193,9 @@ function renderBoard() {
         <span class="rank-pts">${affG(p.score)} 🌰</span>
       </div>`).join("")}
     <div class="center home-liens" style="margin-top:18px;">
-      <button class="btn ghost" id="b-refresh">Actualiser 🔄</button>
-      ${!joueur ? `<button class="btn ghost" id="b-compte">🌱 Retrouver mon jardin</button>` : ""}
-      <button class="lien-explik" id="b-explik">✨ Comment ça marche ?</button>
+      <button class="btn ghost" id="b-refresh">${t("Actualiser 🔄", "Vernieuwen 🔄")}</button>
+      ${!joueur ? `<button class="btn ghost" id="b-compte">${t("🌱 Retrouver mon jardin", "🌱 Mijn tuin terugvinden")}</button>` : ""}
+      <button class="lien-explik" id="b-explik">${t("✨ Comment ça marche ?", "✨ Hoe werkt het?")}</button>
     </div>
   </div></div>`;
   bindPills();
@@ -2311,11 +2311,11 @@ function renderJardin() {
   if (!joueur) {
     app.innerHTML = `${pillsHtml("jardin")}<div class="card center">
       <div style="font-size:2.6rem;">🌼</div>
-      <h2 class="q-text" style="margin:8px 0;">Ton jardin t'attend</h2>
-      <p class="hint">Crée ta carte de jardinier au quiz, ou retrouve-la avec ton pseudo + ton code.</p>
+      <h2 class="q-text" style="margin:8px 0;">${t("Ton jardin t'attend", "Je tuin wacht op je")}</h2>
+      <p class="hint">${t("Crée ta carte de jardinier au quiz, ou retrouve-la avec ton pseudo + ton code.", "Maak je tuinierskaart aan via de quiz, of vind ze terug met je gebruikersnaam + code.")}</p>
       <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:center;">
-        <button class="btn" id="j-jouer">Créer ma carte 🌱</button>
-        <button class="btn ghost" id="j-retrouver">J'ai déjà une carte</button>
+        <button class="btn" id="j-jouer">${t("Créer ma carte 🌱", "Mijn kaart aanmaken 🌱")}</button>
+        <button class="btn ghost" id="j-retrouver">${t("J'ai déjà une carte", "Ik heb al een kaart")}</button>
       </div>
     </div>`;
     bindPills();
@@ -2349,28 +2349,26 @@ function renderJardin() {
   app.innerHTML = `${DEFS_METAL}<div class="board-wrap">${pillsHtml("jardin")}<div class="card">
     <div class="jardin-solde">
       <span style="display:flex; align-items:center; gap:8px;">${avatarDe(joueur.name)} <strong>${esc(joueur.name)}</strong> <span title="${esc(stade.nom)}" style="font-size:1.3rem;">${stade.emoji}</span></span>
-      <span class="montant">${JARDIN_LIBRE ? "🎨 Aperçu — plantes offertes" : affG(joueur.solde) + " 🌰 à planter"}</span>
+      <span class="montant">${JARDIN_LIBRE ? t("🎨 Aperçu — plantes offertes", "🎨 Voorbeeld — planten gratis") : affG(joueur.solde) + t(" 🌰 à planter", " 🌰 om te planten")}</span>
     </div>
     ${JARDIN_LIBRE ? "" : `<div class="j-objectif ${eligible ? "j-objectif-ok" : ""}">
-      <div class="jo-titre">🎁 Objectif récompense</div>
+      <div class="jo-titre">${t("🎁 Objectif récompense", "🎁 Doel: beloning")}</div>
       ${eligible
-        ? `<div class="jo-ok">Bravo&nbsp;! Ton jardin est complet et tes <b>3 lotus</b> sont plantés — tu fais partie des <b>gagnants du jardin</b> 🌟</div>`
+        ? `<div class="jo-ok">${t("Bravo&nbsp;! Ton jardin est complet et tes <b>3 lotus</b> sont plantés — tu fais partie des <b>gagnants du jardin</b> 🌟", "Bravo&nbsp;! Je tuin is volledig en je <b>3 lotussen</b> zijn geplant — je hoort bij de <b>winnaars van de tuin</b> 🌟")}</div>`
         : `<div class="jo-progress"><div class="jo-barre"><div style="width:${Math.round(nbPlantees / JARDIN_CASES * 100)}%"></div></div>
-           <span class="jo-chiffres"><b>${nbPlantees}/${JARDIN_CASES}</b> cases · <b>${lotusFaits}/3</b> lotus 🪷</span></div>
-           <div class="jo-aide">Remplis <b>toutes</b> tes cases et plante les <b>3 lotus (or, argent, bronze)</b> pour gagner ta récompense.</div>`}
+           <span class="jo-chiffres"><b>${nbPlantees}/${JARDIN_CASES}</b> ${t("cases", "vakjes")} · <b>${lotusFaits}/3</b> ${t("lotus", "lotus")} 🪷</span></div>
+           <div class="jo-aide">${t("Remplis <b>toutes</b> tes cases et plante les <b>3 lotus (or, argent, bronze)</b> pour gagner ta récompense.", "Vul <b>al</b> je vakjes en plant de <b>3 lotussen (goud, zilver, brons)</b> om je beloning te winnen.")}</div>`}
     </div>`}
     <div class="jardin-explik">
-      <b>🌼 Ton jardin, comment ça marche ?</b>
-      Choisis une plante dans le catalogue, puis tape une case libre pour la planter.
-      Tape une plante déjà en terre pour la <b>revendre</b> et récupérer tes graines.
-      Tu as ${JARDIN_CASES} cases rien qu'à toi (${nbPlantees} déjà occupée${nbPlantees > 1 ? "s" : ""}).
-      <span class="je-rassure">💚 En plantant, ton nombre de graines à planter diminue : <b>c'est normal, ça ne concerne que le jardin</b>.
-      <b>Ton score au classement ne bouge pas</b> — va voir dans « Classement », il sera toujours le même.</span>
+      <b>${t("🌼 Ton jardin, comment ça marche ?", "🌼 Je tuin, hoe werkt het?")}</b>
+      ${t("Choisis une plante dans le catalogue, puis tape une case libre pour la planter. Tape une plante déjà en terre pour la <b>revendre</b> et récupérer tes graines.", "Kies een plant uit de catalogus en tik op een vrij vakje om ze te planten. Tik op een reeds geplante plant om ze <b>terug te verkopen</b> en je zaadjes te recupereren.")}
+      ${t("Tu as " + JARDIN_CASES + " cases rien qu'à toi (" + nbPlantees + " déjà occupée" + (nbPlantees > 1 ? "s" : "") + ").", "Je hebt " + JARDIN_CASES + " vakjes helemaal voor jou (" + nbPlantees + " al bezet).")}
+      <span class="je-rassure">${t("💚 En plantant, ton nombre de graines à planter diminue : <b>c'est normal, ça ne concerne que le jardin</b>. <b>Ton score au classement ne bouge pas</b> — va voir dans « Classement », il sera toujours le même.", "💚 Bij het planten daalt je aantal zaadjes om te planten: <b>dat is normaal, het geldt enkel voor de tuin</b>. <b>Je score in de ranking verandert niet</b> — kijk maar in « Ranking », die blijft dezelfde.")}</span>
     </div>
     ${JARDIN_LIBRE ? "" : `<div class="j-gagner">
-      <button class="btn" id="j-quiz">🎯 Quiz du jardin</button>
-      <button class="btn ghost" id="j-herbes">🌿 Chasse aux herbes</button>
-      <span>Deux façons de récolter des graines pour le jardin (jamais le classement). Le <b>quiz</b> en rapporte le plus, et chaque bonne réponse compte&nbsp;!</span>
+      <button class="btn" id="j-quiz">${t("🎯 Quiz du jardin", "🎯 Tuinquiz")}</button>
+      <button class="btn ghost" id="j-herbes">${t("🌿 Chasse aux herbes", "🌿 Onkruid vangen")}</button>
+      <span>${t("Deux façons de récolter des graines pour le jardin (jamais le classement). Le <b>quiz</b> en rapporte le plus, et chaque bonne réponse compte&nbsp;!", "Twee manieren om zaadjes voor de tuin te oogsten (nooit voor de ranking). De <b>quiz</b> levert het meeste op, en elk juist antwoord telt&nbsp;!")}</span>
     </div>`}
     <div class="catalogue">
       ${Object.entries(PLANTES).map(([cle, p]) => `
@@ -2386,7 +2384,7 @@ function renderJardin() {
         return `<button class="case pleine ${p?.rare ? "rare-" + p.rare : ""}" data-info="${i}" title="${esc(p?.nom || c.plante)}">${visuelPlante(c.plante)}</button>`;
       }).join("")}
     </div>
-    <div class="jardin-info" id="j-info">${jardinMsg ? esc(jardinMsg) : (planteChoisie ? `${iconePlante(planteChoisie)} ${esc(PLANTES[planteChoisie].nom)} sélectionné — tape une case libre !` : "")}</div>
+    <div class="jardin-info" id="j-info">${jardinMsg ? esc(jardinMsg) : (planteChoisie ? `${iconePlante(planteChoisie)} ${esc(PLANTES[planteChoisie].nom)} ${t("sélectionné — tape une case libre !", "geselecteerd — tik op een vrij vakje!")}` : "")}</div>
   </div></div>`;
   bindPills();
 
@@ -2419,17 +2417,17 @@ function renderJardin() {
     const info = $("#j-info");
     // C'est TON jardin : toutes les plantes sont à toi, tu peux les revendre.
     info.innerHTML = `<span class="revente">${p ? iconePlante(c.plante) : "🌿"} ${esc(p?.nom || c.plante)}`
-      + ` <button class="btn mini" id="j-revendre">Revendre +${p?.cout ?? 0} 🌰</button></span>`;
+      + ` <button class="btn mini" id="j-revendre">${t("Revendre", "Terugverkopen")} +${p?.cout ?? 0} 🌰</button></span>`;
     $("#j-revendre").addEventListener("click", async () => {
       $("#j-revendre").disabled = true;
       const res = await apiRevendre(joueur.name, +idx).catch(() => ({ ok: false }));
       if (res.ok) {
         delete jardin[idx];
         if (res.solde != null) joueur.solde = res.solde;
-        jardinMsg = `Plante revendue, +${affG(res.rendu)} 🌰 récupérées. Tu as ${affG(joueur.solde)} graines.`;
+        jardinMsg = t("Plante revendue, +" + affG(res.rendu) + " 🌰 récupérées. Tu as " + affG(joueur.solde) + " graines.", "Plant terugverkocht, +" + affG(res.rendu) + " 🌰 gerecupereerd. Je hebt " + affG(joueur.solde) + " zaadjes.");
       } else {
         jardin = await apiJardin();
-        jardinMsg = "Petit souci, réessaie.";
+        jardinMsg = t("Petit souci, réessaie.", "Er ging iets mis, probeer opnieuw.");
       }
       renderJardin();
     });
@@ -2438,7 +2436,7 @@ function renderJardin() {
   // Une case libre : planter la plante choisie
   app.querySelectorAll("[data-case]").forEach((b) => b.addEventListener("click", async () => {
     if (!planteChoisie) {
-      $("#j-info").textContent = "Choisis d'abord une plante dans le catalogue au-dessus 👆";
+      $("#j-info").textContent = t("Choisis d'abord une plante dans le catalogue au-dessus 👆", "Kies eerst een plant uit de catalogus hierboven 👆");
       return;
     }
     const idx = +b.dataset.case;
@@ -2448,16 +2446,16 @@ function renderJardin() {
       jardin[idx] = { plante: planteChoisie, par: joueur.name, date: new Date().toISOString() };
       joueur.solde = res.solde;
       const p = PLANTES[planteChoisie];
-      jardinMsg = JARDIN_LIBRE ? `${p.emoji} ${p.nom} planté !` : `${p.emoji} ${p.nom} planté ! Il te reste ${affG(joueur.solde)} graines.`;
+      jardinMsg = JARDIN_LIBRE ? t(p.emoji + " " + p.nom + " planté !", p.emoji + " " + p.nom + " geplant!") : t(p.emoji + " " + p.nom + " planté ! Il te reste " + affG(joueur.solde) + " graines.", p.emoji + " " + p.nom + " geplant! Je hebt nog " + affG(joueur.solde) + " zaadjes.");
       if (!JARDIN_LIBRE && p.cout > joueur.solde) planteChoisie = null; // plus les moyens pour la même
       renderJardin();
       const neuve = app.querySelector(`[data-info="${idx}"]`);
       if (neuve) { neuve.classList.add("neuve"); if (p.rare) etincellesSur(neuve); }
     } else {
       jardin = await apiJardin(); // on resynchronise la grille
-      if (res.reason === "case_prise") jardinMsg = "Oups, cette case vient d'être prise par quelqu'un d'autre ! Tes graines te sont rendues.";
-      else if (res.reason === "solde_insuffisant") { jardinMsg = "Il te manque des graines pour cette plante."; joueur.solde = res.solde ?? joueur.solde; }
-      else jardinMsg = "Petit souci de connexion, réessaie !";
+      if (res.reason === "case_prise") jardinMsg = t("Oups, cette case vient d'être prise par quelqu'un d'autre ! Tes graines te sont rendues.", "Oeps, dit vakje is net door iemand anders ingenomen! Je zaadjes worden teruggegeven.");
+      else if (res.reason === "solde_insuffisant") { jardinMsg = t("Il te manque des graines pour cette plante.", "Je hebt te weinig zaadjes voor deze plant."); joueur.solde = res.solde ?? joueur.solde; }
+      else jardinMsg = t("Petit souci de connexion, réessaie !", "Verbindingsprobleempje, probeer opnieuw!");
       renderJardin();
     }
   }));
@@ -2519,17 +2517,16 @@ function renderHerbes() {
 
   app.innerHTML = `<div class="board-wrap"><div class="card">
     <div class="herbe-top">
-      <button class="btn ghost mini" id="h-retour">← Jardin</button>
+      <button class="btn ghost mini" id="h-retour">${t("← Jardin", "← Tuin")}</button>
       <span class="chrono" id="h-chrono">⏱ ${HERBE_DUREE} s</span>
       <span class="butin" id="h-butin">🌰 0</span>
     </div>
     <div class="herbe-zone" id="h-zone">
       <div id="h-overlay" class="herbe-overlay">
         <div style="font-size:2.4rem;">🌿</div>
-        <h2 class="q-text" style="margin:0;">Chasse aux mauvaises herbes</h2>
-        <p class="hint" style="margin:0; max-width:340px;">Tape un maximum de mauvaises herbes en ${HERBE_DUREE} s !
-        Les <b style="color:#B87333;">bronze</b>, <b style="color:#8A9099;">argent</b> et <b style="color:#E9B21E;">or</b> sont rares mais rapportent gros.</p>
-        <button class="btn" id="h-go">Commencer 🌱</button>
+        <h2 class="q-text" style="margin:0;">${t("Chasse aux mauvaises herbes", "Onkruid vangen")}</h2>
+        <p class="hint" style="margin:0; max-width:340px;">${t("Tape un maximum de mauvaises herbes en " + HERBE_DUREE + " s ! Les <b style=\"color:#B87333;\">bronze</b>, <b style=\"color:#8A9099;\">argent</b> et <b style=\"color:#E9B21E;\">or</b> sont rares mais rapportent gros.", "Tik op zoveel mogelijk onkruid in " + HERBE_DUREE + " s! De <b style=\"color:#B87333;\">bronzen</b>, <b style=\"color:#8A9099;\">zilveren</b> en <b style=\"color:#E9B21E;\">gouden</b> zijn zeldzaam maar leveren veel op.")}</p>
+        <button class="btn" id="h-go">${t("Commencer 🌱", "Beginnen 🌱")}</button>
       </div>
     </div>
     <div class="jardin-info" id="h-info"></div>
@@ -2616,12 +2613,12 @@ async function finHerbes() {
     o.id = "h-overlay";
     o.className = "herbe-overlay";
     o.innerHTML = `<div style="font-size:2.6rem;">🌱</div>
-      <h2 class="q-text" style="margin:0;">+${gagne} graines récoltées !</h2>
-      <p class="hint" style="margin:0;">${res.ok ? `Tu as maintenant <b>${affG(joueur.solde)}</b> graines à planter.` : "La récolte n'a pas pu être enregistrée, réessaie."}
-      ${gagne >= 80 ? "<br>Plafond de la partie atteint 🌟" : ""}</p>
+      <h2 class="q-text" style="margin:0;">+${gagne} ${t("graines récoltées !", "zaadjes geoogst!")}</h2>
+      <p class="hint" style="margin:0;">${res.ok ? t("Tu as maintenant <b>" + affG(joueur.solde) + "</b> graines à planter.", "Je hebt nu <b>" + affG(joueur.solde) + "</b> zaadjes om te planten.") : t("La récolte n'a pas pu être enregistrée, réessaie.", "De oogst kon niet opgeslagen worden, probeer opnieuw.")}
+      ${gagne >= 80 ? t("<br>Plafond de la partie atteint 🌟", "<br>Maximum van het spel bereikt 🌟") : ""}</p>
       <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:center;">
-        <button class="btn" id="h-rejouer">Rejouer 🌿</button>
-        <button class="btn ghost" id="h-aujardin">Planter mes graines 🌼</button>
+        <button class="btn" id="h-rejouer">${t("Rejouer 🌿", "Opnieuw spelen 🌿")}</button>
+        <button class="btn ghost" id="h-aujardin">${t("Planter mes graines 🌼", "Mijn zaadjes planten 🌼")}</button>
       </div>`;
     zone.appendChild(o);
     $("#h-rejouer").addEventListener("click", renderHerbes);
@@ -2644,7 +2641,8 @@ function ouvreConnexionFami() {
   o.className = "modal-fond";
   o.innerHTML = `<div class="modal">
     <h2 style="font-family:'Fredoka',sans-serif; color:var(--pousse); font-size:1.5rem; margin:0 0 4px; text-align:center;">${t("Connecte-toi avec tes identifiants Famiformation", "Meld je aan met je Famiformation-gegevens")}</h2>
-    <p style="text-align:center; color:#5a6b60; margin:0 0 16px;">${t("Le même compte que sur le site Famiformation.", "Hetzelfde account als op de Famiformation-site.")}</p>
+    <p style="text-align:center; color:#5a6b60; margin:0 0 12px;">${t("Le même compte que sur le site Famiformation.", "Hetzelfde account als op de Famiformation-site.")}</p>
+    <div style="background:#eef6ec; border:1px solid #d7e8d2; border-radius:12px; padding:10px 14px; margin:0 0 16px; font-size:.92rem; color:#3f4a41; line-height:1.45;">${t("📩 <b>Tu as déjà donné ton adresse mail ?</b> Tes identifiants t'ont été envoyés par e-mail : regarde ta boîte de réception <b>et tes spams / courriers indésirables</b>.", "📩 <b>Heb je je e-mailadres al doorgegeven?</b> Je gegevens zijn je per e-mail bezorgd: kijk in je inbox <b>en je spam / ongewenste e-mail</b>.")}</div>
     <div id="cf-err"></div>
     <label class="lbl">${t("Identifiant", "Gebruikersnaam")}</label>
     <input class="field" id="cf-id" autocomplete="username" placeholder="${t("Identifiant", "Gebruikersnaam")}">
@@ -2846,57 +2844,55 @@ function ouvrePageInfo(cle) {
 function renderInscription() {
   clearInterval(tickTimer);
   app.innerHTML = `<div class="home insc-page">
-    <h2 class="borne-titre">Je m'inscris à Famiformation 🌱</h2>
-    <p class="borne-sous"><b>Famiformation</b>, c'est la plateforme de formation en ligne de Famiflora.
-      Inscris-toi pour recevoir ton accès et jouer au quiz.</p>
+    <h2 class="borne-titre">${t("Je m'inscris à Famiformation 🌱", "Ik schrijf me in op Famiformation 🌱")}</h2>
+    <p class="borne-sous">${t("<b>Famiformation</b>, c'est la plateforme de formation en ligne de Famiflora. Inscris-toi pour recevoir ton accès et jouer au quiz.", "<b>Famiformation</b> is het online opleidingsplatform van Famiflora. Schrijf je in om toegang te krijgen en de quiz te spelen.")}</p>
 
     <div class="insc-ticket">
       <div class="insc-ticket-vis">${ticketGlaceSvg()}</div>
       <div class="insc-ticket-txt">
-        <b>En t'inscrivant, tu reçois un ticket glace <span class="it-gratuit">GRATUIT</span> ! 🍦</b>
-        <span>Un cadeau de bienvenue, à retirer à l'accueil du magasin.</span>
+        <b>${t("En t'inscrivant, tu reçois un ticket glace <span class=\"it-gratuit\">GRATUIT</span> ! 🍦", "Bij inschrijving krijg je een <span class=\"it-gratuit\">GRATIS</span> ijsjesticket! 🍦")}</b>
+        <span>${t("Un cadeau de bienvenue, à retirer à l'accueil du magasin.", "Een welkomstcadeau, af te halen aan het onthaal van de winkel.")}</span>
       </div>
     </div>
 
     <div class="insc-etapes">
       <div class="insc-etape"><span class="ie-num">1</span><span class="ie-emo">📝</span>
-        <span class="ie-txt">Tu remplis ton inscription ci-dessous</span></div>
+        <span class="ie-txt">${t("Tu remplis ton inscription ci-dessous", "Je vult je inschrijving hieronder in")}</span></div>
       <div class="insc-etape"><span class="ie-num">2</span><span class="ie-emo">🍦</span>
-        <span class="ie-txt">Tu passes à l'accueil récupérer ton <b>ticket glace</b></span></div>
+        <span class="ie-txt">${t("Tu passes à l'accueil récupérer ton <b>ticket glace</b>", "Je gaat naar het onthaal voor je <b>ijsjesticket</b>")}</span></div>
       <div class="insc-etape"><span class="ie-num">3</span><span class="ie-emo">📬</span>
-        <span class="ie-txt">Tu reçois ton lien par e-mail pour <b>créer ton compte</b></span></div>
+        <span class="ie-txt">${t("Tu reçois ton lien par e-mail pour <b>créer ton compte</b>", "Je ontvangt je link per e-mail om <b>je account aan te maken</b>")}</span></div>
     </div>
 
     <div class="card insc-card" id="insc-card">
       <div id="ci-err"></div>
       <div class="insc-grid">
-        <div><label class="lbl">Prénom</label>
-          <input class="field" id="ci-prenom" autocomplete="given-name" placeholder="Ton prénom"></div>
-        <div><label class="lbl">Nom</label>
-          <input class="field" id="ci-nom" autocomplete="family-name" placeholder="Ton nom"></div>
+        <div><label class="lbl">${t("Prénom", "Voornaam")}</label>
+          <input class="field" id="ci-prenom" autocomplete="given-name" placeholder="${t("Ton prénom", "Je voornaam")}"></div>
+        <div><label class="lbl">${t("Nom", "Naam")}</label>
+          <input class="field" id="ci-nom" autocomplete="family-name" placeholder="${t("Ton nom", "Je naam")}"></div>
       </div>
-      <label class="lbl">E-mail</label>
+      <label class="lbl">${t("E-mail", "E-mail")}</label>
       <input class="field" id="ci-email" type="email" autocomplete="email" placeholder="ton.email@exemple.be">
-      <button class="btn" id="ci-ok" style="width:100%; margin-top:8px;">Recevoir mon lien de connexion 🎁</button>
-      <p class="hint" style="text-align:center; margin:10px 0 0;">On t'envoie tout de suite un e-mail avec ton lien pour choisir ton mot de passe.
-        Sans <b>prénom + nom</b>, tu ne seras pas éligible aux récompenses.<br>
-        En t'inscrivant, tu acceptes notre <a href="#" id="ci-rgpd" class="lien">politique de confidentialité</a>.</p>
+      <button class="btn" id="ci-ok" style="width:100%; margin-top:8px;">${t("Recevoir mon lien de connexion 🎁", "Mijn aanmeldlink ontvangen 🎁")}</button>
+      <p class="hint" style="text-align:center; margin:10px 0 0;">${t("On t'envoie tout de suite un e-mail avec ton lien pour choisir ton mot de passe. Sans <b>prénom + nom</b>, tu ne seras pas éligible aux récompenses.", "We sturen je meteen een e-mail met je link om een wachtwoord te kiezen. Zonder <b>voornaam + naam</b> kom je niet in aanmerking voor de prijzen.")}<br>
+        ${t("En t'inscrivant, tu acceptes notre <a href=\"#\" id=\"ci-rgpd\" class=\"lien\">politique de confidentialité</a>.", "Door je in te schrijven aanvaard je ons <a href=\"#\" id=\"ci-rgpd\" class=\"lien\">privacybeleid</a>.")}</p>
     </div>
 
     <div class="insc-modules">
       <button class="insc-mod" id="ci-presentation">
         <span class="im-emo">✨</span>
-        <span class="im-titre">C'est quoi Famiformation ?</span>
+        <span class="im-titre">${t("C'est quoi Famiformation ?", "Wat is Famiformation?")}</span>
       </button>
       <button class="insc-mod" id="ci-guide">
         <span class="im-emo">📭</span>
-        <span class="im-titre">Je n'ai pas d'adresse e-mail</span>
+        <span class="im-titre">${t("Je n'ai pas d'adresse e-mail", "Ik heb geen e-mailadres")}</span>
       </button>
     </div>
 
     <div class="home-liens">
-      <a href="#" class="lien-explik" id="ci-connexion">🔑 J'ai déjà un compte, me connecter</a>
-      <a href="#" class="lien-explik" id="ci-retour">◂ Retour à l'accueil</a>
+      <a href="#" class="lien-explik" id="ci-connexion">${t("🔑 J'ai déjà un compte, me connecter", "🔑 Ik heb al een account, aanmelden")}</a>
+      <a href="#" class="lien-explik" id="ci-retour">${t("◂ Retour à l'accueil", "◂ Terug naar het beginscherm")}</a>
     </div>
   </div>`;
 
@@ -2905,8 +2901,8 @@ function renderInscription() {
     const prenom = $("#ci-prenom").value.trim();
     const nom = $("#ci-nom").value.trim();
     const email = $("#ci-email").value.trim();
-    if (prenom.length < 2 || nom.length < 2) { err("Indique ton prénom et ton nom (pour ton ticket glace et pour être éligible aux récompenses)."); return; }
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { err("Vérifie ton adresse e-mail."); return; }
+    if (prenom.length < 2 || nom.length < 2) { err(t("Indique ton prénom et ton nom (pour ton ticket glace et pour être éligible aux récompenses).", "Vul je voornaam en naam in (voor je ijsjesticket en om in aanmerking te komen voor de prijzen).")); return; }
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { err(t("Vérifie ton adresse e-mail.", "Controleer je e-mailadres.")); return; }
     $("#ci-ok").disabled = true;
     $("#ci-err").innerHTML = "";
     const r = await apiInscriptionFami(prenom, nom, email);
@@ -2914,24 +2910,24 @@ function renderInscription() {
     if (r.reason === "deja_inscrit") {
       $("#insc-card").innerHTML = `<div style="text-align:center; padding:6px 0;">
         <div style="font-size:2.6rem;">🔑</div>
-        <p style="font-size:1.05rem; line-height:1.5; margin:8px 0 16px;">Tu as déjà un compte Famiformation avec cette adresse. Connecte-toi pour jouer !</p>
-        <button class="btn" id="ci-vers-connexion" style="min-width:200px;">Me connecter</button></div>`;
+        <p style="font-size:1.05rem; line-height:1.5; margin:8px 0 16px;">${t("Tu as déjà un compte Famiformation avec cette adresse. Connecte-toi pour jouer !", "Je hebt al een Famiformation-account met dit adres. Meld je aan om te spelen!")}</p>
+        <button class="btn" id="ci-vers-connexion" style="min-width:200px;">${t("Me connecter", "Aanmelden")}</button></div>`;
       $("#ci-vers-connexion").addEventListener("click", ouvreConnexionFami);
       return;
     }
     if (!r.ok) {
-      if (r.reason === "trop_dessais") { err("Trop d'essais avec cette adresse. Réessaie dans un moment."); return; }
-      if (r.reason === "mail_impossible") { err("L'e-mail n'a pas pu partir. Vérifie l'adresse et réessaie."); return; }
-      if (r.reason === "base_indisponible") { err("Le service est momentanément indisponible. Réessaie dans un instant."); return; }
-      err("Inscription impossible pour le moment. Réessaie."); return;
+      if (r.reason === "trop_dessais") { err(t("Trop d'essais avec cette adresse. Réessaie dans un moment.", "Te veel pogingen met dit adres. Probeer straks opnieuw.")); return; }
+      if (r.reason === "mail_impossible") { err(t("L'e-mail n'a pas pu partir. Vérifie l'adresse et réessaie.", "De e-mail kon niet verzonden worden. Controleer het adres en probeer opnieuw.")); return; }
+      if (r.reason === "base_indisponible") { err(t("Le service est momentanément indisponible. Réessaie dans un instant.", "De dienst is even niet beschikbaar. Probeer straks opnieuw.")); return; }
+      err(t("Inscription impossible pour le moment. Réessaie.", "Inschrijven lukt nu niet. Probeer opnieuw.")); return;
     }
     // Succès : le mail est parti → on remplace le bloc de saisie par la confirmation.
     $("#insc-card").innerHTML = `<div style="text-align:center; padding:6px 0;">
       <div style="font-size:3rem;">📬</div>
-      <h3 style="font-family:'Fredoka',sans-serif; color:var(--pousse); margin:8px 0;">C'est envoyé !</h3>
-      <p style="font-size:1.05rem; line-height:1.6; margin:0 0 8px;">Regarde ta boîte mail <b>${esc(email)}</b> : tu y trouveras ton lien pour choisir ton mot de passe et te connecter au quiz.</p>
-      <p style="font-size:.95rem; color:#5a6b60; margin:0 0 16px;">🍦 Pense à passer à l'accueil pour ton ticket glace ! Pas reçu le mail ? Regarde dans les spams.</p>
-      <button class="btn" id="ci-fini" style="min-width:180px;">J'ai compris 🌱</button></div>`;
+      <h3 style="font-family:'Fredoka',sans-serif; color:var(--pousse); margin:8px 0;">${t("C'est envoyé !", "Verzonden!")}</h3>
+      <p style="font-size:1.05rem; line-height:1.6; margin:0 0 8px;">${t("Regarde ta boîte mail <b>" + esc(email) + "</b> : tu y trouveras ton lien pour choisir ton mot de passe et te connecter au quiz.", "Kijk in je mailbox <b>" + esc(email) + "</b>: daar vind je je link om een wachtwoord te kiezen en aan de quiz deel te nemen.")}</p>
+      <p style="font-size:.95rem; color:#5a6b60; margin:0 0 16px;">${t("🍦 Pense à passer à l'accueil pour ton ticket glace ! Pas reçu le mail ? Regarde dans les spams.", "🍦 Vergeet niet je ijsjesticket op te halen aan het onthaal! Geen mail ontvangen? Kijk in je spam.")}</p>
+      <button class="btn" id="ci-fini" style="min-width:180px;">${t("J'ai compris 🌱", "Begrepen 🌱")}</button></div>`;
     $("#ci-fini").addEventListener("click", () => { if (retourAccueilBorne()) return; userView = "auto"; render(); });
   };
   $("#ci-ok").addEventListener("click", go);
@@ -3020,33 +3016,33 @@ function renderDashboard() {
   const quizFait = toutOuvert() ? false : !!joueur.quizFait;
   const jardinOk = toutOuvert() ? true : quizFait;
   app.innerHTML = `<div class="home">
-    <div class="dash-hello">Salut <b>${esc(joueur.name)}</b> 🌱 <span>${affG(joueur.recoltees)} graines récoltées</span></div>
+    <div class="dash-hello">${t("Salut", "Hallo")} <b>${esc(joueur.name)}</b> 🌱 <span>${affG(joueur.recoltees)} ${t("graines récoltées", "zaadjes geoogst")}</span></div>
     ${jardinMsg ? `<div class="alert" style="max-width:640px;margin:0 auto 16px;">${esc(jardinMsg)}</div>` : ""}
     <div class="borne-modules dash-modules">
       <button class="borne-mod${quizOuvert && !quizFait ? "" : " mod-inactif"}" id="dash-quiz">
         <span class="bm-emo">🎯</span>
-        <span class="bm-titre">Faire le quiz</span>
-        <span class="bm-desc">${quizFait ? "✅ Quiz déjà fait" : (quizOuvert ? "Réponds et récolte tes graines" : "🔒 Dispo le " + labelLancement())}</span>
+        <span class="bm-titre">${t("Faire le quiz", "De quiz doen")}</span>
+        <span class="bm-desc">${quizFait ? t("✅ Quiz déjà fait", "✅ Quiz al gedaan") : (quizOuvert ? t("Réponds et récolte tes graines", "Antwoord en oogst je zaadjes") : t("🔒 Dispo le ", "🔒 Beschikbaar op ") + labelLancement())}</span>
       </button>
       <button class="borne-mod${jardinOk ? "" : " mod-inactif"}" id="dash-jardin">
         <span class="bm-emo">🌼</span>
-        <span class="bm-titre">Mon espace jardin</span>
-        <span class="bm-desc">${jardinOk ? "Plante tes graines — va au bout et gagne une récompense 🌼" : "🔒 Fais le quiz d'abord"}</span>
+        <span class="bm-titre">${t("Mon espace jardin", "Mijn tuin")}</span>
+        <span class="bm-desc">${jardinOk ? t("Plante tes graines — va au bout et gagne une récompense 🌼", "Plant je zaadjes — werk je tuin af en win een beloning 🌼") : t("🔒 Fais le quiz d'abord", "🔒 Doe eerst de quiz")}</span>
       </button>
       <button class="borne-mod" id="dash-board">
         <span class="bm-emo">🏆</span>
-        <span class="bm-titre">Voir le classement</span>
-        <span class="bm-desc">Le podium repart avec de très belles récompenses !</span>
+        <span class="bm-titre">${t("Voir le classement", "Bekijk de ranking")}</span>
+        <span class="bm-desc">${t("Le podium repart avec de très belles récompenses !", "Het podium wint heel mooie prijzen!")}</span>
       </button>
     </div>
     <div class="home-liens">
-      <button class="lien-explik" id="dash-explik">✨ Comment ça marche ?</button>
-      <button class="lien-explik" id="dash-code">🎁 J'ai un code</button>
-      <button class="lien-explik" id="dash-retour">◂ Accueil</button>
+      <button class="lien-explik" id="dash-explik">${t("✨ Comment ça marche ?", "✨ Hoe werkt het?")}</button>
+      <button class="lien-explik" id="dash-code">${t("🎁 J'ai un code", "🎁 Ik heb een code")}</button>
+      <button class="lien-explik" id="dash-retour">${t("◂ Accueil", "◂ Beginscherm")}</button>
     </div>
   </div>`;
   $("#dash-quiz").addEventListener("click", () => {
-    if (quizFait) { jardinMsg = "Tu as déjà fait le quiz 🌱 Direction ton jardin !"; userView = "jardin"; ouvreJardinDepuisDash(); return; }
+    if (quizFait) { jardinMsg = t("Tu as déjà fait le quiz 🌱 Direction ton jardin !", "Je hebt de quiz al gedaan 🌱 Op naar je tuin!"); userView = "jardin"; ouvreJardinDepuisDash(); return; }
     if (!quizOuvert) { modaleQuizVerrouille(); return; }
     userView = "quiz"; quiz = null; render();
   });
@@ -3927,21 +3923,25 @@ const FEE = (() => {
   const CYCLES_PAR_ANNONCE = SIMULATION ? 1 : 2;
   let cyclesDepuisAnnonce = 0, annonceAlt = 0;
   async function grandeAnnonce() {
-    const codesDabord = (annonceAlt++ % 2 === 0);
+    const type = annonceAlt++ % 3;
     let titre = "", detail = "";
-    if (codesDabord) {
+    if (type === 0) {
       const cr = await apiCodesRestants().catch(() => null);
       if (!cr || cr.restants == null || !actif) return;
       titre  = cr.restants > 0 ? `Il reste ${cr.restants} code${cr.restants > 1 ? "s" : ""} à trouver !`
                                : "Tous les codes ont été trouvés !";
       detail = cr.restants > 0 ? "Cachés un peu partout dans le magasin 👀 — chacun rapporte des graines"
                                : "Bravo à toutes les chasseuses et tous les chasseurs !";
-    } else {
+    } else if (type === 1) {
       const lots = (CONFIG.recompenses || []).filter(Boolean);
       titre  = "De très belles récompenses à gagner !";
       detail = lots.length
         ? lots.map((l, i) => `${["🥇", "🥈", "🥉"][i] || "🎁"} ${esc(l)}`).join("<br>")
         : "Pour le podium du quiz — et pour ceux qui terminent leur jardin 🌼🏆";
+    } else {
+      // 🌟 Récompense pour les plus déterminés (hors top 3) : finir son jardin.
+      titre  = "Une récompense pour les plus déterminés 🌱";
+      detail = "Termine ton jardin et tu gagnes toi aussi — même sans être sur le podium 🌼🎁";
     }
     if (!actif) return;
     const o = document.createElement("div");
