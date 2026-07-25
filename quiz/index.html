@@ -1575,6 +1575,13 @@ function basculeEspaceAdmin() {
   toastAdmin(espaceDebloque ? "🔓 Quiz & jardin débloqué" : "🔒 Quiz & jardin verrouillé");
   render();   // rafraîchit l'écran courant (l'accueil montre alors le cadenas ou non)
 }
+// 🌱 L'espace (quiz, jardin, classement) est-il accessible ? Oui à partir du
+// lancement (29/07 12h30). Avant, il reste verrouillé pour tout le monde — sauf
+// si l'organisateur l'a débloqué à la main (mot secret « admin ») pour tester.
+function espaceAccessible() {
+  if (espaceDebloque) return true;
+  try { return phaseNow() !== "avant"; } catch (e) { return false; }
+}
 
 let board = [];
 let userView = "auto";       // auto | board | jardin (après avoir joué)
@@ -2177,6 +2184,7 @@ function bindPills() {
 
 function renderBoard() {
   clearInterval(tickTimer);
+  if (!espaceAccessible()) { retourAccueilVerrou(); return; }   // 🔒 classement fermé avant le lancement
   const fini = phaseNow() === "termine";
   const titre = `<div class="board-titre">${fini ? t("🏆 Résultats finaux <span>— merci d'avoir joué !</span>", "🏆 Eindresultaten <span>— bedankt voor het spelen!</span>") : t("🏆 Classement en direct", "🏆 Live ranking")}</div>`;
   // On ne montre QUE ceux qui ont joué (un compte réservé mais pas encore joué
@@ -2334,6 +2342,7 @@ function classementJardins() {
 
 function renderJardin() {
   clearInterval(tickTimer);
+  if (!espaceAccessible()) { retourAccueilVerrou(); return; }   // 🔒 jardin fermé avant le lancement
 
   // Pas encore identifié (nouveau téléphone) : on invite à retrouver sa carte.
   if (!joueur) {
@@ -3047,6 +3056,7 @@ function renderCreation() {
 function renderDashboard() {
   clearInterval(tickTimer);
   if (!joueur) { userView = "espace"; render(); return; }
+  if (!espaceAccessible()) { retourAccueilVerrou(); return; }   // 🔒 avant le lancement → accueil
   document.body.classList.toggle("mode-borne", ECRAN === "borne");
   const phase = phaseNow();
   const quizOuvert = (phase === "ouvert") || toutOuvert();
@@ -3225,7 +3235,7 @@ async function renderReclamer() {
 
   // Aucun code fourni : petit champ pour le saisir à la main.
   if (!code) {
-    app.innerHTML = `${joueur ? pillsHtml("reclamer") : ""}<div class="card center">
+    app.innerHTML = `${joueur && espaceAccessible() ? pillsHtml("reclamer") : ""}<div class="card center">
       <div class="code-intro">
         <b>${t("🎉 Tu as trouvé un code ? Bravo !", "🎉 Heb je een code gevonden? Bravo!")}</b>
         ${t("Pour le lancement de <b>Famiformation</b>, Famiflora organise un grand jeu : un quiz où l'on récolte des <b>graines</b>, et les <b>3 meilleures récoltes gagnent des récompenses</b>. Ce code te rapporte <b>+" + CONFIG.pointsParCodeBonus + " graines</b> et te fait prendre de l'avance.", "Voor de lancering van <b>Famiformation</b> organiseert Famiflora een groot spel: een quiz waarin je <b>zaadjes</b> oogst, en de <b>3 beste oogsten winnen prijzen</b>. Deze code levert je <b>+" + CONFIG.pointsParCodeBonus + " zaadjes</b> op en geeft je een voorsprong.")}
@@ -3241,7 +3251,7 @@ async function renderReclamer() {
       ${zonesHintHtml()}
       ${retourHtml()}
     </div>`;
-    if (joueur) bindPills();
+    if (joueur && espaceAccessible()) bindPills();
     brancheRetour();
     const bi = $("#rc-indice");
     if (bi) bi.addEventListener("click", modaleIndices);
@@ -3304,12 +3314,13 @@ async function renderReclamer() {
   }
 
   // Identifié + code disponible : bouton « Récupérer ».
-  app.innerHTML = `${pillsHtml("reclamer")}<div class="card center"><div style="font-size:2.6rem;">🎁</div>
+  app.innerHTML = `${espaceAccessible() ? pillsHtml("reclamer") : ""}<div class="card center"><div style="font-size:2.6rem;">🎁</div>
     <h2 class="q-text">${t("Code disponible !", "Code beschikbaar!")}</h2>
     <p class="hint">${t("<b>" + esc(code) + "</b> — ajoute-le à ton compte pour +" + CONFIG.pointsParCodeBonus + " 🌰. Tu peux avoir " + CONFIG.maxCodes + " codes maximum (tu en as " + (joueur.nbCodes ?? 0) + ").", "<b>" + esc(code) + "</b> — voeg hem toe aan je account voor +" + CONFIG.pointsParCodeBonus + " 🌰. Je kan maximaal " + CONFIG.maxCodes + " codes hebben (je hebt er " + (joueur.nbCodes ?? 0) + ").")}</p>
     <div id="rc-msg"></div>
     <button class="btn" id="rc-recup">${t("Récupérer ce code 🎁", "Deze code ophalen 🎁")}</button>${retourHtml()}</div>`;
-  bindPills(); brancheRetour();
+  if (espaceAccessible()) bindPills();
+  brancheRetour();
   $("#rc-recup").addEventListener("click", async () => {
     $("#rc-recup").disabled = true;
     const res = await apiCodeClaim(joueur.name, joueur.code, code).catch(() => ({ ok: false }));
@@ -3620,10 +3631,10 @@ function renderHome() {
     <h2 class="borne-titre">${t("Bienvenue chez Famiflora 🌱", "Welkom bij Famiflora 🌱")}</h2>
     <p class="borne-sous">${t("Que veux-tu faire ?", "Wat wil je doen?")}</p>
     <div class="borne-modules">
-      <button class="borne-mod bm-primaire${espaceDebloque ? "" : " mod-inactif"}" data-go="espace">
-        <span class="bm-emo">${espaceDebloque ? "🌱" : "🔒"}</span>
+      <button class="borne-mod bm-primaire${espaceAccessible() ? "" : " mod-inactif"}" data-go="espace">
+        <span class="bm-emo">${espaceAccessible() ? "🌱" : "🔒"}</span>
         <span class="bm-titre">${t("Quiz &amp; mon espace jardin", "Quiz &amp; mijn tuin")}</span>
-        <span class="bm-desc">${espaceDebloque
+        <span class="bm-desc">${espaceAccessible()
           ? t("Réponds au quiz, récolte des graines, fais pousser ton jardin", "Beantwoord de quiz, verzamel zaadjes en laat je tuin groeien")
           : t("🔒 Ouvre le " + labelLancement() + " pour le lancement", "🔒 Opent op " + labelLancement() + " voor de lancering")}</span>
       </button>
@@ -3676,8 +3687,8 @@ function renderHome() {
     // « Quiz & mon espace jardin » : déjà connecté → tableau de bord ; sinon on
     // ouvre la modale de connexion Famiformation PAR-DESSUS l'accueil courant.
     if (go === "espace") {
-      // 🔒 Verrouillé pour tout le monde tant que l'organisateur n'a pas tapé « admin ».
-      if (!espaceDebloque) { modaleEspaceBloque(); return; }
+      // 🔒 Verrouillé pour tout le monde avant le lancement (sauf déblocage « admin »).
+      if (!espaceAccessible()) { modaleEspaceBloque(); return; }
       if (joueur) { userView = "dashboard"; quiz = null; render(); }
       else ouvreConnexionFami();
       return;
@@ -3698,19 +3709,30 @@ function renderHome() {
 
 // 🔒 Message affiché quand on clique le module « Quiz & mon espace jardin »
 // pendant qu'il est verrouillé pour tout le monde.
-function modaleEspaceBloque() {
+function modaleEspaceBloque(extra) {
+  if (document.querySelector(".modal-fond")) return;
   const o = document.createElement("div");
   o.className = "modal-fond";
   o.innerHTML = `<div class="modal code-modal">
     <div class="cm-emoji">🚀</div>
+    ${extra ? `<p class="cm-sous" style="margin:0 0 10px; font-weight:800; color:var(--pousse);">${esc(extra)}</p>` : ""}
     <h2 class="cm-titre">${t("Ouverture le " + labelLancement() + " !", "Opening op " + labelLancement() + "!")}</h2>
-    <p class="cm-sous">${t("Le quiz et l'espace jardin ouvrent le <b>" + labelLancement() + "</b>, pile pour le <b>lancement</b> 🎉 Reviens à ce moment-là pour jouer et récolter tes graines 🌱", "De quiz en de tuin openen op <b>" + labelLancement() + "</b>, precies voor de <b>lancering</b> 🎉 Kom dan terug om te spelen en zaadjes te oogsten 🌱")}</p>
+    <p class="cm-sous">${t("Le quiz, ton jardin et le classement ouvrent le <b>" + labelLancement() + "</b>, pile pour le <b>lancement</b> 🎉 Reviens à ce moment-là pour jouer et récolter tes graines 🌱", "De quiz, je tuin en de ranking openen op <b>" + labelLancement() + "</b>, precies voor de <b>lancering</b> 🎉 Kom dan terug om te spelen en zaadjes te oogsten 🌱")}</p>
     <button class="btn" id="cm-ok" style="min-width:180px;">${t("J'ai hâte ! 🌱", "Ik kijk ernaar uit! 🌱")}</button>
   </div>`;
   document.body.appendChild(o);
   const ferme = () => o.remove();
   o.querySelector("#cm-ok").addEventListener("click", ferme);
   o.addEventListener("click", (e) => { if (e.target === o) ferme(); });
+}
+// 🔒 Avant le lancement : on ne laisse PAS entrer dans l'espace (quiz/jardin/
+// classement). On ramène à l'accueil et on explique quand ça ouvre — un « retour »
+// clair et identique sur téléphone, ordi et borne.
+function retourAccueilVerrou() {
+  const info = jardinMsg; jardinMsg = null;
+  userView = "auto"; quiz = null;
+  renderHome();
+  modaleEspaceBloque(info);
 }
 
 // 🔒 Message affiché quand on tente « Participer au quiz » avant l'ouverture.
