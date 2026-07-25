@@ -889,11 +889,16 @@ const SITE =
   (/\/lapanne(\/|$)/.test(_path)  || _siteParam === "lapanne")  ? "lapanne"  : "";
 const SITE_NOM = SITES[SITE] || "";
 
-// Adresse du quiz des joueurs (pour le QR / les redirections), sans /tele /borne
-// /code — mais on GARDE le segment du magasin (/quiz/mouscron/).
+// 🏬 Racine du MAGASIN courant : /quiz/<site>/ — les boutons « retour » et
+// « accueil » s'y raccrochent (ils y ajoutent "borne", "code", "?espace=1"…).
+// On la RECONSTRUIT proprement à partir de /quiz/ + le magasin, au lieu de rogner
+// l'URL : sinon, sur l'adresse canonique « /quiz/mouscron » (sans slash final),
+// on effaçait « mouscron » et un « retour » retombait sur l'écran de choix du
+// magasin. Ici, tant qu'on a un magasin, on ne peut JAMAIS le perdre.
 function quizBase() {
-  let p = location.pathname.replace(/\/(tele|borne|code)\/?$/, "/").replace(/[^/]*$/, "");
-  return location.origin + p;
+  const i = location.pathname.indexOf("/quiz");
+  const racine = location.origin + (i >= 0 ? location.pathname.slice(0, i) : "") + "/quiz/";
+  return SITE ? racine + SITE + "/" : racine;
 }
 let simPret = { board: false, jardin: false };   // 1er chargement réel, ensuite local
 let simTimers = [];
