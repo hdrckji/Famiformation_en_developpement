@@ -216,6 +216,7 @@ function rendre() {
     ["jardin", "🎮 Tester le jeu"],
     ["codes", "🎁 Codes bonus"],
     ["countdown", "⏱ Compte à rebours"],
+    ["envoi", "✉️ Envoi groupé"],
     ["simulation", "🎬 Simulation"],
   ];
   app.innerHTML = `
@@ -246,8 +247,108 @@ function rendre() {
   else if (vue === "classement") vueClassement();
   else if (vue === "jardin") vueJardin();
   else if (vue === "countdown") vueCountdown();
+  else if (vue === "envoi") vueEnvoi();
   else if (vue === "simulation") vueSimulation();
   else vueCodes();
+}
+
+/* ---------------------- ONGLET ENVOI GROUPÉ ---------------------- */
+// Pour les gens déjà inscrits sur le formulaire mais sans compte Famiformation.
+// On colle prénom / nom / e-mail (copier-coller depuis Excel), et on envoie le
+// mail « fun » d'invitation à créer leur compte AVANT le lancement. Par lots.
+function parseLignesEnvoi(txt) {
+  const lignes = String(txt || "").split(/\r?\n/);
+  const out = [];
+  for (const ligne of lignes) {
+    const l = ligne.trim();
+    if (!l) continue;
+    const cols = l.split(/[\t;,]+/).map((s) => s.trim()).filter(Boolean);
+    const email = cols.find((c) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(c)) || "";
+    const autres = cols.filter((c) => c !== email);
+    // Format conseillé : Prénom  Nom  email → prénom = 1er, nom = 2e.
+    out.push({ prenom: autres[0] || "", nom: autres[1] || "", email });
+  }
+  return out;
+}
+function vueEnvoi() {
+  const c = $("#contenu");
+  c.innerHTML = `
+    <div class="card">
+      <h2>✉️ Envoi groupé — créer les comptes à l'avance</h2>
+      <p class="hint">Pour les personnes <b>déjà inscrites sur le formulaire</b> (ou l'Excel) qui n'ont pas encore de compte Famiformation.
+      On leur crée le compte si besoin et on leur envoie un <b>mail « fun »</b> les invitant à créer leur compte <b>avant le lancement</b> 🎁.</p>
+      <p class="hint" style="background:#eef6ef;border-radius:10px;padding:10px 14px;">
+        📋 <b>Colle une personne par ligne</b>, au format <code>Prénom&nbsp;&nbsp;Nom&nbsp;&nbsp;email</code>
+        (copier-coller direct depuis Excel/Sheets fonctionne — colonnes séparées par tabulation, virgule ou point-virgule).<br>
+        Une ligne avec juste un <b>e-mail</b> marche aussi (le compte sera créé sans prénom/nom).
+      </p>
+      <textarea class="field" id="ev-txt" rows="9" placeholder="Marie	Dupont	marie.dupont@exemple.be
+Ali;Ben;ali.ben@exemple.be
+jean.martin@exemple.be" style="font-family:monospace; font-size:.9rem;"></textarea>
+      <div id="ev-apercu" class="hint" style="margin:6px 0;"></div>
+      <div id="ev-msg"></div>
+      <div id="ev-progress" style="display:none; margin:10px 0;">
+        <div style="height:12px; background:#e6efe8; border-radius:999px; overflow:hidden;">
+          <div id="ev-bar" style="height:100%; width:0%; background:#1E7A46; transition:width .2s;"></div>
+        </div>
+        <div id="ev-progress-txt" class="hint" style="margin-top:6px;"></div>
+      </div>
+      <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:6px;">
+        <button class="btn" id="ev-envoyer">📣 Envoyer les liens</button>
+        <button class="btn ghost" id="ev-vider">Vider</button>
+      </div>
+      <p class="hint" style="margin-top:12px; opacity:.8;">ℹ️ Un compte <b>déjà activé</b> (mot de passe choisi) n'est pas re-contacté. Ceux qui n'ont pas encore activé reçoivent (ou re-reçoivent) le lien. L'envoi se fait par petits lots pour rester fiable.</p>
+    </div>`;
+
+  const majApercu = () => {
+    const liste = parseLignesEnvoi($("#ev-txt").value);
+    const valides = liste.filter((p) => p.email);
+    const info = $("#ev-apercu");
+    if (info) info.innerHTML = liste.length
+      ? `👤 <b>${valides.length}</b> personne(s) avec e-mail détectée(s)${liste.length - valides.length ? ` · ${liste.length - valides.length} ligne(s) sans e-mail (ignorées)` : ""}.`
+      : "";
+  };
+  $("#ev-txt").addEventListener("input", majApercu);
+  $("#ev-vider").addEventListener("click", () => { $("#ev-txt").value = ""; majApercu(); $("#ev-msg").innerHTML = ""; });
+
+  $("#ev-envoyer").addEventListener("click", () => {
+    const liste = parseLignesEnvoi($("#ev-txt").value).filter((p) => p.email);
+    if (!liste.length) { $("#ev-msg").innerHTML = `<div class="alert">Aucune adresse e-mail valide détectée.</div>`; return; }
+    modaleConfirm({
+      titre: "Envoyer les liens de création de compte ?",
+      texte: `Ça va envoyer un e-mail à ${liste.length} personne(s) pour créer leur compte Famiformation à l'avance (magasin ${SITES[siteAdmin]}). Les comptes déjà activés sont ignorés.`,
+      ok: "Envoyer",
+    }, async () => {
+      const btn = $("#ev-envoyer"); if (btn) btn.disabled = true;
+      $("#ev-vider").disabled = true;
+      $("#ev-progress").style.display = "block";
+      const total = liste.length;
+      const cumul = { cree: 0, renvoye: 0, deja_actif: 0, echec: 0 };
+      let fait = 0, coupe = false;
+      const LOT = 20;
+      for (let i = 0; i < liste.length; i += LOT) {
+        const lot = liste.slice(i, i + LOT);
+        const r = await post("envoi_groupe", { liste: lot });
+        if (r.status === 401) { auth = null; vueConnexion("Session expirée, reconnecte-toi."); return; }
+        if (!r.ok || !r.data || !r.data.ok) {
+          $("#ev-msg").innerHTML = `<div class="alert">${(r.data && r.data.reason === "base_indisponible") ? "Base Famiformation injoignable. Réessaie plus tard." : "Erreur pendant l'envoi. Réessaie."}</div>`;
+          coupe = true; break;
+        }
+        cumul.cree += r.data.cree || 0; cumul.renvoye += r.data.renvoye || 0;
+        cumul.deja_actif += r.data.deja_actif || 0; cumul.echec += r.data.echec || 0;
+        fait += lot.length;
+        const pct = Math.round(fait / total * 100);
+        $("#ev-bar").style.width = pct + "%";
+        $("#ev-progress-txt").textContent = `${fait}/${total} traité(s)…`;
+      }
+      if (btn) btn.disabled = false; $("#ev-vider").disabled = false;
+      if (!coupe) {
+        message = { ok: true, texte: `Envoi terminé : ${cumul.cree} compte(s) créé(s), ${cumul.renvoye} lien(s) renvoyé(s), ${cumul.deja_actif} déjà actif(s)`
+          + (cumul.echec ? `, ⚠️ ${cumul.echec} échec(s)` : "") + "." };
+        rendre();
+      }
+    });
+  });
 }
 
 /* ---------------------- ONGLET QUESTIONS ---------------------- */

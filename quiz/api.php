@@ -495,6 +495,53 @@ function identifiantLibre(PDO $db, $prenom, $nom) {
   return $base . '.' . bin2hex(random_bytes(3));
 }
 
+// 🎁 Mail « fun » d'invitation à créer son compte AVANT le lancement (envoi groupé).
+// Même lien d'activation que d'habitude (set_password.php + jeton), mais habillage
+// festif « Noël avant l'heure ». Renvoie true si le mail est parti.
+function envoiFunActivation(PDO $db, $userId, $heures = 336) {
+  if (!function_exists('issueUserAccountAccessToken') || !function_exists('sendMail') || !function_exists('famiBuildAppUrl')) {
+    return false;
+  }
+  if (function_exists('ensureUserAccountAccessColumns')) { ensureUserAccountAccessColumns($db); }
+  $stmt = $db->prepare('SELECT id, identifiant, prenom, email FROM utilisateurs WHERE id = ? LIMIT 1');
+  $stmt->execute([(int) $userId]);
+  $u = $stmt->fetch(PDO::FETCH_ASSOC);
+  if (!$u || empty($u['email'])) { return false; }
+
+  $heures = max(1, (int) $heures);
+  $token = issueUserAccountAccessToken($db, $u['id'], 'activation', $heures);
+  $url   = famiBuildAppUrl('set_password.php', ['token' => $token]);
+  $prenom = trim((string) ($u['prenom'] ?? ''));
+  $bonjour = $prenom !== '' ? $prenom : trim((string) ($u['identifiant'] ?? ''));
+  $validite = $heures >= 48 ? ((int) round($heures / 24) . ' jours') : ((int) $heures . ' heures');
+  $e = function ($s) { return htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8'); };
+
+  $subject = '🎁 Noël avant l\'heure : crée déjà ton compte Famiformation !';
+  $body = '<div style="margin:0;padding:32px;background:#eef4ef;font-family:Open Sans,Arial,sans-serif;color:#244230;">'
+    . '<div style="max-width:680px;margin:0 auto;background:#fff;border-radius:24px;overflow:hidden;box-shadow:0 18px 38px rgba(27,54,36,.12);">'
+    . '<div style="padding:30px 32px;background:linear-gradient(135deg,#2d5a37 0%,#4a7b55 100%);color:#fff;">'
+    . '<div style="font-size:12px;letter-spacing:.08em;text-transform:uppercase;opacity:.85;">Famiformation · Famiflora</div>'
+    . '<h1 style="margin:10px 0 8px;font-size:28px;line-height:1.2;">🎁 Noël avant l\'heure&nbsp;!</h1>'
+    . '<p style="margin:0;font-size:15px;line-height:1.6;opacity:.95;">Tu peux déjà créer ton compte Famiformation, sans attendre le lancement.</p>'
+    . '</div>'
+    . '<div style="padding:32px;">'
+    . '<p style="margin:0 0 16px;font-size:16px;line-height:1.7;">Bonjour ' . $e($bonjour) . ',</p>'
+    . '<p style="margin:0 0 16px;font-size:16px;line-height:1.7;">Surprise&nbsp;! 🎉 On t\'avait dit que tu recevrais ton lien le 29/07… mais on te l\'envoie <b>en avance</b>. '
+    . 'Tu peux <b>dès maintenant créer ton compte Famiformation</b> (choisir ton mot de passe) pour être fin prêt(e) le jour du lancement.</p>'
+    . '<div style="margin:22px 0;padding:20px;border-radius:18px;background:#f6faf7;border:1px solid #dde9df;">'
+    . '<div style="font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:#6a7d72;margin-bottom:10px;">Ton identifiant</div>'
+    . '<p style="margin:0;font-size:16px;"><b>' . $e($u['identifiant']) . '</b></p>'
+    . '</div>'
+    . '<p style="margin:0 0 22px;"><a href="' . $e($url) . '" style="display:inline-block;padding:14px 24px;border-radius:999px;background:#d6a21a;color:#fff;font-weight:700;text-decoration:none;">🌱 Créer mon compte</a></p>'
+    . '<p style="margin:0 0 14px;font-size:15px;line-height:1.7;color:#3a5443;">Ce lien est valable ' . $e($validite) . '. Une fois connecté(e), tu pourras déjà découvrir Famiformation. 🌿</p>'
+    . '<p style="margin:0;font-size:14px;line-height:1.7;color:#617268;">Tu n\'es pas concerné(e) par ce message&nbsp;? Ignore-le simplement. Une question&nbsp;? Écris à admin@famiformation.com.</p>'
+    . '</div>'
+    . '<div style="padding:18px 32px;background:#f5f8f6;color:#617268;font-size:13px;">🎄 Message envoyé par Famiformation — Famiflora.</div>'
+    . '</div></div>';
+
+  return sendMail($u['email'], $subject, $body, true);
+}
+
 // 🛡️ GARDE-FOU sur les actions qui ENVOIENT UN MAIL ou CRÉENT UN COMPTE.
 // Sans ça, n'importe qui peut marteler l'inscription : boîte mail d'un tiers
 // inondée, table des utilisateurs remplie de faux comptes.
@@ -861,6 +908,72 @@ switch ($action) {
       sendAccountActivationEmail($db, (int) $u['id'], $ACTIVATION_HEURES);
     }
     echo json_encode(['ok' => true]);
+    break;
+  }
+
+  // 📣 ENVOI GROUPÉ (admin) : pour les gens déjà inscrits sur le formulaire mais
+  // qui n'ont pas encore de compte. On leur crée le compte (si besoin) et on leur
+  // envoie le mail « fun » d'invitation à créer leur compte AVANT le lancement.
+  // On traite un LOT (max 25) par appel : l'admin envoie par tranches (pas de
+  // timeout SMTP) et voit la progression.
+  case 'envoi_groupe': {
+    exigeAdmin($input);
+    $db = famiDb();
+    if (!$db) { http_response_code(503); echo json_encode(['ok' => false, 'reason' => 'base_indisponible']); break; }
+
+    // site_id du magasin courant (comme à l'inscription).
+    $siteId = null;
+    try {
+      $qs = $db->prepare('SELECT id FROM widget_sites WHERE ville = ? LIMIT 1');
+      $qs->execute([$SITES[$SITE]['ville']]);
+      $trouve = $qs->fetchColumn();
+      if ($trouve !== false) { $siteId = (int) $trouve; }
+    } catch (Throwable $e) { /* table absente en test */ }
+
+    $liste = is_array($input['liste'] ?? null) ? $input['liste'] : [];
+    $liste = array_slice($liste, 0, 25);   // un lot à la fois
+    $res = ['cree' => 0, 'renvoye' => 0, 'deja_actif' => 0, 'echec' => 0, 'details' => []];
+
+    foreach ($liste as $p) {
+      $email  = mb_strtolower(trim((string) ($p['email'] ?? '')));
+      $prenom = trim(mb_substr((string) ($p['prenom'] ?? ''), 0, 40));
+      $nom    = trim(mb_substr((string) ($p['nom'] ?? ''), 0, 60));
+      if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $res['echec']++; $res['details'][] = ['email' => $email, 'etat' => 'email_invalide']; continue;
+      }
+      try {
+        ensureUserAccountAccessColumns($db);
+        $st = $db->prepare('SELECT id, mot_de_passe, account_activation_pending FROM utilisateurs WHERE email = ? LIMIT 1');
+        $st->execute([$email]);
+        $u = $st->fetch(PDO::FETCH_ASSOC);
+        if ($u) {
+          // Déjà un compte ACTIF (mot de passe choisi) → on ne renvoie rien.
+          if (empty($u['account_activation_pending']) && !empty($u['mot_de_passe'])) {
+            $res['deja_actif']++; $res['details'][] = ['email' => $email, 'etat' => 'deja_actif']; continue;
+          }
+          $ok = envoiFunActivation($db, (int) $u['id'], $ACTIVATION_HEURES);
+          if ($ok) { $res['renvoye']++; $res['details'][] = ['email' => $email, 'etat' => 'renvoye']; }
+          else     { $res['echec']++;   $res['details'][] = ['email' => $email, 'etat' => 'mail_ko']; }
+          continue;
+        }
+        // Aucun compte : on le crée (identique à l'inscription), puis mail fun.
+        $identifiant = identifiantLibre($db, $prenom !== '' ? $prenom : 'compte', $nom);
+        $ins = $db->prepare('INSERT INTO utilisateurs (identifiant, nom, prenom, email, mot_de_passe, role, account_activation_pending, site_id, statut_date)
+                             VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)');
+        $ins->execute([$identifiant, $nom, $prenom, $email,
+          password_hash(bin2hex(random_bytes(16)), PASSWORD_DEFAULT), 'etudiant', $siteId, date('Y-m-d H:i:s')]);
+        $uid = (int) $db->lastInsertId();
+        $ok = envoiFunActivation($db, $uid, $ACTIVATION_HEURES);
+        if ($ok) { $res['cree']++; $res['details'][] = ['email' => $email, 'etat' => 'cree']; }
+        else {
+          try { $db->prepare('DELETE FROM utilisateurs WHERE id = ?')->execute([$uid]); } catch (Throwable $e) {}
+          $res['echec']++; $res['details'][] = ['email' => $email, 'etat' => 'mail_ko'];
+        }
+      } catch (Throwable $e) {
+        $res['echec']++; $res['details'][] = ['email' => $email, 'etat' => 'erreur'];
+      }
+    }
+    echo json_encode(['ok' => true] + $res, JSON_UNESCAPED_UNICODE);
     break;
   }
 
