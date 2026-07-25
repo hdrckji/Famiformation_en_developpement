@@ -236,13 +236,18 @@ function soldeDe($p) {
   return $solde;
 }
 
-// ❓ QUESTIONS PAR DÉFAUT. Elles ne servent qu'AU TOUT PREMIER lancement : dès que
-// tu enregistres tes questions depuis /quiz/admin, c'est questions.json qui fait
-// foi et cette liste n'est plus jamais consultée.
+// ❓ QUESTIONS PAR DÉFAUT (secours). Elles ne servent QUE si aucune question n'a
+// encore été chargée pour le magasin. Dès que tu cliques « Charger toutes les
+// questions » (ou que tu enregistres depuis /quiz/admin), c'est questions.json
+// qui fait foi et cette liste n'est plus jamais consultée. Ce sont de vraies
+// questions de jardinage/plantes, pour ne jamais laisser un joueur devant un
+// placeholder même en cas d'incident.
 $QUESTIONS_DEFAUT = [
-  ['q' => "En quelle année Famiflora a-t-elle été créée ?", 'options' => ["2012", "2005", "2018", "1999"], 'correct' => 0],
-  ['q' => "Combien de collègues travaillent chez nous aujourd'hui ?", 'options' => ["Moins de 30", "Entre 30 et 60", "Entre 60 et 100", "Plus de 100"], 'correct' => 2],
-  ['q' => "Quel est le rayon le plus visité du magasin ?", 'options' => ["Rayon A", "Rayon B", "Rayon C", "Rayon D"], 'correct' => 0],
+  ['q' => "En quelle année Famiflora a-t-elle été créée ?", 'options' => ["2012", "2005", "2018", "1999"], 'correct' => 0, 'theme' => 'entreprise'],
+  ['q' => "Que faut-il donner à une plante pour qu'elle pousse ?", 'options' => ["De l'eau et de la lumière", "Uniquement de l'ombre", "Du sel", "Rien du tout"], 'correct' => 0, 'theme' => 'culture'],
+  ['q' => "À quelle saison plante-t-on généralement les bulbes de tulipes ?", 'options' => ["À l'automne", "En plein été", "En hiver sous la neige", "Elles ne se plantent pas"], 'correct' => 0, 'theme' => 'culture'],
+  ['q' => "Un cactus a besoin…", 'options' => ["De très peu d'eau", "D'un arrosage quotidien", "D'être immergé", "De rester dans le noir"], 'correct' => 0, 'theme' => 'culture'],
+  ['q' => "À quoi servent les abeilles au jardin ?", 'options' => ["À polliniser les fleurs", "À manger les fruits", "À tondre la pelouse", "À rien d'utile"], 'correct' => 0, 'theme' => 'culture'],
 ];
 
 /** Nettoie une question venant du navigateur (on ne fait jamais confiance à l'envoi). */
