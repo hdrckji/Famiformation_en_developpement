@@ -3539,6 +3539,7 @@ function urlSite(site) {
 // pire, de mélanger les deux événements, on lui demande où il se trouve.
 function renderChoixSite() {
   clearInterval(tickTimer);
+  majLangSwitch();   // 🌐 le sélecteur FR/NL aussi sur l'écran de choix du magasin
   document.body.classList.remove("mode-borne");
   app.innerHTML = `<div class="home">
     <h2 class="borne-titre">${t("Tu es dans quel magasin ? 🏬", "In welke winkel ben je? 🏬")}</h2>
