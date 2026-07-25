@@ -111,6 +111,17 @@ body.mode-tele .fami-magasin { font-size: clamp(1rem, 2.4vw, 1.4rem); }
 }
 .q-opt:hover { border-color: var(--pousse); transform: translateX(4px); }
 .q-opt:focus-visible { outline: 3px solid var(--soleil); }
+/* Phase correction : on révèle la bonne réponse (verte) et le mauvais choix (rouge). */
+.q-opt.reveal { cursor: default; transform: none; opacity: .55; }
+.q-opt.reveal:hover { transform: none; border-color: transparent; }
+.q-opt.q-opt-good { opacity: 1; background: #e6f6ea; border-color: #1E7A46; color: #14532d; }
+.q-opt.q-opt-bad { opacity: 1; background: #fdeaea; border-color: #d64545; color: #8f2b2b; }
+.opt-tag { float: right; font-size: .8rem; font-weight: 800; }
+.q-opt-good .opt-tag { color: #1E7A46; }
+.q-opt-bad .opt-tag { color: #d64545; }
+.q-feedback { border-radius: 14px; padding: 10px 14px; font-weight: 800; text-align: center; margin-top: 4px; }
+.q-feedback.ok { background: #e6f6ea; color: #14532d; }
+.q-feedback.ko { background: #fdeaea; color: #8f2b2b; }
 .btn {
   display: inline-block; border: none; cursor: pointer;
   background: var(--pousse); color: var(--craie);
@@ -1668,7 +1679,7 @@ function currentView() {
   // Vues qui exigent un compte : sinon on renvoie vers l'espace.
   // Le quiz du classement n'est jouable que pendant l'événement ; le quiz DU JARDIN
   // (rejouable, sans impact classement) reste accessible tant qu'on a un jardin.
-  if (userView === "quiz")   return (phaseNow() === "ouvert" || (quiz && quiz.jardinMode)) ? "quiz" : (joueur ? "dashboard" : "home");
+  if (userView === "quiz")   return (phaseNow() === "ouvert" || toutOuvert() || (quiz && quiz.jardinMode)) ? "quiz" : (joueur ? "dashboard" : "home");
   if (userView === "jardin") return joueur ? "jardin" : "espace";
   if (userView === "herbes") return joueur ? "herbes" : "espace";
   if (userView === "board")  return "board";   // classement : public
@@ -1799,10 +1810,41 @@ function lanceConfettis(ms = 6000) {
    ❓ VUE — QUIZ
    ============================================================ */
 
+// Passe à la question suivante (ou termine le quiz). Appelé après la phase de
+// correction, quand le joueur clique sur « Suivant ».
+async function avanceQuiz() {
+  if (quiz.idx + 1 < quiz.questions.length) { quiz.idx++; renderQuiz(); return; }
+  // 🎯 QUIZ DU JARDIN : on ne touche PAS au classement. On crédite des graines
+  // de jardin (10 par bonne réponse), puis écran dédié + retour au jardin.
+  if (quiz.jardinMode) {
+    quiz.step = "fin"; renderQuiz();
+    const r = await apiQuizJardin(quiz.correct).catch(() => ({ ok: false }));
+    if (r && r.ok) { joueur.solde = r.solde; if (r.recoltees != null) joueur.recoltees = r.recoltees; }
+    quiz.gainJardin = (r && r.gain) || 0;
+    quiz.step = "doneJardin"; renderQuiz();
+    return;
+  }
+  // Dernière question : on inscrit la récolte sur le compte (déjà créé).
+  quiz.step = "fin"; renderQuiz();
+  const time = Math.round((Date.now() - quiz.start) / 1000);
+  quiz.tempsTotal = time;          // pour l'afficher sur l'écran de fin
+  quiz.score = arr1(quiz.score);   // score final à virgule (les décimales départagent)
+  await apiSubmit({ name: quiz.pseudo, code: quiz.code, nom: quiz.nom, score: quiz.score, correct: quiz.correct, time }).catch(() => {});
+  sauveMoi(quiz.pseudo, quiz.code);                    // l'appareil perso se souvient
+  if (!joueur) joueur = { name: quiz.pseudo, code: quiz.code, nbCodes: 0 };
+  joueur.recoltees = quiz.score;
+  joueur.quizFait = true;                              // le jardin se débloque
+  const s = await apiSolde(quiz.pseudo).catch(() => null);
+  joueur.solde = (s && s.exists) ? s.solde : quiz.score;
+  board = await apiGetBoard();
+  quiz.messageCode = await reclamerEnAttente();        // un code scanné avant de jouer ?
+  quiz.step = "done"; renderQuiz();
+}
+
 function renderQuiz() {
   clearInterval(tickTimer);
   // Hors période d'ouverture, on repasse à l'accueil / tableau de bord.
-  if (phaseNow() !== "ouvert") { render(); return; }
+  if (phaseNow() !== "ouvert" && !toutOuvert()) { render(); return; }
   // Nouveau flux : on joue APRÈS s'être identifié (création/connexion). Donc pas
   // de compte → on renvoie à l'espace. « Quiz déjà fait » ne bloque QU'AU
   // DÉMARRAGE (quiz null) : une partie en cours ou son écran final doivent pouvoir
@@ -1869,7 +1911,8 @@ function renderQuiz() {
     const q = quiz.questions[quiz.idx];
     const graines = arr1(quiz.score);
     const stade = stadeDe(quiz.score);
-    quiz.qStart = Date.now();   // ⏱ départ du chrono de CETTE question (bonus rapidité)
+    const rev = quiz.reveal;   // { chosen, good } dès que la question a été répondue
+    if (!rev) quiz.qStart = Date.now();   // ⏱ départ du chrono (pas de reset pendant la correction)
     app.innerHTML = `<div class="card">
       <div class="q-plante">
         <span class="stade">
@@ -1883,8 +1926,28 @@ function renderQuiz() {
         <span class="q-chrono" id="q-chrono" title="Plus tu réponds vite, plus tu gagnes de graines">⏱ 0,0 s</span>
       </div>
       <div class="q-text">${esc(q.q)}</div>
-      ${q.options.map((o, i) => `<button class="q-opt" data-i="${i}">${esc(o.text)}</button>`).join("")}
+      ${q.options.map((o, i) => {
+        let cls = "q-opt";
+        let tag = "";
+        if (rev) {
+          cls += " reveal";
+          if (o.good) { cls += " q-opt-good"; tag = `<span class="opt-tag">✓ bonne réponse</span>`; }
+          else if (i === rev.chosen) { cls += " q-opt-bad"; tag = `<span class="opt-tag">✗ ton choix</span>`; }
+        }
+        return `<button class="${cls}" data-i="${i}"${rev ? " disabled" : ""}>${esc(o.text)}${tag}</button>`;
+      }).join("")}
+      ${rev ? `<div class="q-feedback ${rev.good ? "ok" : "ko"}">${rev.good
+          ? "✅ Bravo, bonne réponse !"
+          : "❌ Raté ! La bonne réponse est surlignée en vert."}</div>
+        <button class="btn" id="q-suivant" style="width:100%; margin-top:10px;">${quiz.idx + 1 < quiz.questions.length ? "Question suivante ➜" : "Voir mon résultat ➜"}</button>` : ""}
     </div>`;
+
+    // Phase CORRECTION : on attend le clic sur « Suivant » avant d'avancer.
+    if (rev) {
+      $("#q-suivant").addEventListener("click", () => { quiz.reveal = null; avanceQuiz(); });
+      return;
+    }
+
     // ⏱ Chrono de la question : il tourne à l'écran pour encourager la rapidité.
     clearInterval(chronoQ);
     chronoQ = setInterval(() => {
@@ -1893,13 +1956,16 @@ function renderQuiz() {
       el.textContent = "⏱ " + ((Date.now() - quiz.qStart) / 1000).toFixed(1).replace(".", ",") + " s";
     }, 100);
 
-    app.querySelectorAll(".q-opt").forEach((btn) => btn.addEventListener("click", async () => {
+    app.querySelectorAll(".q-opt").forEach((btn) => btn.addEventListener("click", () => {
+      if (quiz.reveal) return;                            // déjà répondu
       clearInterval(chronoQ);
+      const i = +btn.dataset.i;
       const avant = stadeDe(quiz.score);
-      const tSec = (Date.now() - quiz.qStart) / 1000;   // temps de réponse (avec décimales)
-      if (q.options[btn.dataset.i].good) {
+      const tSec = (Date.now() - quiz.qStart) / 1000;     // temps de réponse (avec décimales)
+      const good = q.options[i].good;
+      if (good) {
         quiz.streak++;
-        const gain = gainReponse(tSec, quiz.streak);     // base + rapidité (ratio) + série
+        const gain = gainReponse(tSec, quiz.streak);      // base + rapidité (ratio) + série
         quiz.score += gain;
         quiz.correct++;
         quiz.lastGain = arr1(gain);
@@ -1908,33 +1974,9 @@ function renderQuiz() {
         quiz.lastGain = 0;
       }
       const apres = stadeDe(quiz.score);
-      quiz.vientDePousser = apres.min !== avant.min; // la plante vient de changer de stade
-      if (quiz.idx + 1 < quiz.questions.length) { quiz.idx++; renderQuiz(); return; }
-      // 🎯 QUIZ DU JARDIN : on ne touche PAS au classement. On crédite des graines
-      // de jardin (10 par bonne réponse), puis écran dédié + retour au jardin.
-      if (quiz.jardinMode) {
-        quiz.step = "fin"; renderQuiz();
-        const r = await apiQuizJardin(quiz.correct).catch(() => ({ ok: false }));
-        if (r && r.ok) { joueur.solde = r.solde; if (r.recoltees != null) joueur.recoltees = r.recoltees; }
-        quiz.gainJardin = (r && r.gain) || 0;
-        quiz.step = "doneJardin"; renderQuiz();
-        return;
-      }
-      // Dernière question : on inscrit la récolte sur le compte (déjà créé).
-      quiz.step = "fin"; renderQuiz();
-      const time = Math.round((Date.now() - quiz.start) / 1000);
-      quiz.tempsTotal = time;          // pour l'afficher sur l'écran de fin
-      quiz.score = arr1(quiz.score);   // score final à virgule (les décimales départagent)
-      await apiSubmit({ name: quiz.pseudo, code: quiz.code, nom: quiz.nom, score: quiz.score, correct: quiz.correct, time }).catch(() => {});
-      sauveMoi(quiz.pseudo, quiz.code);                    // l'appareil perso se souvient
-      if (!joueur) joueur = { name: quiz.pseudo, code: quiz.code, nbCodes: 0 };
-      joueur.recoltees = quiz.score;
-      joueur.quizFait = true;                              // le jardin se débloque
-      const s = await apiSolde(quiz.pseudo).catch(() => null);
-      joueur.solde = (s && s.exists) ? s.solde : quiz.score;
-      board = await apiGetBoard();
-      quiz.messageCode = await reclamerEnAttente();        // un code scanné avant de jouer ?
-      quiz.step = "done"; renderQuiz();
+      quiz.vientDePousser = apres.min !== avant.min;       // la plante vient de changer de stade
+      quiz.reveal = { chosen: i, good };                   // → on affiche la correction
+      renderQuiz();
     }));
     return;
   }
@@ -2923,7 +2965,7 @@ function renderDashboard() {
   if (!joueur) { userView = "espace"; render(); return; }
   document.body.classList.toggle("mode-borne", ECRAN === "borne");
   const phase = phaseNow();
-  const quizOuvert = (phase === "ouvert");
+  const quizOuvert = (phase === "ouvert") || toutOuvert();
   // 🧪 En mode TEST (simulation), on ne verrouille rien : le quiz est rejouable
   // autant de fois qu'on veut et le jardin est toujours ouvert, pour pouvoir TOUT
   // essayer. En vrai, le quiz ne se fait qu'une fois et le jardin s'ouvre après.
