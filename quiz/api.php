@@ -73,6 +73,46 @@ $MAX_CODES    = 2;    // combien de codes une même personne peut cumuler
 // son compte que le jour J.
 $ACTIVATION_HEURES = 30 * 24;
 
+// 📄 GOOGLE FORM de récolte des mails (partagé avec l'accueil pour les tickets
+// glace). Quand quelqu'un s'inscrit depuis la borne/le téléphone, on recopie sa
+// réponse dans CE formulaire, pour que le résultat soit le même que s'il l'avait
+// rempli à la main : l'accueil garde sa feuille habituelle. Les identifiants des
+// champs ont été relevés sur le formulaire (Nom, Prénom, e-mail « emailAddress »).
+$FORM_ACTIF   = true;
+$FORM_URL     = 'https://docs.google.com/forms/d/e/1FAIpQLSfEq4cwc2P9aDQno8z3ftMRiKAgttI9UaH46-3PVMQJY_5Feg/formResponse';
+$FORM_CHAMP_NOM    = 'entry.2040091278';
+$FORM_CHAMP_PRENOM = 'entry.969078151';
+// L'e-mail est le champ « collecte d'adresse » de Google : il se soumet via
+// « emailAddress » (pas un entry.XXX).
+
+// Recopie une inscription dans le Google Form. « Au mieux » : si l'envoi échoue,
+// on n'interrompt JAMAIS l'inscription (la personne reste créée et reçoit son
+// mail). cURL avec un délai court pour ne pas ralentir la borne.
+function pousseVersForm($prenom, $nom, $email) {
+  global $FORM_ACTIF, $FORM_URL, $FORM_CHAMP_NOM, $FORM_CHAMP_PRENOM;
+  if (!$FORM_ACTIF || !function_exists('curl_init')) { return false; }
+  $post = http_build_query([
+    $FORM_CHAMP_NOM    => $nom,
+    $FORM_CHAMP_PRENOM => $prenom,
+    'emailAddress'     => $email,
+    'fvv' => '1', 'pageHistory' => '0',
+  ]);
+  $ch = curl_init($FORM_URL);
+  curl_setopt_array($ch, [
+    CURLOPT_POST => true,
+    CURLOPT_POSTFIELDS => $post,
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_TIMEOUT => 6,
+    CURLOPT_FOLLOWLOCATION => true,
+    CURLOPT_SSL_VERIFYPEER => true,      // sur Railway le bundle CA est présent
+    CURLOPT_USERAGENT => 'Mozilla/5.0 (compatible; FamiQuiz/1.0)',
+  ]);
+  $rep = curl_exec($ch);
+  $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+  curl_close($ch);
+  return $code === 200 && $rep !== false;
+}
+
 // 🔐 Identifiants admin (accès au mode admin + réinitialisation des scores)
 $ADMIN_ID  = "admin";
 $ADMIN_PWD = "a";
@@ -722,6 +762,12 @@ switch ($action) {
       echo json_encode(['ok' => false, 'reason' => 'email_invalide']); break;
     }
     if (envoiRefuse($email)) { http_response_code(429); echo json_encode(['ok' => false, 'reason' => 'trop_dessais']); break; }
+
+    // 📄 On recopie l'inscription dans le Google Form de l'accueil AVANT tout le
+    // reste : ainsi la feuille est alimentée même si la base venait à être
+    // indisponible. « Au mieux » : un échec n'interrompt jamais l'inscription.
+    pousseVersForm($prenom, $nom, $email);
+
     $db = famiDb();
     if (!$db) { http_response_code(503); echo json_encode(['ok' => false, 'reason' => 'base_indisponible']); break; }
 
