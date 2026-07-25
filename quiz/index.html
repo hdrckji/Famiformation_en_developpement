@@ -1001,6 +1001,10 @@ const APERCU = SIMULATION && SIM_PARAMS.get("simulation") === "apercu";
 // le jardin d'un joueur de démo, les plantes sont GRATUITES (mais leurs prix sont
 // affichés, pour l'immersion). Rien n'est envoyé au serveur.
 const JARDIN_LIBRE = SIMULATION && SIM_PARAMS.get("simulation") === "jardin";
+// 🔓 DÉBLOCAGE DE TEST : ?ouvert=1 force la phase « ouvert » (quiz jouable) dans CE
+// navigateur uniquement, sans toucher à la vraie date de lancement (29/07 12:30).
+// Les vrais joueurs, eux, continuent de voir le compte à rebours.
+const FORCE_OUVERT = SIM_PARAMS.has("ouvert");
 if (APERCU && SIM_PARAMS.has("simnow")) {
   const cible = new Date(SIM_PARAMS.get("simnow")).getTime();
   if (!isNaN(cible)) {
@@ -1422,6 +1426,7 @@ function prepareQuestions() {
 }
 function phaseNow() {
   if (SIMULATION && !APERCU) return "ouvert";   // simu « joueur » : quiz jouable à tout moment
+  if (FORCE_OUVERT) return "ouvert";            // ?ouvert=1 : débloque le quiz pour tester (ce navigateur seulement)
   // (en aperçu daté, la phase suit l'horloge simulée — voir plus haut)
   const now = Date.now();
   if (now < CONFIG.dateLancement.getTime()) return "avant";
