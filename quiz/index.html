@@ -2949,6 +2949,18 @@ function renderInscription() {
       if (r.reason === "base_indisponible") { err(t("Le service est momentanément indisponible. Réessaie dans un instant.", "De dienst is even niet beschikbaar. Probeer straks opnieuw.")); return; }
       err(t("Inscription impossible pour le moment. Réessaie.", "Inschrijven lukt nu niet. Probeer opnieuw.")); return;
     }
+    // 🔁 Doublon : cette adresse a DÉJÀ donné son mail (compte pas encore activé).
+    // On le lui dit clairement et on l'oriente vers sa boîte / l'accueil.
+    if (r.renvoye) {
+      $("#insc-card").innerHTML = `<div style="text-align:center; padding:6px 0;">
+        <div style="font-size:3rem;">📭</div>
+        <h3 style="font-family:'Fredoka',sans-serif; color:var(--pousse); margin:8px 0;">${t("Tu as déjà donné ton mail 👍", "Je hebt je mail al doorgegeven 👍")}</h3>
+        <p style="font-size:1.05rem; line-height:1.6; margin:0 0 8px;">${t("Il semble que <b>" + esc(email) + "</b> soit déjà inscrit. On vient de <b>te renvoyer le lien</b> pour créer ton compte Famiformation — regarde ta <b>boîte de réception</b> et tes <b>spams</b>.", "Het lijkt erop dat <b>" + esc(email) + "</b> al ingeschreven is. We hebben je <b>de link opnieuw gestuurd</b> om je Famiformation-account aan te maken — kijk in je <b>inbox</b> en je <b>spam</b>.")}</p>
+        <p style="font-size:.95rem; color:#5a6b60; margin:0 0 16px;">${t("Toujours rien ? Écris à <b>admin@famiformation.com</b> et on t'aide. 🍦 Ton ticket glace t'attend à l'accueil !", "Nog steeds niets? Mail naar <b>admin@famiformation.com</b> en we helpen je. 🍦 Je ijsjesticket wacht aan het onthaal!")}</p>
+        <button class="btn" id="ci-fini" style="min-width:180px;">${t("J'ai compris 🌱", "Begrepen 🌱")}</button></div>`;
+      $("#ci-fini").addEventListener("click", () => { if (retourAccueilBorne()) return; userView = "auto"; render(); });
+      return;
+    }
     // Succès : le mail est parti → on remplace le bloc de saisie par la confirmation.
     $("#insc-card").innerHTML = `<div style="text-align:center; padding:6px 0;">
       <div style="font-size:3rem;">📬</div>
