@@ -395,6 +395,21 @@ function litJeton($jeton) {
   return ['uid' => (int) $uid, 'identifiant' => rawurldecode($ident)];
 }
 
+// 🔐 Un joueur a-t-il le droit d'agir sous le nom `$name` ? Deux preuves possibles :
+//   • un JETON de session valide (compte Famiformation) dont l'identifiant = $name ;
+//   • sinon, l'ancien code jardinier à 4 chiffres qui correspond à la fiche.
+// C'est ce qui empêche quelqu'un de soumettre un score au nom d'un autre : les
+// comptes Famiformation n'ont pas de code, seul leur jeton signé les authentifie.
+function joueurAutorise($input, $name, $ficheCode) {
+  $auth = litJeton($input['jeton'] ?? '');
+  if ($auth && mb_strtolower($auth['identifiant']) === mb_strtolower((string) $name)) {
+    return true;                                  // jeton Famiformation valide
+  }
+  $code4 = preg_replace('/\D/', '', (string)($input['code'] ?? ''));
+  $ficheCode = (string) $ficheCode;
+  return $ficheCode !== '' && $ficheCode === $code4;   // ancien compte pseudo + code
+}
+
 // Un identifiant libre, construit à partir du prénom et du nom (jimmy.hendrickx,
 // puis jimmy.hendrickx2, etc.). C'est ce que la personne tapera pour se connecter
 // — mais son email marchera aussi.
@@ -500,7 +515,8 @@ switch ($action) {
   // valident exactement au même instant.
   case 'submit': {
     $name = trim($input['name'] ?? '');
-    if (mb_strlen($name) < 2 || mb_strlen($name) > 24) {
+    // Jusqu'à 60 : un identifiant Famiformation (prenom.nom) peut dépasser 24.
+    if (mb_strlen($name) < 2 || mb_strlen($name) > 60) {
       http_response_code(400);
       echo json_encode(['error' => 'Prénom invalide']);
       break;
@@ -523,11 +539,13 @@ switch ($action) {
       'date'      => date('c'),
     ];
 
-    $res = withLock($scoresFile, function (&$board, &$write) use ($name, $entree) {
+    $res = withLock($scoresFile, function (&$board, &$write) use ($name, $entree, $input) {
       for ($i = 0; $i < count($board); $i++) {
         if (mb_strtolower($board[$i]['name'] ?? '') === mb_strtolower($name)) {
-          // Compte existant. Si le code ne correspond pas → nom pris par un autre.
-          if ((string)($board[$i]['code'] ?? '') !== $entree['code']) {
+          // Compte existant. Il faut prouver que c'est bien SON compte : jeton
+          // Famiformation valide, ou ancien code jardinier. Sinon, nom pris par
+          // un autre (on refuse d'écraser sa récolte).
+          if (!joueurAutorise($input, $name, $board[$i]['code'] ?? '')) {
             return ['conflit' => true];
           }
           // Quiz déjà fait : on ne réécrase pas la récolte (on renvoie l'état actuel).
@@ -1027,6 +1045,9 @@ switch ($action) {
     $code4 = preg_replace('/\D/', '', (string)($input['code'] ?? ''));
     $board = readJson($scoresFile);
     foreach ($board as $p) {
+      // Les comptes Famiformation (sans code jardinier) ne se récupèrent PAS par
+      // ce chemin : ils passent par la connexion Famiformation (login_fami).
+      if ((string)($p['code'] ?? '') === '') { continue; }
       $parPseudo = mb_strtolower($p['name'] ?? '') === mb_strtolower($name);
       $complet   = trim(trim((string)($p['prenom'] ?? '')) . ' ' . trim((string)($p['nom'] ?? '')));
       $parNom    = $complet !== '' && mb_strtolower($complet) === mb_strtolower($name);
@@ -1083,11 +1104,12 @@ switch ($action) {
     // 🧪 Le code de test « déjà utilisé » refuse toujours.
     if ($bonus === $CODE_TEST_USED) { echo json_encode(['ok' => false, 'reason' => 'deja_pris']); break; }
 
-    // Étape 1 : authentifier + vérifier qu'il peut encore prendre un code.
-    $chk = withLock($scoresFile, function (&$board, &$write) use ($name, $code4, $bonus, $MAX_CODES) {
+    // Étape 1 : authentifier (jeton Famiformation ou code jardinier) + vérifier
+    // qu'il peut encore prendre un code.
+    $chk = withLock($scoresFile, function (&$board, &$write) use ($name, $bonus, $MAX_CODES, $input) {
       foreach ($board as $p) {
         if (mb_strtolower($p['name'] ?? '') === mb_strtolower($name)) {
-          if ((string)($p['code'] ?? '') !== $code4) { return ['ok' => false, 'reason' => 'auth']; }
+          if (!joueurAutorise($input, $name, $p['code'] ?? '')) { return ['ok' => false, 'reason' => 'auth']; }
           $pris = $p['codes_pris'] ?? [];
           if (in_array($bonus, $pris, true)) { return ['ok' => false, 'reason' => 'deja_a_toi']; }
           if (count($pris) >= $MAX_CODES) { return ['ok' => false, 'reason' => 'max_atteint', 'max' => $MAX_CODES]; }

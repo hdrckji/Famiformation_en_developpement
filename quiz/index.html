@@ -1020,9 +1020,28 @@ async function apiSubmit(entry) {
   }
   const r = await fetch(`${CONFIG.api}?site=${SITE}&action=submit`, {
     method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(entry),
+    // Le jeton prouve que c'est bien MON compte (les comptes Famiformation n'ont
+    // pas de code jardinier : sans jeton, le serveur refuse d'écrire sous ce nom).
+    body: JSON.stringify({ ...entry, jeton: (joueur && joueur.jeton) || "" }),
   });
   return r.status !== 409;
+}
+// 🔑 SE CONNECTER avec son compte Famiformation (identifiant OU email + mot de
+// passe). Renvoie un jeton de session + l'état de jeu du joueur.
+async function apiLoginFami(identifiant, mdp) {
+  const r = await fetch(`${CONFIG.api}?site=${SITE}&action=login_fami`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ identifiant, mdp }),
+  });
+  try { return await r.json(); } catch { return { ok: false, reason: "reseau" }; }
+}
+// 👤 Reprendre sa session à partir du jeton mémorisé (au chargement de la page).
+async function apiMoi(jeton) {
+  const r = await fetch(`${CONFIG.api}?site=${SITE}&action=moi`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ jeton }),
+  });
+  try { return await r.json(); } catch { return { ok: false }; }
 }
 // 🌱 Récupérer son compte (autre téléphone) : pseudo + code à 4 chiffres.
 async function apiLoginJoueur(name, code) {
@@ -1088,7 +1107,8 @@ async function apiCodeClaim(name, code, bonuscode) {
     return { ok: true, gagne: CONFIG.pointsParCodeBonus, recoltees: p.score, solde: p.score + (p.bonus || 0) - (p.depensees || 0), nbCodes: p.codes };
   }
   const r = await fetch(`${CONFIG.api}?site=${SITE}&action=code_claim`, {
-    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, code, bonuscode }),
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, code, bonuscode, jeton: (joueur && joueur.jeton) || "" }),
   });
   return await r.json();
 }
@@ -1321,12 +1341,19 @@ let codeAReclamer = null;    // code bonus en cours de récupération (écran re
    local du navigateur : la personne est reconnue toute seule à chaque visite,
    sans rien retaper. (Désactivé en simulation pour que tout reparte au propre.)
    ============================================================ */
-const LS_MOI = "fj_moi", LS_ATTENTE = "fj_code_attente";
+const LS_MOI = "fj_moi", LS_ATTENTE = "fj_code_attente", LS_JETON = "fj_jeton";
 // Sur une borne (appareil partagé) on NE garde JAMAIS la carte : le visiteur
 // suivant ne doit pas hériter du compte. La session en cours suffit (variable joueur).
-function sauveMoi(pseudo, code) { if (SIMULATION || estBorne()) return; try { localStorage.setItem(LS_MOI, JSON.stringify({ name: pseudo, code })); } catch (e) {} }
+// Les comptes Famiformation se reconnaissent via leur JETON, pas via une carte
+// pseudo + code : on n'enregistre donc pas de carte pour eux (code vide).
+function sauveMoi(pseudo, code) { if (SIMULATION || estBorne() || !code || (joueur && joueur.jeton)) return; try { localStorage.setItem(LS_MOI, JSON.stringify({ name: pseudo, code })); } catch (e) {} }
 function chargeMoi() { if (SIMULATION) return null; try { return JSON.parse(localStorage.getItem(LS_MOI) || "null"); } catch (e) { return null; } }
 function oublieMoi() { try { localStorage.removeItem(LS_MOI); } catch (e) {} }
+// 🔐 Le jeton de session Famiformation. Même règle que la carte : jamais gardé sur
+// une borne (chacun se déconnecte en repartant), gardé sur le téléphone perso.
+function sauveJeton(j) { if (SIMULATION || estBorne()) return; try { localStorage.setItem(LS_JETON, j || ""); } catch (e) {} }
+function chargeJeton() { if (SIMULATION || estBorne()) return ""; try { return localStorage.getItem(LS_JETON) || ""; } catch (e) { return ""; } }
+function oublieJeton() { try { localStorage.removeItem(LS_JETON); } catch (e) {} }
 function metCodeAttente(c) { if (SIMULATION) return; try { localStorage.setItem(LS_ATTENTE, c); } catch (e) {} }
 function litCodeAttente() { if (SIMULATION) return ""; try { return localStorage.getItem(LS_ATTENTE) || ""; } catch (e) { return ""; } }
 function videCodeAttente() { try { localStorage.removeItem(LS_ATTENTE); } catch (e) {} }
@@ -2260,7 +2287,77 @@ async function finHerbes() {
    ============================================================ */
 // 🚪 L'ESPACE — porte d'entrée : soit on se connecte, soit on crée sa carte.
 // Si on est déjà identifié, on file droit au tableau de bord.
+// 🔑 MODALE DE CONNEXION FAMIFORMATION. On se connecte avec ses identifiants du
+// site Famiformation (identifiant OU email + mot de passe). Pas de compte ? Un
+// lien « inscris-toi » ouvre le module de récolte des mails. Connecté → on arrive
+// sur le tableau de bord, comme si on était déjà entré.
+function ouvreConnexionFami() {
+  if (document.querySelector(".modal-fond")) return;   // pas deux fois
+  const o = document.createElement("div");
+  o.className = "modal-fond";
+  o.innerHTML = `<div class="modal">
+    <h2 style="font-family:'Fredoka',sans-serif; color:var(--pousse); font-size:1.5rem; margin:0 0 4px; text-align:center;">Connecte-toi avec tes identifiants Famiformation</h2>
+    <p style="text-align:center; color:#5a6b60; margin:0 0 16px;">Le même compte que sur le site Famiformation.</p>
+    <div id="cf-err"></div>
+    <label class="lbl">Identifiant ou e-mail</label>
+    <input class="field" id="cf-id" autocomplete="username" placeholder="prénom.nom ou ton e-mail">
+    <label class="lbl">Mot de passe</label>
+    <input class="field" id="cf-mdp" type="password" autocomplete="current-password" placeholder="Ton mot de passe">
+    <button class="btn" id="cf-ok" style="width:100%; margin-top:6px;">Se connecter 🌱</button>
+    <p style="text-align:center; margin:16px 0 0; line-height:1.5;">Tu n'as pas de compte Famiformation ?<br>
+      <a href="#" id="cf-inscription" class="lien">Inscris-toi ici</a> pour recevoir tes identifiants.</p>
+    <p class="center" style="margin-top:12px;"><a href="#" id="cf-annuler" class="lien" style="color:#8a988f;">Annuler</a></p>
+  </div>`;
+  document.body.appendChild(o);
+  const ferme = () => o.remove();
+  const erreur = (txt) => { o.querySelector("#cf-err").innerHTML = `<div class="alert">${esc(txt)}</div>`; };
+
+  const go = async () => {
+    const id = o.querySelector("#cf-id").value.trim();
+    const mdp = o.querySelector("#cf-mdp").value;
+    if (!id || !mdp) { erreur("Entre ton identifiant (ou e-mail) et ton mot de passe."); return; }
+    o.querySelector("#cf-ok").disabled = true;
+    o.querySelector("#cf-err").innerHTML = "";
+    const r = await apiLoginFami(id, mdp);
+    o.querySelector("#cf-ok").disabled = false;
+    if (!r || !r.ok) {
+      const raison = r && r.reason;
+      if (raison === "a_activer") { erreur("Ton compte n'est pas encore activé : clique sur le lien reçu par e-mail pour choisir ton mot de passe."); return; }
+      if (raison === "base_indisponible") { erreur("Le service est momentanément indisponible. Réessaie dans un instant."); return; }
+      erreur("Identifiant ou mot de passe incorrect."); return;
+    }
+    // Connecté : on ouvre sa session de jeu et on garde le jeton (téléphone perso).
+    const j = r.joueur || {};
+    joueur = { name: j.name, code: "", jeton: r.jeton, uid: j.uid, prenom: j.prenom, nom: j.nom,
+               solde: j.solde || 0, recoltees: j.recoltees || 0, nbCodes: j.nbCodes || 0, quizFait: j.quiz_fait !== false };
+    sauveJeton(r.jeton);
+    const msg = await reclamerEnAttente();
+    jardinMsg = msg || null;
+    ferme();
+    userView = "dashboard"; quiz = null;
+    render();
+  };
+  o.querySelector("#cf-ok").addEventListener("click", go);
+  o.querySelector("#cf-mdp").addEventListener("keydown", (e) => e.key === "Enter" && go());
+  o.querySelector("#cf-id").addEventListener("keydown", (e) => e.key === "Enter" && o.querySelector("#cf-mdp").focus());
+  o.querySelector("#cf-inscription").addEventListener("click", (e) => { e.preventDefault(); ferme(); ouvreMailBorne(); });
+  o.querySelector("#cf-annuler").addEventListener("click", (e) => { e.preventDefault(); ferme(); });
+  o.addEventListener("click", (e) => { if (e.target === o) ferme(); });
+  setTimeout(() => o.querySelector("#cf-id").focus(), 50);
+}
+
+// L'« espace jardin » n'est plus une page à deux tuiles : c'est la connexion
+// Famiformation. Si on est déjà connecté → tableau de bord ; sinon → la modale
+// de connexion par-dessus l'accueil.
 function renderEspace() {
+  clearInterval(tickTimer);
+  if (joueur) { userView = "dashboard"; render(); return; }
+  userView = "auto";
+  renderHome();
+  ouvreConnexionFami();
+}
+
+function renderEspaceAncien() {
   clearInterval(tickTimer);
   if (joueur) { userView = "dashboard"; render(); return; }
   app.innerHTML = `<div class="home">
@@ -2632,7 +2729,7 @@ async function renderReclamer() {
     } else if (res.reason === "max_atteint") { m.innerHTML = `<div class="alert">Tu as déjà atteint le maximum de ${CONFIG.maxCodes} codes 🌱</div>`; }
     else if (res.reason === "deja_a_toi") { m.innerHTML = `<div class="alert">Tu as déjà récupéré ce code 😉</div>`; }
     else if (res.reason === "deja_pris") { m.innerHTML = `<div class="alert">Trop tard, quelqu'un vient de le prendre ! 🏃</div>`; }
-    else if (res.reason === "auth") { oublieMoi(); m.innerHTML = `<div class="alert">Session expirée, reconnecte-toi.</div>`; }
+    else if (res.reason === "auth") { oublieMoi(); oublieJeton(); m.innerHTML = `<div class="alert">Session expirée, reconnecte-toi.</div>`; }
     else { m.innerHTML = `<div class="alert">Petit souci, réessaie.</div>`; $("#rc-recup").disabled = false; }
   });
 }
@@ -2962,7 +3059,13 @@ function renderHome() {
     // que sur le téléphone. La borne reste donc sur /quiz/<ville>/borne : elle ne
     // bascule JAMAIS dans l'interface téléphone. Chaque vue a son propre « retour »
     // qui ramène à l'accueil de la borne.
-    if (go === "espace") { userView = "espace"; quiz = null; render(); return; }
+    // « Quiz & mon espace jardin » : déjà connecté → tableau de bord ; sinon on
+    // ouvre la modale de connexion Famiformation PAR-DESSUS l'accueil courant.
+    if (go === "espace") {
+      if (joueur) { userView = "dashboard"; quiz = null; render(); }
+      else ouvreConnexionFami();
+      return;
+    }
     // Module « mail » : cadre emails + formulaire (jamais de nouvel onglet), borne ET téléphone.
     if (go === "mail") { ouvreMailBorne(); return; }
     if (go === "code") { codeAReclamer = null; userView = "reclamer"; quiz = null; render(); return; }
@@ -3701,11 +3804,27 @@ function render() {
   if (SIM_PARAMS.get("espace")) userView = "espace";
   else if (SIM_PARAMS.get("play")) userView = "quiz";
 
-  // 🌱 Auto-reconnaissance : si ce téléphone a déjà une carte de jardinier, on
-  // identifie la personne sans qu'elle ait à retaper quoi que ce soit. Sur une
-  // borne (URL /borne, appareil partagé), on NE reconnaît jamais — chacun repart
-  // de zéro pour ne pas hériter du compte du visiteur précédent.
-  const moi = estBorne() ? null : chargeMoi();
+  // 🔐 Session Famiformation : si ce téléphone a un jeton mémorisé, on reprend la
+  // session sans redemander le mot de passe. Sur une borne, jamais (chargeJeton
+  // renvoie "" sur borne). Un jeton périmé/invalide est simplement ignoré.
+  const jetonMemo = chargeJeton();
+  if (jetonMemo && !joueur) {
+    const r = await apiMoi(jetonMemo).catch(() => null);
+    if (r && r.ok && r.joueur) {
+      const j = r.joueur;
+      joueur = { name: j.name, code: "", jeton: jetonMemo, uid: j.uid, prenom: j.prenom, nom: j.nom,
+                 solde: j.solde || 0, recoltees: j.recoltees || 0, nbCodes: j.nbCodes || 0, quizFait: j.quiz_fait !== false };
+      const m = await reclamerEnAttente();
+      if (m) jardinMsg = m;
+    } else {
+      oublieJeton();   // jeton mort : on nettoie
+    }
+  }
+
+  // 🌱 Auto-reconnaissance (ancien système pseudo + code, encore accepté) : si ce
+  // téléphone a une carte de jardinier ET qu'on n'est pas déjà connecté via jeton.
+  // Sur une borne, on NE reconnaît jamais — chacun repart de zéro.
+  const moi = (estBorne() || joueur) ? null : chargeMoi();
   if (moi && moi.name && moi.code) {
     const res = await apiLoginJoueur(moi.name, moi.code).catch(() => null);
     if (res && res.exists && !res.mauvais_code) {
