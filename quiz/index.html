@@ -1352,10 +1352,10 @@ async function apiRevendre(name, caseIdx) {
 // 🌿 Envoyer le butin du mini-jeu (le serveur recalcule et plafonne le gain).
 async function apiRecolteHerbes(name, herbes) {
   if (SIMULATION) {
-    const GAIN = { normale: 1, bronze: 3, argent: 6, or: 12 };
+    const GAIN = { normale: 1, bronze: 2, argent: 3, or: 5 };
     let gain = 0;
     for (const k in GAIN) gain += Math.min(300, herbes[k] || 0) * GAIN[k];
-    gain = Math.min(gain, 80);
+    gain = Math.min(gain, 15);
     const p = board.find((x) => x.name.toLowerCase() === name.toLowerCase());
     if (!p || gain <= 0) return { ok: false, reason: "rien" };
     p.bonus = (p.bonus || 0) + gain;
@@ -1448,9 +1448,9 @@ let PLANTES = {
   tournesol:  { emoji: "🌻", nom: "Tournesol",     cout: 80 },
   rosier:     { emoji: "🌹", nom: "Rosier",        cout: 120 },
   arbre:      { emoji: "🌳", nom: "Petit arbre",   cout: 200 },
-  bronze:     { emoji: "🏵️", nom: "Lotus de bronze", cout: 200,  rare: "bronze" },
-  argent:     { emoji: "💮", nom: "Lotus d'argent",  cout: 400,  rare: "argent" },
-  or:         { emoji: "🪷", nom: "Lotus d'or",      cout: 700,  rare: "or" },
+  bronze:     { emoji: "🏵️", nom: "Lotus de bronze", cout: 500,  rare: "bronze" },
+  argent:     { emoji: "💮", nom: "Lotus d'argent",  cout: 1000, rare: "argent" },
+  or:         { emoji: "🪷", nom: "Lotus d'or",      cout: 1500, rare: "or" },
 };
 let JARDIN_CASES = 48;
 

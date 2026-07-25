@@ -194,9 +194,10 @@ $PLANTES = [
   'arbre'      => ['emoji' => '🌳', 'nom' => 'Petit arbre',   'cout' => 200],
   // 🏆 Les 3 LOTUS : chers, magnifiques, ils scintillent au jardin. Les avoir
   // plantés TOUS LES TROIS (+ jardin plein) rend éligible à la récompense.
-  'bronze'     => ['emoji' => '🏵️', 'nom' => 'Lotus de bronze', 'cout' => 200,  'rare' => 'bronze'],
-  'argent'     => ['emoji' => '💮', 'nom' => 'Lotus d\'argent',  'cout' => 400,  'rare' => 'argent'],
-  'or'         => ['emoji' => '🪷', 'nom' => 'Lotus d\'or',      'cout' => 700,  'rare' => 'or'],
+  // Coûts calibrés : jardin plein + ces 3 lotus ≈ 3 000 graines → ~15 quiz à 20/20.
+  'bronze'     => ['emoji' => '🏵️', 'nom' => 'Lotus de bronze', 'cout' => 500,  'rare' => 'bronze'],
+  'argent'     => ['emoji' => '💮', 'nom' => 'Lotus d\'argent',  'cout' => 1000, 'rare' => 'argent'],
+  'or'         => ['emoji' => '🪷', 'nom' => 'Lotus d\'or',      'cout' => 1500, 'rare' => 'or'],
 ];
 // 🎁 Éligibilité à la récompense « jardin » : jardin PLEIN + ces 3 lotus plantés.
 $LOTUS_REQUIS = ['or', 'argent', 'bronze'];
@@ -208,9 +209,11 @@ $JARDIN_CASES = 48;
 // Le serveur ne fait JAMAIS confiance au total envoyé par la page : il recalcule
 // les graines avec CETTE table, à partir du nombre d'herbes de chaque sorte, et
 // plafonne le gain par partie (anti-triche raisonnable pour un jeu bon enfant).
-$HERBE_GAIN = ['normale' => 1, 'bronze' => 3, 'argent' => 6, 'or' => 12];
+// Le mini-jeu des herbes ne rapporte que des MIETTES : c'est la voie « pour le
+// plaisir ». La vraie voie pour finir le jardin, c'est le quiz du jardin.
+$HERBE_GAIN = ['normale' => 1, 'bronze' => 2, 'argent' => 3, 'or' => 5];
 $HERBE_MAX_PAR_HERBE = 300;   // borne le nombre d'herbes d'une sorte par partie
-$HERBE_MAX_GAIN = 80;         // gain maximum crédité en une partie
+$HERBE_MAX_GAIN = 15;         // gain maximum crédité en une partie (des miettes)
 
 // 🎯 QUIZ DU JARDIN (rejouable) : la voie « efficace » pour alimenter le jardin.
 // Chaque bonne réponse rapporte des graines de jardin (bonus, PAS le classement).
