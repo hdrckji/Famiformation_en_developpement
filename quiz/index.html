@@ -568,6 +568,13 @@ body.mode-tele #app { flex: 0 0 auto; }
 .tv-scan { font-family: 'Fredoka', sans-serif; font-weight: 700; color: var(--pousse);
   font-size: clamp(1.1rem, 2.6vw, 1.6rem); margin-top: 14px; }
 .tv-url { font-size: clamp(.8rem, 1.7vw, 1.05rem); font-weight: 600; opacity: .72; margin-top: 4px; }
+/* Badge « il reste N codes à trouver » AU-DESSUS du QR, sur l'écran télé. */
+.tv-codes { font-family: 'Fredoka', sans-serif; font-weight: 700; line-height: 1.2;
+  font-size: clamp(1rem, 2.3vw, 1.5rem); background: #fff3d6; color: #8a5a00;
+  border: 2px solid #f2c65a; border-radius: 16px; padding: 10px 14px; margin-bottom: 16px;
+  box-shadow: 0 6px 18px rgba(140,100,0,.15); }
+.tv-codes b { color: #7a4e00; font-size: 1.15em; }
+.tv-codes.tv-codes-done { background: #e4f4dc; color: #1f5c34; border-color: #9fd3ac; }
 
 /* 📺 Télé — derniers 10 s : uniquement un chiffre géant qui « pulse ». */
 .tf-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -2840,6 +2847,7 @@ function renderSimTele() {
   async function phaseScore() {
     FEE.stop();
     const q = await qrQuiz().catch(() => null);
+    const cr = await apiCodesRestants().catch(() => null);
     app.innerHTML = `<div class="tv">
       <div class="tv-phase">🏆 Le grand quiz Famiformation</div>
       <div class="tv-cols">
@@ -2847,6 +2855,7 @@ function renderSimTele() {
           ${demo.map((p, i) => `<div class="tv-row"><span>${medals[i] || (i + 1) + "."} ${esc(p.name)}</span><span>${affG(p.score)} 🌰</span></div>`).join("")}
         </div>
         <div class="tv-qr">
+          ${tvCodesBadge(cr)}
           <div class="tv-qr-box">${q ? q.svg : "<div style='padding:40px'>QR…</div>"}</div>
           <div class="tv-scan">📱 Scanne pour jouer !</div>
           <div class="tv-url">${esc(q ? q.url : "")}</div>
@@ -2891,11 +2900,19 @@ function renderSimCode() {
    renderCountdown(). APRÈS le lancement, il montre le classement en direct + QR.
    La bascule est gérée par render() selon la phase.
    ============================================================ */
+// Badge « il reste N codes à trouver » (affiché au-dessus du QR sur la télé).
+function tvCodesBadge(cr) {
+  if (!cr || cr.restants == null) return "";
+  if (cr.restants <= 0) return `<div class="tv-codes tv-codes-done">✅ Tous les codes ont été trouvés&nbsp;!</div>`;
+  return `<div class="tv-codes">🔎 Il reste <b>${cr.restants}</b> code${cr.restants > 1 ? "s" : ""} à trouver en magasin&nbsp;!</div>`;
+}
+
 async function renderTeleBoard() {
   document.body.classList.add("mode-tele");
   FEE.stop();   // une fois le quiz lancé, la fée range sa baguette
   board = await apiGetBoard().catch(() => board);
   const q = await qrQuiz().catch(() => null);
+  const cr = await apiCodesRestants().catch(() => null);
   const top = board.filter((p) => p.quiz_fait !== false && !COMPTES_TEST.includes((p.name || "").toLowerCase())).slice(0, 8);
   const termine = phaseNow() === "termine";
   app.innerHTML = `<div class="tv">
@@ -2906,6 +2923,7 @@ async function renderTeleBoard() {
           : `<div class="tv-row" style="justify-content:center;">Sois le premier à jouer ! 🌱</div>`}
       </div>
       <div class="tv-qr">
+        ${tvCodesBadge(cr)}
         <div class="tv-qr-box">${q ? q.svg : ""}</div>
         <div class="tv-scan">📱 Scanne pour jouer !</div>
         <div class="tv-url">${esc(q ? q.url : "")}</div>
