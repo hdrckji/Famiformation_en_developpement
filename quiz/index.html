@@ -587,6 +587,12 @@ body.mode-tele .lang-switch { display: none; }   /* pas sur la télé */
 .borne-mod.mod-inactif { opacity: .55; filter: grayscale(.35); }
 .borne-mod.mod-inactif:hover, .borne-mod.mod-inactif:active { transform: none; border-color: transparent;
   box-shadow: 0 6px 24px rgba(14,59,36,.1); }
+/* 🔒 Bandeau discret de (dé)verrouillage admin (fonction cachée). */
+.toast-admin { position: fixed; left: 50%; bottom: 26px; transform: translate(-50%, 20px);
+  background: #0E3B24; color: #fff; padding: 12px 22px; border-radius: 999px; z-index: 100003;
+  font-family: 'Fredoka', sans-serif; font-weight: 700; box-shadow: 0 10px 30px rgba(0,0,0,.28);
+  opacity: 0; transition: opacity .35s, transform .35s; pointer-events: none; }
+.toast-admin.show { opacity: 1; transform: translate(-50%, 0); }
 
 /* 🖥️ SUR LA BORNE : on enlève le plafond de largeur (le téléphone/ordi le garde
    pour rester lisible) → l'accueil prend TOUTE la largeur de l'écran, avec 3
@@ -1547,6 +1553,27 @@ function majLangSwitch() {
     s.querySelectorAll("[data-lang]").forEach((b) => b.addEventListener("click", () => setLang(b.dataset.lang)));
   }
   s.querySelectorAll("[data-lang]").forEach((b) => b.classList.toggle("on", b.dataset.lang === LANG));
+}
+
+// 🔒 Module « Quiz & mon espace jardin » de l'accueil : VERROUILLÉ pour tout le
+// monde par défaut. Se débloque (ou se re-verrouille) en tapant « admin » au
+// clavier — fonction cachée réservée à l'organisateur. Mémorisé sur l'appareil.
+let espaceDebloque = (() => { try { return localStorage.getItem("fj_espace_ok") === "1"; } catch (e) { return false; } })();
+// Petit bandeau temporaire (confirmation discrète du (dé)verrouillage admin).
+function toastAdmin(msg) {
+  const t = document.createElement("div");
+  t.className = "toast-admin";
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.classList.add("show"), 20);
+  setTimeout(() => { t.classList.remove("show"); setTimeout(() => t.remove(), 400); }, 2600);
+}
+// Bascule cachée : verrouille / déverrouille le module quiz & jardin.
+function basculeEspaceAdmin() {
+  espaceDebloque = !espaceDebloque;
+  try { localStorage.setItem("fj_espace_ok", espaceDebloque ? "1" : "0"); } catch (e) {}
+  toastAdmin(espaceDebloque ? "🔓 Quiz & jardin débloqué" : "🔒 Quiz & jardin verrouillé");
+  render();   // rafraîchit l'écran courant (l'accueil montre alors le cadenas ou non)
 }
 
 let board = [];
@@ -3581,10 +3608,12 @@ function renderHome() {
     <h2 class="borne-titre">${t("Bienvenue chez Famiflora 🌱", "Welkom bij Famiflora 🌱")}</h2>
     <p class="borne-sous">${t("Que veux-tu faire ?", "Wat wil je doen?")}</p>
     <div class="borne-modules">
-      <button class="borne-mod bm-primaire" data-go="espace">
-        <span class="bm-emo">🌱</span>
+      <button class="borne-mod bm-primaire${espaceDebloque ? "" : " mod-inactif"}" data-go="espace">
+        <span class="bm-emo">${espaceDebloque ? "🌱" : "🔒"}</span>
         <span class="bm-titre">${t("Quiz &amp; mon espace jardin", "Quiz &amp; mijn tuin")}</span>
-        <span class="bm-desc">${t("Réponds au quiz, récolte des graines, fais pousser ton jardin", "Beantwoord de quiz, verzamel zaadjes en laat je tuin groeien")}</span>
+        <span class="bm-desc">${espaceDebloque
+          ? t("Réponds au quiz, récolte des graines, fais pousser ton jardin", "Beantwoord de quiz, verzamel zaadjes en laat je tuin groeien")
+          : t("Bientôt disponible 🔒", "Binnenkort beschikbaar 🔒")}</span>
       </button>
       <button class="borne-mod" data-go="code">
         <span class="bm-emo">🎁</span>
@@ -3635,6 +3664,8 @@ function renderHome() {
     // « Quiz & mon espace jardin » : déjà connecté → tableau de bord ; sinon on
     // ouvre la modale de connexion Famiformation PAR-DESSUS l'accueil courant.
     if (go === "espace") {
+      // 🔒 Verrouillé pour tout le monde tant que l'organisateur n'a pas tapé « admin ».
+      if (!espaceDebloque) { modaleEspaceBloque(); return; }
       if (joueur) { userView = "dashboard"; quiz = null; render(); }
       else ouvreConnexionFami();
       return;
@@ -3651,6 +3682,23 @@ function renderHome() {
   if (bb) bb.addEventListener("click", () => { userView = "board"; quiz = null; render(); });
   const brg = app.querySelector("#home-rgpd");
   if (brg) brg.addEventListener("click", () => ouvrePageInfo("confidentialite"));
+}
+
+// 🔒 Message affiché quand on clique le module « Quiz & mon espace jardin »
+// pendant qu'il est verrouillé pour tout le monde.
+function modaleEspaceBloque() {
+  const o = document.createElement("div");
+  o.className = "modal-fond";
+  o.innerHTML = `<div class="modal code-modal">
+    <div class="cm-emoji">🌱</div>
+    <h2 class="cm-titre">${t("Bientôt disponible !", "Binnenkort beschikbaar!")}</h2>
+    <p class="cm-sous">${t("Le quiz et l'espace jardin ouvrent très bientôt. Reste connecté&nbsp;! 🌼", "De quiz en de tuin openen heel binnenkort. Blijf verbonden&nbsp;! 🌼")}</p>
+    <button class="btn" id="cm-ok" style="min-width:180px;">${t("J'ai hâte ! 🌱", "Ik kijk ernaar uit! 🌱")}</button>
+  </div>`;
+  document.body.appendChild(o);
+  const ferme = () => o.remove();
+  o.querySelector("#cm-ok").addEventListener("click", ferme);
+  o.addEventListener("click", (e) => { if (e.target === o) ferme(); });
 }
 
 // 🔒 Message affiché quand on tente « Participer au quiz » avant l'ouverture.
@@ -4144,7 +4192,8 @@ const EGG = (() => {
     ferme(l, 5600); setTimeout(() => occupe = false, 4400);
   }
 
-  const MOTS = { "graine": grainePluie, "famiflora": famiflora, "2026": badge };
+  // « admin » : mot secret de l'organisateur — (dé)verrouille le module quiz & jardin.
+  const MOTS = { "graine": grainePluie, "famiflora": famiflora, "2026": badge, "admin": basculeEspaceAdmin };
 
   // Clavier (ordinateur) : on retient les dernières frappes.
   let buf = "";
