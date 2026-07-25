@@ -59,7 +59,7 @@ $CODE_TEST_USED = "FAMI-TEST-USED";
 // telephone, ordi) sans deranger personne. Ils n'apparaissent PAS au classement
 // public ni sur la tele, et ils peuvent refaire le quiz autant de fois qu'ils
 // veulent. Cree-les comme un compte normal avec ce pseudo.
-$COMPTES_TEST = ['testeur'];
+$COMPTES_TEST = ['testeur', 'admin_'];
 function estCompteTest($p) {
   global $COMPTES_TEST;
   return in_array(mb_strtolower((string)(is_array($p) ? ($p['name'] ?? '') : $p)), $COMPTES_TEST, true);
@@ -226,7 +226,11 @@ $QUIZ_JARDIN_MAX_BONNES = 20;  // plafond par partie (anti-triche bon enfant)
  */
 function soldeDe($p) {
   // Le score du quiz est un nombre à virgule (bonus rapidité continu) : float.
-  return max(0, round(floatval($p['score'] ?? 0) + intval($p['bonus'] ?? 0) - intval($p['depensees'] ?? 0), 1));
+  $solde = max(0, round(floatval($p['score'] ?? 0) + intval($p['bonus'] ?? 0) - intval($p['depensees'] ?? 0), 1));
+  // 🧪 Compte de test (préview) : graines quasi illimitées (plancher 10000) pour
+  // pouvoir explorer/remplir tout le jardin sans jamais être bloqué. Exclu du classement.
+  if (estCompteTest($p)) { $solde = max($solde, 10000); }
+  return $solde;
 }
 
 // ❓ QUESTIONS PAR DÉFAUT. Elles ne servent qu'AU TOUT PREMIER lancement : dès que

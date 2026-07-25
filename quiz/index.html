@@ -973,7 +973,7 @@ const affG = (n) => Math.round(Number(n) || 0);
 // 🧪 Compte de test : le pseudo « Testeur » sert à essayer le jeu EN VRAI (borne,
 // téléphone, ordi) sans déranger personne — il n'apparaît pas au classement et
 // rien ne lui est verrouillé (quiz rejouable, jardin toujours ouvert).
-const COMPTES_TEST = ["testeur"];
+const COMPTES_TEST = ["testeur", "admin_"];
 function estCompteTest() { return !!joueur && COMPTES_TEST.includes((joueur.name || "").toLowerCase()); }
 const toutOuvert = () => SIMULATION || estCompteTest();
 
