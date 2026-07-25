@@ -240,7 +240,7 @@ function soldeDe($p) {
 // tu enregistres tes questions depuis /quiz/admin, c'est questions.json qui fait
 // foi et cette liste n'est plus jamais consultée.
 $QUESTIONS_DEFAUT = [
-  ['q' => "En quelle année l'entreprise a-t-elle été fondée ?", 'options' => ["1995", "2001", "2008", "2015"], 'correct' => 1],
+  ['q' => "En quelle année Famiflora a-t-elle été créée ?", 'options' => ["2012", "2005", "2018", "1999"], 'correct' => 0],
   ['q' => "Combien de collègues travaillent chez nous aujourd'hui ?", 'options' => ["Moins de 30", "Entre 30 et 60", "Entre 60 et 100", "Plus de 100"], 'correct' => 2],
   ['q' => "Quel est le rayon le plus visité du magasin ?", 'options' => ["Rayon A", "Rayon B", "Rayon C", "Rayon D"], 'correct' => 0],
 ];
@@ -1365,6 +1365,83 @@ switch ($action) {
     }
     writeJson($questionsFile, $propres);
     echo json_encode(['ok' => true, 'total' => count($propres)]);
+    break;
+  }
+
+  // 🌱 CHARGER TOUTES LES QUESTIONS en un clic pour le magasin courant :
+  //   • entreprise → les ~613 questions de la base Famiformation (table quiz_questions),
+  //     + un petit fichier d'extras (ex. année de création), avec une réponse
+  //     fausse rigolote ajoutée à chacune ;
+  //   • culture   → seed/culture.json (jardinage) ;
+  //   • fun       → seed/fun.json.
+  // Écrit dans questions-<site>.json (à relancer pour chaque magasin).
+  case 'questions_seed': {
+    exigeAdmin($input);
+    $RIGOLOTES = [
+      "Rien du tout, on improvise 😅", "Demander à un collègue 🤷", "Appeler Jimmy 📞",
+      "42, évidemment", "Ça dépend de la météo ☀️", "Un bon barbecue 🍖", "Comme d'habitude, au feeling 😎",
+      "Aucune idée, mais ça sonne bien", "La même chose qu'hier", "Fermer les yeux et espérer 🤞",
+      "C'est écrit nulle part, donc non", "Un café d'abord ☕", "Google le sait mieux que moi",
+      "On verra ça lundi", "Poser la question à l'accueil 🙋",
+    ];
+    $lettreVersIndex = ['A' => 0, 'B' => 1, 'C' => 2];
+    $tout = [];
+
+    // 1) Entreprise : base Famiformation (quiz_questions) + réponse rigolote.
+    $db = famiDb();
+    $nbEntreprise = 0;
+    if ($db) {
+      try {
+        $rows = $db->query("SELECT question_text, option_a, option_b, option_c, reponse_correcte
+                            FROM quiz_questions ORDER BY theme ASC, id ASC")->fetchAll(PDO::FETCH_ASSOC);
+      } catch (Exception $e) { $rows = []; }
+      $i = 0;
+      foreach ($rows as $r) {
+        $q = trim((string)($r['question_text'] ?? ''));
+        $opts = [];
+        foreach (['option_a', 'option_b', 'option_c'] as $col) {
+          $o = trim((string)($r[$col] ?? ''));
+          if ($o !== '') { $opts[] = $o; }
+        }
+        if ($q === '' || count($opts) < 2) { continue; }
+        $lettre = strtoupper(trim((string)($r['reponse_correcte'] ?? 'A')));
+        $correct = $lettreVersIndex[$lettre] ?? 0;
+        if ($correct >= count($opts)) { $correct = 0; }
+        $opts[] = $RIGOLOTES[$i % count($RIGOLOTES)];   // réponse fausse rigolote à la fin
+        $i++;
+        $tout[] = ['q' => $q, 'options' => $opts, 'correct' => $correct, 'theme' => 'entreprise'];
+        $nbEntreprise++;
+      }
+    }
+
+    // 2) Extras entreprise + culture + fun : fichiers livrés avec le code.
+    foreach (['entreprise-extra.json' => 'entreprise', 'culture.json' => 'culture', 'fun.json' => 'fun'] as $fichier => $themeDefaut) {
+      $chemin = __DIR__ . '/seed/' . $fichier;
+      if (!is_file($chemin)) { continue; }
+      $lus = json_decode((string)@file_get_contents($chemin), true);
+      if (!is_array($lus)) { continue; }
+      foreach ($lus as $item) {
+        if (empty($item['theme'])) { $item['theme'] = $themeDefaut; }
+        $tout[] = $item;
+      }
+    }
+
+    // Nettoyage/validation avec les mêmes règles que l'enregistrement manuel.
+    $propres = [];
+    foreach ($tout as $item) {
+      $c = nettoieQuestion($item);
+      if ($c) { $propres[] = $c; }
+    }
+    if (!$propres) {
+      http_response_code(500);
+      echo json_encode(['error' => 'Aucune question à charger (base indisponible et aucun fichier seed ?).']);
+      break;
+    }
+    writeJson($questionsFile, $propres);
+    $parTheme = ['entreprise' => 0, 'culture' => 0, 'fun' => 0];
+    foreach ($propres as $p) { $t = $p['theme'] ?? 'entreprise'; if (isset($parTheme[$t])) $parTheme[$t]++; }
+    echo json_encode(['ok' => true, 'total' => count($propres), 'entreprise' => $parTheme['entreprise'],
+      'culture' => $parTheme['culture'], 'fun' => $parTheme['fun'], 'base_ok' => (bool)$db], JSON_UNESCAPED_UNICODE);
     break;
   }
 

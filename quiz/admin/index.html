@@ -274,7 +274,9 @@ function vueQuestions() {
       <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:6px;">
         <button class="btn ghost" id="q-ajouter">+ Ajouter une question</button>
         <button class="btn ghost" id="q-importer">📥 Importer (JSON)</button>
+        <button class="btn" id="q-seed" title="Charge automatiquement les ~613 questions entreprise (base Famiformation) + 50 culture + 15 fun, pour ce magasin">🌱 Charger toutes les questions</button>
       </div>
+      <p class="hint" style="margin:6px 0 0;">« Charger toutes les questions » remplit ce magasin d'un coup : les <b>~613 questions entreprise</b> (base Famiformation, avec une réponse fausse rigolote), <b>50 culture</b> (jardinage) et <b>15 fun</b>. À relancer pour chaque magasin.</p>
       <div id="q-import-zone" style="display:none; margin-top:12px;">
         <p class="hint">Colle un tableau JSON de questions, puis « Ajouter à la liste ». Format de chaque
         question : <code>{"q":"…","options":["…","…"],"correct":0,"theme":"culture"}</code>
@@ -307,6 +309,25 @@ function vueQuestions() {
     const t = filtreTheme === "tous" ? "entreprise" : filtreTheme;
     brouillon.push({ q: "", options: ["", "", "", ""], correct: 0, theme: t });
     dessineListe();
+  });
+
+  // 🌱 Charge d'un coup toutes les questions (base 613 + culture + fun) pour ce magasin.
+  $("#q-seed").addEventListener("click", () => {
+    modaleConfirm({
+      titre: "Charger toutes les questions ?",
+      texte: `Ça remplace la liste actuelle du magasin ${SITES[siteAdmin]} par : ~613 questions entreprise (base Famiformation) + 50 culture + 15 fun. C'est enregistré directement.`,
+      ok: "Charger",
+    }, async () => {
+      const btn = $("#q-seed"); if (btn) { btn.disabled = true; btn.textContent = "⏳ Chargement…"; }
+      const r = await post("questions_seed");
+      if (btn) { btn.disabled = false; btn.textContent = "🌱 Charger toutes les questions"; }
+      if (r.status === 401) { auth = null; vueConnexion("Session expirée, reconnecte-toi."); return; }
+      if (!r.ok) { message = { ok: false, texte: (r.data && r.data.error) || "Chargement impossible." }; rendre(); return; }
+      const d = r.data;
+      message = { ok: true, texte: `${d.total} question(s) chargée(s) — ${d.entreprise} entreprise, ${d.culture} culture, ${d.fun} fun.`
+        + (d.base_ok ? "" : " ⚠️ Base Famiformation injoignable : seules culture + fun ont été chargées.") };
+      await charger();
+    });
   });
 
   // 📥 Import JSON en masse (pour charger d'un coup une banque de questions).

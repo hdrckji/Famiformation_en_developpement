@@ -1,0 +1,17 @@
+[
+  { "q": "Un(e) collègue s'est cassé le bras… en plein bras de fer ! 💪 Dans quel rayon ce duel de titans a-t-il eu lieu ?", "options": ["Au rayon Food 🍫", "Au rayon Green 🌿", "Au rayon Déco 🖼️", "En Logistique 📦"], "correct": 0, "theme": "fun" },
+  { "q": "Un client demande quelle eau verser dans son aquarium à poissons. Quel conseil (surprenant) a vraiment été donné ? 🐠", "options": ["De l'eau de Spa (l'eau en bouteille !) 💧", "De l'eau du robinet", "De l'eau du canal", "De l'eau de mer"], "correct": 0, "theme": "fun" },
+  { "q": "On demande à un(e) collègue de « filmer » une palette (l'emballer dans du film plastique). Qu'a-t-il/elle fait ? 🎬", "options": ["Sorti son téléphone pour tourner une vidéo 📱", "Pris du film plastique", "Pris du carton", "Pris de l'aluminium"], "correct": 0, "theme": "fun" },
+  { "q": "Quel est le comble pour un jardinier ?", "options": ["Raconter des salades", "Compter les moutons", "Repeindre le ciel", "Nager dans le compost"], "correct": 0, "theme": "fun" },
+  { "q": "Si une plante pouvait parler, elle dirait sûrement…", "options": ["« Un peu d'eau, s'il te plaît ! »", "« Baisse le chauffage »", "« Passe-moi le sel »", "« On sort ce soir ? »"], "correct": 0, "theme": "fun" },
+  { "q": "Un gnome de jardin sert surtout à…", "options": ["Décorer (et faire sourire)", "Surveiller la caisse", "Tondre la pelouse", "Piloter le drone d'arrosage"], "correct": 0, "theme": "fun" },
+  { "q": "Comment reconnaît-on un(e) vrai(e) fan de jardinage ?", "options": ["De la terre sous les ongles", "Il/elle déteste les fleurs", "Il/elle a peur des arrosoirs", "Il/elle jardine en costume-cravate"], "correct": 0, "theme": "fun" },
+  { "q": "Au potager, le plus bavard est…", "options": ["Le persil, il repique partout", "Le cactus, très timide", "La pierre du chemin", "Le tuyau d'arrosage"], "correct": 0, "theme": "fun" },
+  { "q": "Que fait un jardinier quand il pleut ?", "options": ["Il laisse la nature bosser", "Il arrose quand même", "Il sort le parapluie pour les fleurs", "Il repeint les nuages"], "correct": 0, "theme": "fun" },
+  { "q": "Le meilleur engrais, c'est…", "options": ["Un bon compost", "Des paillettes", "Du sirop de grenadine", "De la poudre de perlimpinpin"], "correct": 0, "theme": "fun" },
+  { "q": "Pourquoi les carottes sont-elles bonnes pour les yeux ?", "options": ["On n'a jamais vu un lapin avec des lunettes", "Elles brillent dans le noir", "Elles font des clins d'œil", "C'est écrit sur le sachet"], "correct": 0, "theme": "fun" },
+  { "q": "Le rêve secret d'un ver de terre, c'est…", "options": ["Aérer la terre tranquille", "Devenir papillon", "Gagner au loto", "Passer à la télé"], "correct": 0, "theme": "fun" },
+  { "q": "Quel outil ne sert PAS à jardiner ?", "options": ["Une raquette de tennis", "Un sécateur", "Une bêche", "Un arrosoir"], "correct": 0, "theme": "fun" },
+  { "q": "Une tomate, c'est un fruit ou un légume ?", "options": ["Un fruit (mais on l'invite au repas salé)", "Un poisson", "Un dessert", "Une couleur, c'est tout"], "correct": 0, "theme": "fun" },
+  { "q": "Le cri de guerre du jardinier motivé, c'est…", "options": ["« Ça va pousser ! »", "« Au dodo ! »", "« Fermez le magasin ! »", "« Encore un café… »"], "correct": 0, "theme": "fun" }
+]
