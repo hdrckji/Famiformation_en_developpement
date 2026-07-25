@@ -3613,7 +3613,7 @@ function renderHome() {
         <span class="bm-titre">${t("Quiz &amp; mon espace jardin", "Quiz &amp; mijn tuin")}</span>
         <span class="bm-desc">${espaceDebloque
           ? t("Réponds au quiz, récolte des graines, fais pousser ton jardin", "Beantwoord de quiz, verzamel zaadjes en laat je tuin groeien")
-          : t("Bientôt disponible 🔒", "Binnenkort beschikbaar 🔒")}</span>
+          : t("🔒 Ouvre le " + labelLancement() + " pour le lancement", "🔒 Opent op " + labelLancement() + " voor de lancering")}</span>
       </button>
       <button class="borne-mod" data-go="code">
         <span class="bm-emo">🎁</span>
@@ -3690,9 +3690,9 @@ function modaleEspaceBloque() {
   const o = document.createElement("div");
   o.className = "modal-fond";
   o.innerHTML = `<div class="modal code-modal">
-    <div class="cm-emoji">🌱</div>
-    <h2 class="cm-titre">${t("Bientôt disponible !", "Binnenkort beschikbaar!")}</h2>
-    <p class="cm-sous">${t("Le quiz et l'espace jardin ouvrent très bientôt. Reste connecté&nbsp;! 🌼", "De quiz en de tuin openen heel binnenkort. Blijf verbonden&nbsp;! 🌼")}</p>
+    <div class="cm-emoji">🚀</div>
+    <h2 class="cm-titre">${t("Ouverture le " + labelLancement() + " !", "Opening op " + labelLancement() + "!")}</h2>
+    <p class="cm-sous">${t("Le quiz et l'espace jardin ouvrent le <b>" + labelLancement() + "</b>, pile pour le <b>lancement</b> 🎉 Reviens à ce moment-là pour jouer et récolter tes graines 🌱", "De quiz en de tuin openen op <b>" + labelLancement() + "</b>, precies voor de <b>lancering</b> 🎉 Kom dan terug om te spelen en zaadjes te oogsten 🌱")}</p>
     <button class="btn" id="cm-ok" style="min-width:180px;">${t("J'ai hâte ! 🌱", "Ik kijk ernaar uit! 🌱")}</button>
   </div>`;
   document.body.appendChild(o);
