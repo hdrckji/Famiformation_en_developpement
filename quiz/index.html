@@ -1181,9 +1181,9 @@ async function apiSubmit(entry) {
     const p = board.find((x) => x.name.toLowerCase() === (entry.name || "").toLowerCase());
     if (p) {
       if ((p.code || "") !== (entry.code || "")) return false;   // nom pris par un autre
-      if (!p.quiz_fait) { p.score = entry.score; p.correct = entry.correct; p.time = entry.time; p.quiz_fait = true; if (entry.nom) p.nom = entry.nom; }
+      if (!p.quiz_fait) { p.score = entry.score; p.correct = entry.correct; p.time = entry.time; p.quiz_fait = true; if (entry.nom) p.nom = entry.nom; if (entry.pseudo) p.pseudo = entry.pseudo; }
     } else {
-      board.push({ name: entry.name, code: entry.code || "", nom: entry.nom || "", score: entry.score,
+      board.push({ name: entry.name, pseudo: entry.pseudo || "", code: entry.code || "", nom: entry.nom || "", score: entry.score,
                    bonus: 0, depensees: 0, correct: entry.correct, codes: 0, codes_pris: [],
                    time: entry.time, quiz_fait: true, date: new Date().toISOString() });
     }
@@ -1412,6 +1412,8 @@ const $ = (sel) => document.querySelector(sel);
 const app = $("#app");
 const pad = (n) => String(n).padStart(2, "0");
 const medals = ["🥇", "🥈", "🥉"];
+// Nom AFFICHÉ d'un joueur au classement : son pseudo choisi, sinon son identifiant.
+function nomAff(p) { return (p && (p.pseudo || p.name)) || ""; }
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 function shuffle(arr) {
@@ -1742,7 +1744,7 @@ function renderCountdown() {
   const top5 = board.slice(0, 5);
   const top5Html = (phase !== "avant" && top5.length)
     ? `<div class="cd-top5"><h3>${t("🌟 Top 5 de la récolte", "🌟 Top 5 van de oogst")}</h3>${top5.map((p, i) =>
-        `<div class="cd-top5-row"><span>${medals[i] || (i + 1) + "."} ${esc(p.name)}</span><span>${affG(p.score)} 🌰</span></div>`
+        `<div class="cd-top5-row"><span>${medals[i] || (i + 1) + "."} ${esc(nomAff(p))}</span><span>${affG(p.score)} 🌰</span></div>`
       ).join("")}</div>`
     : "";
 
@@ -1865,7 +1867,7 @@ async function avanceQuiz() {
   const time = Math.round((Date.now() - quiz.start) / 1000);
   quiz.tempsTotal = time;          // pour l'afficher sur l'écran de fin
   quiz.score = arr1(quiz.score);   // score final à virgule (les décimales départagent)
-  await apiSubmit({ name: quiz.pseudo, code: quiz.code, nom: quiz.nom, score: quiz.score, correct: quiz.correct, time }).catch(() => {});
+  await apiSubmit({ name: quiz.pseudo, pseudo: (joueur && joueur.pseudo) || "", code: quiz.code, nom: quiz.nom, score: quiz.score, correct: quiz.correct, time }).catch(() => {});
   sauveMoi(quiz.pseudo, quiz.code);                    // l'appareil perso se souvient
   if (!joueur) joueur = { name: quiz.pseudo, code: quiz.code, nbCodes: 0 };
   joueur.recoltees = quiz.score;
@@ -2044,7 +2046,7 @@ function renderQuiz() {
   const stadeFinal = stadeDe(quiz.score);
   app.innerHTML = `<div class="card center">
     <div style="font-size:4.2rem; line-height:1.1;">${stadeFinal.emoji}</div>
-    <h2 class="q-text" style="margin-bottom:6px;">${t("Bravo " + esc(quiz.pseudo) + ", te voilà « " + stadeFinal.nom + " » !", "Bravo " + esc(quiz.pseudo) + ", je bent nu « " + stadeFinal.nom + " »!")}</h2>
+    <h2 class="q-text" style="margin-bottom:6px;">${t("Bravo " + esc((joueur && joueur.pseudo) || quiz.pseudo) + ", te voilà « " + stadeFinal.nom + " » !", "Bravo " + esc((joueur && joueur.pseudo) || quiz.pseudo) + ", je bent nu « " + stadeFinal.nom + " »!")}</h2>
     <div class="score-big">${affG(joueur.recoltees)} 🌰</div>
     <p class="hint" style="margin-top:14px;">
       <b>${quiz.correct} ${t("bonne" + (quiz.correct > 1 ? "s" : "") + " réponse" + (quiz.correct > 1 ? "s" : "") + " sur " + quiz.questions.length, "juist" + (quiz.correct > 1 ? "e" : "") + " antwoord" + (quiz.correct > 1 ? "en" : "") + " op " + quiz.questions.length)}</b>
@@ -2165,7 +2167,7 @@ function renderBoard() {
   const moiHtml = (moiRang >= 0) ? `<div class="moi-score">
       <div class="moi-rang">${moiRang < 3 ? medals[moiRang] : "#" + (moiRang + 1)}</div>
       <div class="moi-info">
-        <div class="moi-nom">${esc(lignes[moiRang].name)} — ${t("c'est toi ! 🌱", "dat ben jij! 🌱")}</div>
+        <div class="moi-nom">${esc(nomAff(lignes[moiRang]))} — ${t("c'est toi ! 🌱", "dat ben jij! 🌱")}</div>
         <div class="moi-pts">${affG(lignes[moiRang].score)} ${t("graines récoltées", "zaadjes geoogst")}${moiRang < 3 ? t(" · sur le podium ! 🎉", " · op het podium! 🎉") : ""}</div>
       </div>
       <button class="btn" id="moi-jardin">${t("🌼 Mon jardin", "🌼 Mijn tuin")}</button>
@@ -2180,15 +2182,15 @@ function renderBoard() {
       ${order.map((pos) => top3[pos] ? `
         <div class="pod p${pos + 1}${moiRang === pos ? " moi" : ""}">
           <div class="pod-medal">${medals[pos]}</div>
-          <div class="pod-name">${esc(top3[pos].name)}</div>
+          <div class="pod-name">${esc(nomAff(top3[pos]))}</div>
           <div class="pod-pts">${affG(top3[pos].score)} 🌰</div>
         </div>` : "").join("")}
     </div>
     ${rest.map((p, i) => `
       <div class="rank-row${moiRang === i + 3 ? " moi" : ""}">
         <span class="rank-pos">${i + 4}.</span>
-        ${avatarDe(p.name)}
-        <span class="rank-nom"><span class="qui">${esc(p.name)}</span></span>
+        ${avatarDe(nomAff(p))}
+        <span class="rank-nom"><span class="qui">${esc(nomAff(p))}</span></span>
         <span class="rank-pts">${affG(p.score)} 🌰</span>
       </div>`).join("")}
     <div class="center home-liens" style="margin-top:18px;">
@@ -2684,7 +2686,7 @@ function ouvreConnexionFami() {
     }
     // Connecté : on ouvre sa session de jeu et on garde le jeton (téléphone perso).
     const j = r.joueur || {};
-    joueur = { name: j.name, code: "", jeton: r.jeton, uid: j.uid, prenom: j.prenom, nom: j.nom,
+    joueur = { name: j.name, code: "", jeton: r.jeton, uid: j.uid, prenom: j.prenom, nom: j.nom, pseudo: j.pseudo || "",
                solde: j.solde || 0, recoltees: j.recoltees || 0, nbCodes: j.nbCodes || 0, quizFait: j.quiz_fait !== false };
     sauveJeton(r.jeton);
     const msg = await reclamerEnAttente();
@@ -3043,7 +3045,7 @@ function renderDashboard() {
   $("#dash-quiz").addEventListener("click", () => {
     if (quizFait) { jardinMsg = t("Tu as déjà fait le quiz 🌱 Direction ton jardin !", "Je hebt de quiz al gedaan 🌱 Op naar je tuin!"); userView = "jardin"; ouvreJardinDepuisDash(); return; }
     if (!quizOuvert) { modaleQuizVerrouille(); return; }
-    userView = "quiz"; quiz = null; render();
+    ouvrePseudoPuisQuiz();
   });
   $("#dash-jardin").addEventListener("click", () => {
     if (!jardinOk) { modaleJardinVerrouille(); return; }
@@ -3053,6 +3055,36 @@ function renderDashboard() {
   $("#dash-explik").addEventListener("click", ouvreExplication);
   $("#dash-code").addEventListener("click", () => { codeAReclamer = null; userView = "reclamer"; render(); });
   $("#dash-retour").addEventListener("click", () => { if (retourAccueilBorne()) return; userView = "auto"; render(); });
+}
+// ✍️ Avant de lancer le quiz : on demande (ou confirme) le PSEUDO qui s'affichera
+// au classement. Par défaut on propose son prénom (ou l'identifiant). Le pseudo
+// est purement décoratif : le compte reste rattaché à l'identifiant Famiformation.
+function ouvrePseudoPuisQuiz() {
+  const actuel = (joueur && (joueur.pseudo || joueur.prenom || joueur.name)) || "";
+  const o = document.createElement("div");
+  o.className = "modal-fond";
+  o.innerHTML = `<div class="modal">
+    <h2 style="font-family:'Fredoka',sans-serif; color:var(--pousse); font-size:1.4rem; margin:0 0 4px; text-align:center;">${t("Choisis ton pseudo", "Kies je bijnaam")}</h2>
+    <p style="text-align:center; color:#5a6b60; margin:0 0 14px;">${t("C'est le nom qui s'affichera au classement 🏆", "Dat is de naam die in de ranking verschijnt 🏆")}</p>
+    <div id="ps-err"></div>
+    <input class="field" id="ps-in" maxlength="24" value="${esc(actuel)}" placeholder="${t("Ton pseudo", "Je bijnaam")}">
+    <button class="btn" id="ps-ok" style="width:100%; margin-top:8px;">${t("C'est parti ! 🚀", "We gaan ervoor! 🚀")}</button>
+    <p class="center" style="margin-top:10px;"><a href="#" id="ps-annuler" class="lien" style="color:#8a988f;">${t("Annuler", "Annuleren")}</a></p>
+  </div>`;
+  document.body.appendChild(o);
+  const ferme = () => o.remove();
+  const go = () => {
+    const v = $("#ps-in").value.trim();
+    if (v.length < 2) { $("#ps-err").innerHTML = `<div class="alert">${t("Choisis un pseudo (au moins 2 lettres).", "Kies een bijnaam (minstens 2 letters).")}</div>`; return; }
+    if (joueur) joueur.pseudo = v;
+    ferme();
+    userView = "quiz"; quiz = null; render();
+  };
+  $("#ps-ok").addEventListener("click", go);
+  $("#ps-in").addEventListener("keydown", (e) => e.key === "Enter" && go());
+  $("#ps-annuler").addEventListener("click", (e) => { e.preventDefault(); ferme(); });
+  o.addEventListener("click", (e) => { if (e.target === o) ferme(); });
+  setTimeout(() => { const el = $("#ps-in"); if (el) { el.focus(); el.select(); } }, 60);
 }
 async function ouvreJardinDepuisDash() {
   jardin = await apiJardin();
@@ -3435,7 +3467,7 @@ async function renderTeleBoard() {
     <div class="tv-phase">${termine ? "🏆 Classement final · Eindklassement" : "🏆 Classement en direct · Live ranking"}</div>
     <div class="tv-cols">
       <div class="tv-board">
-        ${top.length ? top.map((p, i) => `<div class="tv-row"><span>${medals[i] || (i + 1) + "."} ${esc(p.name)}</span><span>${affG(p.score)} 🌰</span></div>`).join("")
+        ${top.length ? top.map((p, i) => `<div class="tv-row"><span>${medals[i] || (i + 1) + "."} ${esc(nomAff(p))}</span><span>${affG(p.score)} 🌰</span></div>`).join("")
           : `<div class="tv-row" style="justify-content:center;">Sois le premier à jouer ! 🌱 · Wees de eerste!</div>`}
       </div>
       <div class="tv-qr">
@@ -3471,7 +3503,7 @@ async function renderTeleWinners() {
       ${ordre.map((pos) => top[pos] ? `
         <div class="tw-place tw-p${pos + 1}">
           <div class="tw-medal">${medals[pos]}</div>
-          <div class="tw-name">${esc(top[pos].name)}</div>
+          <div class="tw-name">${esc(nomAff(top[pos]))}</div>
           <div class="tw-score">${affG(top[pos].score)} 🌰</div>
           <div class="tw-bar">${pos + 1}</div>
         </div>` : "").join("")}
@@ -4417,7 +4449,7 @@ function retourNav() {
     const r = await apiMoi(jetonMemo).catch(() => null);
     if (r && r.ok && r.joueur) {
       const j = r.joueur;
-      joueur = { name: j.name, code: "", jeton: jetonMemo, uid: j.uid, prenom: j.prenom, nom: j.nom,
+      joueur = { name: j.name, code: "", jeton: jetonMemo, uid: j.uid, prenom: j.prenom, nom: j.nom, pseudo: j.pseudo || "",
                  solde: j.solde || 0, recoltees: j.recoltees || 0, nbCodes: j.nbCodes || 0, quizFait: j.quiz_fait !== false };
       const m = await reclamerEnAttente();
       if (m) jardinMsg = m;

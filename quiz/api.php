@@ -583,7 +583,8 @@ switch ($action) {
     // facultativement, utile pour remettre les prix aux vrais gagnants.
     $codeJard = preg_replace('/\D/', '', (string)($input['code'] ?? ''));
     $entree = [
-      'name'      => $name,                                   // le pseudo (nom de jardinier)
+      'name'      => $name,                                   // clé du compte (= identifiant Famiformation)
+      'pseudo'    => trim(mb_substr((string)($input['pseudo'] ?? ''), 0, 24)),  // nom AFFICHÉ au classement (choisi par le joueur)
       'code'      => substr($codeJard, 0, 4),                 // code secret à 4 chiffres
       'nom'       => trim(mb_substr((string)($input['nom'] ?? ''), 0, 60)),
       'score'     => max(0, round(floatval($input['score'] ?? 0), 1)),   // récolte (nombre à virgule)
@@ -616,6 +617,7 @@ switch ($action) {
           $board[$i]['time']     = $entree['time'];
           $board[$i]['quiz_fait'] = true;
           if ($entree['nom'] !== '') $board[$i]['nom'] = $entree['nom'];
+          if ($entree['pseudo'] !== '') $board[$i]['pseudo'] = $entree['pseudo'];
           sortBoard($board);
           $write = true;
           return ['board' => $board];
@@ -726,7 +728,7 @@ switch ($action) {
           $p['prenom'] = $u['prenom']; $p['nom'] = $u['nom'];
           $write = true;
           return ['quiz_fait' => ($p['quiz_fait'] ?? true), 'recoltees' => round(floatval($p['score'] ?? 0), 1),
-                  'solde' => soldeDe($p), 'nbCodes' => intval($p['codes'] ?? 0)];
+                  'solde' => soldeDe($p), 'nbCodes' => intval($p['codes'] ?? 0), 'pseudo' => ($p['pseudo'] ?? '')];
         }
       }
       unset($p);
@@ -734,7 +736,7 @@ switch ($action) {
         'score' => 0, 'bonus' => 0, 'depensees' => 0, 'correct' => 0, 'codes' => 0, 'codes_pris' => [],
         'time' => 0, 'quiz_fait' => false, 'date' => date('c')];
       $write = true;
-      return ['quiz_fait' => false, 'recoltees' => 0, 'solde' => 0, 'nbCodes' => 0];
+      return ['quiz_fait' => false, 'recoltees' => 0, 'solde' => 0, 'nbCodes' => 0, 'pseudo' => ''];
     });
     echo json_encode(['ok' => true, 'jeton' => faitJeton($u['id'], $u['identifiant']),
       'joueur' => ['name' => $u['identifiant'], 'uid' => (int) $u['id'],
@@ -753,7 +755,7 @@ switch ($action) {
       if (mb_strtolower((string) ($p['name'] ?? '')) === mb_strtolower($j['identifiant'])) {
         echo json_encode(['ok' => true, 'joueur' => [
           'name' => $p['name'], 'uid' => intval($p['uid'] ?? 0),
-          'prenom' => $p['prenom'] ?? '', 'nom' => $p['nom'] ?? '',
+          'prenom' => $p['prenom'] ?? '', 'nom' => $p['nom'] ?? '', 'pseudo' => $p['pseudo'] ?? '',
           'quiz_fait' => ($p['quiz_fait'] ?? true), 'recoltees' => round(floatval($p['score'] ?? 0), 1),
           'solde' => soldeDe($p), 'nbCodes' => intval($p['codes'] ?? 0),
         ]], JSON_UNESCAPED_UNICODE);
