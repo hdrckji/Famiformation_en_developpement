@@ -1332,7 +1332,11 @@ function litCodeAttente() { if (SIMULATION) return ""; try { return localStorage
 function videCodeAttente() { try { localStorage.removeItem(LS_ATTENTE); } catch (e) {} }
 
 // 🖥️ Sommes-nous dans le parcours BORNE ? (le flag est posé au clic d'un module.)
-function estBorne() { try { return sessionStorage.getItem("fj_borne") === "1"; } catch (e) { return false; } }
+// 🖥️ Borne ou téléphone ? UNE SEULE source de vérité : l'URL. /quiz/<ville>/borne
+// = borne (on y reste, quoi qu'on fasse) ; /quiz/<ville> (et ses vues) = téléphone.
+// Plus de « drapeau mémorisé » : la borne ne quitte jamais son adresse, donc on
+// ne peut jamais se retrouver par erreur dans l'interface téléphone.
+function estBorne() { return ECRAN === "borne"; }
 // Retour « accueil » : dans la borne, on RESTE dans la borne (on ne s'échappe pas
 // vers le quiz). Renvoie true si on a bien géré la redirection.
 function retourAccueilBorne() { if (estBorne()) { location.href = quizBase() + "borne"; return true; } return false; }
@@ -2952,22 +2956,16 @@ function renderHome() {
     tickTimer = setInterval(tick, 1000);
   }
 
-  const base = quizBase();
   app.querySelectorAll("[data-go]").forEach((b) => b.addEventListener("click", () => {
     const go = b.dataset.go;
-    // « Quiz & mon espace jardin » : on entre dans l'espace (connexion/création
-    // puis tableau de bord). Depuis la borne on navigue vers /quiz (avec le bouton
-    // maison) pour garder une sortie ; sur téléphone/ordi, en place.
-    if (go === "espace") {
-      if (borne) { try { sessionStorage.setItem("fj_borne", "1"); } catch (e) {} location.href = base + "?espace=1"; return; }
-      userView = "espace"; quiz = null; render(); return;
-    }
+    // On navigue DANS l'application (sans changer d'URL), aussi bien sur la borne
+    // que sur le téléphone. La borne reste donc sur /quiz/<ville>/borne : elle ne
+    // bascule JAMAIS dans l'interface téléphone. Chaque vue a son propre « retour »
+    // qui ramène à l'accueil de la borne.
+    if (go === "espace") { userView = "espace"; quiz = null; render(); return; }
     // Module « mail » : cadre emails + formulaire (jamais de nouvel onglet), borne ET téléphone.
     if (go === "mail") { ouvreMailBorne(); return; }
-    if (go === "code") {
-      if (borne) { try { sessionStorage.setItem("fj_borne", "1"); } catch (e) {} location.href = base + "code"; return; }
-      codeAReclamer = null; userView = "reclamer"; quiz = null; render();
-    }
+    if (go === "code") { codeAReclamer = null; userView = "reclamer"; quiz = null; render(); return; }
   }));
   const be = app.querySelector("#home-explik");
   if (be) be.addEventListener("click", ouvreExplication);
@@ -3037,19 +3035,6 @@ function ouvreMailBorne() {
   va(false);
 }
 
-// 🏠 Bouton maison permanent : visible sur les pages atteintes DEPUIS la borne,
-// il ramène à /quiz/borne (pratique sur une borne tactile partagée).
-function injecteHomeBorne() {
-  try { if (sessionStorage.getItem("fj_borne") !== "1") return; } catch (e) { return; }
-  if (ECRAN === "borne" || document.getElementById("home-borne")) return;
-  const a = document.createElement("a");
-  a.id = "home-borne";
-  a.className = "home-borne";
-  a.href = quizBase() + "borne";
-  a.title = "Retour à l'accueil";
-  a.textContent = "🏠";
-  document.body.appendChild(a);
-}
 
 /* ============================================================
    🧚 LA FÉE FAMIFLORA — spectacle du compte à rebours (60 s en boucle)
@@ -3536,6 +3521,11 @@ const EGG = (() => {
    ============================================================ */
 
 function render() {
+  // 🖥️ Le mode borne se décide en UN seul endroit, pour TOUTES les vues : tant
+  // qu'on est sur /quiz/<ville>/borne, chaque écran (accueil, espace, tableau de
+  // bord, quiz, code…) reste en présentation borne. Aucune vue ne peut « retomber »
+  // en présentation téléphone par accident.
+  if (ECRAN !== "tele") document.body.classList.toggle("mode-borne", ECRAN === "borne");
   // 📺 Écran télé : AVANT le lancement, on affiche le VRAI compte à rebours de la
   // page joueur (avec la fée) ; APRÈS, le classement en direct. La bascule se fait
   // toute seule (le tick du compte à rebours rappelle render() à zéro).
@@ -3691,21 +3681,13 @@ function render() {
   }
 
   // 🖥️ La BORNE : appareil partagé → pas d'auto-reconnaissance (chacun repart de
-  // zéro) et accueil SANS compte à rebours. Le même render() que le téléphone.
+  // zéro) et accueil SANS compte à rebours. Elle reste sur /quiz/<ville>/borne pour
+  // toute la session : la navigation se fait dans l'application (render), jamais
+  // par un changement d'URL, donc on ne bascule jamais côté téléphone.
   if (ECRAN === "borne") {
-    try { sessionStorage.setItem("fj_borne", "1"); } catch (e) {}
     render();
     return;
   }
-
-  // 🧹 On arrive sur /quiz DIRECTEMENT (téléphone/ordi, pas depuis la borne) : on
-  // oublie le mode borne d'une éventuelle session précédente. Sinon les boutons
-  // « retour » renverraient vers /quiz/borne alors qu'on est sur son téléphone.
-  if (ECRAN === "user" && !SIM_PARAMS.get("espace") && !SIM_PARAMS.get("play")) {
-    try { sessionStorage.removeItem("fj_borne"); } catch (e) {}
-  }
-
-  injecteHomeBorne();   // bouton maison si on vient de la borne
 
   // 🎁 Page /quiz/code : on ouvre directement la saisie du code. On NE sort PAS
   // ici : la suite (auto-reconnaissance) doit s'appliquer comme sur /quiz, sinon
@@ -3721,8 +3703,8 @@ function render() {
 
   // 🌱 Auto-reconnaissance : si ce téléphone a déjà une carte de jardinier, on
   // identifie la personne sans qu'elle ait à retaper quoi que ce soit. Sur une
-  // borne (appareil partagé : fj_borne posé), on NE reconnaît jamais — chacun
-  // repart de zéro pour ne pas hériter du compte du visiteur précédent.
+  // borne (URL /borne, appareil partagé), on NE reconnaît jamais — chacun repart
+  // de zéro pour ne pas hériter du compte du visiteur précédent.
   const moi = estBorne() ? null : chargeMoi();
   if (moi && moi.name && moi.code) {
     const res = await apiLoginJoueur(moi.name, moi.code).catch(() => null);
