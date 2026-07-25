@@ -560,6 +560,16 @@ body.mode-borne #app { width: 100%; }
   cursor: pointer; transition: transform .12s; }
 .home-borne:hover { transform: scale(1.07); }
 
+/* 🖥️ Barre de navigation de la borne (haut à droite) : Retour + Accueil. Sous les
+   fenêtres (modal 100003) et les cadres (ext-overlay 100060), qui la recouvrent. */
+#nav-borne { position: fixed; top: 14px; right: 14px; z-index: 100001; display: flex; gap: 10px; }
+.nb-btn { border: none; cursor: pointer; font-family: 'Fredoka', sans-serif; font-weight: 700;
+  font-size: clamp(.95rem, 2vw, 1.15rem); color: var(--foret); background: var(--craie);
+  padding: 11px 18px; border-radius: 999px; box-shadow: 0 4px 16px rgba(14,59,36,.18);
+  display: inline-flex; align-items: center; gap: 6px; transition: transform .12s, box-shadow .15s; }
+.nb-btn:hover, .nb-btn:active { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(14,59,36,.24); }
+.nb-home { background: var(--pousse); color: #fff; }
+
 /* Site externe (page mail) affiché dans la borne, avec une barre de retour. */
 .ext-overlay { position: fixed; inset: 0; z-index: 100060; background: var(--brume); display: flex; flex-direction: column; }
 .ext-bar { display: flex; align-items: center; gap: 14px; padding: 12px clamp(14px, 3vw, 26px);
@@ -1382,6 +1392,8 @@ function avatarDe(name) {
 
 let board = [];
 let userView = "auto";       // auto | board | jardin (après avoir joué)
+// 🖥️ Navigation de la borne : pile des vues précédentes (bouton « Retour »).
+let navPile = [], vuePrec = null, navRetour = false;
 let quiz = null;             // état de la partie en cours
 let tickTimer = null;
 let chronoQ = null;          // chrono affiché pendant une question du quiz
@@ -3852,6 +3864,13 @@ function render() {
     stopSim();
   }
   const v = currentView();
+  // 🖥️ Historique de navigation de la borne : on empile la vue qu'on QUITTE,
+  // sauf quand on revient justement en arrière. Sert au bouton « Retour ».
+  if (ECRAN === "borne") {
+    if (navRetour) navRetour = false;
+    else if (vuePrec && vuePrec !== v) navPile.push(vuePrec);
+    vuePrec = v;
+  }
   // La fée n'accompagne QUE l'écran télé : sur le téléphone/ordi, pas de fée.
   FEE.stop();
   // On quitte le mini-jeu : couper la partie en cours (timers d'apparition).
@@ -3867,6 +3886,35 @@ function render() {
   else if (v === "retrouver") renderRetrouver();
   else if (v === "reclamer") renderReclamer();
   else renderBoard();
+  majNavBorne(v);   // barre « Retour / Accueil » de la borne (sauf sur l'accueil)
+}
+
+// 🖥️ BARRE DE NAVIGATION DE LA BORNE (haut à droite) : « ◂ Retour » (recule d'un
+// pas) et « 🏠 Accueil » (retour au menu, page fraîche pour le visiteur suivant).
+// Présente sur CHAQUE page de la borne, sauf l'accueil lui-même. Placée au niveau
+// du <body> pour survivre aux changements de contenu, sous les fenêtres/cadres.
+function majNavBorne(v) {
+  let bar = document.getElementById("nav-borne");
+  const montrer = (ECRAN === "borne" && v !== "home");
+  if (!montrer) { if (bar) bar.remove(); return; }
+  if (!bar) {
+    bar = document.createElement("div");
+    bar.id = "nav-borne";
+    bar.innerHTML = `<button class="nb-btn" id="nb-retour">◂ Retour</button>
+      <button class="nb-btn nb-home" id="nb-home">🏠 Accueil</button>`;
+    document.body.appendChild(bar);
+    bar.querySelector("#nb-retour").addEventListener("click", retourNav);
+    bar.querySelector("#nb-home").addEventListener("click", () => retourAccueilBorne());
+  }
+}
+// « Retour » : on dépile la vue précédente. Plus rien à dépiler → l'accueil.
+function retourNav() {
+  if (!navPile.length) { retourAccueilBorne(); return; }
+  navRetour = true;
+  const cible = navPile.pop();
+  quiz = null;
+  userView = (cible === "home") ? "auto" : cible;
+  render();
 }
 
 (async () => {
