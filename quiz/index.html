@@ -1939,7 +1939,7 @@ function renderQuiz() {
   // ---- Petit écran transitoire pendant l'enregistrement ----
   if (quiz.step === "fin") {
     app.innerHTML = `<div class="card center"><div style="font-size:2.6rem;">🌱</div>
-      <h2 class="q-text">On récolte tes graines…</h2></div>`;
+      <h2 class="q-text">${t("On récolte tes graines…", "We oogsten je zaadjes…")}</h2></div>`;
     return;
   }
 
@@ -1958,8 +1958,8 @@ function renderQuiz() {
         <span class="graines">${affG(graines)} 🌰${quiz.lastGain ? `<span class="gain">+${affG(quiz.lastGain)}</span>` : ""}${quiz.streak >= 2 ? `<span class="serie">🔥 ${quiz.streak}</span>` : ""}</span>
       </div>
       <div class="q-progress"><div style="width:${(quiz.idx / quiz.questions.length) * 100}%"></div></div>
-      <div class="q-num">Question ${quiz.idx + 1} / ${quiz.questions.length}
-        <span class="q-chrono" id="q-chrono" title="Plus tu réponds vite, plus tu gagnes de graines">⏱ 0,0 s</span>
+      <div class="q-num">${t("Question", "Vraag")} ${quiz.idx + 1} / ${quiz.questions.length}
+        <span class="q-chrono" id="q-chrono" title="${t("Plus tu réponds vite, plus tu gagnes de graines", "Hoe sneller je antwoordt, hoe meer zaadjes je wint")}">⏱ 0,0 s</span>
       </div>
       <div class="q-text">${esc(q.q)}</div>
       ${q.options.map((o, i) => {
@@ -1967,15 +1967,15 @@ function renderQuiz() {
         let tag = "";
         if (rev) {
           cls += " reveal";
-          if (o.good) { cls += " q-opt-good"; tag = `<span class="opt-tag">✓ bonne réponse</span>`; }
-          else if (i === rev.chosen) { cls += " q-opt-bad"; tag = `<span class="opt-tag">✗ ton choix</span>`; }
+          if (o.good) { cls += " q-opt-good"; tag = `<span class="opt-tag">${t("✓ bonne réponse", "✓ juist antwoord")}</span>`; }
+          else if (i === rev.chosen) { cls += " q-opt-bad"; tag = `<span class="opt-tag">${t("✗ ton choix", "✗ jouw keuze")}</span>`; }
         }
         return `<button class="${cls}" data-i="${i}"${rev ? " disabled" : ""}>${esc(o.text)}${tag}</button>`;
       }).join("")}
       ${rev ? `<div class="q-feedback ${rev.good ? "ok" : "ko"}">${rev.good
-          ? "✅ Bravo, bonne réponse !"
-          : "❌ Raté ! La bonne réponse est surlignée en vert."}</div>
-        <button class="btn" id="q-suivant" style="width:100%; margin-top:10px;">${quiz.idx + 1 < quiz.questions.length ? "Question suivante ➜" : "Voir mon résultat ➜"}</button>` : ""}
+          ? t("✅ Bravo, bonne réponse !", "✅ Bravo, juist antwoord!")
+          : t("❌ Raté ! La bonne réponse est surlignée en vert.", "❌ Mis! Het juiste antwoord staat in het groen.")}</div>
+        <button class="btn" id="q-suivant" style="width:100%; margin-top:10px;">${quiz.idx + 1 < quiz.questions.length ? t("Question suivante ➜", "Volgende vraag ➜") : t("Voir mon résultat ➜", "Bekijk mijn resultaat ➜")}</button>` : ""}
     </div>`;
 
     // Phase CORRECTION : on attend le clic sur « Suivant » avant d'avancer.
@@ -2643,20 +2643,20 @@ function ouvreConnexionFami() {
   const o = document.createElement("div");
   o.className = "modal-fond";
   o.innerHTML = `<div class="modal">
-    <h2 style="font-family:'Fredoka',sans-serif; color:var(--pousse); font-size:1.5rem; margin:0 0 4px; text-align:center;">Connecte-toi avec tes identifiants Famiformation</h2>
-    <p style="text-align:center; color:#5a6b60; margin:0 0 16px;">Le même compte que sur le site Famiformation.</p>
+    <h2 style="font-family:'Fredoka',sans-serif; color:var(--pousse); font-size:1.5rem; margin:0 0 4px; text-align:center;">${t("Connecte-toi avec tes identifiants Famiformation", "Meld je aan met je Famiformation-gegevens")}</h2>
+    <p style="text-align:center; color:#5a6b60; margin:0 0 16px;">${t("Le même compte que sur le site Famiformation.", "Hetzelfde account als op de Famiformation-site.")}</p>
     <div id="cf-err"></div>
-    <label class="lbl">Identifiant</label>
-    <input class="field" id="cf-id" autocomplete="username" placeholder="Identifiant">
-    <label class="lbl">Mot de passe</label>
+    <label class="lbl">${t("Identifiant", "Gebruikersnaam")}</label>
+    <input class="field" id="cf-id" autocomplete="username" placeholder="${t("Identifiant", "Gebruikersnaam")}">
+    <label class="lbl">${t("Mot de passe", "Wachtwoord")}</label>
     <div style="position:relative; margin-bottom:14px;">
-      <input class="field" id="cf-mdp" type="password" autocomplete="current-password" placeholder="Mot de passe" style="margin:0; padding-right:48px; width:100%;">
-      <button type="button" id="cf-mdp-eye" title="Afficher / masquer le mot de passe" aria-label="Afficher le mot de passe" style="position:absolute; right:6px; top:0; height:100%; display:flex; align-items:center; background:none; border:none; cursor:pointer; font-size:1.3rem; padding:0 8px;">👁️</button>
+      <input class="field" id="cf-mdp" type="password" autocomplete="current-password" placeholder="${t("Mot de passe", "Wachtwoord")}" style="margin:0; padding-right:48px; width:100%;">
+      <button type="button" id="cf-mdp-eye" title="${t("Afficher / masquer le mot de passe", "Wachtwoord tonen / verbergen")}" aria-label="${t("Afficher le mot de passe", "Wachtwoord tonen")}" style="position:absolute; right:6px; top:0; height:100%; display:flex; align-items:center; background:none; border:none; cursor:pointer; font-size:1.3rem; padding:0 8px;">👁️</button>
     </div>
-    <button class="btn" id="cf-ok" style="width:100%; margin-top:6px;">Se connecter 🌱</button>
-    <p style="text-align:center; margin:16px 0 0; line-height:1.5;">Tu n'as pas de compte Famiformation ?<br>
-      <a href="#" id="cf-inscription" class="lien">Inscris-toi ici</a> pour recevoir tes identifiants.</p>
-    <p class="center" style="margin-top:12px;"><a href="#" id="cf-annuler" class="lien" style="color:#8a988f;">Annuler</a></p>
+    <button class="btn" id="cf-ok" style="width:100%; margin-top:6px;">${t("Se connecter 🌱", "Aanmelden 🌱")}</button>
+    <p style="text-align:center; margin:16px 0 0; line-height:1.5;">${t("Tu n'as pas de compte Famiformation ?", "Heb je nog geen Famiformation-account?")}<br>
+      <a href="#" id="cf-inscription" class="lien">${t("Inscris-toi ici", "Schrijf je hier in")}</a> ${t("pour recevoir tes identifiants.", "om je gegevens te ontvangen.")}</p>
+    <p class="center" style="margin-top:12px;"><a href="#" id="cf-annuler" class="lien" style="color:#8a988f;">${t("Annuler", "Annuleren")}</a></p>
   </div>`;
   document.body.appendChild(o);
   const ferme = () => o.remove();
@@ -2674,16 +2674,16 @@ function ouvreConnexionFami() {
   const go = async () => {
     const id = o.querySelector("#cf-id").value.trim();
     const mdp = o.querySelector("#cf-mdp").value;
-    if (!id || !mdp) { erreur("Entre ton identifiant (ou e-mail) et ton mot de passe."); return; }
+    if (!id || !mdp) { erreur(t("Entre ton identifiant (ou e-mail) et ton mot de passe.", "Vul je gebruikersnaam (of e-mail) en je wachtwoord in.")); return; }
     o.querySelector("#cf-ok").disabled = true;
     o.querySelector("#cf-err").innerHTML = "";
     const r = await apiLoginFami(id, mdp);
     o.querySelector("#cf-ok").disabled = false;
     if (!r || !r.ok) {
       const raison = r && r.reason;
-      if (raison === "a_activer") { erreur("Ton compte n'est pas encore activé : clique sur le lien reçu par e-mail pour choisir ton mot de passe."); return; }
-      if (raison === "base_indisponible") { erreur("Le service est momentanément indisponible. Réessaie dans un instant."); return; }
-      erreur("Identifiant ou mot de passe incorrect."); return;
+      if (raison === "a_activer") { erreur(t("Ton compte n'est pas encore activé : clique sur le lien reçu par e-mail pour choisir ton mot de passe.", "Je account is nog niet geactiveerd: klik op de link in je e-mail om een wachtwoord te kiezen.")); return; }
+      if (raison === "base_indisponible") { erreur(t("Le service est momentanément indisponible. Réessaie dans un instant.", "De dienst is even niet beschikbaar. Probeer straks opnieuw.")); return; }
+      erreur(t("Identifiant ou mot de passe incorrect.", "Gebruikersnaam of wachtwoord onjuist.")); return;
     }
     // Connecté : on ouvre sa session de jeu et on garde le jeton (téléphone perso).
     const j = r.joueur || {};
