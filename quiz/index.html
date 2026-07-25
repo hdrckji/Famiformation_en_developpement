@@ -409,6 +409,27 @@ body.mode-borne #app { width: 100%; }
 /* Teaser + liens secondaires (Comment ça marche / J'ai déjà un compte) */
 .home-tease { margin: 22px auto 10px; font-weight: 600; opacity: .78; max-width: 640px;
   font-size: clamp(.95rem, 2.2vw, 1.15rem); }
+/* 🖥️ « Borne servant à… » : rôle de la borne, en bas de l'accueil (borne seulement) */
+.home-role { margin: 18px auto 0; max-width: 620px; color: #5a6b60; line-height: 1.5;
+  font-size: clamp(.9rem, 2vw, 1.08rem); padding: 12px 18px; border-radius: 14px;
+  background: rgba(255,255,255,.55); border: 1px solid #dfeae1; }
+.home-role b { color: var(--foret); }
+/* 🫧 Bulle flottante « Famiformation, c'est quoi ? » (accueil, haut à droite) qui
+   flotte doucement pour attirer l'œil des curieux, sans gêner la mise en page. */
+.fami-bulle { position: fixed; top: 16px; right: 16px; z-index: 100001; cursor: pointer; border: none;
+  display: flex; align-items: center; gap: 9px; padding: 10px 18px 10px 12px; border-radius: 999px;
+  background: linear-gradient(135deg, #FFF6DC 0%, #FFE7C2 100%); color: #7a4a11;
+  box-shadow: 0 8px 26px rgba(233,169,60,.35); font-family: 'Fredoka', sans-serif; font-weight: 700;
+  animation: bulleFlotte 3.4s ease-in-out infinite; transition: transform .15s; }
+.fami-bulle::before { content: ""; position: absolute; inset: -4px; border-radius: 999px;
+  border: 2px solid rgba(233,169,60,.5); animation: bullePulse 2.2s ease-out infinite; pointer-events: none; }
+.fami-bulle:hover, .fami-bulle:active { transform: scale(1.06); }
+.fb-emo { font-size: 1.55rem; line-height: 1; background: #fff; border-radius: 50%; padding: 6px; box-shadow: 0 2px 6px rgba(0,0,0,.08); }
+.fb-txt { font-size: clamp(.8rem, 1.9vw, .98rem); line-height: 1.12; text-align: left; }
+@keyframes bulleFlotte { 0%, 100% { transform: translateY(0) rotate(-2deg); } 50% { transform: translateY(-9px) rotate(2deg); } }
+@keyframes bullePulse { 0% { opacity: .8; transform: scale(1); } 100% { opacity: 0; transform: scale(1.25); } }
+body.mode-tele .fami-bulle { display: none; }   /* pas sur la télé */
+@media (prefers-reduced-motion: reduce) { .fami-bulle { animation: none; } .fami-bulle::before { animation: none; opacity: .5; } }
 .home-liens { display: flex; flex-wrap: wrap; gap: 10px 20px; align-items: center; justify-content: center; }
 /* ✉️ Page « Je m'inscris » : bloc de saisie + sections d'info dépliables */
 .insc-page { max-width: 620px; }
@@ -591,6 +612,40 @@ body.mode-borne #app { width: 100%; }
 .ext-btn.ext-cta:hover { background: var(--soleil); filter: brightness(1.05); }
 .ext-btn.ext-cta.actif { background: var(--soleil); color: #0B3320; }
 .ext-frame { flex: 1; width: 100%; border: 0; background: #fff; }
+/* 📄 Pages d'info recréées EN INTERNE (présentation Famiformation, aide e-mail),
+   belles et adaptées à la borne, bilingues FR/NL. */
+.info-body { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  padding: clamp(20px, 4vw, 46px) clamp(16px, 4vw, 40px) clamp(40px, 8vh, 70px);
+  background-image: radial-gradient(circle at 12% 12%, rgba(30,122,70,.06) 0 200px, transparent 200px),
+                    radial-gradient(circle at 88% 90%, rgba(255,197,61,.1) 0 240px, transparent 240px); }
+.info-wrap { max-width: 860px; margin: 0 auto; text-align: center; }
+.info-emo { font-size: clamp(2.4rem, 8vw, 3.6rem); line-height: 1; }
+.info-titre { font-family: 'Fredoka', sans-serif; font-weight: 700; color: var(--pousse);
+  font-size: clamp(1.7rem, 5.2vw, 2.7rem); margin: 8px 0 6px; line-height: 1.1; }
+.info-intro { color: var(--foret); opacity: .85; font-size: clamp(1rem, 2.5vw, 1.3rem);
+  line-height: 1.5; max-width: 640px; margin: 0 auto 26px; }
+.info-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px; margin-bottom: 26px; }
+.info-card { background: #fff; border-radius: 20px; padding: 22px 20px; text-align: left;
+  box-shadow: 0 6px 22px rgba(14,59,36,.09); border: 1px solid #e8f0ea; }
+.ic-emo { font-size: clamp(1.8rem, 5vw, 2.3rem); line-height: 1; }
+.ic-titre { font-family: 'Fredoka', sans-serif; font-weight: 700; color: var(--foret);
+  font-size: clamp(1.05rem, 2.6vw, 1.25rem); margin: 8px 0 4px; }
+.ic-txt { color: #566; line-height: 1.45; font-size: clamp(.9rem, 2.2vw, 1.02rem); }
+.info-steps { display: flex; flex-direction: column; gap: 14px; max-width: 640px; margin: 0 auto 26px; text-align: left; }
+.info-step { display: flex; align-items: center; gap: 16px; background: #fff; border-radius: 16px;
+  padding: 16px 20px; box-shadow: 0 5px 18px rgba(14,59,36,.08); border: 1px solid #e8f0ea; }
+.is-num { flex: 0 0 auto; width: 38px; height: 38px; border-radius: 50%; background: var(--pousse); color: #fff;
+  font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 1.2rem; display: flex; align-items: center; justify-content: center; }
+.is-txt { line-height: 1.4; font-size: clamp(.95rem, 2.3vw, 1.1rem); color: var(--foret); }
+.info-note { background: rgba(255,255,255,.7); border: 1px solid #dfeae1; border-radius: 16px;
+  padding: 16px 20px; max-width: 640px; margin: 0 auto 26px; line-height: 1.5; color: #506; }
+.info-slogan { font-family: 'Fredoka', sans-serif; font-weight: 600; color: var(--pousse);
+  font-size: clamp(1.1rem, 3vw, 1.5rem); margin: 6px 0 26px; }
+.info-cta { display: inline-flex; align-items: center; gap: 8px; border: none; cursor: pointer;
+  background: var(--pousse); color: #fff; font-family: 'Fredoka', sans-serif; font-weight: 700;
+  font-size: clamp(1.05rem, 2.6vw, 1.3rem); padding: 15px 34px; border-radius: 999px;
+  box-shadow: 0 8px 24px rgba(30,122,70,.32); transition: transform .12s, filter .15s; }
+.info-cta:hover, .info-cta:active { transform: translateY(-2px); filter: brightness(1.05); }
 .borne-mod { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; cursor: pointer;
   background: var(--craie); border: 3px solid transparent; border-radius: 24px; padding: clamp(30px, 6vh, 60px) 24px;
   min-height: clamp(200px, 34vh, 340px); box-shadow: 0 6px 24px rgba(14,59,36,.1);
@@ -2416,22 +2471,96 @@ function ouvreConnexionFami() {
   setTimeout(() => o.querySelector("#cf-id").focus(), 50);
 }
 
-// 📄 Ouvre une des pages du site (présentation Famiformation, guide « créer une
-// adresse e-mail ») DANS un cadre — jamais de nouvel onglet, avec un retour. Ce
-// sont les pages que Jimmy avait déjà (dossier /emails/ sur famiformation.com).
-const URL_PRESENTATION = "https://famiformation.com/emails/presentation.html";
-const URL_CREER_EMAIL  = "https://famiformation.com/emails/creer-email.html";
-function ouvreCadre(url, titre) {
+// 📄 PAGES D'INFO recréées EN INTERNE (belles, adaptées à la borne, bilingues
+// FR/NL) : « C'est quoi Famiformation ? » et « Je n'ai pas d'adresse e-mail ».
+// On abandonne les anciennes pages IONOS (moches, pas adaptées).
+const INFOS = {
+  presentation: {
+    fr: {
+      titre: "C'est quoi Famiformation ?", emo: "🌱",
+      intro: "La plateforme en ligne de Famiflora qui réunit <b>tout ce dont tu as besoin pour bien travailler</b> — où que tu sois, même livré(e) à toi-même, tu trouves la réponse.",
+      cards: [
+        ["🎓", "Grandir dans ton métier", "Apprends en ligne, à ton rythme, quand tu veux."],
+        ["🌟", "Découvre tes points forts", "Suis tes progrès sans pression."],
+        ["🧰", "Ne reste jamais bloqué(e)", "Tous les outils pour travailler, même seul(e)."],
+        ["📅", "Inscris-toi aux formations", "Réserve ta place aux sessions en présentiel."],
+        ["🏆", "Une expérience motivante", "Progresse, avec des récompenses à la clé."],
+      ],
+      slogan: "Apprendre 🌱 Progresser 🌿 Être récompensé(e) 🌸",
+      cta: "Je m'inscris 🌱",
+    },
+    nl: {
+      titre: "Wat is Famiformation?", emo: "🌱",
+      intro: "Het online platform van Famiflora dat <b>alles bundelt wat je nodig hebt om goed te werken</b> — waar je ook bent, zelfs op jezelf aangewezen vind je het antwoord.",
+      cards: [
+        ["🎓", "Groei in je vak", "Leer online, op je eigen tempo, wanneer je wil."],
+        ["🌟", "Ontdek je sterke punten", "Volg je vooruitgang zonder druk."],
+        ["🧰", "Blijf nooit vastzitten", "Alle tools om te werken, zelfs alleen."],
+        ["📅", "Schrijf je in voor opleidingen", "Reserveer je plaats voor sessies ter plaatse."],
+        ["🏆", "Een motiverende ervaring", "Boek vooruitgang, met beloningen erbij."],
+      ],
+      slogan: "Leren 🌱 Groeien 🌿 Beloond worden 🌸",
+      cta: "Ik schrijf me in 🌱",
+    },
+  },
+  email: {
+    fr: {
+      titre: "Je n'ai pas d'adresse e-mail", emo: "📭",
+      intro: "Pas de souci ! Tu peux utiliser ton adresse <b>personnelle</b> ou <b>professionnelle</b> — les deux sont acceptées. Et si tu n'en as vraiment aucune, en voici une en 3 étapes.",
+      steps: [
+        "Va sur <b>gmail.com</b> (ou l'appli Gmail) et clique sur « Créer un compte ».",
+        "Choisis un identifiant et un mot de passe, et suis les étapes.",
+        "C'est prêt ! Reviens ici t'inscrire avec cette nouvelle adresse.",
+      ],
+      note: "🙋 Besoin d'aide ? Passe à l'<b>accueil</b> du magasin : on le fait avec toi avec plaisir.",
+      cta: "Je m'inscris 🌱",
+    },
+    nl: {
+      titre: "Ik heb geen e-mailadres", emo: "📭",
+      intro: "Geen probleem! Je mag je <b>persoonlijke</b> of <b>professionele</b> adres gebruiken — beide zijn goed. En heb je er echt geen? Maak er eentje in 3 stappen.",
+      steps: [
+        "Ga naar <b>gmail.com</b> (of de Gmail-app) en klik op « Account aanmaken ».",
+        "Kies een gebruikersnaam en een wachtwoord, en volg de stappen.",
+        "Klaar! Kom hier terug en schrijf je in met dat nieuwe adres.",
+      ],
+      note: "🙋 Hulp nodig? Kom langs het <b>onthaal</b> van de winkel: we doen het graag samen met jou.",
+      cta: "Ik schrijf me in 🌱",
+    },
+  },
+};
+let infoLang = "fr";
+function ouvrePageInfo(cle) {
   const o = document.createElement("div");
   o.className = "ext-overlay";
-  o.innerHTML = `<div class="ext-bar">
-      <button class="ext-btn ext-home" id="ge-retour"><span>◂</span> Retour</button>
-      <div class="ext-brand">${esc(titre)}</div>
-      <div class="ext-nav"></div>
-    </div>
-    <iframe class="ext-frame" src="${url}" referrerpolicy="no-referrer"></iframe>`;
+  const dessine = () => {
+    const d = INFOS[cle][infoLang];
+    const cards = d.cards ? `<div class="info-cards">${d.cards.map(([e, t, x]) =>
+      `<div class="info-card"><div class="ic-emo">${e}</div><div class="ic-titre">${t}</div><div class="ic-txt">${x}</div></div>`).join("")}</div>` : "";
+    const steps = d.steps ? `<div class="info-steps">${d.steps.map((s, i) =>
+      `<div class="info-step"><div class="is-num">${i + 1}</div><div class="is-txt">${s}</div></div>`).join("")}</div>` : "";
+    const note = d.note ? `<div class="info-note">${d.note}</div>` : "";
+    const slogan = d.slogan ? `<div class="info-slogan">${d.slogan}</div>` : "";
+    o.innerHTML = `<div class="ext-bar">
+        <button class="ext-btn ext-home" id="ge-retour"><span>◂</span> ${infoLang === "fr" ? "Retour" : "Terug"}</button>
+        <div class="ext-brand">${esc(d.titre)}</div>
+        <div class="ext-nav">
+          <button class="ext-btn ${infoLang === "fr" ? "actif" : ""}" data-l="fr">FR</button>
+          <button class="ext-btn ${infoLang === "nl" ? "actif" : ""}" data-l="nl">NL</button>
+        </div>
+      </div>
+      <div class="info-body"><div class="info-wrap">
+        <div class="info-emo">${d.emo}</div>
+        <h1 class="info-titre">${d.titre}</h1>
+        <p class="info-intro">${d.intro}</p>
+        ${cards}${steps}${note}${slogan}
+        <button class="info-cta" id="info-cta">${d.cta}</button>
+      </div></div>`;
+    o.querySelector("#ge-retour").addEventListener("click", () => o.remove());
+    o.querySelectorAll("[data-l]").forEach((b) => b.addEventListener("click", () => { infoLang = b.dataset.l; dessine(); }));
+    o.querySelector("#info-cta").addEventListener("click", () => { o.remove(); userView = "inscription"; quiz = null; render(); });
+  };
+  dessine();
   document.body.appendChild(o);
-  o.querySelector("#ge-retour").addEventListener("click", () => o.remove());
 }
 
 // ✉️ PAGE « JE M'INSCRIS » (vraie page, pas une modale). En haut : le bloc de
@@ -2531,8 +2660,8 @@ function renderInscription() {
   };
   $("#ci-ok").addEventListener("click", go);
   $("#ci-email").addEventListener("keydown", (e) => e.key === "Enter" && go());
-  $("#ci-presentation").addEventListener("click", () => ouvreCadre(URL_PRESENTATION, "✨ C'est quoi Famiformation ?"));
-  $("#ci-guide").addEventListener("click", () => ouvreCadre(URL_CREER_EMAIL, "📭 Créer une adresse e-mail"));
+  $("#ci-presentation").addEventListener("click", () => ouvrePageInfo("presentation"));
+  $("#ci-guide").addEventListener("click", () => ouvrePageInfo("email"));
   $("#ci-connexion").addEventListener("click", (e) => { e.preventDefault(); ouvreConnexionFami(); });
   $("#ci-retour").addEventListener("click", (e) => { e.preventDefault(); if (retourAccueilBorne()) return; userView = "auto"; render(); });
 }
@@ -3235,10 +3364,14 @@ function renderHome() {
     <div class="home-tease">🎯 Le but : récolte un max de <b>graines</b> au quiz. Les <b>3 meilleurs gagnent des récompenses</b> !</div>
     <div class="home-liens">
       <button class="lien-explik" id="home-explik">✨ Comment ça marche ?</button>
-      <button class="lien-explik" id="home-famif">❓ C'est quoi Famiformation ?</button>
       <button class="lien-explik" id="home-board">🏆 Voir le classement</button>
     </div>
-  </div>`;
+    ${borne ? `<p class="home-role">🖥️ Borne servant à <b>participer au quiz</b>, <b>gérer ton espace jardin</b> et <b>t'inscrire à Famiformation</b>.</p>` : ""}
+  </div>
+  <button class="fami-bulle" id="home-famif" title="Découvrir Famiformation">
+    <span class="fb-emo">🌱</span>
+    <span class="fb-txt">Famiformation,<br>c'est quoi ?</span>
+  </button>`;
 
   // Compte à rebours du haut : à zéro, on ré-affiche l'accueil (le quiz devient
   // jouable) sans que la personne ait à recharger la page.
@@ -3275,8 +3408,8 @@ function renderHome() {
   }));
   const be = app.querySelector("#home-explik");
   if (be) be.addEventListener("click", ouvreExplication);
-  const bf = app.querySelector("#home-famif");
-  if (bf) bf.addEventListener("click", () => ouvreCadre(URL_PRESENTATION, "✨ C'est quoi Famiformation ?"));
+  const bf = document.getElementById("home-famif");
+  if (bf) bf.addEventListener("click", () => ouvrePageInfo("presentation"));
   const bb = app.querySelector("#home-board");
   if (bb) bb.addEventListener("click", () => { userView = "board"; quiz = null; render(); });
 }
@@ -3714,7 +3847,7 @@ const FEE = (() => {
 /* ============================================================
    🥚 EASTER EGGS
    • "graine"    → pluie de graines.        Mobile : secouer le téléphone.
-   • "famiflora" → la fée fait un p'tit show. Mobile : taper 5 fois.
+   • "famiflora" → la fée fait un p'tit show. Tactile : dessiner 2 cercles.
    • "2026"      → badge Famiformation 2026.  Mobile : glisser ↑ ↓ → ←.
    ============================================================ */
 const EGG = (() => {
@@ -3779,15 +3912,34 @@ const EGG = (() => {
     for (const mot in MOTS) { if (buf.endsWith(mot)) { buf = ""; MOTS[mot](); break; } }
   });
 
-  // Mobile — « famiflora » : 5 tapes rapides (hors boutons/liens/champs).
-  let taps = 0, tapT = null;
+  // Tactile — « famiflora » : DESSINER 2 CERCLES avec le doigt (geste continu).
+  // On additionne l'angle balayé autour du tracé : deux tours complets (~720°)
+  // dans le même sens déclenchent l'effet. Un simple gribouillage (allers-retours)
+  // s'annule et ne compte pas. Hors boutons/liens/champs.
+  const DEUX_TOURS = 2 * 2 * Math.PI * 0.85;   // ~1,7 tour : indulgent mais volontaire
+  let trace = false, angAcc = 0, capX = 0, capY = 0, capHead = null, capT = null;
+  const finTrace = () => { trace = false; angAcc = 0; capHead = null; clearTimeout(capT); };
   window.addEventListener("pointerdown", (e) => {
-    if (e.target && e.target.closest && e.target.closest("button, a, input")) return;
-    taps++;
-    clearTimeout(tapT);
-    tapT = setTimeout(() => { taps = 0; }, 1200);
-    if (taps >= 5) { taps = 0; famiflora(); }
+    if (e.target && e.target.closest && e.target.closest("button, a, input, textarea, select")) return;
+    trace = true; angAcc = 0; capHead = null; capX = e.clientX; capY = e.clientY;
+    clearTimeout(capT); capT = setTimeout(finTrace, 4500);   // trop lent → on oublie
   });
+  window.addEventListener("pointermove", (e) => {
+    if (!trace) return;
+    const dx = e.clientX - capX, dy = e.clientY - capY;
+    if (dx * dx + dy * dy < 144) return;                     // < 12 px : bruit, on ignore
+    const head = Math.atan2(dy, dx);
+    if (capHead !== null) {
+      let d = head - capHead;
+      while (d > Math.PI) d -= 2 * Math.PI;
+      while (d < -Math.PI) d += 2 * Math.PI;
+      angAcc += d;                                           // angle signé cumulé
+      if (Math.abs(angAcc) >= DEUX_TOURS) { finTrace(); famiflora(); }
+    }
+    capHead = head; capX = e.clientX; capY = e.clientY;
+  });
+  window.addEventListener("pointerup", finTrace);
+  window.addEventListener("pointercancel", finTrace);
 
   // Mobile — « 2026 » : glisser ↑ ↓ → ← dans l'ordre.
   const SEQ = ["haut", "bas", "droite", "gauche"];
