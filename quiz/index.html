@@ -1569,7 +1569,7 @@ function ouvreExplication() {
     <h2 class="explik-titre">🌱 Comment ça marche ?</h2>
     <p class="explik-sous">Le grand jeu Famiflora, de la graine au ticket glace.</p>
     <div class="explik-steps">
-      <div class="explik-step explik-star"><span class="explik-ico">🏆</span><span class="explik-txt"><b class="eh">Un seul classement ⭐</b>Ta récolte de graines (quiz + codes), c'est tout. <b>Les 3 meilleures récoltes gagnent des récompenses</b> ! Annonce des vainqueurs le ${esc(CONFIG.dateResultats)}.</span></div>
+      <div class="explik-step explik-star"><span class="explik-ico">🏆</span><span class="explik-txt"><b class="eh">Un seul classement ⭐</b>Ta récolte de graines (quiz + codes), c'est tout. Les <b>3 meilleures récoltes repartent avec de très belles récompenses</b> — de quoi viser le podium&nbsp;! Annonce des vainqueurs le ${esc(CONFIG.dateResultats)}.</span></div>
       <div class="explik-step"><span class="explik-ico">🎯</span><span class="explik-txt"><b class="eh">Réponds au quiz</b><b>${QUIZ_TOTAL} questions</b> tirées au hasard dans un grand réservoir : <b>${QUIZ_THEMES.entreprise} sur l'entreprise et le magasin</b>, <b>${QUIZ_THEMES.culture} de culture générale</b> (jardinage) et <b>${QUIZ_THEMES.anecdote} anecdotes</b>. Deux personnes n'ont donc pas le même questionnaire !</span></div>
       <div class="explik-step"><span class="explik-ico">🌰</span><span class="explik-txt"><b class="eh">Comment on gagne des graines</b>Chaque bonne réponse rapporte <b>${BAREME.base} graines</b>, avec deux bonus.
         <span class="explik-liste">
@@ -1579,7 +1579,7 @@ function ouvreExplication() {
         Une mauvaise réponse ne retire rien. Les codes bonus rapportent aussi des graines.</span></div>
       <div class="explik-step"><span class="explik-ico">🪪</span><span class="explik-txt"><b class="eh">Ton compte</b>Ton prénom et ton nom (indispensables pour recevoir une récompense), un pseudo si tu veux — c'est lui qui s'affichera au classement — et un mot de passe à 4 chiffres. <b>Retiens ton pseudo (ou ton nom) et ton mot de passe</b> : c'est avec ça que tu te reconnectes, depuis n'importe quel appareil.</span></div>
       <div class="explik-step"><span class="explik-ico">🎁</span><span class="explik-txt"><b class="eh">Traque les codes bonus</b>Des codes sont cachés en magasin : chacun te rapporte <b>+${CONFIG.pointsParCodeBonus} graines</b>. Tu peux en accumuler <b>${CONFIG.maxCodes} au maximum</b> (soit +${CONFIG.pointsParCodeBonus * CONFIG.maxCodes} graines), et elles comptent au classement. <b>Même après avoir fait le quiz</b>, tu peux encore en récupérer : ça te fait remonter ! Ouvre l'œil 👀</span></div>
-      <div class="explik-step"><span class="explik-ico">🌼</span><span class="explik-txt"><b class="eh">Ton jardin — après le quiz</b>Une fois ton quiz terminé, <b>ton jardin s'ouvre</b> : chacun a le sien, et c'est un espace juste pour s'amuser. Tu y dépenses tes graines pour planter des fleurs, des arbres, des variétés rares… Tu les verras diminuer, <b>c'est normal, ça ne concerne que le jardin</b> : <b>ton score au classement ne bouge pas</b>, va le vérifier dans « Classement ».</span></div>
+      <div class="explik-step"><span class="explik-ico">🌼</span><span class="explik-txt"><b class="eh">Ton jardin — après le quiz</b>Une fois ton quiz terminé, <b>ton jardin s'ouvre</b> : chacun a le sien. Tu y dépenses tes graines pour planter des fleurs, des arbres, des variétés rares… Tu les verras diminuer, <b>c'est normal, ça ne concerne que le jardin</b> : <b>ton score au classement ne bouge pas</b>. Et surtout : <b>va au bout de ton jardin et tu deviens gagnant toi aussi</b> — une <b>vraie récompense</b> t'attend, même sans être sur le podium&nbsp;! (les conditions arrivent bientôt) 🎁</span></div>
       <div class="explik-step"><span class="explik-ico">🌿</span><span class="explik-txt"><b class="eh">Un mini-jeu bonus</b>La chasse aux mauvaises herbes te donne des graines <b>en plus, uniquement pour planter</b> dans ton jardin. Ça ne compte pas au classement.</span></div>
     </div>
     <button class="btn" id="explik-ok" style="width:100%;">J'ai tout compris, à moi de jouer ! 🌱</button>
@@ -2541,6 +2541,52 @@ const INFOS = {
       cta: "Ik schrijf me in 🌱",
     },
   },
+  confidentialite: {
+    fr: {
+      titre: "Politique de confidentialité", emo: "🔒",
+      sous: "Tes données, en toute transparence 🌱",
+      corps: `<div class="info-intro">Pour le quiz de lancement <b>Famiformation</b>, Famiflora traite quelques données te concernant. Voici lesquelles, pourquoi, et les droits dont tu disposes.</div>
+        <h3 class="info-h2">Qui traite tes données&nbsp;?</h3>
+        <div class="info-note"><b>Famiflora / Famiformation</b>, responsable du traitement. Une question sur tes données&nbsp;? Écris à <b>admin@famiformation.com</b>.</div>
+        <h3 class="info-h2">Quelles données et pourquoi</h3>
+        <div class="info-steps">
+          <div class="info-step"><div class="is-num">📇</div><div class="is-txt"><b>Prénom, nom, e-mail</b> — pour créer ton accès Famiformation, t'envoyer ton lien de connexion, et pouvoir te remettre ta récompense si tu gagnes.</div></div>
+          <div class="info-step"><div class="is-num">🔑</div><div class="is-txt"><b>Identifiant et mot de passe</b> — pour te connecter. Ton mot de passe est <b>chiffré (haché)</b> : personne ne peut le lire.</div></div>
+          <div class="info-step"><div class="is-num">🌰</div><div class="is-txt"><b>Résultats du quiz, jardin, pseudo éventuel</b> — pour faire fonctionner le jeu et le classement.</div></div>
+          <div class="info-step"><div class="is-num">🏬</div><div class="is-txt"><b>Ton magasin</b> (Mouscron ou La Panne) — pour rattacher ta participation au bon événement.</div></div>
+        </div>
+        <h3 class="info-h2">À qui elles sont transmises</h3>
+        <div class="info-note">Ton inscription (prénom, nom, e-mail) est aussi enregistrée dans un <b>formulaire Google</b> — Google agit comme sous-traitant — afin que l'accueil puisse te remettre ton <b>ticket glace</b>. Aucune donnée n'est vendue ni utilisée à des fins publicitaires.</div>
+        <h3 class="info-h2">Base légale &amp; durée</h3>
+        <div class="info-note"><b>Base légale</b> : ton <b>consentement</b> (inscription volontaire) et l'intérêt légitime de Famiflora à organiser l'événement. <b>Durée</b> : les données liées au jeu sont conservées le temps de l'événement, puis supprimées ou anonymisées. Ton compte Famiformation suit, lui, la politique de la plateforme.</div>
+        <h3 class="info-h2">Tes droits</h3>
+        <div class="info-note">Tu peux à tout moment demander l'<b>accès</b>, la <b>rectification</b>, l'<b>effacement</b> de tes données, t'<b>opposer</b> à leur traitement ou <b>retirer ton consentement</b> — écris simplement à <b>admin@famiformation.com</b>. Tu peux aussi introduire une réclamation auprès de l'<b>Autorité de protection des données</b> (APD/GBA, Belgique).</div>
+        <div class="info-note">🍪 On garde seulement un petit <b>jeton de connexion</b> sur ton appareil (jamais sur la borne du magasin) pour t'éviter de retaper ton mot de passe. Aucun cookie publicitaire.</div>`,
+      cta: "J'ai compris 🌱",
+    },
+    nl: {
+      titre: "Privacybeleid", emo: "🔒",
+      sous: "Jouw gegevens, in alle transparantie 🌱",
+      corps: `<div class="info-intro">Voor de lanceringsquiz <b>Famiformation</b> verwerkt Famiflora enkele gegevens over jou. Hier lees je welke, waarom, en welke rechten je hebt.</div>
+        <h3 class="info-h2">Wie verwerkt je gegevens&nbsp;?</h3>
+        <div class="info-note"><b>Famiflora / Famiformation</b>, verwerkingsverantwoordelijke. Een vraag over je gegevens&nbsp;? Mail naar <b>admin@famiformation.com</b>.</div>
+        <h3 class="info-h2">Welke gegevens en waarom</h3>
+        <div class="info-steps">
+          <div class="info-step"><div class="is-num">📇</div><div class="is-txt"><b>Voornaam, naam, e-mail</b> — om je Famiformation-toegang aan te maken, je aanmeldlink te sturen, en je prijs te kunnen bezorgen als je wint.</div></div>
+          <div class="info-step"><div class="is-num">🔑</div><div class="is-txt"><b>Gebruikersnaam en wachtwoord</b> — om aan te melden. Je wachtwoord wordt <b>versleuteld (gehasht)</b> : niemand kan het lezen.</div></div>
+          <div class="info-step"><div class="is-num">🌰</div><div class="is-txt"><b>Quizresultaten, tuin, eventuele bijnaam</b> — om het spel en de ranking te laten werken.</div></div>
+          <div class="info-step"><div class="is-num">🏬</div><div class="is-txt"><b>Je winkel</b> (Moeskroen of De Panne) — om je deelname aan het juiste evenement te koppelen.</div></div>
+        </div>
+        <h3 class="info-h2">Aan wie ze worden doorgegeven</h3>
+        <div class="info-note">Je inschrijving (voornaam, naam, e-mail) wordt ook opgeslagen in een <b>Google-formulier</b> — Google treedt op als verwerker — zodat het onthaal je <b>ijsjesticket</b> kan geven. Geen enkele gegevens worden verkocht of voor reclame gebruikt.</div>
+        <h3 class="info-h2">Rechtsgrond &amp; bewaartermijn</h3>
+        <div class="info-note"><b>Rechtsgrond</b> : je <b>toestemming</b> (vrijwillige inschrijving) en het gerechtvaardigd belang van Famiflora om het evenement te organiseren. <b>Bewaartermijn</b> : spelgegevens worden bewaard voor de duur van het evenement, daarna verwijderd of geanonimiseerd. Je Famiformation-account volgt het beleid van het platform.</div>
+        <h3 class="info-h2">Je rechten</h3>
+        <div class="info-note">Je kan op elk moment <b>inzage</b>, <b>verbetering</b> of <b>verwijdering</b> van je gegevens vragen, je <b>verzetten</b> tegen de verwerking of je <b>toestemming intrekken</b> — mail naar <b>admin@famiformation.com</b>. Je kan ook een klacht indienen bij de <b>Gegevensbeschermingsautoriteit</b> (GBA, België).</div>
+        <div class="info-note">🍪 We bewaren enkel een klein <b>aanmeldtoken</b> op je toestel (nooit op de winkelzuil) zodat je je wachtwoord niet opnieuw hoeft in te typen. Geen reclamecookies.</div>`,
+      cta: "Begrepen 🌱",
+    },
+  },
 };
 let infoLang = "fr";
 function ouvrePageInfo(cle) {
@@ -2623,7 +2669,8 @@ function renderInscription() {
       <input class="field" id="ci-email" type="email" autocomplete="email" placeholder="ton.email@exemple.be">
       <button class="btn" id="ci-ok" style="width:100%; margin-top:8px;">Recevoir mon lien de connexion 🎁</button>
       <p class="hint" style="text-align:center; margin:10px 0 0;">On t'envoie tout de suite un e-mail avec ton lien pour choisir ton mot de passe.
-        Sans <b>prénom + nom</b>, tu ne seras pas éligible aux récompenses.</p>
+        Sans <b>prénom + nom</b>, tu ne seras pas éligible aux récompenses.<br>
+        En t'inscrivant, tu acceptes notre <a href="#" id="ci-rgpd" class="lien">politique de confidentialité</a>.</p>
     </div>
 
     <div class="insc-modules">
@@ -2681,6 +2728,7 @@ function renderInscription() {
   $("#ci-email").addEventListener("keydown", (e) => e.key === "Enter" && go());
   $("#ci-presentation").addEventListener("click", () => ouvrePageInfo("presentation"));
   $("#ci-guide").addEventListener("click", () => ouvrePageInfo("email"));
+  { const r = $("#ci-rgpd"); if (r) r.addEventListener("click", (e) => { e.preventDefault(); ouvrePageInfo("confidentialite"); }); }
   $("#ci-connexion").addEventListener("click", (e) => { e.preventDefault(); ouvreConnexionFami(); });
   $("#ci-retour").addEventListener("click", (e) => { e.preventDefault(); if (retourAccueilBorne()) return; userView = "auto"; render(); });
 }
@@ -2773,12 +2821,12 @@ function renderDashboard() {
       <button class="borne-mod${jardinOk ? "" : " mod-inactif"}" id="dash-jardin">
         <span class="bm-emo">🌼</span>
         <span class="bm-titre">Mon espace jardin</span>
-        <span class="bm-desc">${jardinOk ? "Plante tes graines, gagne des tickets glace" : "🔒 Fais le quiz d'abord"}</span>
+        <span class="bm-desc">${jardinOk ? "Plante tes graines — va au bout et gagne une récompense 🌼" : "🔒 Fais le quiz d'abord"}</span>
       </button>
       <button class="borne-mod" id="dash-board">
         <span class="bm-emo">🏆</span>
         <span class="bm-titre">Voir le classement</span>
-        <span class="bm-desc">Les 3 meilleurs gagnent !</span>
+        <span class="bm-desc">Le podium repart avec de très belles récompenses !</span>
       </button>
     </div>
     <div class="home-liens">
@@ -3315,10 +3363,11 @@ function renderHome() {
         <span class="bm-desc">Ticket glace à gagner 🎁</span>
       </button>
     </div>
-    <div class="home-tease">🎯 Le but : récolte un max de <b>graines</b> au quiz. Les <b>3 meilleurs gagnent des récompenses</b> !</div>
+    <div class="home-tease">🎯 Le but : récolte un max de <b>graines</b> au quiz. Le <b>podium repart avec de très belles récompenses</b> — et en <b>terminant ton jardin</b>, tu gagnes toi aussi&nbsp;! 🌼</div>
     <div class="home-liens">
       <button class="lien-explik" id="home-explik">✨ Comment ça marche ?</button>
       <button class="lien-explik" id="home-board">🏆 Voir le classement</button>
+      <button class="lien-explik" id="home-rgpd">🔒 Confidentialité</button>
     </div>
     ${borne ? `<p class="home-role">🖥️ Borne servant à <b>participer au quiz</b>, <b>gérer ton espace jardin</b> et <b>t'inscrire à Famiformation</b>.</p>` : ""}
   </div>
@@ -3366,6 +3415,8 @@ function renderHome() {
   if (bf) bf.addEventListener("click", () => ouvrePageInfo("presentation"));
   const bb = app.querySelector("#home-board");
   if (bb) bb.addEventListener("click", () => { userView = "board"; quiz = null; render(); });
+  const brg = app.querySelector("#home-rgpd");
+  if (brg) brg.addEventListener("click", () => ouvrePageInfo("confidentialite"));
 }
 
 // 🔒 Message affiché quand on tente « Participer au quiz » avant l'ouverture.
@@ -3677,10 +3728,10 @@ const FEE = (() => {
                                : "Bravo à toutes les chasseuses et tous les chasseurs !";
     } else {
       const lots = (CONFIG.recompenses || []).filter(Boolean);
-      titre  = "Des récompenses à gagner !";
+      titre  = "De très belles récompenses à gagner !";
       detail = lots.length
         ? lots.map((l, i) => `${["🥇", "🥈", "🥉"][i] || "🎁"} ${esc(l)}`).join("<br>")
-        : "Pour les 3 meilleures récoltes du quiz 🏆";
+        : "Pour le podium du quiz — et pour ceux qui terminent leur jardin 🌼🏆";
     }
     if (!actif) return;
     const o = document.createElement("div");
