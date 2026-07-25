@@ -441,6 +441,15 @@ body.mode-borne #app { width: 100%; }
 @keyframes bullePulse { 0% { opacity: .8; transform: scale(1); } 100% { opacity: 0; transform: scale(1.25); } }
 body.mode-tele .fami-bulle { display: none; }   /* pas sur la télé */
 @media (prefers-reduced-motion: reduce) { .fami-bulle { animation: none; } .fami-bulle::before { animation: none; opacity: .5; } }
+/* 🌐 Sélecteur de langue FR / NL — en haut à gauche, visible partout (sauf télé). */
+.lang-switch { position: fixed; top: 16px; left: 16px; z-index: 100002; display: flex;
+  background: #fff; border-radius: 999px; overflow: hidden; border: 2px solid var(--pousse);
+  box-shadow: 0 6px 18px rgba(0,0,0,.14); }
+.lang-switch button { border: none; background: none; cursor: pointer; font-family: 'Fredoka', sans-serif;
+  font-weight: 700; font-size: .92rem; padding: 7px 14px; color: var(--foret); line-height: 1; transition: background .15s; }
+.lang-switch button.on { background: var(--pousse); color: #fff; }
+.lang-switch button:not(.on):hover { background: var(--brume); }
+body.mode-tele .lang-switch { display: none; }   /* pas sur la télé */
 .home-liens { display: flex; flex-wrap: wrap; gap: 10px 20px; align-items: center; justify-content: center; }
 /* ✉️ Page « Je m'inscris » : bloc de saisie + sections d'info dépliables */
 .insc-page { max-width: 620px; }
@@ -1511,6 +1520,32 @@ function avatarDe(name) {
 /* ============================================================
    🧠 ÉTAT GLOBAL
    ============================================================ */
+
+// 🌐 LANGUE de l'interface (fr / nl). Mémorisée sur l'appareil. Le helper t(fr, nl)
+// renvoie la bonne chaîne ; les écrans non encore traduits restent en français.
+let LANG = (() => { try { return localStorage.getItem("fj_lang") === "nl" ? "nl" : "fr"; } catch (e) { return "fr"; } })();
+function t(fr, nl) { return LANG === "nl" ? nl : fr; }
+function setLang(l) {
+  LANG = (l === "nl") ? "nl" : "fr";
+  infoLang = LANG;
+  try { localStorage.setItem("fj_lang", LANG); } catch (e) {}
+  majLangSwitch();
+  render();                                   // ré-affiche l'écran courant dans la nouvelle langue
+  const info = document.querySelector(".ext-overlay");
+  if (info && info._redessine) info._redessine();   // ...et rafraîchit une page info ouverte
+}
+// Crée (une fois) et met à jour le petit sélecteur FR / NL en haut à gauche.
+function majLangSwitch() {
+  let s = document.getElementById("lang-switch");
+  if (!s) {
+    s = document.createElement("div");
+    s.className = "lang-switch"; s.id = "lang-switch";
+    s.innerHTML = `<button data-lang="fr">FR</button><button data-lang="nl">NL</button>`;
+    document.body.appendChild(s);
+    s.querySelectorAll("[data-lang]").forEach((b) => b.addEventListener("click", () => setLang(b.dataset.lang)));
+  }
+  s.querySelectorAll("[data-lang]").forEach((b) => b.classList.toggle("on", b.dataset.lang === LANG));
+}
 
 let board = [];
 let userView = "auto";       // auto | board | jardin (après avoir joué)
@@ -2614,7 +2649,10 @@ function ouvreConnexionFami() {
     <label class="lbl">Identifiant</label>
     <input class="field" id="cf-id" autocomplete="username" placeholder="Identifiant">
     <label class="lbl">Mot de passe</label>
-    <input class="field" id="cf-mdp" type="password" autocomplete="current-password" placeholder="Mot de passe">
+    <div style="position:relative; margin-bottom:14px;">
+      <input class="field" id="cf-mdp" type="password" autocomplete="current-password" placeholder="Mot de passe" style="margin:0; padding-right:48px; width:100%;">
+      <button type="button" id="cf-mdp-eye" title="Afficher / masquer le mot de passe" aria-label="Afficher le mot de passe" style="position:absolute; right:6px; top:0; height:100%; display:flex; align-items:center; background:none; border:none; cursor:pointer; font-size:1.3rem; padding:0 8px;">👁️</button>
+    </div>
     <button class="btn" id="cf-ok" style="width:100%; margin-top:6px;">Se connecter 🌱</button>
     <p style="text-align:center; margin:16px 0 0; line-height:1.5;">Tu n'as pas de compte Famiformation ?<br>
       <a href="#" id="cf-inscription" class="lien">Inscris-toi ici</a> pour recevoir tes identifiants.</p>
@@ -2623,6 +2661,15 @@ function ouvreConnexionFami() {
   document.body.appendChild(o);
   const ferme = () => o.remove();
   const erreur = (txt) => { o.querySelector("#cf-err").innerHTML = `<div class="alert">${esc(txt)}</div>`; };
+  // 👁️ Voir / masquer le mot de passe.
+  const cfEye = o.querySelector("#cf-mdp-eye");
+  if (cfEye) cfEye.addEventListener("click", () => {
+    const inp = o.querySelector("#cf-mdp");
+    const montrer = inp.type === "password";
+    inp.type = montrer ? "text" : "password";
+    cfEye.textContent = montrer ? "🙈" : "👁️";
+    inp.focus();
+  });
 
   const go = async () => {
     const id = o.querySelector("#cf-id").value.trim();
@@ -2749,10 +2796,11 @@ const INFOS = {
     },
   },
 };
-let infoLang = "fr";
+let infoLang = LANG;   // les pages info suivent la langue globale (FR / NL)
 function ouvrePageInfo(cle) {
   const o = document.createElement("div");
   o.className = "ext-overlay";
+  infoLang = LANG;
   const dessine = () => {
     const d = INFOS[cle][infoLang];
     const cards = d.cards ? `<div class="info-cards">${d.cards.map(([e, t, x]) =>
@@ -2782,9 +2830,10 @@ function ouvrePageInfo(cle) {
         <button class="info-cta" id="info-cta">${d.cta}</button>
       </div></div>`;
     o.querySelector("#ge-retour").addEventListener("click", () => o.remove());
-    o.querySelectorAll("[data-l]").forEach((b) => b.addEventListener("click", () => { infoLang = b.dataset.l; dessine(); }));
+    o.querySelectorAll("[data-l]").forEach((b) => b.addEventListener("click", () => setLang(b.dataset.l)));
     o.querySelector("#info-cta").addEventListener("click", () => { o.remove(); userView = "inscription"; quiz = null; render(); });
   };
+  o._redessine = dessine;   // permet au sélecteur global de rafraîchir la page ouverte
   dessine();
   document.body.appendChild(o);
 }
@@ -3497,44 +3546,44 @@ function renderHome() {
 
   app.innerHTML = `<div class="home">
     ${cd ? `<div class="home-cd" id="home-cd">
-        <div class="hcd-lab">🚀 Lancement du quiz dans</div>
+        <div class="hcd-lab">${t("🚀 Lancement du quiz dans", "🚀 De quiz start over")}</div>
         <div class="hcd-digits">
-          <div class="hcd-cell"><b id="hcd-j">--</b><span>Jours</span></div>
-          <div class="hcd-cell"><b id="hcd-h">--</b><span>Heures</span></div>
+          <div class="hcd-cell"><b id="hcd-j">--</b><span>${t("Jours", "Dagen")}</span></div>
+          <div class="hcd-cell"><b id="hcd-h">--</b><span>${t("Heures", "Uren")}</span></div>
           <div class="hcd-cell"><b id="hcd-m">--</b><span>Min</span></div>
           <div class="hcd-cell"><b id="hcd-s">--</b><span>Sec</span></div>
         </div>
       </div>` : ""}
-    <h2 class="borne-titre">Bienvenue chez Famiflora 🌱</h2>
-    <p class="borne-sous">Que veux-tu faire ?</p>
+    <h2 class="borne-titre">${t("Bienvenue chez Famiflora 🌱", "Welkom bij Famiflora 🌱")}</h2>
+    <p class="borne-sous">${t("Que veux-tu faire ?", "Wat wil je doen?")}</p>
     <div class="borne-modules">
       <button class="borne-mod bm-primaire" data-go="espace">
         <span class="bm-emo">🌱</span>
-        <span class="bm-titre">Quiz &amp; mon espace jardin</span>
-        <span class="bm-desc">Réponds au quiz, récolte des graines, fais pousser ton jardin</span>
+        <span class="bm-titre">${t("Quiz &amp; mon espace jardin", "Quiz &amp; mijn tuin")}</span>
+        <span class="bm-desc">${t("Réponds au quiz, récolte des graines, fais pousser ton jardin", "Beantwoord de quiz, verzamel zaadjes en laat je tuin groeien")}</span>
       </button>
       <button class="borne-mod" data-go="code">
         <span class="bm-emo">🎁</span>
-        <span class="bm-titre">J'ai trouvé un code</span>
-        <span class="bm-desc">Récupère tes graines bonus</span>
+        <span class="bm-titre">${t("J'ai trouvé un code", "Ik heb een code gevonden")}</span>
+        <span class="bm-desc">${t("Récupère tes graines bonus", "Haal je bonuszaadjes op")}</span>
       </button>
       <button class="borne-mod" data-go="mail">
         <span class="bm-ticket">${ticketGlaceSvg()}</span>
-        <span class="bm-titre">Je ne suis pas encore inscrit sur Famiformation</span>
-        <span class="bm-desc">Ticket glace à gagner 🎁</span>
+        <span class="bm-titre">${t("Je ne suis pas encore inscrit sur Famiformation", "Ik ben nog niet ingeschreven op Famiformation")}</span>
+        <span class="bm-desc">${t("Ticket glace à gagner 🎁", "IJsjesticket te winnen 🎁")}</span>
       </button>
     </div>
-    <div class="home-tease">🎯 Le but : récolte un max de <b>graines</b> au quiz. Le <b>podium repart avec de très belles récompenses</b> — et en <b>terminant ton jardin</b>, tu gagnes toi aussi&nbsp;! 🌼</div>
+    <div class="home-tease">${t("🎯 Le but : récolte un max de <b>graines</b> au quiz. Le <b>podium repart avec de très belles récompenses</b> — et en <b>terminant ton jardin</b>, tu gagnes toi aussi&nbsp;! 🌼", "🎯 Het doel: verzamel zoveel mogelijk <b>zaadjes</b> in de quiz. Het <b>podium wint heel mooie prijzen</b> — en door <b>je tuin af te werken</b> win jij ook&nbsp;! 🌼")}</div>
     <div class="home-liens">
-      <button class="lien-explik" id="home-explik">✨ Comment ça marche ?</button>
-      <button class="lien-explik" id="home-board">🏆 Voir le classement</button>
-      <button class="lien-explik" id="home-rgpd">🔒 Confidentialité</button>
+      <button class="lien-explik" id="home-explik">${t("✨ Comment ça marche ?", "✨ Hoe werkt het?")}</button>
+      <button class="lien-explik" id="home-board">${t("🏆 Voir le classement", "🏆 Bekijk de ranking")}</button>
+      <button class="lien-explik" id="home-rgpd">${t("🔒 Confidentialité", "🔒 Privacy")}</button>
     </div>
-    ${borne ? `<p class="home-role">🖥️ Borne servant à <b>participer au quiz</b>, <b>gérer ton espace jardin</b> et <b>t'inscrire à Famiformation</b>.</p>` : ""}
+    ${borne ? `<p class="home-role">${t("🖥️ Borne servant à <b>participer au quiz</b>, <b>gérer ton espace jardin</b> et <b>t'inscrire à Famiformation</b>.", "🖥️ Zuil om <b>deel te nemen aan de quiz</b>, <b>je tuin te beheren</b> en <b>je in te schrijven op Famiformation</b>.")}</p>` : ""}
   </div>
-  <button class="fami-bulle" id="home-famif" title="Découvrir Famiformation">
+  <button class="fami-bulle" id="home-famif" title="${t("Découvrir Famiformation", "Ontdek Famiformation")}">
     <span class="fb-emo">🌱</span>
-    <span class="fb-txt">Famiformation,<br>c'est quoi ?</span>
+    <span class="fb-txt">${t("Famiformation,<br>c'est quoi ?", "Famiformation,<br>wat is dat?")}</span>
   </button>`;
 
   // Compte à rebours du haut : à zéro, on ré-affiche l'accueil (le quiz devient
@@ -4147,6 +4196,7 @@ const EGG = (() => {
    ============================================================ */
 
 function render() {
+  majLangSwitch();   // 🌐 le sélecteur FR/NL est toujours présent (caché sur la télé via CSS)
   // 🖥️ Le mode borne se décide en UN seul endroit, pour TOUTES les vues : tant
   // qu'on est sur /quiz/<ville>/borne, chaque écran (accueil, espace, tableau de
   // bord, quiz, code…) reste en présentation borne. Aucune vue ne peut « retomber »
