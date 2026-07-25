@@ -410,6 +410,24 @@ body.mode-borne #app { width: 100%; }
 .home-tease { margin: 22px auto 10px; font-weight: 600; opacity: .78; max-width: 640px;
   font-size: clamp(.95rem, 2.2vw, 1.15rem); }
 .home-liens { display: flex; flex-wrap: wrap; gap: 10px 20px; align-items: center; justify-content: center; }
+/* ✉️ Page « Je m'inscris » : bloc de saisie + sections d'info dépliables */
+.insc-page { max-width: 620px; }
+.insc-card { text-align: left; margin: 0 auto 16px; max-width: 560px; }
+.insc-grid { display: flex; gap: 12px; }
+.insc-grid > div { flex: 1; }
+@media (max-width: 460px) { .insc-grid { flex-direction: column; gap: 0; } }
+.insc-info { max-width: 560px; margin: 0 auto 12px; text-align: left; background: var(--craie);
+  border: 2px solid #e3eee6; border-radius: 16px; overflow: hidden; }
+.insc-info > summary { list-style: none; cursor: pointer; padding: 15px 18px; font-family: 'Fredoka', sans-serif;
+  font-weight: 600; color: var(--foret); font-size: clamp(1rem, 2.6vw, 1.2rem); display: flex; justify-content: space-between; align-items: center; }
+.insc-info > summary::-webkit-details-marker { display: none; }
+.insc-info > summary::after { content: "▾"; color: var(--pousse); transition: transform .2s; }
+.insc-info[open] > summary::after { transform: rotate(180deg); }
+.insc-info-corps { padding: 0 18px 18px; line-height: 1.55; }
+.insc-info-corps p { margin: 0 0 10px; }
+.insc-liste { list-style: none; padding: 0; margin: 0 0 10px; display: flex; flex-direction: column; gap: 8px; }
+.insc-liste li { line-height: 1.4; }
+.insc-slogan { font-family: 'Fredoka', sans-serif; font-weight: 600; color: var(--pousse); text-align: center; margin: 4px 0 0 !important; }
 .lien-explik { border: none; background: none; cursor: pointer; font-family: 'Fredoka', sans-serif;
   font-weight: 700; color: var(--pousse); font-size: clamp(.95rem, 2.2vw, 1.15rem); padding: 6px 4px;
   text-decoration: underline; text-underline-offset: 3px; }
@@ -1497,6 +1515,7 @@ function currentView() {
   if (userView === "reclamer") return "reclamer";
   if (userView === "retrouver") return "retrouver";
   if (userView === "creation") return "creation";
+  if (userView === "inscription") return "inscription";
   // L'espace du compte : gate connexion/création si pas connecté, sinon dashboard.
   if (userView === "espace")    return joueur ? "dashboard" : "espace";
   if (userView === "dashboard") return joueur ? "dashboard" : "espace";
@@ -2357,81 +2376,124 @@ function ouvreConnexionFami() {
   o.querySelector("#cf-ok").addEventListener("click", go);
   o.querySelector("#cf-mdp").addEventListener("keydown", (e) => e.key === "Enter" && go());
   o.querySelector("#cf-id").addEventListener("keydown", (e) => e.key === "Enter" && o.querySelector("#cf-mdp").focus());
-  o.querySelector("#cf-inscription").addEventListener("click", (e) => { e.preventDefault(); ferme(); ouvreInscriptionFami(); });
+  o.querySelector("#cf-inscription").addEventListener("click", (e) => { e.preventDefault(); ferme(); userView = "inscription"; render(); });
   o.querySelector("#cf-annuler").addEventListener("click", (e) => { e.preventDefault(); ferme(); });
   o.addEventListener("click", (e) => { if (e.target === o) ferme(); });
   setTimeout(() => o.querySelector("#cf-id").focus(), 50);
 }
 
-// ✉️ MODALE D'INSCRIPTION : on récolte prénom + nom + e-mail. Le compte est créé
-// et le lien de connexion part TOUT DE SUITE par mail (et l'inscription est
-// recopiée dans le Google Form de l'accueil, côté serveur). Remplace le Google
-// Form dans le parcours borne/téléphone.
-function ouvreInscriptionFami() {
-  if (document.querySelector(".modal-fond")) document.querySelector(".modal-fond").remove();
+// 📭 Guide « créer une adresse e-mail » : la page du site, dans un cadre (jamais
+// de nouvel onglet), avec un retour. Réutilise l'habillage du module e-mail.
+const URL_CREER_EMAIL = "https://famiformation.com/emails/creer-email.html";
+function ouvreGuideEmail() {
   const o = document.createElement("div");
-  o.className = "modal-fond";
-  o.innerHTML = `<div class="modal">
-    <h2 style="font-family:'Fredoka',sans-serif; color:var(--pousse); font-size:1.5rem; margin:0 0 4px; text-align:center;">Je m'inscris 🌱</h2>
-    <p style="text-align:center; color:#5a6b60; margin:0 0 16px;">Reçois ton lien de connexion par e-mail pour jouer au quiz.</p>
-    <div id="ci-corps">
+  o.className = "ext-overlay";
+  o.innerHTML = `<div class="ext-bar">
+      <button class="ext-btn ext-home" id="ge-retour"><span>◂</span> Retour</button>
+      <div class="ext-brand">📭 Créer une adresse e-mail</div>
+      <div class="ext-nav"></div>
+    </div>
+    <iframe class="ext-frame" src="${URL_CREER_EMAIL}" referrerpolicy="no-referrer"></iframe>`;
+  document.body.appendChild(o);
+  o.querySelector("#ge-retour").addEventListener("click", () => o.remove());
+}
+
+// ✉️ PAGE « JE M'INSCRIS » (vraie page, pas une modale). En haut : le bloc de
+// saisie (prénom, nom, e-mail) → le compte est créé et le lien de connexion part
+// TOUT DE SUITE par mail (et l'inscription est recopiée dans le Google Form de
+// l'accueil, côté serveur). En dessous : « C'est quoi Famiformation ? » et « Je
+// n'ai pas d'adresse e-mail », pour que la personne comprenne AVANT/PENDANT.
+function renderInscription() {
+  clearInterval(tickTimer);
+  app.innerHTML = `<div class="home insc-page">
+    <h2 class="borne-titre">Je m'inscris à Famiformation 🌱</h2>
+    <p class="borne-sous"><b>Famiformation</b>, c'est la plateforme de formation en ligne de Famiflora.
+      Inscris-toi pour recevoir ton accès, jouer au quiz… et passe à l'accueil pour ton <b>ticket glace</b> 🍦 !</p>
+
+    <div class="card insc-card" id="insc-card">
       <div id="ci-err"></div>
-      <label class="lbl">Prénom</label>
-      <input class="field" id="ci-prenom" autocomplete="given-name" placeholder="Ton prénom">
-      <label class="lbl">Nom</label>
-      <input class="field" id="ci-nom" autocomplete="family-name" placeholder="Ton nom">
+      <div class="insc-grid">
+        <div><label class="lbl">Prénom</label>
+          <input class="field" id="ci-prenom" autocomplete="given-name" placeholder="Ton prénom"></div>
+        <div><label class="lbl">Nom</label>
+          <input class="field" id="ci-nom" autocomplete="family-name" placeholder="Ton nom"></div>
+      </div>
       <label class="lbl">E-mail</label>
       <input class="field" id="ci-email" type="email" autocomplete="email" placeholder="ton.email@exemple.be">
-      <button class="btn" id="ci-ok" style="width:100%; margin-top:6px;">Recevoir mon lien 🎁</button>
-      <p style="text-align:center; margin:14px 0 0; line-height:1.5;">Tu as déjà un compte Famiformation ?<br>
-        <a href="#" id="ci-connexion" class="lien">Connecte-toi ici</a></p>
-      <p class="center" style="margin-top:10px;"><a href="#" id="ci-annuler" class="lien" style="color:#8a988f;">Annuler</a></p>
+      <button class="btn" id="ci-ok" style="width:100%; margin-top:8px;">Recevoir mon lien de connexion 🎁</button>
+      <p class="hint" style="text-align:center; margin:10px 0 0;">On t'envoie tout de suite un e-mail avec ton lien pour choisir ton mot de passe.
+        Sans <b>prénom + nom</b>, tu ne seras pas éligible aux récompenses.</p>
+    </div>
+
+    <details class="insc-info">
+      <summary>✨ C'est quoi Famiformation ?</summary>
+      <div class="insc-info-corps">
+        <p>La plateforme en ligne de Famiflora qui réunit <b>tout ce dont tu as besoin pour bien travailler</b>,
+          où que tu sois — même livré(e) à toi-même, tu trouves la réponse.</p>
+        <ul class="insc-liste">
+          <li>🎓 <b>Grandir dans ton métier</b>, à ton rythme — tu apprends en ligne quand tu veux.</li>
+          <li>🧰 <b>Ne jamais rester bloqué(e)</b> : tous les outils pour travailler, même seul(e).</li>
+          <li>📅 <b>T'inscrire aux formations</b> en présentiel et réserver ta place.</li>
+          <li>🏆 <b>Progresser</b> avec quelques récompenses à la clé.</li>
+        </ul>
+        <p class="insc-slogan">Apprendre 🌱 Progresser 🌿 Être récompensé(e) 🌸</p>
+      </div>
+    </details>
+
+    <details class="insc-info">
+      <summary>📭 Je n'ai pas d'adresse e-mail</summary>
+      <div class="insc-info-corps">
+        <p>Pas de panique ! Tu peux utiliser ton adresse <b>personnelle</b> ou <b>professionnelle</b> — les deux sont acceptées.</p>
+        <p>Tu n'en as vraiment aucune ? Tu peux en créer une <b>gratuitement en 2 minutes</b>, ou demander un coup de main à l'accueil.</p>
+        <button class="btn ghost" id="ci-guide" style="margin-top:6px;">📖 Voir comment créer une adresse</button>
+      </div>
+    </details>
+
+    <div class="home-liens">
+      <a href="#" class="lien-explik" id="ci-connexion">🔑 J'ai déjà un compte, me connecter</a>
+      <a href="#" class="lien-explik" id="ci-retour">◂ Retour à l'accueil</a>
     </div>
   </div>`;
-  document.body.appendChild(o);
-  const ferme = () => o.remove();
-  const erreur = (txt) => { o.querySelector("#ci-err").innerHTML = `<div class="alert">${esc(txt)}</div>`; };
 
+  const err = (txt) => { $("#ci-err").innerHTML = `<div class="alert">${esc(txt)}</div>`; };
   const go = async () => {
-    const prenom = o.querySelector("#ci-prenom").value.trim();
-    const nom = o.querySelector("#ci-nom").value.trim();
-    const email = o.querySelector("#ci-email").value.trim();
-    if (prenom.length < 2 || nom.length < 2) { erreur("Indique ton prénom et ton nom (pour recevoir ton ticket glace et être éligible aux récompenses)."); return; }
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { erreur("Vérifie ton adresse e-mail."); return; }
-    o.querySelector("#ci-ok").disabled = true;
-    o.querySelector("#ci-err").innerHTML = "";
+    const prenom = $("#ci-prenom").value.trim();
+    const nom = $("#ci-nom").value.trim();
+    const email = $("#ci-email").value.trim();
+    if (prenom.length < 2 || nom.length < 2) { err("Indique ton prénom et ton nom (pour ton ticket glace et pour être éligible aux récompenses)."); return; }
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { err("Vérifie ton adresse e-mail."); return; }
+    $("#ci-ok").disabled = true;
+    $("#ci-err").innerHTML = "";
     const r = await apiInscriptionFami(prenom, nom, email);
-    o.querySelector("#ci-ok").disabled = false;
+    if ($("#ci-ok")) $("#ci-ok").disabled = false;
     if (r.reason === "deja_inscrit") {
-      // Compte déjà actif : on le félicite et on l'invite à se connecter.
-      o.querySelector("#ci-corps").innerHTML = `<div style="text-align:center; padding:6px 0;">
+      $("#insc-card").innerHTML = `<div style="text-align:center; padding:6px 0;">
         <div style="font-size:2.6rem;">🔑</div>
         <p style="font-size:1.05rem; line-height:1.5; margin:8px 0 16px;">Tu as déjà un compte Famiformation avec cette adresse. Connecte-toi pour jouer !</p>
         <button class="btn" id="ci-vers-connexion" style="min-width:200px;">Me connecter</button></div>`;
-      o.querySelector("#ci-vers-connexion").addEventListener("click", () => { ferme(); ouvreConnexionFami(); });
+      $("#ci-vers-connexion").addEventListener("click", ouvreConnexionFami);
       return;
     }
     if (!r.ok) {
-      if (r.reason === "trop_dessais") { erreur("Trop d'essais avec cette adresse. Réessaie dans un moment."); return; }
-      if (r.reason === "mail_impossible") { erreur("L'e-mail n'a pas pu partir. Vérifie l'adresse et réessaie."); return; }
-      if (r.reason === "base_indisponible") { erreur("Le service est momentanément indisponible. Réessaie dans un instant."); return; }
-      erreur("Inscription impossible pour le moment. Réessaie."); return;
+      if (r.reason === "trop_dessais") { err("Trop d'essais avec cette adresse. Réessaie dans un moment."); return; }
+      if (r.reason === "mail_impossible") { err("L'e-mail n'a pas pu partir. Vérifie l'adresse et réessaie."); return; }
+      if (r.reason === "base_indisponible") { err("Le service est momentanément indisponible. Réessaie dans un instant."); return; }
+      err("Inscription impossible pour le moment. Réessaie."); return;
     }
-    // Succès : le mail est parti. Écran de confirmation.
-    o.querySelector("#ci-corps").innerHTML = `<div style="text-align:center; padding:6px 0;">
+    // Succès : le mail est parti → on remplace le bloc de saisie par la confirmation.
+    $("#insc-card").innerHTML = `<div style="text-align:center; padding:6px 0;">
       <div style="font-size:3rem;">📬</div>
       <h3 style="font-family:'Fredoka',sans-serif; color:var(--pousse); margin:8px 0;">C'est envoyé !</h3>
       <p style="font-size:1.05rem; line-height:1.6; margin:0 0 8px;">Regarde ta boîte mail <b>${esc(email)}</b> : tu y trouveras ton lien pour choisir ton mot de passe et te connecter au quiz.</p>
       <p style="font-size:.95rem; color:#5a6b60; margin:0 0 16px;">🍦 Pense à passer à l'accueil pour ton ticket glace ! Pas reçu le mail ? Regarde dans les spams.</p>
       <button class="btn" id="ci-fini" style="min-width:180px;">J'ai compris 🌱</button></div>`;
-    o.querySelector("#ci-fini").addEventListener("click", ferme);
+    $("#ci-fini").addEventListener("click", () => { if (retourAccueilBorne()) return; userView = "auto"; render(); });
   };
-  o.querySelector("#ci-ok").addEventListener("click", go);
-  o.querySelector("#ci-email").addEventListener("keydown", (e) => e.key === "Enter" && go());
-  o.querySelector("#ci-connexion").addEventListener("click", (e) => { e.preventDefault(); ferme(); ouvreConnexionFami(); });
-  o.querySelector("#ci-annuler").addEventListener("click", (e) => { e.preventDefault(); ferme(); });
-  o.addEventListener("click", (e) => { if (e.target === o) ferme(); });
-  setTimeout(() => o.querySelector("#ci-prenom").focus(), 50);
+  $("#ci-ok").addEventListener("click", go);
+  $("#ci-email").addEventListener("keydown", (e) => e.key === "Enter" && go());
+  $("#ci-guide").addEventListener("click", ouvreGuideEmail);
+  $("#ci-connexion").addEventListener("click", (e) => { e.preventDefault(); ouvreConnexionFami(); });
+  $("#ci-retour").addEventListener("click", (e) => { e.preventDefault(); if (retourAccueilBorne()) return; userView = "auto"; render(); });
 }
 
 // L'« espace jardin » n'est plus une page à deux tuiles : c'est la connexion
@@ -3166,7 +3228,7 @@ function renderHome() {
       return;
     }
     // Module « mail » : inscription intégrée (prénom, nom, e-mail) → mail immédiat.
-    if (go === "mail") { ouvreInscriptionFami(); return; }
+    if (go === "mail") { userView = "inscription"; quiz = null; render(); return; }
     if (go === "code") { codeAReclamer = null; userView = "reclamer"; quiz = null; render(); return; }
   }));
   const be = app.querySelector("#home-explik");
@@ -3764,6 +3826,7 @@ function render() {
   if (v !== "herbes") stopHerbes();
   if (v === "home") renderHome();
   else if (v === "espace") renderEspace();
+  else if (v === "inscription") renderInscription();
   else if (v === "creation") renderCreation();
   else if (v === "dashboard") renderDashboard();
   else if (v === "quiz") renderQuiz();
