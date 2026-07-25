@@ -1079,26 +1079,23 @@ function majBarreSim() {
 // ci-dessous n'est qu'un SECOURS : elle ne s'affiche que si le serveur ne répond
 // pas, pour qu'un incident réseau ne laisse jamais un joueur devant une page vide.
 let QUESTIONS = [
-  { q: "En quelle année l'entreprise a-t-elle été fondée ?", options: ["1995", "2001", "2008", "2015"], correct: 1 },
-  { q: "Combien de collègues travaillent chez nous aujourd'hui ?", options: ["Moins de 30", "Entre 30 et 60", "Entre 60 et 100", "Plus de 100"], correct: 2 },
-  { q: "Quel est le rayon le plus visité du magasin ?", options: ["Rayon A", "Rayon B", "Rayon C", "Rayon D"], correct: 0 },
-  { q: "Qui arrive toujours en premier le matin ?", options: ["Prénom 1", "Prénom 2", "Prénom 3", "Prénom 4"], correct: 2 },
-  { q: "Quelle est la boisson officielle de la salle de pause ?", options: ["Café noir", "Thé", "Chocolat chaud", "Eau pétillante"], correct: 0 },
-  { q: "Question anecdote n°6 — à personnaliser", options: ["Réponse A", "Réponse B", "Réponse C", "Réponse D"], correct: 0 },
-  { q: "Question anecdote n°7 — à personnaliser", options: ["Réponse A", "Réponse B", "Réponse C", "Réponse D"], correct: 1 },
-  { q: "Question anecdote n°8 — à personnaliser", options: ["Réponse A", "Réponse B", "Réponse C", "Réponse D"], correct: 2 },
-  { q: "Question anecdote n°9 — à personnaliser", options: ["Réponse A", "Réponse B", "Réponse C", "Réponse D"], correct: 3 },
-  { q: "Question anecdote n°10 — à personnaliser", options: ["Réponse A", "Réponse B", "Réponse C", "Réponse D"], correct: 0 },
-  { q: "Question anecdote n°11 — à personnaliser", options: ["Réponse A", "Réponse B", "Réponse C", "Réponse D"], correct: 1 },
-  { q: "Question anecdote n°12 — à personnaliser", options: ["Réponse A", "Réponse B", "Réponse C", "Réponse D"], correct: 2 },
-  { q: "Question anecdote n°13 — à personnaliser", options: ["Réponse A", "Réponse B", "Réponse C", "Réponse D"], correct: 3 },
-  { q: "Question anecdote n°14 — à personnaliser", options: ["Réponse A", "Réponse B", "Réponse C", "Réponse D"], correct: 0 },
-  { q: "Question anecdote n°15 — à personnaliser", options: ["Réponse A", "Réponse B", "Réponse C", "Réponse D"], correct: 1 },
-  { q: "Question anecdote n°16 — à personnaliser", options: ["Réponse A", "Réponse B", "Réponse C", "Réponse D"], correct: 2 },
-  { q: "Question anecdote n°17 — à personnaliser", options: ["Réponse A", "Réponse B", "Réponse C", "Réponse D"], correct: 3 },
-  { q: "Question anecdote n°18 — à personnaliser", options: ["Réponse A", "Réponse B", "Réponse C", "Réponse D"], correct: 0 },
-  { q: "Question anecdote n°19 — à personnaliser", options: ["Réponse A", "Réponse B", "Réponse C", "Réponse D"], correct: 1 },
-  { q: "Question anecdote n°20 — à personnaliser", options: ["Réponse A", "Réponse B", "Réponse C", "Réponse D"], correct: 2 },
+  { q: "Chez Famiflora, on trouve surtout…", options: ["Des plantes et de la déco de jardin", "Des pièces détachées de voiture", "Des billets d'avion", "Du poisson frais"], correct: 0, theme: "entreprise" },
+  { q: "Le barbecue, ça se nettoie surtout…", options: ["Quand il est encore tiède", "Une fois par an", "Jamais, la pluie s'en charge", "Avec un lave-vaisselle"], correct: 0, theme: "entreprise" },
+  { q: "Une eau de piscine verte, ça veut dire…", options: ["Présence d'algues", "Trop de bonne humeur", "Qu'elle est prête pour la soupe", "Rien, c'est la couleur normale"], correct: 0, theme: "entreprise" },
+  { q: "Pour renseigner un client, le mieux c'est…", options: ["L'écouter et l'orienter avec le sourire", "Faire semblant d'être au téléphone", "Lui dire de revenir demain", "Se cacher au rayon déco"], correct: 0, theme: "entreprise" },
+  { q: "Au passage en caisse, on pose…", options: ["Tous les articles sur le tapis", "Seulement les plus légers", "Rien, on fait confiance", "Le chat de la maison"], correct: 0, theme: "entreprise" },
+  { q: "Combien de temps un client a-t-il pour enlever sa commande en magasin ?", options: ["30 jours", "2 heures", "10 ans", "Le temps d'un café"], correct: 0, theme: "entreprise" },
+  { q: "Que faut-il donner à une plante pour qu'elle pousse ?", options: ["De l'eau et de la lumière", "Du café tous les matins", "Des encouragements uniquement", "Rien, elle se débrouille"], correct: 0, theme: "culture" },
+  { q: "À quelle saison plante-t-on les tulipes ?", options: ["À l'automne", "En plein été", "Le 31 décembre", "Jamais, elles poussent seules"], correct: 0, theme: "culture" },
+  { q: "Les abeilles sont utiles au jardin car elles…", options: ["Pollinisent les fleurs", "Tondent la pelouse", "Font fuir les clients", "Gardent le magasin la nuit"], correct: 0, theme: "culture" },
+  { q: "Le compost, c'est…", options: ["Des déchets qui deviennent de l'engrais", "Une marque de barbecue", "Un type de piscine", "Un jour férié"], correct: 0, theme: "culture" },
+  { q: "Un cactus a besoin…", options: ["De très peu d'eau", "D'un arrosage toutes les heures", "D'un parapluie", "De beaucoup de câlins"], correct: 0, theme: "culture" },
+  { q: "Quel est le comble pour un jardinier ?", options: ["Raconter des salades", "Compter les moutons", "Repeindre le ciel", "Nager dans le compost"], correct: 0, theme: "fun" },
+  { q: "Si une plante pouvait parler, elle dirait sûrement…", options: ["« Un peu d'eau, s'il te plaît ! »", "« Baisse le chauffage »", "« Passe-moi le sel »", "« On sort ce soir ? »"], correct: 0, theme: "fun" },
+  { q: "Le meilleur moment pour arroser en été, c'est…", options: ["Le matin tôt ou le soir", "À midi en plein soleil", "Quand il pleut déjà", "Jamais, on croise les doigts"], correct: 0, theme: "fun" },
+  { q: "Un gnome de jardin sert surtout à…", options: ["Décorer (et faire sourire)", "Surveiller la caisse", "Tondre la pelouse", "Piloter le drone d'arrosage"], correct: 0, theme: "fun" },
+  { q: "Comment reconnaît-on un(e) vrai(e) fan de jardinage ?", options: ["Il/elle a toujours de la terre sous les ongles", "Il/elle déteste les fleurs", "Il/elle a peur des arrosoirs", "Il/elle jardine en costume-cravate"], correct: 0, theme: "fun" },
+  { q: "Au potager, le voisin le plus bavard est…", options: ["Le persil, il repique partout", "Le cactus, très timide", "La pierre du chemin", "Le tuyau d'arrosage"], correct: 0, theme: "fun" },
 ];
 
 /* ============================================================
@@ -1402,13 +1399,13 @@ function shuffle(arr) {
   return a;
 }
 // 🎯 COMPOSITION DU QUIZ : 20 questions tirées AU HASARD dans un plus grand
-// réservoir — 10 sur l'entreprise, 5 de culture générale (jardinage), 5 anecdotes.
+// réservoir — 10 sur l'entreprise, 5 de culture générale (jardinage), 5 « fun ».
 // Deux personnes n'ont donc pas le même questionnaire : ça limite la triche.
-const QUIZ_THEMES = { entreprise: 10, culture: 5, anecdote: 5 };
+const QUIZ_THEMES = { entreprise: 10, culture: 5, fun: 5 };
 const QUIZ_TOTAL = Object.values(QUIZ_THEMES).reduce((a, b) => a + b, 0);
 function prepareQuestions() {
-  const parTheme = { entreprise: [], culture: [], anecdote: [] };
-  QUESTIONS.forEach((q) => { (parTheme[q.theme] || parTheme.entreprise).push(q); });
+  const parTheme = { entreprise: [], culture: [], fun: [] };
+  QUESTIONS.forEach((q) => { (parTheme[q.theme === "anecdote" ? "fun" : q.theme] || parTheme.entreprise).push(q); });
   let choix = [], restes = [];
   for (const t in QUIZ_THEMES) {
     const dispo = shuffle(parTheme[t]);
@@ -1507,6 +1504,7 @@ let quiz = null;             // état de la partie en cours
 let tickTimer = null;
 let chronoQ = null;          // chrono affiché pendant une question du quiz
 let jardin = {};             // cases plantées {index: {plante, par, date}}
+let jardinObjectifFete = false;   // la modale « tu as gagné » n'apparaît qu'UNE fois
 let joueur = null;           // {name, solde} — le joueur identifié (a joué ou s'est retrouvé)
 let planteChoisie = null;    // clé du catalogue sélectionnée dans la vue jardin
 let jardinMsg = null;        // petit message sous la grille
@@ -1600,7 +1598,7 @@ function ouvreExplication() {
     <p class="explik-sous">Le grand jeu Famiflora, de la graine au ticket glace.</p>
     <div class="explik-steps">
       <div class="explik-step explik-star"><span class="explik-ico">🏆</span><span class="explik-txt"><b class="eh">Un seul classement ⭐</b>Ta récolte de graines (quiz + codes), c'est tout. Les <b>3 meilleures récoltes repartent avec de très belles récompenses</b> — de quoi viser le podium&nbsp;! Annonce des vainqueurs le ${esc(CONFIG.dateResultats)}.</span></div>
-      <div class="explik-step"><span class="explik-ico">🎯</span><span class="explik-txt"><b class="eh">Réponds au quiz</b><b>${QUIZ_TOTAL} questions</b> tirées au hasard dans un grand réservoir : <b>${QUIZ_THEMES.entreprise} sur l'entreprise et le magasin</b>, <b>${QUIZ_THEMES.culture} de culture générale</b> (jardinage) et <b>${QUIZ_THEMES.anecdote} anecdotes</b>. Deux personnes n'ont donc pas le même questionnaire !</span></div>
+      <div class="explik-step"><span class="explik-ico">🎯</span><span class="explik-txt"><b class="eh">Réponds au quiz</b><b>${QUIZ_TOTAL} questions</b> tirées au hasard dans un grand réservoir : <b>${QUIZ_THEMES.entreprise} sur l'entreprise et le magasin</b>, <b>${QUIZ_THEMES.culture} de culture générale</b> (jardinage) et <b>${QUIZ_THEMES.fun} questions fun</b>. Deux personnes n'ont donc pas le même questionnaire !</span></div>
       <div class="explik-step"><span class="explik-ico">🌰</span><span class="explik-txt"><b class="eh">Comment on gagne des graines</b>Chaque bonne réponse rapporte <b>${BAREME.base} graines</b>, avec deux bonus.
         <span class="explik-liste">
           <span>⚡ <b>Rapidité</b> — jusqu'à +${BAREME.vitesseMax}, plus tu réponds vite (un chrono tourne à l'écran)</span>
@@ -2018,6 +2016,25 @@ function modaleQuizFini(graines) {
   o.addEventListener("click", (e) => { if (e.target === o) ferme(); });
 }
 
+// 🏆 Modale « TU AS GAGNÉ » : apparaît quand le jardin est complet + 3 lotus.
+function modaleJardinGagne() {
+  if (document.querySelector(".modal-fond")) return;   // pas par-dessus une autre fenêtre
+  const o = document.createElement("div");
+  o.className = "modal-fond";
+  o.innerHTML = `<div class="modal code-modal">
+    <div class="cm-emoji">🏆</div>
+    <h2 class="cm-titre">Bravo, tu as gagné !</h2>
+    <p class="cm-sous">Tu as <b>complété tout ton jardin</b> et planté les <b>3 lotus</b> (or, argent, bronze) 🌸<br>
+      Tu fais officiellement partie des <b>gagnants du jardin</b> — une <b>récompense t'attend</b> ! 🎁</p>
+    <button class="btn" id="cm-ok" style="min-width:200px;">Trop bien ! 🌟</button>
+  </div>`;
+  document.body.appendChild(o);
+  lanceConfettis(6500);   // 🎉 grande fête
+  const ferme = () => o.remove();
+  o.querySelector("#cm-ok").addEventListener("click", ferme);
+  o.addEventListener("click", (e) => { if (e.target === o) ferme(); });
+}
+
 /* ============================================================
    🏆 VUE — CLASSEMENT
    ============================================================ */
@@ -2232,6 +2249,19 @@ function renderJardin() {
   const LOTUS = ["or", "argent", "bronze"];
   const lotusFaits = LOTUS.filter((r) => Object.values(jardin).some((c) => c && c.plante === r)).length;
   const eligible = nbPlantees >= JARDIN_CASES && lotusFaits === 3;
+
+  // 🎉 Au moment PRÉCIS où l'objectif est atteint : une modale « tu as gagné »,
+  // une seule fois (mémorisé pour ne pas re-popper à chaque visite/rechargement).
+  if (eligible && !jardinObjectifFete) {
+    const cle = "fj_jgagne_" + SITE + "_" + (joueur ? joueur.name.toLowerCase() : "");
+    let deja = false;
+    if (!SIMULATION) { try { deja = localStorage.getItem(cle) === "1"; } catch (e) {} }
+    if (!deja) {
+      jardinObjectifFete = true;
+      if (!SIMULATION) { try { localStorage.setItem(cle, "1"); } catch (e) {} }
+      setTimeout(() => modaleJardinGagne(), 500);   // après le rendu de la grille
+    }
+  }
 
   app.innerHTML = `${DEFS_METAL}<div class="board-wrap">${pillsHtml("jardin")}<div class="card">
     <div class="jardin-solde">

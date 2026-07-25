@@ -267,7 +267,7 @@ function vueQuestions() {
       <div id="q-import-zone" style="display:none; margin-top:12px;">
         <p class="hint">Colle un tableau JSON de questions, puis « Ajouter à la liste ». Format de chaque
         question : <code>{"q":"…","options":["…","…"],"correct":0,"theme":"culture"}</code>
-        (thème : <b>entreprise</b>, <b>culture</b> ou <b>anecdote</b> ; <code>correct</code> = index de la bonne réponse, à partir de 0).</p>
+        (thème : <b>entreprise</b>, <b>culture</b> ou <b>fun</b> ; <code>correct</code> = index de la bonne réponse, à partir de 0).</p>
         <textarea class="field" id="q-import-txt" rows="7" placeholder='[ {"q":"…","options":["A","B","C","D"],"correct":2,"theme":"culture"} ]' style="font-family:monospace; font-size:.85rem;"></textarea>
         <div id="q-import-msg"></div>
         <div style="display:flex; gap:10px; flex-wrap:wrap;">
@@ -307,7 +307,8 @@ function vueQuestions() {
       if (!q || options.length < 2) continue;
       let correct = parseInt(it.correct, 10); if (isNaN(correct) || correct < 0 || correct >= options.length) correct = 0;
       let theme = String(it && it.theme || "").toLowerCase();
-      if (!["entreprise", "culture", "anecdote"].includes(theme)) theme = "entreprise";
+      if (theme === "anecdote") theme = "fun";
+      if (!["entreprise", "culture", "fun"].includes(theme)) theme = "entreprise";
       propres.push({ q, options, correct, theme });
     }
     if (!propres.length) { msg.innerHTML = `<div class="alert">Aucune question valide trouvée (il faut un intitulé et au moins 2 réponses).</div>`; return null; }
@@ -367,7 +368,7 @@ function dessineListe() {
         <select class="field" data-theme="${i}" style="margin:0;max-width:230px;">
           <option value="entreprise" ${(q.theme || "entreprise") === "entreprise" ? "selected" : ""}>L'entreprise / le magasin</option>
           <option value="culture" ${q.theme === "culture" ? "selected" : ""}>Culture générale (jardinage)</option>
-          <option value="anecdote" ${q.theme === "anecdote" ? "selected" : ""}>Anecdote</option>
+          <option value="fun" ${(q.theme === "fun" || q.theme === "anecdote") ? "selected" : ""}>Fun / anecdote</option>
         </select>
       </label>
       ${q.options.map((o, j) => `
@@ -381,10 +382,10 @@ function dessineListe() {
 
   const cpt = $("#q-compte");
   if (cpt) {
-    const nb = (t) => brouillon.filter((q) => (q.theme || "entreprise") === t).length;
-    const e = nb("entreprise"), cg = nb("culture"), an = nb("anecdote");
+    const nb = (t) => brouillon.filter((q) => { const th = q.theme === "anecdote" ? "fun" : (q.theme || "entreprise"); return th === t; }).length;
+    const e = nb("entreprise"), cg = nb("culture"), an = nb("fun");
     const court = e < 10 || cg < 5 || an < 5;
-    cpt.innerHTML = `${brouillon.length} question(s) — <b>${e}</b> entreprise · <b>${cg}</b> culture G · <b>${an}</b> anecdote`
+    cpt.innerHTML = `${brouillon.length} question(s) — <b>${e}</b> entreprise · <b>${cg}</b> culture G · <b>${an}</b> fun`
       + ` <span style="opacity:.7;">(chaque joueur en tire 20 : 10 / 5 / 5)</span>`
       + (court ? `<br><span style="color:#E4572E;font-weight:800;">⚠️ Il en faut au moins 10 / 5 / 5. En dessous, on complète avec les autres thèmes.</span>` : "");
   }

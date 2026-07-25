@@ -257,9 +257,10 @@ function nettoieQuestion($item) {
   if ($q === '' || count($opts) < 2) { return null; }          // inutilisable
   if ($correct < 0 || $correct >= count($opts)) { $correct = 0; } // index hors liste
   // 🎯 Thème de la question : sert à composer le quiz (10 entreprise, 5 culture
-  // générale, 5 anecdotes). Valeur inconnue ou absente → « entreprise ».
+  // générale, 5 « fun »). Valeur inconnue ou absente → « entreprise ».
   $theme = strtolower(trim((string)($item['theme'] ?? '')));
-  if (!in_array($theme, ['entreprise', 'culture', 'anecdote'], true)) { $theme = 'entreprise'; }
+  if ($theme === 'anecdote') { $theme = 'fun'; }                  // ancien nom → nouveau
+  if (!in_array($theme, ['entreprise', 'culture', 'fun'], true)) { $theme = 'entreprise'; }
   return ['q' => mb_substr($q, 0, 300), 'options' => $opts, 'correct' => $correct, 'theme' => $theme];
 }
 

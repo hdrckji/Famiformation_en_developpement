@@ -1,48 +1,56 @@
 <?php
 // ============================================================
 // export-quiz-entreprise.php — OUTIL PONCTUEL (admin).
-//   Lit tous les QCM des modules Famiformation (colonne modules.quiz_json) et
-//   les convertit au format du QUIZ DE LANCEMENT, prêts à coller dans
+//   Lit la banque de questions de Famiformation (table quiz_questions) et la
+//   convertit au format du QUIZ DE LANCEMENT, prête à coller dans
 //   /quiz/admin → onglet Questions → « Importer (JSON) ».
-//   On ne garde que les questions à UNE seule bonne réponse (le quiz de
-//   lancement ne gère pas le choix multiple), thème « entreprise ».
-//   ⚠️ À SUPPRIMER après usage (ou laisser : il est réservé à l'admin).
+//   Thème « entreprise ». On AJOUTE à chaque question une 4e réponse fausse
+//   « rigolote » (elle sera mélangée aux autres dans le quiz).
+//   ⚠️ Doit tourner sur le SERVEUR QUI A LA BASE (là où marche admin_questions.php).
 // ============================================================
 require_once 'config.php';
 if (function_exists('verifierConnexion')) { verifierConnexion($db); }
 if (($_SESSION['role'] ?? '') !== 'admin') { header('Location: login.php'); exit(); }
 
+// 😄 Réponses fausses rigolotes : une piochée par question (jamais la bonne).
+$RIGOLOTES = [
+    "Rien du tout, on improvise 😅", "Demander à un collègue 🤷", "Appeler Jimmy 📞",
+    "42, évidemment", "Ça dépend de la météo ☀️", "Un bon barbecue 🍖", "Comme d'habitude, au feeling 😎",
+    "Aucune idée, mais ça sonne bien", "La même chose qu'hier", "Fermer les yeux et espérer 🤞",
+    "C'est écrit nulle part, donc non", "Un café d'abord ☕", "Google le sait mieux que moi",
+    "On verra ça lundi", "Poser la question à l'accueil 🙋",
+];
+
 $sortie = [];
-$stats = ['modules' => 0, 'questions_total' => 0, 'gardees' => 0, 'multi_ignorees' => 0];
+$stats = ['lues' => 0, 'gardees' => 0];
+$lettreVersIndex = ['A' => 0, 'B' => 1, 'C' => 2];
 
 try {
-    $rows = $db->query("SELECT quiz_json FROM modules WHERE quiz_json IS NOT NULL AND quiz_json <> ''")
-               ->fetchAll(PDO::FETCH_ASSOC);
+    $rows = $db->query("SELECT theme, question_text, option_a, option_b, option_c, reponse_correcte
+                        FROM quiz_questions ORDER BY theme ASC, id ASC")->fetchAll(PDO::FETCH_ASSOC);
 } catch (Exception $e) { $rows = []; }
 
+$i = 0;
 foreach ($rows as $r) {
-    $q = json_decode((string) $r['quiz_json'], true);
-    $questions = (is_array($q) && !empty($q['questions']) && is_array($q['questions'])) ? $q['questions'] : [];
-    if (!$questions) { continue; }
-    $stats['modules']++;
-    foreach ($questions as $qq) {
-        $stats['questions_total']++;
-        $texte = trim((string) ($qq['q'] ?? ''));
-        $options = array_values(array_filter(array_map(function ($o) {
-            return trim((string) $o);
-        }, (array) ($qq['options'] ?? [])), function ($o) { return $o !== ''; }));
-        $correct = array_map('intval', (array) ($qq['correct'] ?? []));
-        $type = ($qq['type'] ?? 'single') === 'multiple' ? 'multiple' : 'single';
-
-        // On ne garde que les questions à UNE bonne réponse, exploitables telles quelles.
-        if ($type === 'multiple' || count($correct) !== 1) { $stats['multi_ignorees']++; continue; }
-        if ($texte === '' || count($options) < 2) { continue; }
-        $idx = $correct[0];
-        if ($idx < 0 || $idx >= count($options)) { continue; }
-
-        $sortie[] = ['q' => $texte, 'options' => $options, 'correct' => $idx, 'theme' => 'entreprise'];
-        $stats['gardees']++;
+    $stats['lues']++;
+    $q = trim((string) ($r['question_text'] ?? ''));
+    $options = [];
+    foreach (['option_a', 'option_b', 'option_c'] as $col) {
+        $o = trim((string) ($r[$col] ?? ''));
+        if ($o !== '') { $options[] = $o; }
     }
+    if ($q === '' || count($options) < 2) { continue; }
+
+    $lettre = strtoupper(trim((string) ($r['reponse_correcte'] ?? 'A')));
+    $correct = $lettreVersIndex[$lettre] ?? 0;
+    if ($correct >= count($options)) { $correct = 0; }
+
+    // On ajoute une réponse fausse rigolote À LA FIN (n'affecte pas l'index correct).
+    $options[] = $RIGOLOTES[$i % count($RIGOLOTES)];
+    $i++;
+
+    $sortie[] = ['q' => $q, 'options' => $options, 'correct' => $correct, 'theme' => 'entreprise'];
+    $stats['gardees']++;
 }
 
 $json = json_encode($sortie, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
@@ -59,13 +67,12 @@ header('Content-Type: text/html; charset=utf-8');
 </style></head><body>
 <h1>📤 Export des questions « entreprise »</h1>
 <div class="stat">
-  <b><?= (int) $stats['gardees'] ?></b> question(s) prêtes à importer (thème <b>entreprise</b>).<br>
-  Lues : <?= (int) $stats['questions_total'] ?> question(s) dans <?= (int) $stats['modules'] ?> module(s).
-  Ignorées car à choix multiple : <?= (int) $stats['multi_ignorees'] ?>.
+  <b><?= (int) $stats['gardees'] ?></b> question(s) prêtes à importer (thème <b>entreprise</b>, chacune avec une réponse fausse rigolote en plus).<br>
+  Lues dans la base <code>quiz_questions</code> : <?= (int) $stats['lues'] ?> question(s).
 </div>
 <p>Copie tout le contenu ci-dessous, va dans <b>/quiz/admin → onglet Questions → « Importer (JSON) »</b>,
    colle-le et clique sur « Ajouter à la liste », puis « Enregistrer ». (À faire pour chaque magasin.)</p>
 <button onclick="const t=document.getElementById('j');t.select();document.execCommand('copy');this.textContent='✅ Copié !';">📋 Tout copier</button>
 <textarea id="j" readonly><?= htmlspecialchars($json) ?></textarea>
-<p><a href="gestion_quiz.php">← Retour à la gestion des quiz</a></p>
+<p><a href="admin_questions.php">← Retour à la gestion des questions</a></p>
 </body></html>
