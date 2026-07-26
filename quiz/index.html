@@ -1527,7 +1527,7 @@ let JARDIN_CASES = 48;
 const STADES = [
   { min: 0,   emoji: "🌰", nom: "Graine" },
   { min: 50,  emoji: "🌱", nom: "Pousse" },
-  { min: 100, emoji: "🪴", nom: "Jeune plant" },
+  { min: 100, emoji: "🍀", nom: "Jeune plant" },
   { min: 150, emoji: "🌿", nom: "Buisson" },
   { min: 200, emoji: "🌸", nom: "En fleurs" },
   { min: 260, emoji: "🌳", nom: "Arbre majestueux" },
@@ -3476,7 +3476,7 @@ function renderSimTele() {
     if (s <= 2)  return "🌳🌸";   // l'arbre fleurit
     if (s <= 4)  return "🌳";     // grand arbre
     if (s <= 7)  return "🌿";
-    if (s <= 10) return "🪴";
+    if (s <= 10) return "🍀";
     if (s <= 13) return "🌱";
     return "🌰";                  // la graine, au départ
   }
