@@ -18,6 +18,20 @@ if ($role !== 'admin') {
     exit();
 }
 
+// 🧹 NETTOYAGE : on retire les sous-modules PARASITES (vides, sans aucun contenu)
+// sous les sections beta — ceux créés par erreur avant l'upload réel. On garde
+// UNIQUEMENT les sous-modules qui ont vraiment du contenu (Guide / Vidéo).
+try {
+    $db->exec(
+        "DELETE c FROM modules c
+         JOIN modules p ON c.parent_id = p.id
+         WHERE p.roles = 'beta' AND p.parent_id IS NULL
+           AND (c.pdf_path IS NULL OR c.pdf_path = '')
+           AND (c.video_path IS NULL OR c.video_path = '')
+           AND (c.contenu_ia IS NULL OR c.contenu_ia = '')"
+    );
+} catch (Throwable $e) { /* multi-delete non supporté : sans gravité */ }
+
 // Les sections de la beta (modules conteneurs roles=beta, non évalués).
 $sections = [
     ['nom' => 'Onboarding',                        'icon' => '🚀'],
