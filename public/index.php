@@ -16,6 +16,12 @@ if ($role === 'evaluateur') {
     header('Location: evaluation.php');
     exit();
 }
+// 🧪 VERSION BETA : le profil « beta » a son propre accueil minimal (Onboarding +
+// Magasin), en attendant que le parcours complet soit défini après le 29/07.
+if ($role === 'beta') {
+    header('Location: beta.php');
+    exit();
+}
 
 $user_id = $_SESSION['user_id'];
 ensureUserProfileColumns($db);

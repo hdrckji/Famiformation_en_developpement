@@ -3,7 +3,7 @@ require_once 'config.php';
 verifierConnexion($db);
 
 $role = getCurrentRole();
-$allowedRoles = ['etudiant', 'admin', 'teamcoach', 'mentor', 'employe_magasin'];
+$allowedRoles = ['beta', 'etudiant', 'admin', 'teamcoach', 'mentor', 'employe_magasin'];
 
 if (!in_array($role, $allowedRoles, true)) {
     header('Location: index.php');
