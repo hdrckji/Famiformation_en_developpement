@@ -4601,7 +4601,16 @@ function demarreBorneIdle() {
   borneReArme();
 }
 // « Retour » : on dépile la vue précédente. Plus rien à dépiler → l'accueil.
+// 🔒 Borne (kiosque) : « Retour » DÉCONNECTE aussi la session (comme « Accueil ») —
+// le compte du visiteur précédent ne doit pas rester actif quand on revient en arrière.
 function retourNav() {
+  if (estBorne() && joueur) {
+    oublieMoi(); oublieJeton();
+    joueur = null; quiz = null; jardin = {}; jardinMsg = null;
+    navPile = []; vuePrec = null;   // on repart d'une base propre
+    retourAccueilBorne();
+    return;
+  }
   if (!navPile.length) { retourAccueilBorne(); return; }
   navRetour = true;
   const cible = navPile.pop();
