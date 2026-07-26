@@ -1547,7 +1547,7 @@ function cdPousse(diff) {
   const j = diff / 86400000;           // jours restants
   if (j < 0.5) return "🌳";            // dernières heures : l'arbre
   if (j < 1.5) return "🌿";            // ~1 jour : buisson
-  if (j < 3)   return "🪴";            // ~2 jours : jeune plant
+  if (j < 3)   return "🍀";            // ~2 jours : jeune plant (🍀 ancien = compatible partout, 🪴 trop récent ne s'affiche pas sur navigateurs anciens)
   if (j < 5)   return "🌱";            // ~3-4 jours : pousse
   return "🌰";                         // plus loin : la graine
 }
