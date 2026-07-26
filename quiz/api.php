@@ -1124,6 +1124,45 @@ switch ($action) {
     break;
   }
 
+  // ⚡ NOUVELLE RÉPONSE AU FORMULAIRE (temps réel) : appelé par le déclencheur
+  // onFormSubmit du script Google à CHAQUE envoi. Le script transmet prénom/nom/
+  // e-mail + le secret. Si la personne n'a pas encore de compte (contrôle
+  // prénom+nom), on lui crée son compte Mouscron et on envoie son lien.
+  // Protégé par le secret (FORM_FEED_SECRET) et limité par adresse (anti-abus).
+  case 'form_nouveau': {
+    $secret = (string) ($input['secret'] ?? $_GET['secret'] ?? '');
+    if ($FORM_FEED_SECRET === '' || !hash_equals($FORM_FEED_SECRET, $secret)) {
+      http_response_code(401); echo json_encode(['ok' => false, 'reason' => 'secret']); break;
+    }
+    $email = mb_strtolower(trim((string) ($input['email'] ?? '')));
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+      echo json_encode(['ok' => false, 'reason' => 'email_invalide']); break;
+    }
+    // Garde-fou anti-abus : même avec un secret deviné, impossible de marteler
+    // une adresse (le journal d'envois bloque au-delà du seuil).
+    if (envoiRefuse($email)) { http_response_code(429); echo json_encode(['ok' => false, 'reason' => 'trop_dessais']); break; }
+    $db = famiDb();
+    if (!$db) { http_response_code(503); echo json_encode(['ok' => false, 'reason' => 'base_indisponible']); break; }
+
+    // Le formulaire ne concerne que Mouscron → site_id de Mouscron.
+    $siteId = null;
+    try {
+      $qs = $db->prepare('SELECT id FROM widget_sites WHERE ville = ? LIMIT 1');
+      $qs->execute([$SITES['mouscron']['ville']]);
+      $v = $qs->fetchColumn();
+      if ($v !== false) { $siteId = (int) $v; }
+    } catch (Throwable $e) { /* table absente en test */ }
+
+    $etat = traiteInscritGroupe($db, [
+      'prenom' => (string) ($input['prenom'] ?? ''),
+      'nom'    => (string) ($input['nom'] ?? ''),
+      'email'  => $email,
+    ], $siteId, $ACTIVATION_HEURES, true);   // contrôle par prénom+nom
+
+    echo json_encode(['ok' => in_array($etat, ['cree', 'renvoye', 'deja_present'], true), 'etat' => $etat], JSON_UNESCAPED_UNICODE);
+    break;
+  }
+
   // 🎁 Valider un code bonus (usage unique, premier arrivé premier servi).
   // « Premier arrivé premier servi » n'a de sens que si le test et la prise du
   // code sont indissociables : deux personnes qui scannent le MÊME QR code au

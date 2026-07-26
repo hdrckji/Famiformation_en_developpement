@@ -28,10 +28,51 @@
  * Test rapide : ouvre  <URL>/exec?secret=TON_SECRET  dans le navigateur →
  * tu dois voir  {"ok":true,"total":…,"lignes":[…]}.  Sans le bon secret :
  * {"ok":false,"error":"unauthorized"}.
+ *
+ * ── TEMPS RÉEL (facultatif mais recommandé) ──────────────────────────────────
+ * Pour qu'à CHAQUE nouvelle réponse le site crée le compte + envoie le mail
+ * automatiquement (fonction onFormSubmit ci-dessous) :
+ * A. Vérifie SITE_ENDPOINT ci-dessous (l'adresse de ton site + ?action=form_nouveau).
+ * B. Dans l'éditeur Apps Script : icône ⏰ (Déclencheurs) ▸ Ajouter un déclencheur
+ *      - Fonction : onFormSubmit
+ *      - Source de l'événement : Depuis une feuille de calcul
+ *      - Type d'événement : Lors de l'envoi du formulaire
+ *    Enregistrer, puis autoriser l'accès.
+ * (Le secret envoyé est le même SECRET ci-dessous ; garde-le identique côté site.)
  */
 
 const SECRET = 'admin';
 const NOM_ONGLET = 'Récolte de mails - Famifromation - Google Sheets';
+// Adresse du point d'entrée du site (Railway). Si tu utilises un domaine perso
+// (ex. https://famiformation.com/quiz/api.php), remplace-le ici.
+const SITE_ENDPOINT = 'https://famiformation-production-f92e.up.railway.app/quiz/api.php?action=form_nouveau';
+
+// ⚡ Déclencheur « à chaque envoi du formulaire ». Extrait prénom/nom/e-mail de la
+// réponse et prévient le site, qui crée le compte + envoie le lien si besoin.
+function onFormSubmit(e) {
+  if (!e || !e.namedValues) return;
+  const nv = e.namedValues;
+  const trouver = (predicat) => {
+    for (const cle in nv) {
+      if (predicat(cle.toLowerCase())) {
+        const v = nv[cle];
+        return (v && v.length) ? String(v[0]).trim() : '';
+      }
+    }
+    return '';
+  };
+  const email = trouver((k) => k.indexOf('mail') !== -1);
+  if (!email || email.indexOf('@') === -1) return;
+  const prenom = trouver((k) => k.indexOf('prénom') !== -1 || k.indexOf('prenom') !== -1);
+  const nom = trouver((k) => k.indexOf('nom') !== -1 && k.indexOf('prénom') === -1 && k.indexOf('prenom') === -1);
+
+  UrlFetchApp.fetch(SITE_ENDPOINT, {
+    method: 'post',
+    contentType: 'application/json',
+    payload: JSON.stringify({ secret: SECRET, prenom: prenom, nom: nom, email: email }),
+    muteHttpExceptions: true,
+  });
+}
 
 function doGet(e) {
   const out = (obj) =>
