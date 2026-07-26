@@ -738,6 +738,93 @@ function siteIdCourant(PDO $db) {
   } catch (Throwable $e) { return null; }
 }
 
+// 🎁 ─── RÉCOMPENSES : mails automatiques « viens voir les RH » ───────────────
+// Un jardin est-il TERMINÉ ? (grille pleine + les 3 lotus)
+function jardinEstComplet($cases) {
+  global $LOTUS_REQUIS, $JARDIN_CASES;
+  if (!is_array($cases) || count($cases) < $JARDIN_CASES) { return false; }
+  $lotus = [];
+  foreach ($cases as $c) { $pl = is_array($c) ? (string) ($c['plante'] ?? '') : ''; if (in_array($pl, $LOTUS_REQUIS, true)) { $lotus[$pl] = true; } }
+  return count($lotus) >= count($LOTUS_REQUIS);
+}
+// A-t-on déjà prévenu cette personne (identifiant minuscule) ? / marquer prévenu.
+function dejaPrevenu($cle) {
+  global $rhFile;
+  $d = readJson($rhFile);
+  return is_array($d) && !empty($d['prevenu'][$cle]);
+}
+function marquePrevenu($cle) {
+  global $rhFile;
+  withLock($rhFile, function (&$data, &$write) use ($cle) {
+    if (!is_array($data)) { $data = []; }
+    if (!isset($data['prevenu']) || !is_array($data['prevenu'])) { $data['prevenu'] = []; }
+    $data['prevenu'][$cle] = 1; $write = true;
+  });
+}
+// ✉️ Envoie le mail « viens voir les RH » à une personne (par identifiant
+// minuscule). $info = ['type'=>'podium'|'jardin','rang'=>?]. true si parti.
+function mailRecompense(PDO $db, $cle, $info) {
+  try {
+    $q = $db->prepare('SELECT email, prenom FROM utilisateurs WHERE LOWER(identifiant) = ? LIMIT 1');
+    $q->execute([$cle]);
+    $u = $q->fetch(PDO::FETCH_ASSOC);
+  } catch (Throwable $e) { return false; }
+  $email = $u ? trim((string) ($u['email'] ?? '')) : '';
+  if (!filter_var($email, FILTER_VALIDATE_EMAIL)) { return false; }
+  $prenom = trim((string) ($u['prenom'] ?? ''));
+  $bonjour = $prenom !== '' ? $prenom : 'à toi';
+  if (($info['type'] ?? '') === 'podium') {
+    $rang = (int) ($info['rang'] ?? 0);
+    $sujet = '🏆 Bravo — ta récompense t\'attend chez Famiflora !';
+    $intro = 'Félicitations, tu termines <b>' . ($rang === 1 ? '1er' : $rang . 'e') . '</b> du grand quiz Famiformation&nbsp;! 🎉';
+  } else {
+    $sujet = '🎁 Bravo — ta récompense t\'attend chez Famiflora !';
+    $intro = 'Bravo, tu as <b>terminé ton jardin</b> — tu fais partie des gagnants&nbsp;! 🌼';
+  }
+  $body = '<div style="font-family:Arial,sans-serif;color:#244230;max-width:560px;margin:0 auto;padding:24px;">'
+    . '<p style="font-size:16px;">Bonjour ' . htmlspecialchars($bonjour, ENT_QUOTES, 'UTF-8') . ',</p>'
+    . '<p style="font-size:16px;line-height:1.6;">' . $intro . '</p>'
+    . '<p style="font-size:16px;line-height:1.6;">Pour <b>récupérer ta récompense</b>, présente-toi <b>auprès des RH</b> du magasin (à partir du <b>01/09</b>). '
+    . 'Une question&nbsp;? Écris à <a href="mailto:admin@famiformation.com">admin@famiformation.com</a>.</p>'
+    . '<p style="font-size:15px;color:#617268;">Merci d\'avoir joué, et à bientôt&nbsp;! 🌱<br>L\'équipe Famiflora · Famiformation</p></div>';
+  return function_exists('sendMail') ? sendMail($email, $sujet, $body, true) : false;
+}
+// 🏆 Envoi AUTOMATIQUE aux 3 vainqueurs, une fois l'heure des résultats passée
+// (31/08 12h30, heure belge). Ne part qu'UNE fois (drapeau dans le fichier RH).
+// Appelé paresseusement depuis une action fréquente (board) : le test d'heure est
+// gratuit tant qu'on est avant, et une fois envoyé le drapeau court-circuite tout.
+function verifieVainqueursAuto() {
+  global $scoresFile, $rhFile, $COMPTES_TEST;
+  static $faitCeTour = false;
+  if ($faitCeTour) { return; }
+  try { $heure = (new DateTime('2026-08-31 12:30:00', new DateTimeZone('Europe/Brussels')))->getTimestamp(); }
+  catch (Throwable $e) { return; }
+  if (time() < $heure) { return; }
+  $d = readJson($rhFile);
+  if (is_array($d) && !empty($d['vainqueurs_envoye'])) { return; }
+  $faitCeTour = true;
+  $db = famiDb();
+  if (!$db) { return; }
+  $joueurs = [];
+  foreach ((is_array(readJson($scoresFile)) ? readJson($scoresFile) : []) as $p) {
+    if (!is_array($p) || ($p['quiz_fait'] ?? true) === false) { continue; }
+    if (in_array(mb_strtolower((string) ($p['name'] ?? '')), $COMPTES_TEST, true)) { continue; }
+    $joueurs[] = $p;
+  }
+  usort($joueurs, function ($a, $b) {
+    $x = floatval($b['score'] ?? 0) - floatval($a['score'] ?? 0);
+    if ($x > 0) { return 1; } if ($x < 0) { return -1; }
+    return intval($a['time'] ?? 0) - intval($b['time'] ?? 0);
+  });
+  $rang = 1;
+  foreach (array_slice($joueurs, 0, 3) as $p) {
+    $cle = mb_strtolower((string) $p['name']);
+    if (!dejaPrevenu($cle) && mailRecompense($db, $cle, ['type' => 'podium', 'rang' => $rang])) { marquePrevenu($cle); }
+    $rang++;
+  }
+  withLock($rhFile, function (&$data, &$write) { if (!is_array($data)) { $data = []; } $data['vainqueurs_envoye'] = 1; $write = true; });
+}
+
 // 🛡️ GARDE-FOU sur les actions qui ENVOIENT UN MAIL ou CRÉENT UN COMPTE.
 // Sans ça, n'importe qui peut marteler l'inscription : boîte mail d'un tiers
 // inondée, table des utilisateurs remplie de faux comptes.
@@ -795,6 +882,9 @@ switch ($action) {
 
   // 📊 Récupérer le classement (lecture seule)
   case 'board': {
+    // 🏆 Déclencheur paresseux : passé le 31/08 12h30, envoie (une fois) les mails
+    // aux 3 vainqueurs. Le board est appelé très souvent (télé, joueurs) → fiable.
+    verifieVainqueursAuto();
     $board = readJson($scoresFile);
     // Au classement, on ne montre QUE ceux qui ont réellement joué : un compte
     // créé (réservé) mais pas encore joué (quiz_fait=false) ne pollue pas la liste.
@@ -1528,6 +1618,20 @@ switch ($action) {
       });
       echo json_encode($pose, JSON_UNESCAPED_UNICODE);
       break;
+    }
+
+    // 🎁 Le jardin vient-il d'être TERMINÉ (grille pleine + 3 lotus) ? Si oui, et
+    // que ce n'est pas un compte de test ni déjà prévenu, on envoie AUTOMATIQUEMENT
+    // le mail « viens voir les RH ». (On ne bloque jamais la plantation là-dessus.)
+    $cleNom = mb_strtolower($name);
+    if (!in_array($cleNom, $COMPTES_TEST, true) && !dejaPrevenu($cleNom)) {
+      $jTout = readJson($jardinFile);
+      if (jardinEstComplet($jTout[$cleNom] ?? [])) {
+        try {
+          $dbR = famiDb();
+          if ($dbR && mailRecompense($dbR, $cleNom, ['type' => 'jardin'])) { marquePrevenu($cleNom); }
+        } catch (Throwable $e) { /* le mail est « au mieux », jamais bloquant */ }
+      }
     }
     echo json_encode(['ok' => true, 'solde' => $debit['solde']], JSON_UNESCAPED_UNICODE);
     break;
