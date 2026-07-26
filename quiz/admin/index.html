@@ -409,14 +409,21 @@ jean.martin@exemple.be" style="font-family:monospace; font-size:.9rem;"></textar
       bt.disabled = true;
       const r = await post("form_auto", { actif: veutActiver });
       if (r.status === 401) { auth = null; vueConnexion("Session expirée, reconnecte-toi."); return; }
-      if (r.ok && r.data && r.data.ok) majAutoUI(!!r.data.actif);
-      else { bt.disabled = false; $("#fo-msg").innerHTML = `<div class="alert">Impossible de changer l'état. Réessaie.</div>`; }
+      if (!r.ok || !r.data || !r.data.ok) { bt.disabled = false; $("#fo-msg").innerHTML = `<div class="alert">Impossible de changer l'état. Réessaie.</div>`; return; }
+      majAutoUI(!!r.data.actif);
+      // À l'ACTIVATION : on rattrape tout de suite tous ceux du formulaire pas
+      // encore inscrits → l'admin n'a rien d'autre à faire, le site s'occupe du
+      // reste (backlog maintenant + nouveaux en temps réel ensuite).
+      if (r.data.actif) {
+        const cumul = await boucleEnvoiForm();
+        if (cumul) { message = { ok: true, texte: recapEnvoi(cumul, "Envoi automatique activé ✅ — rattrapage : ") }; rendre(); }
+      }
     };
     if (veutActiver) {
       modaleConfirm({
         titre: "Activer l'envoi automatique ?",
-        texte: "Dès maintenant, chaque nouvelle réponse au formulaire créera un compte Mouscron et enverra le lien d'inscription automatiquement.",
-        ok: "Activer",
+        texte: "Deux choses d'un coup : (1) on envoie MAINTENANT le lien à tous ceux du formulaire pas encore inscrits, et (2) à partir de là, chaque nouvelle réponse créera le compte Mouscron + enverra le lien automatiquement. Tu n'as rien d'autre à faire.",
+        ok: "Activer et envoyer",
       }, faire);
     } else { faire(); }
   });
@@ -428,6 +435,37 @@ jean.martin@exemple.be" style="font-family:monospace; font-size:.9rem;"></textar
     reponse_invalide: "Réponse du script Google invalide (vérifie le déploiement/secret).",
     base_indisponible: "Base Famiformation injoignable. Réessaie plus tard.",
   }[reason] || "Erreur pendant la lecture du formulaire.");
+
+  // Envoie à TOUS ceux du formulaire pas encore dans le site (par tranches).
+  // Renvoie le cumul {cree,renvoye,deja_present,echec} ou null si erreur/coupure.
+  async function boucleEnvoiForm() {
+    const btn = $("#fo-envoyer"), bv = $("#fo-verifier"), ba = $("#fo-auto-btn");
+    [btn, bv, ba].forEach((b) => { if (b) b.disabled = true; });
+    if ($("#fo-progress")) $("#fo-progress").style.display = "block";
+    const cumul = { cree: 0, renvoye: 0, deja_present: 0, echec: 0 };
+    let debut = 0, total = 0, coupe = false;
+    do {
+      const r = await post("envoi_groupe_form", { debut });
+      if (r.status === 401) { auth = null; vueConnexion("Session expirée, reconnecte-toi."); return null; }
+      if (!r.ok || !r.data || !r.data.ok) {
+        $("#fo-msg").innerHTML = `<div class="alert">${esc(raisonFlux(r.data && r.data.reason))}</div>`;
+        coupe = true; break;
+      }
+      cumul.cree += r.data.cree || 0; cumul.renvoye += r.data.renvoye || 0;
+      cumul.deja_present += r.data.deja_present || 0; cumul.echec += r.data.echec || 0;
+      total = r.data.total || 0;
+      debut = r.data.suivant || total;
+      const pct = total ? Math.round(debut / total * 100) : 100;
+      if ($("#fo-bar")) $("#fo-bar").style.width = pct + "%";
+      if ($("#fo-progress-txt")) $("#fo-progress-txt").textContent = `${debut}/${total} traité(s)…`;
+      if (r.data.fini) break;
+    } while (debut < total);
+    [btn, bv, ba].forEach((b) => { if (b) b.disabled = false; });
+    return coupe ? null : cumul;
+  }
+  const recapEnvoi = (cumul, prefixe = "") =>
+    `${prefixe}${cumul.cree} compte(s) créé(s), ${cumul.renvoye} lien(s) renvoyé(s), ${cumul.deja_present} déjà présent(s)`
+    + (cumul.echec ? `, ⚠️ ${cumul.echec} échec(s)` : "") + ".";
 
   $("#fo-verifier").addEventListener("click", async () => {
     const b = $("#fo-verifier"); b.disabled = true; $("#fo-msg").innerHTML = "";
@@ -462,33 +500,8 @@ jean.martin@exemple.be" style="font-family:monospace; font-size:.9rem;"></textar
       texte: `${aContacter} personne(s) vont recevoir leur lien de création de compte (magasin ${SITES[siteAdmin]}). Les ${ap.data.deja} déjà présentes dans le site sont ignorées.`,
       ok: "Envoyer",
     }, async () => {
-      const btn = $("#fo-envoyer"), bv = $("#fo-verifier");
-      btn.disabled = true; bv.disabled = true;
-      $("#fo-progress").style.display = "block";
-      const cumul = { cree: 0, renvoye: 0, deja_present: 0, echec: 0 };
-      let debut = 0, total = 0, coupe = false;
-      do {
-        const r = await post("envoi_groupe_form", { debut });
-        if (r.status === 401) { auth = null; vueConnexion("Session expirée, reconnecte-toi."); return; }
-        if (!r.ok || !r.data || !r.data.ok) {
-          $("#fo-msg").innerHTML = `<div class="alert">${esc(raisonFlux(r.data && r.data.reason))}</div>`;
-          coupe = true; break;
-        }
-        cumul.cree += r.data.cree || 0; cumul.renvoye += r.data.renvoye || 0;
-        cumul.deja_present += r.data.deja_present || 0; cumul.echec += r.data.echec || 0;
-        total = r.data.total || 0;
-        debut = r.data.suivant || total;
-        const pct = total ? Math.round(debut / total * 100) : 100;
-        $("#fo-bar").style.width = pct + "%";
-        $("#fo-progress-txt").textContent = `${debut}/${total} traité(s)…`;
-        if (r.data.fini) break;
-      } while (debut < total);
-      btn.disabled = false; bv.disabled = false;
-      if (!coupe) {
-        message = { ok: true, texte: `Envoi terminé : ${cumul.cree} compte(s) créé(s), ${cumul.renvoye} lien(s) renvoyé(s), ${cumul.deja_present} déjà présent(s)`
-          + (cumul.echec ? `, ⚠️ ${cumul.echec} échec(s)` : "") + "." };
-        rendre();
-      }
+      const cumul = await boucleEnvoiForm();
+      if (cumul) { message = { ok: true, texte: recapEnvoi(cumul, "Envoi terminé : ") }; rendre(); }
     });
   });
 }
