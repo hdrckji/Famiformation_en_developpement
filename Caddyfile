@@ -42,6 +42,12 @@
 		@quizAdmin path /quiz/admin/
 		rewrite @quizAdmin /quiz/admin/index.html
 
+		# Page RH (/quiz/rh) : liste des recompenses a remettre. Meme principe que
+		# l'admin (slash final impose pour que "../api.php" pointe sur /quiz/api.php).
+		redir /quiz/rh /quiz/rh/ 308
+		@quizRh path /quiz/rh/
+		rewrite @quizRh /quiz/rh/index.html
+
 		# Ecrans dedies : /quiz/tele (affichage TV), /quiz/borne (borne) et
 		# /quiz/code (recuperation d'un code bonus). Ils servent la MEME page que
 		# /quiz ; c'est la page qui detecte le mode selon l'URL. On garde la forme

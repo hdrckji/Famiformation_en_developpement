@@ -3650,26 +3650,17 @@ function urlSite(site) {
 // 🏬 FILET DE SÉCURITÉ : on est arrivé sans magasin dans l'URL (quelqu'un a tapé
 // /quiz au lieu de scanner le QR du magasin). Plutôt que de le laisser bloqué ou,
 // pire, de mélanger les deux événements, on lui demande où il se trouve.
+// 🏬 /quiz SANS magasin : on ne propose PLUS de choisir un magasin. Le quiz
+// s'ouvre uniquement via le lien / QR code du magasin (/quiz/mouscron ou
+// /quiz/lapanne). On affiche juste une page neutre, sans rien de cliquable.
 function renderChoixSite() {
   clearInterval(tickTimer);
-  majLangSwitch();   // 🌐 le sélecteur FR/NL aussi sur l'écran de choix du magasin
+  majLangSwitch();
   document.body.classList.remove("mode-borne");
-  app.innerHTML = `<div class="home">
-    <h2 class="borne-titre">${t("Tu es dans quel magasin ? 🏬", "In welke winkel ben je? 🏬")}</h2>
-    <p class="borne-sous">${t("Choisis ton magasin pour rejoindre le bon quiz.", "Kies je winkel om bij de juiste quiz te komen.")}</p>
-    <div class="borne-modules">
-      <a class="borne-mod bm-primaire" href="${urlSite("mouscron")}">
-        <span class="bm-emo">🌸</span>
-        <span class="bm-titre">Famiflora ${t("Mouscron", "Moeskroen")}</span>
-        <span class="bm-desc">${t("Le quiz du magasin de Mouscron", "De quiz van de winkel in Moeskroen")}</span>
-      </a>
-      <a class="borne-mod bm-primaire" href="${urlSite("lapanne")}">
-        <span class="bm-emo">🌊</span>
-        <span class="bm-titre">Famiflora ${t("La Panne", "De Panne")}</span>
-        <span class="bm-desc">${t("Le quiz du magasin de La Panne", "De quiz van de winkel in De Panne")}</span>
-      </a>
-    </div>
-    <div class="home-tease">${t("Chaque magasin a son propre quiz et son propre classement 🎯", "Elke winkel heeft zijn eigen quiz en eigen ranking 🎯")}</div>
+  app.innerHTML = `<div class="home" style="text-align:center;">
+    <div style="font-size:3rem; line-height:1; margin-bottom:6px;">🌱</div>
+    <h2 class="borne-titre">${t("Le quiz Famiflora", "De Famiflora-quiz")}</h2>
+    <p class="borne-sous">${t("Ce quiz s'ouvre depuis le lien ou le QR code de ton magasin.", "Deze quiz opent via de link of QR-code van je winkel.")}</p>
   </div>`;
 }
 
