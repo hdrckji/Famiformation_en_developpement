@@ -118,6 +118,11 @@ $ADMIN_ID  = "admin";
 $ADMIN_PWD = "a";
 $ADMIN_PIN = $ADMIN_PWD;   // compat : ancien lien api.php?action=reset&pin=...
 
+// 🎁 Accès RH (page /quiz/rh) : voir/cocher les récompenses remises. Séparé de
+// l'admin, pour confier la remise des récompenses aux RH sans donner l'admin.
+$RH_ID  = "rh";
+$RH_PWD = "Fami2026";
+
 // 📄 FLUX DU FORMULAIRE GOOGLE (onglet « recolte de mail »).
 // Le site lit la feuille via un mini-script Google (Apps Script) déployé en
 // « application web », qui renvoie l'onglet en JSON, protégé par un secret.
@@ -300,6 +305,19 @@ function exigeAdmin($input) {
   $id  = trim($input['id'] ?? '');
   $pwd = (string)($input['pwd'] ?? '');
   if (!hash_equals($ADMIN_ID, $id) || !hash_equals($ADMIN_PWD, $pwd)) {
+    http_response_code(401);
+    echo json_encode(['error' => 'Acces refuse']);
+    exit;
+  }
+}
+// 🎁 Garde de la page RH. L'admin a AUSSI le droit (pratique pour toi).
+function exigeRh($input) {
+  global $RH_ID, $RH_PWD, $ADMIN_ID, $ADMIN_PWD;
+  $id  = trim($input['id'] ?? '');
+  $pwd = (string)($input['pwd'] ?? '');
+  $okRh    = hash_equals($RH_ID, $id) && hash_equals($RH_PWD, $pwd);
+  $okAdmin = hash_equals($ADMIN_ID, $id) && hash_equals($ADMIN_PWD, $pwd);
+  if (!$okRh && !$okAdmin) {
     http_response_code(401);
     echo json_encode(['error' => 'Acces refuse']);
     exit;
@@ -770,6 +788,7 @@ $codesFile     = $dataDir . "/codes-$SITE.json";
 $questionsFile = $dataDir . "/questions-$SITE.json";
 $jardinFile    = $dataDir . "/jardin-$SITE.json";
 $configFile    = $dataDir . "/config-$SITE.json";
+$rhFile        = $dataDir . "/rh-$SITE.json";   // récompenses remises (coché par les RH)
 $BONUS_CODES   = array_merge($BONUS_CODES_PAR_SITE[$SITE], [$CODE_TEST_OK, $CODE_TEST_USED]);
 
 switch ($action) {
@@ -1221,6 +1240,96 @@ switch ($action) {
     exigeAdmin($input);
     if (array_key_exists('actif', $input)) { autoEnvoiDefinir((bool) $input['actif']); }
     echo json_encode(['ok' => true, 'actif' => autoEnvoiActif()], JSON_UNESCAPED_UNICODE);
+    break;
+  }
+
+  // 🎁 PAGE RH — LISTE DES RÉCOMPENSES à remettre (pour le magasin courant).
+  // Deux sections : le PODIUM (top 3 par graines) et le JARDIN TERMINÉ (grille
+  // pleine + les 3 lotus). Chaque personne a un état « remis » (coché par les RH).
+  case 'rh_liste': {
+    exigeRh($input);
+    $board   = readJson($scoresFile);
+    $jardins = readJson($jardinFile);
+    $remises = readJson($rhFile);
+    $remisPodium = (is_array($remises) && isset($remises['podium']) && is_array($remises['podium'])) ? $remises['podium'] : [];
+    $remisJardin = (is_array($remises) && isset($remises['jardin']) && is_array($remises['jardin'])) ? $remises['jardin'] : [];
+
+    $parNom = [];
+    foreach ((is_array($board) ? $board : []) as $p) {
+      if (is_array($p)) { $parNom[mb_strtolower((string) ($p['name'] ?? ''))] = $p; }
+    }
+    $ligne = function ($p, $cle) {
+      return [
+        'name'   => (string) ($p['name'] ?? $cle),
+        'pseudo' => (string) ($p['pseudo'] ?? ''),
+        'prenom' => (string) ($p['prenom'] ?? ''),
+        'nom'    => (string) ($p['nom'] ?? ''),
+        'score'  => round(floatval($p['score'] ?? 0), 1),
+      ];
+    };
+
+    // 🏆 Podium : top 3 par score (quiz fait, hors comptes de test).
+    $joueurs = [];
+    foreach ((is_array($board) ? $board : []) as $p) {
+      if (!is_array($p)) { continue; }
+      if (($p['quiz_fait'] ?? true) === false) { continue; }
+      if (in_array(mb_strtolower((string) ($p['name'] ?? '')), $COMPTES_TEST, true)) { continue; }
+      $joueurs[] = $p;
+    }
+    usort($joueurs, function ($a, $b) {
+      $d = floatval($b['score'] ?? 0) - floatval($a['score'] ?? 0);
+      if ($d > 0) { return 1; } if ($d < 0) { return -1; }
+      return intval($a['time'] ?? 0) - intval($b['time'] ?? 0);
+    });
+    $podium = [];
+    $rang = 1;
+    foreach (array_slice($joueurs, 0, 3) as $p) {
+      $cle = mb_strtolower((string) ($p['name'] ?? ''));
+      $podium[] = $ligne($p, $cle) + ['rang' => $rang, 'remis' => !empty($remisPodium[$cle])];
+      $rang++;
+    }
+
+    // 🎁 Jardin terminé : grille pleine + les 3 lotus (or, argent, bronze).
+    $jardin = [];
+    if (is_array($jardins)) {
+      foreach ($jardins as $cle => $cases) {
+        if (!is_array($cases)) { continue; }
+        $nb = count($cases);
+        $lotus = [];
+        foreach ($cases as $c) {
+          $pl = is_array($c) ? (string) ($c['plante'] ?? '') : '';
+          if (in_array($pl, $LOTUS_REQUIS, true)) { $lotus[$pl] = true; }
+        }
+        if ($nb >= $JARDIN_CASES && count($lotus) >= count($LOTUS_REQUIS)) {
+          $p = $parNom[$cle] ?? ['name' => $cle];
+          $jardin[] = $ligne($p, $cle) + ['remis' => !empty($remisJardin[$cle])];
+        }
+      }
+    }
+    usort($jardin, function ($a, $b) {
+      $na = trim($a['prenom'] . ' ' . $a['nom']); if ($na === '') { $na = $a['name']; }
+      $nb = trim($b['prenom'] . ' ' . $b['nom']); if ($nb === '') { $nb = $b['name']; }
+      return strcasecmp($na, $nb);
+    });
+
+    echo json_encode(['ok' => true, 'podium' => $podium, 'jardin' => $jardin], JSON_UNESCAPED_UNICODE);
+    break;
+  }
+
+  // 🎁 Cocher / décocher « récompense remise » pour une personne (RH).
+  case 'rh_cocher': {
+    exigeRh($input);
+    $type = (($input['type'] ?? '') === 'podium') ? 'podium' : 'jardin';
+    $cle  = mb_strtolower(trim((string) ($input['name'] ?? '')));
+    if ($cle === '') { echo json_encode(['ok' => false, 'reason' => 'nom_manquant']); break; }
+    $remis = !empty($input['remis']);
+    withLock($rhFile, function (&$data, &$write) use ($type, $cle, $remis) {
+      if (!is_array($data)) { $data = []; }
+      if (!isset($data[$type]) || !is_array($data[$type])) { $data[$type] = []; }
+      if ($remis) { $data[$type][$cle] = 1; } else { unset($data[$type][$cle]); }
+      $write = true;
+    });
+    echo json_encode(['ok' => true, 'remis' => $remis]);
     break;
   }
 
