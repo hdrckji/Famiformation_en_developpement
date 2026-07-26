@@ -4719,7 +4719,10 @@ function retourNav() {
   // 🏬 AVANT TOUT : quel magasin ? Sans magasin dans l'URL (et hors simulation),
   // on montre le choix Mouscron / La Panne et on s'arrête là — impossible de
   // jouer « nulle part » ni de mélanger les deux événements.
-  if (!SITE && !SIMULATION) { renderChoixSite(); return; }
+  // Exception : /quiz/code (sans magasin) doit fonctionner — les QR des codes
+  // pointent sur famiformation.com/quiz/code. On laisse passer : le serveur prend
+  // le magasin par défaut (Mouscron). Les autres URL sans magasin → page neutre.
+  if (!SITE && !SIMULATION && ECRAN !== "code") { renderChoixSite(); return; }
   // Le nom du magasin s'affiche sous le logo, pour qu'on sache toujours dans quel
   // quiz on se trouve (et qu'on ne confonde jamais Mouscron et La Panne).
   if (SITE_NOM) {
