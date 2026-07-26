@@ -644,6 +644,24 @@ body.mode-tele .lang-switch { display: none; }   /* pas sur la télé */
   .ext-bar { gap: 8px; padding: 10px 12px; }
   .ext-brand { display: none; }
   .ext-btn { padding: 9px 13px; font-size: .9rem; }
+
+  /* 📱 QUIZ sur téléphone : cartes plus compactes, bandeau du haut aéré, pas de
+     décalage au tap. Tout doit tenir proprement sur un écran étroit. */
+  .card { padding: 18px 15px; border-radius: 18px; }
+  .q-text { font-size: 1.12rem; line-height: 1.35; margin-bottom: 16px; }
+  .q-opt { padding: 13px 14px; font-size: 1rem; margin-bottom: 10px; border-width: 2px; }
+  .q-opt:hover, .q-opt:active { transform: none; }   /* pas de saut au toucher */
+  .q-num { font-size: .9rem; }
+  .q-chrono { font-size: .85rem; }
+  /* Bandeau stade + graines : on autorise le retour à la ligne et on réduit */
+  .q-plante { padding: 8px 12px; margin-bottom: 14px; flex-wrap: wrap; row-gap: 4px; }
+  .q-plante .stade .emo { font-size: 1.5rem; }
+  .q-plante .stade .nom { font-size: .82rem; }
+  .q-plante .graines { font-size: .95rem; }
+  .opt-tag { display: block; margin-top: 3px; font-size: .8rem; }
+  .q-feedback { font-size: .95rem; }
+  /* Écran résultat du quiz : chiffres qui ne débordent pas */
+  .score-big { font-size: clamp(1.8rem, 9vw, 2.6rem); }
 }
 
 /* Bouton « maison » permanent quand on est arrivé par la borne. */
@@ -3201,7 +3219,9 @@ function renderDashboard() {
   $("#dash-board").addEventListener("click", () => { userView = "board"; render(); });
   $("#dash-explik").addEventListener("click", ouvreExplication);
   $("#dash-code").addEventListener("click", () => { codeAReclamer = null; userView = "reclamer"; render(); });
-  $("#dash-retour").addEventListener("click", () => { if (retourAccueilBorne()) return; userView = "auto"; render(); });
+  // Quitter son espace vers l'accueil = se déconnecter (sur la borne, le retour
+  // recharge déjà une page fraîche, donc « déconnecté » de fait).
+  $("#dash-retour").addEventListener("click", () => { if (retourAccueilBorne()) return; seDeconnecter(); });
 }
 // ✍️ Avant de lancer le quiz : on demande (ou confirme) le PSEUDO qui s'affichera
 // au classement. Par défaut on propose son prénom (ou l'identifiant). Le pseudo
