@@ -630,12 +630,23 @@ body.mode-tele .lang-switch { display: none; }   /* pas sur la télé */
 /* 📱 Vrai téléphone (9:16) : la bulle devient une pastille compacte (icône seule)
    pour ne plus empiéter sur le titre ni gêner au scroll. */
 @media (max-width: 560px) {
-  .fami-bulle { top: 12px; right: 12px; padding: 9px; gap: 0; }
+  .fami-bulle { top: 10px; right: 10px; padding: 8px; gap: 0; }
   .fami-bulle .fb-txt { display: none; }
-  .fami-bulle .fb-emo { font-size: 1.45rem; padding: 5px; }
-  .lang-switch { top: 12px; left: 12px; }
-  .lang-switch button { padding: 6px 12px; font-size: .88rem; }
-  .btn-deco { top: 12px; right: 12px; }
+  .fami-bulle .fb-emo { font-size: 1.35rem; padding: 5px; }
+  .lang-switch { top: 10px; left: 10px; }
+  .lang-switch button { padding: 5px 11px; font-size: .84rem; }
+  .btn-deco { top: 10px; right: 10px; padding: 8px 10px; }
+  /* Titre d'accueil plus petit → les boutons FR/NL et la bulle ne mordent plus
+     dessus, et on laisse plus de marge en haut. */
+  .home { padding-top: 56px; }
+  .home .borne-titre { font-size: clamp(1.35rem, 6.4vw, 1.9rem); line-height: 1.15; }
+  .home .borne-sous { font-size: clamp(.98rem, 3.4vw, 1.2rem); margin-bottom: 20px; }
+  /* 🎗️ Page info « c'est quoi Famiformation » : sur écran étroit, le titre du
+     ruban (répété juste en dessous) est masqué pour que la barre ne déborde/coupe
+     plus — il ne reste que Retour (gauche) et FR/NL (droite). */
+  .ext-bar { gap: 8px; padding: 10px 12px; }
+  .ext-brand { display: none; }
+  .ext-btn { padding: 9px 13px; font-size: .9rem; }
 }
 
 /* Bouton « maison » permanent quand on est arrivé par la borne. */

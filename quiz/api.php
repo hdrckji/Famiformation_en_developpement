@@ -481,10 +481,10 @@ function joueurAutorise($input, $name, $ficheCode) {
   return $ficheCode !== '' && $ficheCode === $code4;   // ancien compte pseudo + code
 }
 
-// Un identifiant libre au format « PrénomN » : le prénom avec une majuscule à la
-// 1re lettre, suivi de la 1re lettre du nom en majuscule. Ex. : Jean Dupont →
-// « JeanD ». En cas de doublon on ajoute un numéro (JeanD2, JeanD3…). C'est ce
-// que la personne tapera pour se connecter — mais son e-mail marchera aussi.
+// Un identifiant libre au format « PrénomNn » : le prénom avec une majuscule à la
+// 1re lettre, suivi des 2 premières lettres du nom (1re en MAJ, 2e en min).
+// Ex. : Jean Dupont → « JeanDu ». En cas de doublon on ajoute un numéro (JeanDu2,
+// JeanDu3…). C'est ce que la personne tapera pour se connecter — l'e-mail marche aussi.
 function identifiantLibre(PDO $db, $prenom, $nom) {
   $sansAccent = function ($s) {
     $s = (string) $s;
@@ -497,8 +497,9 @@ function identifiantLibre(PDO $db, $prenom, $nom) {
   $p = preg_replace('/[^a-z0-9]+/', '', $sansAccent($prenom));
   $n = preg_replace('/[^a-z0-9]+/', '', $sansAccent($nom));
   if ($p === '') { $p = 'joueur'; }
-  // Prénom : 1re lettre en majuscule, reste en minuscule. Nom : 1re lettre en maj.
-  $base = ucfirst($p) . ($n !== '' ? strtoupper(substr($n, 0, 1)) : '');
+  // Prénom : 1re lettre en majuscule, reste en minuscule. Nom : 2 premières lettres
+  // (1re en MAJ, 2e en min) — ex. « Du » pour Dupont. ($n est déjà en minuscules.)
+  $base = ucfirst($p) . ($n !== '' ? ucfirst(substr($n, 0, 2)) : '');
   $base = substr($base, 0, 40);
   $stmt = $db->prepare('SELECT COUNT(*) FROM utilisateurs WHERE identifiant = ?');
   for ($i = 0; $i < 200; $i++) {
