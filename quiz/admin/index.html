@@ -274,9 +274,28 @@ function vueEnvoi() {
   const c = $("#contenu");
   c.innerHTML = `
     <div class="card">
-      <h2>✉️ Envoi groupé — créer les comptes à l'avance</h2>
+      <h2>📄 Depuis le formulaire Google</h2>
+      <p class="hint">Le site lit directement l'onglet <b>« recolte de mail »</b> de ta feuille de réponses.
+      Avant d'envoyer, il <b>écarte les personnes déjà présentes dans le site</b> (contrôle prénom + nom), puis crée le compte et envoie l'invitation aux autres. Chaque personne reçoit un mail <b>individuel</b> (personne ne voit l'adresse des autres).</p>
+      <div id="fo-apercu" class="hint" style="margin:6px 0;"></div>
+      <div id="fo-msg"></div>
+      <div id="fo-progress" style="display:none; margin:10px 0;">
+        <div style="height:12px; background:#e6efe8; border-radius:999px; overflow:hidden;">
+          <div id="fo-bar" style="height:100%; width:0%; background:#1E7A46; transition:width .2s;"></div>
+        </div>
+        <div id="fo-progress-txt" class="hint" style="margin-top:6px;"></div>
+      </div>
+      <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:6px;">
+        <button class="btn ghost" id="fo-verifier">🔄 Vérifier la liste</button>
+        <button class="btn" id="fo-envoyer">📣 Envoyer à tous ceux du formulaire</button>
+      </div>
+      <p class="hint" style="margin-top:12px; opacity:.8;">ℹ️ Si le bouton dit « formulaire non configuré », il faut d'abord régler l'accès Google (voir avec l'admin technique).</p>
+    </div>
+
+    <div class="card">
+      <h2>✉️ Ou coller une liste à la main</h2>
       <p class="hint">Pour les personnes <b>déjà inscrites sur le formulaire</b> (ou l'Excel) qui n'ont pas encore de compte Famiformation.
-      On leur crée le compte si besoin et on leur envoie un <b>mail « fun »</b> les invitant à créer leur compte <b>avant le lancement</b> 🎁.</p>
+      On leur crée le compte si besoin et on leur envoie l'invitation à créer leur compte <b>avant le lancement</b> 🌱.</p>
       <p class="hint" style="background:#eef6ef;border-radius:10px;padding:10px 14px;">
         📋 <b>Colle une personne par ligne</b>, au format <code>Prénom&nbsp;&nbsp;Nom&nbsp;&nbsp;email</code>
         (copier-coller direct depuis Excel/Sheets fonctionne — colonnes séparées par tabulation, virgule ou point-virgule).<br>
@@ -323,7 +342,7 @@ jean.martin@exemple.be" style="font-family:monospace; font-size:.9rem;"></textar
       $("#ev-vider").disabled = true;
       $("#ev-progress").style.display = "block";
       const total = liste.length;
-      const cumul = { cree: 0, renvoye: 0, deja_actif: 0, echec: 0 };
+      const cumul = { cree: 0, renvoye: 0, deja_present: 0, echec: 0 };
       let fait = 0, coupe = false;
       const LOT = 20;
       for (let i = 0; i < liste.length; i += LOT) {
@@ -335,7 +354,7 @@ jean.martin@exemple.be" style="font-family:monospace; font-size:.9rem;"></textar
           coupe = true; break;
         }
         cumul.cree += r.data.cree || 0; cumul.renvoye += r.data.renvoye || 0;
-        cumul.deja_actif += r.data.deja_actif || 0; cumul.echec += r.data.echec || 0;
+        cumul.deja_present += r.data.deja_present || 0; cumul.echec += r.data.echec || 0;
         fait += lot.length;
         const pct = Math.round(fait / total * 100);
         $("#ev-bar").style.width = pct + "%";
@@ -343,7 +362,78 @@ jean.martin@exemple.be" style="font-family:monospace; font-size:.9rem;"></textar
       }
       if (btn) btn.disabled = false; $("#ev-vider").disabled = false;
       if (!coupe) {
-        message = { ok: true, texte: `Envoi terminé : ${cumul.cree} compte(s) créé(s), ${cumul.renvoye} lien(s) renvoyé(s), ${cumul.deja_actif} déjà actif(s)`
+        message = { ok: true, texte: `Envoi terminé : ${cumul.cree} compte(s) créé(s), ${cumul.renvoye} lien(s) renvoyé(s), ${cumul.deja_present} déjà présent(s)`
+          + (cumul.echec ? `, ⚠️ ${cumul.echec} échec(s)` : "") + "." };
+        rendre();
+      }
+    });
+  });
+
+  /* --- Source : formulaire Google (onglet « recolte de mail ») --- */
+  const raisonFlux = (reason) => ({
+    non_configure: "Formulaire non configuré (accès Google à régler).",
+    injoignable: "Feuille Google injoignable. Réessaie dans un instant.",
+    reponse_invalide: "Réponse du script Google invalide (vérifie le déploiement/secret).",
+    base_indisponible: "Base Famiformation injoignable. Réessaie plus tard.",
+  }[reason] || "Erreur pendant la lecture du formulaire.");
+
+  $("#fo-verifier").addEventListener("click", async () => {
+    const b = $("#fo-verifier"); b.disabled = true; $("#fo-msg").innerHTML = "";
+    $("#fo-apercu").innerHTML = "⏳ Lecture de la feuille…";
+    const r = await post("form_apercu");
+    b.disabled = false;
+    if (r.status === 401) { auth = null; vueConnexion("Session expirée, reconnecte-toi."); return; }
+    if (!r.ok || !r.data || !r.data.ok) {
+      $("#fo-apercu").innerHTML = "";
+      $("#fo-msg").innerHTML = `<div class="alert">${esc(raisonFlux(r.data && r.data.reason))}</div>`;
+      return;
+    }
+    $("#fo-apercu").innerHTML = `📋 <b>${r.data.total}</b> inscrit(s) sur le formulaire · <b>${r.data.deja}</b> déjà dans le site · <b>${r.data.a_contacter}</b> à contacter.`;
+  });
+
+  $("#fo-envoyer").addEventListener("click", async () => {
+    $("#fo-msg").innerHTML = "";
+    // On vérifie d'abord pour afficher un décompte fiable dans la confirmation.
+    const ap = await post("form_apercu");
+    if (ap.status === 401) { auth = null; vueConnexion("Session expirée, reconnecte-toi."); return; }
+    if (!ap.ok || !ap.data || !ap.data.ok) {
+      $("#fo-msg").innerHTML = `<div class="alert">${esc(raisonFlux(ap.data && ap.data.reason))}</div>`;
+      return;
+    }
+    const aContacter = ap.data.a_contacter;
+    if (!aContacter) {
+      $("#fo-apercu").innerHTML = `📋 <b>${ap.data.total}</b> inscrit(s) · tous déjà dans le site, rien à envoyer. ✅`;
+      return;
+    }
+    modaleConfirm({
+      titre: "Envoyer l'invitation à tous ceux du formulaire ?",
+      texte: `${aContacter} personne(s) vont recevoir leur lien de création de compte (magasin ${SITES[siteAdmin]}). Les ${ap.data.deja} déjà présentes dans le site sont ignorées.`,
+      ok: "Envoyer",
+    }, async () => {
+      const btn = $("#fo-envoyer"), bv = $("#fo-verifier");
+      btn.disabled = true; bv.disabled = true;
+      $("#fo-progress").style.display = "block";
+      const cumul = { cree: 0, renvoye: 0, deja_present: 0, echec: 0 };
+      let debut = 0, total = 0, coupe = false;
+      do {
+        const r = await post("envoi_groupe_form", { debut });
+        if (r.status === 401) { auth = null; vueConnexion("Session expirée, reconnecte-toi."); return; }
+        if (!r.ok || !r.data || !r.data.ok) {
+          $("#fo-msg").innerHTML = `<div class="alert">${esc(raisonFlux(r.data && r.data.reason))}</div>`;
+          coupe = true; break;
+        }
+        cumul.cree += r.data.cree || 0; cumul.renvoye += r.data.renvoye || 0;
+        cumul.deja_present += r.data.deja_present || 0; cumul.echec += r.data.echec || 0;
+        total = r.data.total || 0;
+        debut = r.data.suivant || total;
+        const pct = total ? Math.round(debut / total * 100) : 100;
+        $("#fo-bar").style.width = pct + "%";
+        $("#fo-progress-txt").textContent = `${debut}/${total} traité(s)…`;
+        if (r.data.fini) break;
+      } while (debut < total);
+      btn.disabled = false; bv.disabled = false;
+      if (!coupe) {
+        message = { ok: true, texte: `Envoi terminé : ${cumul.cree} compte(s) créé(s), ${cumul.renvoye} lien(s) renvoyé(s), ${cumul.deja_present} déjà présent(s)`
           + (cumul.echec ? `, ⚠️ ${cumul.echec} échec(s)` : "") + "." };
         rendre();
       }

@@ -118,6 +118,15 @@ $ADMIN_ID  = "admin";
 $ADMIN_PWD = "a";
 $ADMIN_PIN = $ADMIN_PWD;   // compat : ancien lien api.php?action=reset&pin=...
 
+// 📄 FLUX DU FORMULAIRE GOOGLE (onglet « recolte de mail »).
+// Le site lit la feuille via un mini-script Google (Apps Script) déployé en
+// « application web », qui renvoie l'onglet en JSON, protégé par un secret.
+// On configure l'URL et le secret côté serveur uniquement (variables Railway) :
+//   FORM_FEED_URL    = https://script.google.com/macros/s/…/exec
+//   FORM_FEED_SECRET = un mot de passe long, identique à celui du script
+$FORM_FEED_URL    = getenv('FORM_FEED_URL')    ?: ($_SERVER['FORM_FEED_URL']    ?? '');
+$FORM_FEED_SECRET = getenv('FORM_FEED_SECRET') ?: ($_SERVER['FORM_FEED_SECRET'] ?? '');
+
 // 📁 OÙ SONT STOCKÉS LES SCORES.
 // Sur Railway, le disque du conteneur est EFFACÉ à chaque déploiement : si on
 // écrivait dans quiz/data, tout le classement disparaîtrait au prochain push.
@@ -542,6 +551,104 @@ function envoiFunActivation(PDO $db, $userId, $heures = 336) {
   return sendMail($u['email'], $subject, $body, true);
 }
 
+// 📄 Lit l'onglet « recolte de mail » du formulaire via le script Google.
+// Renvoie ['ok'=>true,'lignes'=>[['prenom','nom','email'],…]] ou un tableau
+// ['ok'=>false,'reason'=>…]. La liste n'est JAMAIS exposée au navigateur : seul
+// le serveur connaît l'URL + le secret.
+function litFluxFormulaire() {
+  global $FORM_FEED_URL, $FORM_FEED_SECRET;
+  if ($FORM_FEED_URL === '' || $FORM_FEED_SECRET === '') {
+    return ['ok' => false, 'reason' => 'non_configure'];
+  }
+  $url = $FORM_FEED_URL . (strpos($FORM_FEED_URL, '?') === false ? '?' : '&')
+       . 'secret=' . rawurlencode($FORM_FEED_SECRET);
+  $brut = null;
+  if (function_exists('curl_init')) {
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+      CURLOPT_RETURNTRANSFER => true,
+      CURLOPT_FOLLOWLOCATION => true,   // Google redirige vers googleusercontent
+      CURLOPT_TIMEOUT        => 20,
+      CURLOPT_SSL_VERIFYPEER => true,
+    ]);
+    $brut = curl_exec($ch);
+    curl_close($ch);
+  } else {
+    $ctx = stream_context_create(['http' => ['timeout' => 20, 'follow_location' => 1]]);
+    $brut = @file_get_contents($url, false, $ctx);
+  }
+  if ($brut === false || $brut === null || $brut === '') {
+    return ['ok' => false, 'reason' => 'injoignable'];
+  }
+  $j = json_decode($brut, true);
+  if (!is_array($j) || empty($j['ok']) || !isset($j['lignes']) || !is_array($j['lignes'])) {
+    return ['ok' => false, 'reason' => 'reponse_invalide'];
+  }
+  $out = [];
+  foreach ($j['lignes'] as $l) {
+    $email = mb_strtolower(trim((string) ($l['email'] ?? '')));
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) { continue; }
+    $out[] = [
+      'prenom' => trim(mb_substr((string) ($l['prenom'] ?? ''), 0, 40)),
+      'nom'    => trim(mb_substr((string) ($l['nom'] ?? ''), 0, 60)),
+      'email'  => $email,
+    ];
+  }
+  return ['ok' => true, 'lignes' => $out];
+}
+
+// 👤 Traite UNE personne pour l'envoi groupé : crée le compte si besoin puis
+// envoie le mail d'invitation, ou renvoie le lien, ou l'ignore si déjà présente.
+// $parNom = true → on considère « déjà dans le site » un compte au même
+// prénom+nom (contrôle demandé pour la liste du formulaire) ; sinon par e-mail.
+// Renvoie l'un de : cree | renvoye | deja_present | mail_ko | erreur.
+function traiteInscritGroupe(PDO $db, array $p, $siteId, $heures, $parNom = false) {
+  $email  = mb_strtolower(trim((string) ($p['email'] ?? '')));
+  $prenom = trim(mb_substr((string) ($p['prenom'] ?? ''), 0, 40));
+  $nom    = trim(mb_substr((string) ($p['nom'] ?? ''), 0, 60));
+  if (!filter_var($email, FILTER_VALIDATE_EMAIL)) { return 'erreur'; }
+  try {
+    if (function_exists('ensureUserAccountAccessColumns')) { ensureUserAccountAccessColumns($db); }
+    // 1) Déjà présent ? Par prénom+nom (si demandé) OU par e-mail dans tous les cas.
+    if ($parNom && $prenom !== '' && $nom !== '') {
+      $q = $db->prepare('SELECT id FROM utilisateurs WHERE LOWER(TRIM(prenom)) = ? AND LOWER(TRIM(nom)) = ? LIMIT 1');
+      $q->execute([mb_strtolower($prenom), mb_strtolower($nom)]);
+      if ($q->fetchColumn() !== false) { return 'deja_present'; }
+    }
+    $st = $db->prepare('SELECT id, mot_de_passe, account_activation_pending FROM utilisateurs WHERE email = ? LIMIT 1');
+    $st->execute([$email]);
+    $u = $st->fetch(PDO::FETCH_ASSOC);
+    if ($u) {
+      // Compte actif (mot de passe choisi) → on ne redérange pas.
+      if (empty($u['account_activation_pending']) && !empty($u['mot_de_passe'])) { return 'deja_present'; }
+      return envoiFunActivation($db, (int) $u['id'], $heures) ? 'renvoye' : 'mail_ko';
+    }
+    // 2) Aucun compte : on le crée (comme à l'inscription) puis mail.
+    $identifiant = identifiantLibre($db, $prenom !== '' ? $prenom : 'compte', $nom);
+    $ins = $db->prepare('INSERT INTO utilisateurs (identifiant, nom, prenom, email, mot_de_passe, role, account_activation_pending, site_id, statut_date)
+                         VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)');
+    $ins->execute([$identifiant, $nom, $prenom, $email,
+      password_hash(bin2hex(random_bytes(16)), PASSWORD_DEFAULT), 'etudiant', $siteId, date('Y-m-d H:i:s')]);
+    $uid = (int) $db->lastInsertId();
+    if (envoiFunActivation($db, $uid, $heures)) { return 'cree'; }
+    try { $db->prepare('DELETE FROM utilisateurs WHERE id = ?')->execute([$uid]); } catch (Throwable $e) {}
+    return 'mail_ko';
+  } catch (Throwable $e) {
+    return 'erreur';
+  }
+}
+
+// 🏬 Renvoie le site_id (widget_sites.ville) du magasin courant, ou null.
+function siteIdCourant(PDO $db) {
+  global $SITES, $SITE;
+  try {
+    $qs = $db->prepare('SELECT id FROM widget_sites WHERE ville = ? LIMIT 1');
+    $qs->execute([$SITES[$SITE]['ville']]);
+    $v = $qs->fetchColumn();
+    return $v !== false ? (int) $v : null;
+  } catch (Throwable $e) { return null; }
+}
+
 // 🛡️ GARDE-FOU sur les actions qui ENVOIENT UN MAIL ou CRÉENT UN COMPTE.
 // Sans ça, n'importe qui peut marteler l'inscription : boîte mail d'un tiers
 // inondée, table des utilisateurs remplie de faux comptes.
@@ -920,60 +1027,63 @@ switch ($action) {
     exigeAdmin($input);
     $db = famiDb();
     if (!$db) { http_response_code(503); echo json_encode(['ok' => false, 'reason' => 'base_indisponible']); break; }
-
-    // site_id du magasin courant (comme à l'inscription).
-    $siteId = null;
-    try {
-      $qs = $db->prepare('SELECT id FROM widget_sites WHERE ville = ? LIMIT 1');
-      $qs->execute([$SITES[$SITE]['ville']]);
-      $trouve = $qs->fetchColumn();
-      if ($trouve !== false) { $siteId = (int) $trouve; }
-    } catch (Throwable $e) { /* table absente en test */ }
+    $siteId = siteIdCourant($db);
 
     $liste = is_array($input['liste'] ?? null) ? $input['liste'] : [];
     $liste = array_slice($liste, 0, 25);   // un lot à la fois
-    $res = ['cree' => 0, 'renvoye' => 0, 'deja_actif' => 0, 'echec' => 0, 'details' => []];
-
+    $res = ['cree' => 0, 'renvoye' => 0, 'deja_present' => 0, 'echec' => 0];
     foreach ($liste as $p) {
-      $email  = mb_strtolower(trim((string) ($p['email'] ?? '')));
-      $prenom = trim(mb_substr((string) ($p['prenom'] ?? ''), 0, 40));
-      $nom    = trim(mb_substr((string) ($p['nom'] ?? ''), 0, 60));
-      if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        $res['echec']++; $res['details'][] = ['email' => $email, 'etat' => 'email_invalide']; continue;
-      }
-      try {
-        ensureUserAccountAccessColumns($db);
-        $st = $db->prepare('SELECT id, mot_de_passe, account_activation_pending FROM utilisateurs WHERE email = ? LIMIT 1');
-        $st->execute([$email]);
-        $u = $st->fetch(PDO::FETCH_ASSOC);
-        if ($u) {
-          // Déjà un compte ACTIF (mot de passe choisi) → on ne renvoie rien.
-          if (empty($u['account_activation_pending']) && !empty($u['mot_de_passe'])) {
-            $res['deja_actif']++; $res['details'][] = ['email' => $email, 'etat' => 'deja_actif']; continue;
-          }
-          $ok = envoiFunActivation($db, (int) $u['id'], $ACTIVATION_HEURES);
-          if ($ok) { $res['renvoye']++; $res['details'][] = ['email' => $email, 'etat' => 'renvoye']; }
-          else     { $res['echec']++;   $res['details'][] = ['email' => $email, 'etat' => 'mail_ko']; }
-          continue;
-        }
-        // Aucun compte : on le crée (identique à l'inscription), puis mail fun.
-        $identifiant = identifiantLibre($db, $prenom !== '' ? $prenom : 'compte', $nom);
-        $ins = $db->prepare('INSERT INTO utilisateurs (identifiant, nom, prenom, email, mot_de_passe, role, account_activation_pending, site_id, statut_date)
-                             VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)');
-        $ins->execute([$identifiant, $nom, $prenom, $email,
-          password_hash(bin2hex(random_bytes(16)), PASSWORD_DEFAULT), 'etudiant', $siteId, date('Y-m-d H:i:s')]);
-        $uid = (int) $db->lastInsertId();
-        $ok = envoiFunActivation($db, $uid, $ACTIVATION_HEURES);
-        if ($ok) { $res['cree']++; $res['details'][] = ['email' => $email, 'etat' => 'cree']; }
-        else {
-          try { $db->prepare('DELETE FROM utilisateurs WHERE id = ?')->execute([$uid]); } catch (Throwable $e) {}
-          $res['echec']++; $res['details'][] = ['email' => $email, 'etat' => 'mail_ko'];
-        }
-      } catch (Throwable $e) {
-        $res['echec']++; $res['details'][] = ['email' => $email, 'etat' => 'erreur'];
-      }
+      $etat = traiteInscritGroupe($db, $p, $siteId, $ACTIVATION_HEURES, false);
+      if (isset($res[$etat])) { $res[$etat]++; } else { $res['echec']++; }
     }
     echo json_encode(['ok' => true] + $res, JSON_UNESCAPED_UNICODE);
+    break;
+  }
+
+  // 👁️ APERÇU du formulaire (admin) : combien de personnes dans l'onglet
+  // « recolte de mail », combien sont déjà dans le site (prénom+nom), combien
+  // restent à contacter. Ne renvoie AUCUNE adresse au navigateur.
+  case 'form_apercu': {
+    exigeAdmin($input);
+    $flux = litFluxFormulaire();
+    if (!$flux['ok']) { echo json_encode(['ok' => false, 'reason' => $flux['reason']]); break; }
+    $db = famiDb();
+    if (!$db) { http_response_code(503); echo json_encode(['ok' => false, 'reason' => 'base_indisponible']); break; }
+    if (function_exists('ensureUserAccountAccessColumns')) { ensureUserAccountAccessColumns($db); }
+    $total = count($flux['lignes']);
+    $dejaSite = 0;
+    $qn = $db->prepare('SELECT id FROM utilisateurs WHERE (LOWER(TRIM(prenom)) = ? AND LOWER(TRIM(nom)) = ?) OR email = ? LIMIT 1');
+    foreach ($flux['lignes'] as $p) {
+      $qn->execute([mb_strtolower($p['prenom']), mb_strtolower($p['nom']), $p['email']]);
+      if ($qn->fetchColumn() !== false) { $dejaSite++; }
+    }
+    echo json_encode(['ok' => true, 'total' => $total, 'deja' => $dejaSite, 'a_contacter' => max(0, $total - $dejaSite)], JSON_UNESCAPED_UNICODE);
+    break;
+  }
+
+  // 📣 ENVOI GROUPÉ DEPUIS LE FORMULAIRE (admin) : lit l'onglet « recolte de
+  // mail », écarte les gens déjà dans le site (prénom+nom), et crée le compte +
+  // envoie l'invitation aux autres. Par tranches : le client rappelle avec
+  // ?debut=… jusqu'à ce que 'fini' soit vrai (pas de timeout SMTP).
+  case 'envoi_groupe_form': {
+    exigeAdmin($input);
+    $flux = litFluxFormulaire();
+    if (!$flux['ok']) { echo json_encode(['ok' => false, 'reason' => $flux['reason']]); break; }
+    $db = famiDb();
+    if (!$db) { http_response_code(503); echo json_encode(['ok' => false, 'reason' => 'base_indisponible']); break; }
+    $siteId = siteIdCourant($db);
+
+    $LOT = 20;
+    $total = count($flux['lignes']);
+    $debut = max(0, (int) ($input['debut'] ?? 0));
+    $tranche = array_slice($flux['lignes'], $debut, $LOT);
+    $res = ['cree' => 0, 'renvoye' => 0, 'deja_present' => 0, 'echec' => 0];
+    foreach ($tranche as $p) {
+      $etat = traiteInscritGroupe($db, $p, $siteId, $ACTIVATION_HEURES, true);  // contrôle par prénom+nom
+      if (isset($res[$etat])) { $res[$etat]++; } else { $res['echec']++; }
+    }
+    $suivant = $debut + count($tranche);
+    echo json_encode(['ok' => true, 'total' => $total, 'suivant' => $suivant, 'fini' => ($suivant >= $total)] + $res, JSON_UNESCAPED_UNICODE);
     break;
   }
 
