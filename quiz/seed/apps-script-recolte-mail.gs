@@ -40,8 +40,21 @@ function doGet(e) {
   if (!e || !e.parameter || e.parameter.secret !== SECRET) {
     return out({ ok: false, error: 'unauthorized' });
   }
-  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(NOM_ONGLET);
-  if (!sh) return out({ ok: false, error: 'onglet_introuvable' });
+  const classeur = SpreadsheetApp.getActiveSpreadsheet();
+  // 1) Nom exact, sinon 2) une languette dont le nom contient « mail » ou
+  // « colte » (marche pour « Récolte de mails » sans se soucier des accents).
+  // Sinon on renvoie la liste des vrais noms d'onglets pour aider au réglage.
+  let sh = classeur.getSheetByName(NOM_ONGLET);
+  if (!sh) {
+    const feuilles = classeur.getSheets();
+    sh = feuilles.filter((f) => {
+      const n = f.getName().toLowerCase();
+      return n.indexOf('mail') !== -1 || n.indexOf('colte') !== -1;
+    })[0] || null;
+    if (!sh) {
+      return out({ ok: false, error: 'onglet_introuvable', onglets: feuilles.map((f) => f.getName()) });
+    }
+  }
 
   const data = sh.getDataRange().getValues();
   if (data.length < 2) return out({ ok: true, total: 0, lignes: [] });
