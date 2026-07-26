@@ -34,32 +34,40 @@ try {
     );
 } catch (Throwable $e) { /* multi-delete non supporté : sans gravité */ }
 
-// Trouve/crée un module beta par nom + parent. Renvoie son id. Re-parente si besoin.
-function betaModule(PDO $db, $nom, $icon, $parentId)
-{
-    $sql = "SELECT id FROM modules WHERE nom = ? AND roles = 'beta' AND "
-        . ($parentId === null ? "parent_id IS NULL" : "parent_id = ?") . " LIMIT 1";
-    $st = $db->prepare($sql);
-    $st->execute($parentId === null ? [$nom] : [$nom, (int) $parentId]);
-    $id = $st->fetchColumn();
-    if ($id === false) {
-        // Existe-t-il au mauvais endroit (créé avant sous une autre racine) ? On le re-parente.
-        $o = $db->prepare("SELECT id FROM modules WHERE nom = ? AND roles = 'beta' LIMIT 1");
-        $o->execute([$nom]);
-        $ex = $o->fetchColumn();
-        if ($ex !== false) {
-            $db->prepare("UPDATE modules SET parent_id = ?, icon = ? WHERE id = ?")->execute([$parentId, $icon, (int) $ex]);
-            return (int) $ex;
-        }
-        $ins = $db->prepare("INSERT INTO modules (nom, description, is_container, parent_id, icon, roles, sort_order) VALUES (?, '', 1, ?, ?, 'beta', 0)");
-        $ins->execute([$nom, $parentId, $icon]);
-        return (int) $db->lastInsertId();
+// 🔧 On REMET À PLAT côté base : les 4 modules beta restent au niveau racine
+// (comme tu les gères). Si un essai précédent avait rangé les modules Caisse
+// sous un conteneur « Caisse », on les remonte au racine et on supprime ce
+// conteneur — le regroupement « Caisse » se fait UNIQUEMENT à l'affichage beta.
+try {
+    $cc = $db->query("SELECT id FROM modules WHERE nom = 'Caisse' AND roles = 'beta' AND parent_id IS NULL LIMIT 1");
+    $ccId = $cc ? $cc->fetchColumn() : false;
+    if ($ccId !== false) {
+        $db->prepare("UPDATE modules SET parent_id = NULL WHERE parent_id = ?")->execute([(int) $ccId]);
+        $db->prepare("DELETE FROM modules WHERE id = ? AND roles = 'beta'")->execute([(int) $ccId]);
     }
-    return (int) $id;
+} catch (Throwable $e) {}
+
+// Trouve/crée un module beta racine par son nom. Le remonte au racine si besoin.
+function betaModule(PDO $db, $nom, $icon)
+{
+    $st = $db->prepare("SELECT id FROM modules WHERE nom = ? AND roles = 'beta' AND parent_id IS NULL LIMIT 1");
+    $st->execute([$nom]);
+    $id = $st->fetchColumn();
+    if ($id !== false) { return (int) $id; }
+    // Existe ailleurs (rangé par erreur) ? On le remonte au racine.
+    $o = $db->prepare("SELECT id FROM modules WHERE nom = ? AND roles = 'beta' LIMIT 1");
+    $o->execute([$nom]);
+    $ex = $o->fetchColumn();
+    if ($ex !== false) {
+        $db->prepare("UPDATE modules SET parent_id = NULL, icon = ? WHERE id = ?")->execute([$icon, (int) $ex]);
+        return (int) $ex;
+    }
+    $ins = $db->prepare("INSERT INTO modules (nom, description, is_container, parent_id, icon, roles, sort_order) VALUES (?, '', 1, NULL, ?, 'beta', 0)");
+    $ins->execute([$nom, $icon]);
+    return (int) $db->lastInsertId();
 }
 function betaRempli(PDO $db, $id)
 {
-    // Contenu directement sur le module OU sur un de ses sous-modules.
     try {
         $c = $db->prepare("SELECT COUNT(*) FROM modules WHERE (id = ? OR parent_id = ?) AND (pdf_path IS NOT NULL OR video_path IS NOT NULL OR contenu_ia IS NOT NULL)");
         $c->execute([(int) $id, (int) $id]);
@@ -67,17 +75,16 @@ function betaRempli(PDO $db, $id)
     } catch (Throwable $e) { return false; }
 }
 
-// Structure : Onboarding (racine) + un conteneur « Caisse » qui regroupe les 3.
-$idCaisse = betaModule($db, 'Caisse', '💳', null);
+// Les 4 modules beta, TOUS au niveau racine (base à plat).
 $sections = [
-    ['nom' => 'Onboarding',                         'icon' => '🚀', 'parent' => null],
-    ['nom' => 'Formation Caisse',                   'icon' => '💳', 'parent' => $idCaisse],
-    ['nom' => 'Module technique',                   'icon' => '🔧', 'parent' => $idCaisse],
-    ['nom' => 'Mes 2 premières semaines en caisse', 'icon' => '🗓️', 'parent' => $idCaisse],
+    ['nom' => 'Onboarding',                         'icon' => '🚀'],
+    ['nom' => 'Formation Caisse',                   'icon' => '💳'],
+    ['nom' => 'Module technique',                   'icon' => '🔧'],
+    ['nom' => 'Mes 2 premières semaines en caisse', 'icon' => '🗓️'],
 ];
-function betaSection(PDO $db, $nom, $icon, $parent)
+function betaSection(PDO $db, $nom, $icon)
 {
-    $id = betaModule($db, $nom, $icon, $parent);
+    $id = betaModule($db, $nom, $icon);
     return ['id' => $id, 'rempli' => betaRempli($db, $id)];
 }
 
@@ -131,7 +138,7 @@ unset($_SESSION['module_flash']);
         <a href="index.php" class="btn ghost">← Retour</a>
     </div>
 
-    <?php foreach ($sections as $s): $sec = betaSection($db, $s['nom'], $s['icon'], $s['parent']); ?>
+    <?php foreach ($sections as $s): $sec = betaSection($db, $s['nom'], $s['icon']); ?>
         <div class="card">
             <div class="card-h">
                 <span class="ico"><?= htmlspecialchars($s['icon']) ?></span>

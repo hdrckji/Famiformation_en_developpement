@@ -41,10 +41,10 @@ function betaLien(PDO $db, $id) {
     } catch (Throwable $e) { return 'module.php?id=' . (int) $id; }
 }
 
-$idCaisse    = betaModId($db, 'Caisse', null);
-$idFormation = betaModId($db, 'Formation Caisse', $idCaisse);
-$idTechnique = betaModId($db, 'Module technique', $idCaisse);
-$id2Sem      = betaModId($db, 'Mes 2 premières semaines en caisse', $idCaisse);
+// Base à plat : les 3 modules Caisse sont au niveau racine (roles=beta).
+$idFormation = betaModId($db, 'Formation Caisse');
+$idTechnique = betaModId($db, 'Module technique');
+$id2Sem      = betaModId($db, 'Mes 2 premières semaines en caisse');
 
 // Caisse = 3 modules ACTIFS. Les autres rayons = aperçu grisé.
 $rayons = [
