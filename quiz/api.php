@@ -597,6 +597,30 @@ function litFluxFormulaire() {
   return ['ok' => true, 'lignes' => $out];
 }
 
+// 📇 Ensemble des e-mails du formulaire (['email'=>true,…]), avec cache court sur
+// disque : l'inscription publique peut arriver souvent, on n'appelle donc pas le
+// script Google à chaque fois. En cas d'échec réseau on garde l'ancien cache.
+function emailsFluxCache($ttl = 300) {
+  global $dataDir, $FORM_FEED_URL, $FORM_FEED_SECRET;
+  if ($FORM_FEED_URL === '' || $FORM_FEED_SECRET === '') { return []; }
+  $cache = $dataDir . '/form-emails-cache.json';
+  $lire = function () use ($cache) {
+    if (!is_file($cache)) { return null; }
+    $c = json_decode((string) @file_get_contents($cache), true);
+    return is_array($c) ? $c : null;
+  };
+  if (is_file($cache) && (time() - (int) @filemtime($cache) < $ttl)) {
+    $c = $lire();
+    if ($c !== null) { return $c; }
+  }
+  $flux = litFluxFormulaire();
+  if (!$flux['ok']) { $c = $lire(); return $c !== null ? $c : []; }
+  $set = [];
+  foreach ($flux['lignes'] as $l) { $set[$l['email']] = true; }
+  @file_put_contents($cache, json_encode($set), LOCK_EX);
+  return $set;
+}
+
 // 👤 Traite UNE personne pour l'envoi groupé : crée le compte si besoin puis
 // envoie le mail d'invitation, ou renvoie le lien, ou l'ignore si déjà présente.
 // $parNom = true → on considère « déjà dans le site » un compte au même
@@ -964,6 +988,14 @@ switch ($action) {
       break;
     }
 
+    // 📄 Pas de compte en base, mais l'adresse est-elle DÉJÀ dans le formulaire
+    // (onglet « recolte de mail ») ? Alors la personne a déjà donné son mail via
+    // le Form : on lui crée quand même son compte + envoie SON lien, mais on lui
+    // affiche « tu as déjà donné ton mail » (réponse renvoye:true) plutôt que le
+    // classique « compte créé ».
+    $feed = emailsFluxCache();
+    $dejaForm = isset($feed[$email]);
+
     // 🏬 Le magasin où la personne s'inscrit → son `site_id` dans la base, pour
     // pouvoir distinguer les inscrits de Mouscron de ceux de La Panne. On lit
     // l'id réel dans la table des sites de l'app (plutôt que de le supposer).
@@ -993,7 +1025,12 @@ switch ($action) {
       try { $db->prepare('DELETE FROM utilisateurs WHERE id = ?')->execute([$uid]); } catch (Throwable $e) {}
       http_response_code(500); echo json_encode(['ok' => false, 'reason' => 'mail_impossible']); break;
     }
-    echo json_encode(['ok' => true, 'identifiant' => $identifiant], JSON_UNESCAPED_UNICODE);
+    // Déjà dans le form → écran « tu as déjà donné ton mail » ; sinon « compte créé ».
+    if ($dejaForm) {
+      echo json_encode(['ok' => true, 'renvoye' => true], JSON_UNESCAPED_UNICODE);
+    } else {
+      echo json_encode(['ok' => true, 'identifiant' => $identifiant], JSON_UNESCAPED_UNICODE);
+    }
     break;
   }
 
