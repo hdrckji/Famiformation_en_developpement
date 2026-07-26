@@ -621,6 +621,21 @@ function emailsFluxCache($ttl = 300) {
   return $set;
 }
 
+// 🔒 Interrupteur de l'envoi AUTOMATIQUE (temps réel) à chaque nouvelle réponse
+// du formulaire. DÉSACTIVÉ par défaut : aucun mail ne part automatiquement tant
+// que l'admin ne l'a pas allumé depuis l'onglet « Envoi groupé ». (Le bouton
+// « Envoyer à tous » reste manuel et n'est PAS concerné par cet interrupteur.)
+function autoEnvoiActif() {
+  global $dataDir;
+  $f = $dataDir . '/form-auto.json';
+  $c = is_file($f) ? json_decode((string) @file_get_contents($f), true) : null;
+  return is_array($c) && !empty($c['actif']);
+}
+function autoEnvoiDefinir($actif) {
+  global $dataDir;
+  @file_put_contents($dataDir . '/form-auto.json', json_encode(['actif' => (bool) $actif]), LOCK_EX);
+}
+
 // 👤 Traite UNE personne pour l'envoi groupé : crée le compte si besoin puis
 // envoie le mail d'invitation, ou renvoie le lien, ou l'ignore si déjà présente.
 // $parNom = true → on considère « déjà dans le site » un compte au même
@@ -1134,6 +1149,9 @@ switch ($action) {
     if ($FORM_FEED_SECRET === '' || !hash_equals($FORM_FEED_SECRET, $secret)) {
       http_response_code(401); echo json_encode(['ok' => false, 'reason' => 'secret']); break;
     }
+    // 🔒 Interrupteur : tant que l'admin n'a pas activé l'envoi automatique, on
+    // ne fait RIEN (aucun compte créé, aucun mail envoyé).
+    if (!autoEnvoiActif()) { echo json_encode(['ok' => true, 'etat' => 'desactive']); break; }
     $email = mb_strtolower(trim((string) ($input['email'] ?? '')));
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
       echo json_encode(['ok' => false, 'reason' => 'email_invalide']); break;
@@ -1160,6 +1178,15 @@ switch ($action) {
     ], $siteId, $ACTIVATION_HEURES, true);   // contrôle par prénom+nom
 
     echo json_encode(['ok' => in_array($etat, ['cree', 'renvoye', 'deja_present'], true), 'etat' => $etat], JSON_UNESCAPED_UNICODE);
+    break;
+  }
+
+  // 🔒 Lire / changer l'interrupteur de l'envoi AUTOMATIQUE (admin). Sans champ
+  // 'actif' → simple lecture de l'état. Avec 'actif' → on l'allume/éteint.
+  case 'form_auto': {
+    exigeAdmin($input);
+    if (array_key_exists('actif', $input)) { autoEnvoiDefinir((bool) $input['actif']); }
+    echo json_encode(['ok' => true, 'actif' => autoEnvoiActif()], JSON_UNESCAPED_UNICODE);
     break;
   }
 

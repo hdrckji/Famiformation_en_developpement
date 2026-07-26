@@ -277,6 +277,18 @@ function vueEnvoi() {
       <h2>📄 Depuis le formulaire Google</h2>
       <p class="hint">Le site lit directement l'onglet <b>« recolte de mail »</b> de ta feuille de réponses.
       Avant d'envoyer, il <b>écarte les personnes déjà présentes dans le site</b> (contrôle prénom + nom), puis crée le compte et envoie l'invitation aux autres. Chaque personne reçoit un mail <b>individuel</b> (personne ne voit l'adresse des autres).</p>
+
+      <div id="fo-auto-box" style="margin:8px 0 14px; padding:12px 14px; border-radius:12px; background:#fbf6ea; border:1px solid #ece0c4;">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+          <div>
+            <b>⚡ Envoi automatique</b> — à chaque nouvelle réponse du formulaire, créer le compte + envoyer le lien tout seul.<br>
+            <span id="fo-auto-etat" class="hint">⏳ …</span>
+          </div>
+          <button class="btn" id="fo-auto-btn" style="min-width:120px;" disabled>…</button>
+        </div>
+        <p class="hint" style="margin:8px 0 0; opacity:.85;">🔒 Tant que c'est <b>DÉSACTIVÉ</b>, aucun mail ne part automatiquement (même si le déclencheur Google est posé). Le bouton « Envoyer à tous » ci-dessous reste manuel dans tous les cas.</p>
+      </div>
+
       <div id="fo-apercu" class="hint" style="margin:6px 0;"></div>
       <div id="fo-msg"></div>
       <div id="fo-progress" style="display:none; margin:10px 0;">
@@ -367,6 +379,46 @@ jean.martin@exemple.be" style="font-family:monospace; font-size:.9rem;"></textar
         rendre();
       }
     });
+  });
+
+  /* --- Interrupteur envoi automatique (temps réel) --- */
+  const majAutoUI = (actif) => {
+    const et = $("#fo-auto-etat"), bt = $("#fo-auto-btn"), box = $("#fo-auto-box");
+    if (!et || !bt) return;
+    if (actif) {
+      et.innerHTML = "🟢 <b>ACTIVÉ</b> — les nouveaux inscrits reçoivent leur lien automatiquement.";
+      bt.textContent = "Désactiver"; bt.className = "btn ghost";
+      if (box) box.style.background = "#eef6ef";
+    } else {
+      et.innerHTML = "🔴 <b>DÉSACTIVÉ</b> — rien ne part tout seul.";
+      bt.textContent = "Activer"; bt.className = "btn";
+      if (box) box.style.background = "#fbf6ea";
+    }
+    bt.disabled = false;
+    bt.dataset.actif = actif ? "1" : "0";
+  };
+  (async () => {
+    const r = await post("form_auto");
+    if (r.ok && r.data && r.data.ok) majAutoUI(!!r.data.actif);
+    else if ($("#fo-auto-etat")) $("#fo-auto-etat").textContent = "état inconnu";
+  })();
+  $("#fo-auto-btn").addEventListener("click", async () => {
+    const bt = $("#fo-auto-btn");
+    const veutActiver = bt.dataset.actif !== "1";
+    const faire = async () => {
+      bt.disabled = true;
+      const r = await post("form_auto", { actif: veutActiver });
+      if (r.status === 401) { auth = null; vueConnexion("Session expirée, reconnecte-toi."); return; }
+      if (r.ok && r.data && r.data.ok) majAutoUI(!!r.data.actif);
+      else { bt.disabled = false; $("#fo-msg").innerHTML = `<div class="alert">Impossible de changer l'état. Réessaie.</div>`; }
+    };
+    if (veutActiver) {
+      modaleConfirm({
+        titre: "Activer l'envoi automatique ?",
+        texte: "Dès maintenant, chaque nouvelle réponse au formulaire créera un compte Mouscron et enverra le lien d'inscription automatiquement.",
+        ok: "Activer",
+      }, faire);
+    } else { faire(); }
   });
 
   /* --- Source : formulaire Google (onglet « recolte de mail ») --- */
