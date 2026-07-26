@@ -1623,11 +1623,14 @@ switch ($action) {
       break;
     }
 
-    // 🎁 Le jardin vient-il d'être TERMINÉ (grille pleine + 3 lotus) ? Si oui, et
-    // que ce n'est pas un compte de test ni déjà prévenu, on envoie AUTOMATIQUEMENT
-    // le mail « viens voir les RH ». (On ne bloque jamais la plantation là-dessus.)
+    // 🎁 Le jardin vient-il d'être TERMINÉ (grille pleine + 3 lotus) ? Si oui et
+    // pas déjà prévenu, on envoie AUTOMATIQUEMENT le mail « viens voir les RH ».
+    // Les comptes de test (testeur/admin_) reçoivent AUSSI ce mail : c'est ce qui
+    // permet à l'organisateur de tester l'envoi en jouant avec admin_. (Le mail
+    // part vers l'adresse du compte, donc la sienne.) On ne bloque jamais la
+    // plantation là-dessus.
     $cleNom = mb_strtolower($name);
-    if (!in_array($cleNom, $COMPTES_TEST, true) && !dejaPrevenu($cleNom)) {
+    if (!dejaPrevenu($cleNom)) {
       $jTout = readJson($jardinFile);
       if (jardinEstComplet($jTout[$cleNom] ?? [])) {
         try {
