@@ -532,12 +532,13 @@ function vueQuestions() {
         <button class="btn ghost" id="q-importer">📥 Importer (JSON)</button>
         <button class="btn" id="q-seed" title="Charge automatiquement les ~613 questions entreprise (base Famiformation) + 50 culture + 15 fun, pour ce magasin">🌱 Charger toutes les questions</button>
       </div>
-      <p class="hint" style="margin:6px 0 0;">« Charger toutes les questions » remplit ce magasin d'un coup : les <b>~613 questions entreprise</b> (base Famiformation, avec une réponse fausse rigolote), <b>50 culture</b> (jardinage) et <b>15 fun</b>. À relancer pour chaque magasin.</p>
+      <p class="hint" style="margin:6px 0 0;">« Charger toutes les questions » remplit ce magasin d'un coup : les <b>~613 questions entreprise</b> (base Famiformation, avec une réponse fausse rigolote), <b>50 culture</b> (jardinage) et <b>25 fun</b> — culture et fun sont <b>déjà traduites en NL</b>. À relancer pour chaque magasin.</p>
       <div id="q-import-zone" style="display:none; margin-top:12px;">
         <p class="hint">Colle un tableau JSON de questions, puis « Ajouter à la liste ». Format de chaque
         question : <code>{"q":"…","options":["…","…"],"correct":0,"theme":"culture"}</code>
-        (thème : <b>entreprise</b>, <b>culture</b> ou <b>fun</b> ; <code>correct</code> = index de la bonne réponse, à partir de 0).</p>
-        <textarea class="field" id="q-import-txt" rows="7" placeholder='[ {"q":"…","options":["A","B","C","D"],"correct":2,"theme":"culture"} ]' style="font-family:monospace; font-size:.85rem;"></textarea>
+        (thème : <b>entreprise</b>, <b>culture</b> ou <b>fun</b> ; <code>correct</code> = index de la bonne réponse, à partir de 0).
+        Pour le <b>NL</b> (facultatif) : ajoute <code>"q_nl":"…"</code> et <code>"options_nl":["…","…"]</code> (mêmes positions que <code>options</code> ; case vide = pas de traduction, on affiche le FR).</p>
+        <textarea class="field" id="q-import-txt" rows="7" placeholder='[ {"q":"…","q_nl":"…","options":["A","B"],"options_nl":["A-nl","B-nl"],"correct":0,"theme":"culture"} ]' style="font-family:monospace; font-size:.85rem;"></textarea>
         <div id="q-import-msg"></div>
         <div style="display:flex; gap:10px; flex-wrap:wrap;">
           <button class="btn" id="q-import-ok">Ajouter à la liste</button>
@@ -563,7 +564,7 @@ function vueQuestions() {
   $("#q-ajouter").addEventListener("click", () => {
     // Nouvelle question créée directement dans le thème filtré (pratique pour trier).
     const t = filtreTheme === "tous" ? "entreprise" : filtreTheme;
-    brouillon.push({ q: "", options: ["", "", "", ""], correct: 0, theme: t });
+    brouillon.push({ q: "", q_nl: "", options: ["", "", "", ""], options_nl: ["", "", "", ""], correct: 0, theme: t });
     dessineListe();
   });
 
@@ -599,13 +600,23 @@ function vueQuestions() {
     const propres = [];
     for (const it of arr) {
       const q = String(it && it.q || "").trim();
-      const options = Array.isArray(it && it.options) ? it.options.map((o) => String(o).trim()).filter(Boolean) : [];
+      // 🌍 On garde le NL aligné par index avec les options FR (case vide = pas traduit).
+      const rawFr = Array.isArray(it && it.options) ? it.options : [];
+      const rawNl = Array.isArray(it && it.options_nl) ? it.options_nl : [];
+      const options = [];
+      const options_nl = [];
+      rawFr.forEach((o, k) => {
+        const txt = String(o).trim();
+        if (!txt) return;               // on saute la même position en NL pour rester alignés
+        options.push(txt);
+        options_nl.push(String(rawNl[k] || "").trim());
+      });
       if (!q || options.length < 2) continue;
       let correct = parseInt(it.correct, 10); if (isNaN(correct) || correct < 0 || correct >= options.length) correct = 0;
       let theme = String(it && it.theme || "").toLowerCase();
       if (theme === "anecdote") theme = "fun";
       if (!["entreprise", "culture", "fun"].includes(theme)) theme = "entreprise";
-      propres.push({ q, options, correct, theme, fav: !!(it && it.fav) && theme !== "culture" });
+      propres.push({ q, q_nl: String(it && it.q_nl || "").trim(), options, options_nl, correct, theme, fav: !!(it && it.fav) && theme !== "culture" });
     }
     if (!propres.length) { msg.innerHTML = `<div class="alert">Aucune question valide trouvée (il faut un intitulé et au moins 2 réponses).</div>`; return null; }
     return propres;
@@ -664,7 +675,8 @@ function dessineListe() {
           <button class="btn danger small" data-suppr="${i}">Supprimer</button>
         </span>
       </div>
-      <input class="field" data-q="${i}" placeholder="Intitulé de la question" value="${esc(q.q)}">
+      <input class="field" data-q="${i}" placeholder="Intitulé de la question (FR)" value="${esc(q.q)}">
+      <input class="field" data-qnl="${i}" placeholder="🇳🇱 Vertaling van de vraag (NL) — leeg = geen vertaling" value="${esc(q.q_nl || "")}" style="background:#f2f8ef;font-size:.92rem;margin-top:4px;">
       <label style="display:flex;align-items:center;gap:8px;margin:6px 0 10px;font-weight:700;font-size:.85rem;color:#0E3B24;">
         🎯 Thème
         <select class="field" data-theme="${i}" style="margin:0;max-width:230px;">
@@ -676,7 +688,8 @@ function dessineListe() {
       ${q.options.map((o, j) => `
         <div class="opt">
           <label><input type="radio" name="bonne${i}" data-bonne="${i}-${j}" ${q.correct === j ? "checked" : ""}> bonne</label>
-          <input type="text" class="field" data-opt="${i}-${j}" placeholder="Réponse ${j + 1}" value="${esc(o)}">
+          <input type="text" class="field" data-opt="${i}-${j}" placeholder="Réponse ${j + 1} (FR)" value="${esc(o)}">
+          <input type="text" class="field" data-optnl="${i}-${j}" placeholder="🇳🇱 NL" value="${esc((q.options_nl && q.options_nl[j]) || "")}" style="background:#f2f8ef;">
           <button class="btn ghost small" data-optsuppr="${i}-${j}" ${q.options.length <= 2 ? "disabled" : ""}>✕</button>
         </div>`).join("")}
       <button class="btn ghost small" data-optadd="${i}">+ réponse</button>
@@ -710,6 +723,9 @@ function dessineListe() {
   liste.querySelectorAll("[data-q]").forEach((el) => el.addEventListener("input", () => {
     brouillon[+el.dataset.q].q = el.value;
   }));
+  liste.querySelectorAll("[data-qnl]").forEach((el) => el.addEventListener("input", () => {
+    brouillon[+el.dataset.qnl].q_nl = el.value;
+  }));
   liste.querySelectorAll("[data-theme]").forEach((el) => el.addEventListener("change", () => {
     brouillon[+el.dataset.theme].theme = el.value;
     rendre();   // pour rafraîchir le compteur par thème
@@ -722,6 +738,11 @@ function dessineListe() {
   liste.querySelectorAll("[data-opt]").forEach((el) => el.addEventListener("input", () => {
     const [i, j] = el.dataset.opt.split("-").map(Number);
     brouillon[i].options[j] = el.value;
+  }));
+  liste.querySelectorAll("[data-optnl]").forEach((el) => el.addEventListener("input", () => {
+    const [i, j] = el.dataset.optnl.split("-").map(Number);
+    if (!Array.isArray(brouillon[i].options_nl)) brouillon[i].options_nl = [];
+    brouillon[i].options_nl[j] = el.value;
   }));
   liste.querySelectorAll("[data-bonne]").forEach((el) => el.addEventListener("change", () => {
     const [i, j] = el.dataset.bonne.split("-").map(Number);
@@ -739,11 +760,16 @@ function dessineListe() {
     [brouillon[i + 1], brouillon[i]] = [brouillon[i], brouillon[i + 1]]; dessineListe();
   }));
   liste.querySelectorAll("[data-optadd]").forEach((el) => el.addEventListener("click", () => {
-    brouillon[+el.dataset.optadd].options.push(""); dessineListe();
+    const i = +el.dataset.optadd;
+    brouillon[i].options.push("");
+    if (!Array.isArray(brouillon[i].options_nl)) brouillon[i].options_nl = [];
+    brouillon[i].options_nl.push("");   // on garde le NL aligné
+    dessineListe();
   }));
   liste.querySelectorAll("[data-optsuppr]").forEach((el) => el.addEventListener("click", () => {
     const [i, j] = el.dataset.optsuppr.split("-").map(Number);
     brouillon[i].options.splice(j, 1);
+    if (Array.isArray(brouillon[i].options_nl)) brouillon[i].options_nl.splice(j, 1);   // idem en NL
     // La bonne réponse suivait peut-être l'option supprimée : on la recale.
     if (brouillon[i].correct >= brouillon[i].options.length) brouillon[i].correct = 0;
     else if (brouillon[i].correct > j) brouillon[i].correct--;

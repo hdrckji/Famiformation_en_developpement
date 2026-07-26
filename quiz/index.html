@@ -1172,23 +1172,23 @@ function majBarreSim() {
 // ci-dessous n'est qu'un SECOURS : elle ne s'affiche que si le serveur ne répond
 // pas, pour qu'un incident réseau ne laisse jamais un joueur devant une page vide.
 let QUESTIONS = [
-  { q: "Chez Famiflora, on trouve surtout…", options: ["Des plantes et de la déco de jardin", "Des pièces détachées de voiture", "Des billets d'avion", "Du poisson frais"], correct: 0, theme: "entreprise" },
-  { q: "Le barbecue, ça se nettoie surtout…", options: ["Quand il est encore tiède", "Une fois par an", "Jamais, la pluie s'en charge", "Avec un lave-vaisselle"], correct: 0, theme: "entreprise" },
-  { q: "Une eau de piscine verte, ça veut dire…", options: ["Présence d'algues", "Trop de bonne humeur", "Qu'elle est prête pour la soupe", "Rien, c'est la couleur normale"], correct: 0, theme: "entreprise" },
-  { q: "Pour renseigner un client, le mieux c'est…", options: ["L'écouter et l'orienter avec le sourire", "Faire semblant d'être au téléphone", "Lui dire de revenir demain", "Se cacher au rayon déco"], correct: 0, theme: "entreprise" },
-  { q: "Au passage en caisse, on pose…", options: ["Tous les articles sur le tapis", "Seulement les plus légers", "Rien, on fait confiance", "Le chat de la maison"], correct: 0, theme: "entreprise" },
-  { q: "Combien de temps un client a-t-il pour enlever sa commande en magasin ?", options: ["30 jours", "2 heures", "10 ans", "Le temps d'un café"], correct: 0, theme: "entreprise" },
-  { q: "Que faut-il donner à une plante pour qu'elle pousse ?", options: ["De l'eau et de la lumière", "Du café tous les matins", "Des encouragements uniquement", "Rien, elle se débrouille"], correct: 0, theme: "culture" },
-  { q: "À quelle saison plante-t-on les tulipes ?", options: ["À l'automne", "En plein été", "Le 31 décembre", "Jamais, elles poussent seules"], correct: 0, theme: "culture" },
-  { q: "Les abeilles sont utiles au jardin car elles…", options: ["Pollinisent les fleurs", "Tondent la pelouse", "Font fuir les clients", "Gardent le magasin la nuit"], correct: 0, theme: "culture" },
-  { q: "Le compost, c'est…", options: ["Des déchets qui deviennent de l'engrais", "Une marque de barbecue", "Un type de piscine", "Un jour férié"], correct: 0, theme: "culture" },
-  { q: "Un cactus a besoin…", options: ["De très peu d'eau", "D'un arrosage toutes les heures", "D'un parapluie", "De beaucoup de câlins"], correct: 0, theme: "culture" },
-  { q: "Quel est le comble pour un jardinier ?", options: ["Raconter des salades", "Compter les moutons", "Repeindre le ciel", "Nager dans le compost"], correct: 0, theme: "fun" },
-  { q: "Si une plante pouvait parler, elle dirait sûrement…", options: ["« Un peu d'eau, s'il te plaît ! »", "« Baisse le chauffage »", "« Passe-moi le sel »", "« On sort ce soir ? »"], correct: 0, theme: "fun" },
-  { q: "Le meilleur moment pour arroser en été, c'est…", options: ["Le matin tôt ou le soir", "À midi en plein soleil", "Quand il pleut déjà", "Jamais, on croise les doigts"], correct: 0, theme: "fun" },
-  { q: "Un gnome de jardin sert surtout à…", options: ["Décorer (et faire sourire)", "Surveiller la caisse", "Tondre la pelouse", "Piloter le drone d'arrosage"], correct: 0, theme: "fun" },
-  { q: "Comment reconnaît-on un(e) vrai(e) fan de jardinage ?", options: ["Il/elle a toujours de la terre sous les ongles", "Il/elle déteste les fleurs", "Il/elle a peur des arrosoirs", "Il/elle jardine en costume-cravate"], correct: 0, theme: "fun" },
-  { q: "Au potager, le voisin le plus bavard est…", options: ["Le persil, il repique partout", "Le cactus, très timide", "La pierre du chemin", "Le tuyau d'arrosage"], correct: 0, theme: "fun" },
+  { q: "Chez Famiflora, on trouve surtout…", q_nl: "Bij Famiflora vind je vooral…", options: ["Des plantes et de la déco de jardin", "Des pièces détachées de voiture", "Des billets d'avion", "Du poisson frais"], options_nl: ["Planten en tuindecoratie", "Auto-onderdelen", "Vliegtickets", "Verse vis"], correct: 0, theme: "entreprise" },
+  { q: "Le barbecue, ça se nettoie surtout…", q_nl: "Een barbecue maak je vooral schoon…", options: ["Quand il est encore tiède", "Une fois par an", "Jamais, la pluie s'en charge", "Avec un lave-vaisselle"], options_nl: ["Als hij nog lauw is", "Eén keer per jaar", "Nooit, de regen doet dat wel", "In de vaatwasser"], correct: 0, theme: "entreprise" },
+  { q: "Une eau de piscine verte, ça veut dire…", q_nl: "Groen zwembadwater betekent…", options: ["Présence d'algues", "Trop de bonne humeur", "Qu'elle est prête pour la soupe", "Rien, c'est la couleur normale"], options_nl: ["De aanwezigheid van algen", "Te veel goed humeur", "Dat het klaar is voor de soep", "Niets, dat is de normale kleur"], correct: 0, theme: "entreprise" },
+  { q: "Pour renseigner un client, le mieux c'est…", q_nl: "Om een klant te helpen, kan je het best…", options: ["L'écouter et l'orienter avec le sourire", "Faire semblant d'être au téléphone", "Lui dire de revenir demain", "Se cacher au rayon déco"], options_nl: ["Naar hem luisteren en met de glimlach wegwijs maken", "Doen alsof je aan de telefoon bent", "Zeggen dat hij morgen terugkomt", "Je verstoppen in de deco-afdeling"], correct: 0, theme: "entreprise" },
+  { q: "Au passage en caisse, on pose…", q_nl: "Aan de kassa leg je…", options: ["Tous les articles sur le tapis", "Seulement les plus légers", "Rien, on fait confiance", "Le chat de la maison"], options_nl: ["Alle artikelen op de band", "Alleen de lichtste", "Niets, we vertrouwen erop", "De kat van het huis"], correct: 0, theme: "entreprise" },
+  { q: "Combien de temps un client a-t-il pour enlever sa commande en magasin ?", q_nl: "Hoeveel tijd heeft een klant om zijn bestelling in de winkel af te halen?", options: ["30 jours", "2 heures", "10 ans", "Le temps d'un café"], options_nl: ["30 dagen", "2 uur", "10 jaar", "De tijd van een koffie"], correct: 0, theme: "entreprise" },
+  { q: "Que faut-il donner à une plante pour qu'elle pousse ?", q_nl: "Wat moet je een plant geven om te groeien?", options: ["De l'eau et de la lumière", "Du café tous les matins", "Des encouragements uniquement", "Rien, elle se débrouille"], options_nl: ["Water en licht", "Elke ochtend koffie", "Enkel aanmoedigingen", "Niets, ze redt zich wel"], correct: 0, theme: "culture" },
+  { q: "À quelle saison plante-t-on les tulipes ?", q_nl: "In welk seizoen plant men tulpen?", options: ["À l'automne", "En plein été", "Le 31 décembre", "Jamais, elles poussent seules"], options_nl: ["In de herfst", "Midden in de zomer", "Op 31 december", "Nooit, ze groeien vanzelf"], correct: 0, theme: "culture" },
+  { q: "Les abeilles sont utiles au jardin car elles…", q_nl: "Bijen zijn nuttig in de tuin omdat ze…", options: ["Pollinisent les fleurs", "Tondent la pelouse", "Font fuir les clients", "Gardent le magasin la nuit"], options_nl: ["De bloemen bestuiven", "Het gras maaien", "De klanten wegjagen", "'s Nachts de winkel bewaken"], correct: 0, theme: "culture" },
+  { q: "Le compost, c'est…", q_nl: "Compost is…", options: ["Des déchets qui deviennent de l'engrais", "Une marque de barbecue", "Un type de piscine", "Un jour férié"], options_nl: ["Afval dat meststof wordt", "Een barbecuemerk", "Een soort zwembad", "Een feestdag"], correct: 0, theme: "culture" },
+  { q: "Un cactus a besoin…", q_nl: "Een cactus heeft nood aan…", options: ["De très peu d'eau", "D'un arrosage toutes les heures", "D'un parapluie", "De beaucoup de câlins"], options_nl: ["Heel weinig water", "Elk uur water geven", "Een paraplu", "Veel knuffels"], correct: 0, theme: "culture" },
+  { q: "Quel est le comble pour un jardinier ?", q_nl: "Wat is het toppunt voor een tuinier?", options: ["Raconter des salades", "Compter les moutons", "Repeindre le ciel", "Nager dans le compost"], options_nl: ["Praatjes verkopen (en het is nog sla ook)", "Schaapjes tellen", "De hemel opnieuw schilderen", "In de compost zwemmen"], correct: 0, theme: "fun" },
+  { q: "Si une plante pouvait parler, elle dirait sûrement…", q_nl: "Als een plant kon praten, zou ze zeker zeggen…", options: ["« Un peu d'eau, s'il te plaît ! »", "« Baisse le chauffage »", "« Passe-moi le sel »", "« On sort ce soir ? »"], options_nl: ["« Een beetje water, alsjeblieft! »", "« Zet de verwarming lager »", "« Geef me het zout eens »", "« Gaan we vanavond uit? »"], correct: 0, theme: "fun" },
+  { q: "Le meilleur moment pour arroser en été, c'est…", q_nl: "Het beste moment om in de zomer te begieten is…", options: ["Le matin tôt ou le soir", "À midi en plein soleil", "Quand il pleut déjà", "Jamais, on croise les doigts"], options_nl: ["Vroeg in de ochtend of 's avonds", "'s Middags in de volle zon", "Als het al regent", "Nooit, we duimen"], correct: 0, theme: "fun" },
+  { q: "Un gnome de jardin sert surtout à…", q_nl: "Een tuinkabouter dient vooral om…", options: ["Décorer (et faire sourire)", "Surveiller la caisse", "Tondre la pelouse", "Piloter le drone d'arrosage"], options_nl: ["Te versieren (en te doen glimlachen)", "De kassa te bewaken", "Het gras te maaien", "De sproeidrone te besturen"], correct: 0, theme: "fun" },
+  { q: "Comment reconnaît-on un(e) vrai(e) fan de jardinage ?", q_nl: "Hoe herken je een echte tuinliefhebber?", options: ["Il/elle a toujours de la terre sous les ongles", "Il/elle déteste les fleurs", "Il/elle a peur des arrosoirs", "Il/elle jardine en costume-cravate"], options_nl: ["Hij/zij heeft altijd aarde onder de nagels", "Hij/zij haat bloemen", "Hij/zij is bang van gieters", "Hij/zij tuiniert in maatpak"], correct: 0, theme: "fun" },
+  { q: "Au potager, le voisin le plus bavard est…", q_nl: "In de moestuin is de spraakzaamste buur…", options: ["Le persil, il repique partout", "Le cactus, très timide", "La pierre du chemin", "Le tuyau d'arrosage"], options_nl: ["De peterselie, ze zaait zich overal uit", "De cactus, heel verlegen", "De steen op het pad", "De tuinslang"], correct: 0, theme: "fun" },
 ];
 
 /* ============================================================
@@ -1532,7 +1532,12 @@ function prepareQuestions() {
   if (choix.length < QUIZ_TOTAL) choix = choix.concat(shuffle(restes).slice(0, QUIZ_TOTAL - choix.length));
   return shuffle(choix).map((item) => ({
     q: item.q,
-    options: shuffle(item.options.map((text, i) => ({ text, good: i === item.correct }))),
+    q_nl: item.q_nl || "",                       // 🌍 énoncé NL (vide = pas traduit → on affichera le FR)
+    options: shuffle(item.options.map((text, i) => ({
+      text,
+      text_nl: (item.options_nl && item.options_nl[i]) ? item.options_nl[i] : "",   // réponse NL alignée par index
+      good: i === item.correct,
+    }))),
   }));
 }
 function phaseNow() {
@@ -2108,7 +2113,7 @@ function renderQuiz() {
       </div>
       <div class="q-progress"><div style="width:${(quiz.idx / quiz.questions.length) * 100}%"></div></div>
       <div class="q-num">${t("Question", "Vraag")} ${quiz.idx + 1} / ${quiz.questions.length}</div>
-      <div class="q-text">${esc(q.q)}</div>
+      <div class="q-text">${esc(LANG === "nl" && q.q_nl ? q.q_nl : q.q)}</div>
       ${q.options.map((o, i) => {
         let cls = "q-opt";
         let tag = "";
@@ -2117,7 +2122,7 @@ function renderQuiz() {
           if (o.good) { cls += " q-opt-good"; tag = `<span class="opt-tag">${t("✓ bonne réponse", "✓ juist antwoord")}</span>`; }
           else if (i === rev.chosen) { cls += " q-opt-bad"; tag = `<span class="opt-tag">${t("✗ ton choix", "✗ jouw keuze")}</span>`; }
         }
-        return `<button class="${cls}" data-i="${i}"${rev ? " disabled" : ""}>${esc(o.text)}${tag}</button>`;
+        return `<button class="${cls}" data-i="${i}"${rev ? " disabled" : ""}>${esc(LANG === "nl" && o.text_nl ? o.text_nl : o.text)}${tag}</button>`;
       }).join("")}
       ${rev ? `<div class="q-feedback ${rev.good ? "ok" : "ko"}">${rev.good
           ? t("✅ Bravo, bonne réponse !", "✅ Bravo, juist antwoord!")

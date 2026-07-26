@@ -267,10 +267,19 @@ $QUESTIONS_DEFAUT = [
 /** Nettoie une question venant du navigateur (on ne fait jamais confiance à l'envoi). */
 function nettoieQuestion($item) {
   $q = trim((string)($item['q'] ?? ''));
+  // 🌍 Bilingue : on garde une traduction NL alignée par index avec les options FR.
+  // Une case NL vide = pas encore traduite → le rendu retombe sur le FR.
+  $qNl  = trim((string)($item['q_nl'] ?? ''));
+  $rawFr = (array)($item['options'] ?? []);
+  $rawNl = (array)($item['options_nl'] ?? []);
   $opts = [];
-  foreach ((array)($item['options'] ?? []) as $o) {
+  $optsNl = [];
+  foreach ($rawFr as $i => $o) {
     $o = trim((string)$o);
-    if ($o !== '') { $opts[] = mb_substr($o, 0, 120); }
+    if ($o === '') { continue; }                 // on saute la même position en NL pour rester alignés
+    $opts[] = mb_substr($o, 0, 120);
+    $n = trim((string)($rawNl[$i] ?? ''));
+    $optsNl[] = ($n !== '') ? mb_substr($n, 0, 120) : '';
   }
   $correct = (int)($item['correct'] ?? 0);
   if ($q === '' || count($opts) < 2) { return null; }          // inutilisable
@@ -283,7 +292,14 @@ function nettoieQuestion($item) {
   // ⭐ Favorite : question qui apparaîtra plus souvent. Ne concerne QUE entreprise
   // et fun (la culture n'a pas de favoris). On la conserve à l'enregistrement.
   $fav = !empty($item['fav']) && in_array($theme, ['entreprise', 'fun'], true);
-  return ['q' => mb_substr($q, 0, 300), 'options' => $opts, 'correct' => $correct, 'theme' => $theme, 'fav' => $fav];
+  $out = ['q' => mb_substr($q, 0, 300), 'options' => $opts, 'correct' => $correct, 'theme' => $theme, 'fav' => $fav];
+  // On n'ajoute les champs NL que s'il existe vraiment une traduction (fichiers plus légers).
+  $aDuNl = ($qNl !== '') || count(array_filter($optsNl, static function ($x) { return $x !== ''; })) > 0;
+  if ($aDuNl) {
+    $out['q_nl'] = mb_substr($qNl, 0, 300);
+    $out['options_nl'] = $optsNl;
+  }
+  return $out;
 }
 
 /** Les questions en vigueur (fichier si présent, sinon la liste par défaut). */
@@ -2056,6 +2072,14 @@ switch ($action) {
       "C'est écrit nulle part, donc non", "Un café d'abord ☕", "Google le sait mieux que moi",
       "On verra ça lundi", "Poser la question à l'accueil 🙋",
     ];
+    // Version NL des mauvaises réponses rigolotes (même ordre que $RIGOLOTES).
+    $RIGOLOTES_NL = [
+      "Niets, we improviseren 😅", "Aan een collega vragen 🤷", "Jimmy bellen 📞",
+      "42, uiteraard", "Hangt af van het weer ☀️", "Een goeie barbecue 🍖", "Zoals altijd, op gevoel 😎",
+      "Geen idee, maar het klinkt goed", "Hetzelfde als gisteren", "Ogen dicht en hopen 🤞",
+      "Staat nergens, dus nee", "Eerst een koffie ☕", "Google weet het beter dan ik",
+      "We zien wel maandag", "Vraag het aan het onthaal 🙋",
+    ];
     $lettreVersIndex = ['A' => 0, 'B' => 1, 'C' => 2];
     $tout = [];
 
@@ -2064,24 +2088,37 @@ switch ($action) {
     $nbEntreprise = 0;
     if ($db) {
       try {
-        $rows = $db->query("SELECT question_text, option_a, option_b, option_c, reponse_correcte
-                            FROM quiz_questions ORDER BY theme ASC, id ASC")->fetchAll(PDO::FETCH_ASSOC);
+        // SELECT * : robuste si la table possède (ou non) des colonnes NL
+        // (question_text_nl, option_a_nl…). Le jour où elles sont remplies dans
+        // la base Famiformation, le NL des questions entreprise remonte tout seul.
+        $rows = $db->query("SELECT * FROM quiz_questions ORDER BY theme ASC, id ASC")->fetchAll(PDO::FETCH_ASSOC);
       } catch (Exception $e) { $rows = []; }
       $i = 0;
       foreach ($rows as $r) {
         $q = trim((string)($r['question_text'] ?? ''));
+        $qNl = trim((string)($r['question_text_nl'] ?? ''));   // vide si la colonne n'existe pas
         $opts = [];
+        $optsNl = [];
         foreach (['option_a', 'option_b', 'option_c'] as $col) {
           $o = trim((string)($r[$col] ?? ''));
-          if ($o !== '') { $opts[] = $o; }
+          if ($o === '') { continue; }
+          $opts[] = $o;
+          $optsNl[] = trim((string)($r[$col . '_nl'] ?? ''));   // NL aligné (vide → fallback FR)
         }
         if ($q === '' || count($opts) < 2) { continue; }
         $lettre = strtoupper(trim((string)($r['reponse_correcte'] ?? 'A')));
         $correct = $lettreVersIndex[$lettre] ?? 0;
         if ($correct >= count($opts)) { $correct = 0; }
-        $opts[] = $RIGOLOTES[$i % count($RIGOLOTES)];   // réponse fausse rigolote à la fin
+        $opts[] = $RIGOLOTES[$i % count($RIGOLOTES)];         // réponse fausse rigolote à la fin
+        $optsNl[] = $RIGOLOTES_NL[$i % count($RIGOLOTES_NL)]; // sa version NL (alignée)
         $i++;
-        $tout[] = ['q' => $q, 'options' => $opts, 'correct' => $correct, 'theme' => 'entreprise'];
+        $item = ['q' => $q, 'options' => $opts, 'correct' => $correct, 'theme' => 'entreprise'];
+        // On ne pose les champs NL que s'il y a au moins une traduction réelle.
+        if ($qNl !== '' || count(array_filter($optsNl, static function ($x) { return $x !== ''; })) > 0) {
+          $item['q_nl'] = $qNl;
+          $item['options_nl'] = $optsNl;
+        }
+        $tout[] = $item;
         $nbEntreprise++;
       }
     }

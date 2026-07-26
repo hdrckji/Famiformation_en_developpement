@@ -1,3 +1,3 @@
 [
-  { "q": "En quelle année Famiflora a-t-elle été créée ?", "options": ["2012", "2005", "2018", "1999"], "correct": 0, "theme": "entreprise" }
+  { "q": "En quelle année Famiflora a-t-elle été créée ?", "q_nl": "In welk jaar werd Famiflora opgericht?", "options": ["2012", "2005", "2018", "1999"], "options_nl": ["2012", "2005", "2018", "1999"], "correct": 0, "theme": "entreprise" }
 ]
