@@ -1639,6 +1639,12 @@ function estBorne() { return ECRAN === "borne"; }
 // Retour « accueil » : dans la borne, on RESTE dans la borne (on ne s'échappe pas
 // vers le quiz). Renvoie true si on a bien géré la redirection.
 function retourAccueilBorne() { if (estBorne()) { location.href = quizBase() + "borne"; return true; } return false; }
+// 🖥️ Autocomplétion des champs : COUPÉE sur la borne (appareil partagé) pour ne
+// pas proposer les coordonnées du visiteur précédent ; conservée sur un appareil
+// perso (téléphone/ordi), où c'est pratique. Renvoie les attributs à injecter.
+function autoComp(valeur) {
+  return estBorne() ? 'autocomplete="off" autocorrect="off"' : ('autocomplete="' + valeur + '"');
+}
 
 // 🎁 Petite fenêtre (modale) pour l'issue d'un code : inconnu, déjà utilisé, déjà à toi.
 // texte peut contenir du HTML simple (emoji, <br>) — il vient de nos propres chaînes.
@@ -2691,10 +2697,10 @@ function ouvreConnexionFami() {
     <div style="background:#eef6ec; border:1px solid #d7e8d2; border-radius:12px; padding:10px 14px; margin:0 0 16px; font-size:.92rem; color:#3f4a41; line-height:1.45;">${t("📩 <b>Tu as déjà donné ton adresse mail ?</b> Tes identifiants t'ont été envoyés par e-mail : regarde ta boîte de réception <b>et tes spams / courriers indésirables</b>.", "📩 <b>Heb je je e-mailadres al doorgegeven?</b> Je gegevens zijn je per e-mail bezorgd: kijk in je inbox <b>en je spam / ongewenste e-mail</b>.")}</div>
     <div id="cf-err"></div>
     <label class="lbl">${t("Identifiant", "Gebruikersnaam")}</label>
-    <input class="field" id="cf-id" autocomplete="username" placeholder="${t("Identifiant", "Gebruikersnaam")}">
+    <input class="field" id="cf-id" ${autoComp("username")} placeholder="${t("Identifiant", "Gebruikersnaam")}">
     <label class="lbl">${t("Mot de passe", "Wachtwoord")}</label>
     <div style="position:relative; margin-bottom:14px;">
-      <input class="field" id="cf-mdp" type="password" autocomplete="current-password" placeholder="${t("Mot de passe", "Wachtwoord")}" style="margin:0; padding-right:48px; width:100%;">
+      <input class="field" id="cf-mdp" type="password" ${autoComp("current-password")} placeholder="${t("Mot de passe", "Wachtwoord")}" style="margin:0; padding-right:48px; width:100%;">
       <button type="button" id="cf-mdp-eye" title="${t("Afficher / masquer le mot de passe", "Wachtwoord tonen / verbergen")}" aria-label="${t("Afficher le mot de passe", "Wachtwoord tonen")}" style="position:absolute; right:6px; top:0; height:100%; display:flex; align-items:center; background:none; border:none; cursor:pointer; font-size:1.3rem; padding:0 8px;">👁️</button>
     </div>
     <button class="btn" id="cf-ok" style="width:100%; margin-top:6px;">${t("Se connecter 🌱", "Aanmelden 🌱")}</button>
@@ -2914,12 +2920,12 @@ function renderInscription() {
       <div id="ci-err"></div>
       <div class="insc-grid">
         <div><label class="lbl">${t("Prénom", "Voornaam")}</label>
-          <input class="field" id="ci-prenom" autocomplete="given-name" placeholder="${t("Ton prénom", "Je voornaam")}"></div>
+          <input class="field" id="ci-prenom" ${autoComp("given-name")} placeholder="${t("Ton prénom", "Je voornaam")}"></div>
         <div><label class="lbl">${t("Nom", "Naam")}</label>
-          <input class="field" id="ci-nom" autocomplete="family-name" placeholder="${t("Ton nom", "Je naam")}"></div>
+          <input class="field" id="ci-nom" ${autoComp("family-name")} placeholder="${t("Ton nom", "Je naam")}"></div>
       </div>
       <label class="lbl">${t("E-mail", "E-mail")}</label>
-      <input class="field" id="ci-email" type="email" autocomplete="email" placeholder="ton.email@exemple.be">
+      <input class="field" id="ci-email" type="email" ${autoComp("email")} placeholder="ton.email@exemple.be">
       <button class="btn" id="ci-ok" style="width:100%; margin-top:8px;">${t("Recevoir mon lien de connexion 🎁", "Mijn aanmeldlink ontvangen 🎁")}</button>
       <p class="hint" style="text-align:center; margin:10px 0 0;">${t("On t'envoie tout de suite un e-mail avec ton lien pour <b>créer ton compte Famiformation</b> (choisir ton mot de passe). Sans <b>prénom + nom</b>, tu ne seras pas éligible aux récompenses.", "We sturen je meteen een e-mail met je link om <b>je Famiformation-account aan te maken</b> (een wachtwoord kiezen). Zonder <b>voornaam + naam</b> kom je niet in aanmerking voor de prijzen.")}<br>
         ${t("En t'inscrivant, tu acceptes notre <a href=\"#\" id=\"ci-rgpd\" class=\"lien\">politique de confidentialité</a>.", "Door je in te schrijven aanvaard je ons <a href=\"#\" id=\"ci-rgpd\" class=\"lien\">privacybeleid</a>.")}</p>
