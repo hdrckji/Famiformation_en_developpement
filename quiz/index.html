@@ -622,10 +622,6 @@ body.mode-tele .lang-switch { display: none; }   /* pas sur la télé */
   .home .borne-modules { grid-template-columns: 1fr; }
   .home .borne-mod { min-height: clamp(150px, 22vh, 260px); }
   .home .bm-emo { font-size: clamp(2.6rem, 12vw, 3.8rem); }
-  /* 📱 On dégage le haut : le titre ne passe plus sous les boutons fixes
-     (FR/NL à gauche, bulle « c'est quoi Famiformation » / déconnexion à droite).
-     Le body a déjà 24px en haut, on complète juste. */
-  .home { padding-top: 46px; }
 }
 /* 📱 Vrai téléphone (9:16) : la bulle devient une pastille compacte (icône seule)
    pour ne plus empiéter sur le titre ni gêner au scroll. */
@@ -636,9 +632,10 @@ body.mode-tele .lang-switch { display: none; }   /* pas sur la télé */
   .lang-switch { top: 10px; left: 10px; }
   .lang-switch button { padding: 5px 11px; font-size: .84rem; }
   .btn-deco { top: 10px; right: 10px; padding: 8px 10px; }
-  /* Titre d'accueil plus petit → les boutons FR/NL et la bulle ne mordent plus
-     dessus, et on laisse plus de marge en haut. */
-  .home { padding-top: 56px; }
+  /* 📱 On pousse TOUT le haut (en-tête logo + titre inclus, qui est AU-DESSUS de
+     .home) sous la rangée des boutons fixes FR/NL et bulle → plus aucun
+     chevauchement. Le body passe de 24px à 60px en haut. */
+  body { padding-top: 60px; }
   .home .borne-titre { font-size: clamp(1.35rem, 6.4vw, 1.9rem); line-height: 1.15; }
   .home .borne-sous { font-size: clamp(.98rem, 3.4vw, 1.2rem); margin-bottom: 20px; }
   /* 🎗️ Page info « c'est quoi Famiformation » : sur écran étroit, le titre du
