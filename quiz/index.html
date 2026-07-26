@@ -420,6 +420,19 @@ span.tk-inline svg { width: 100%; height: auto; display: block; }
 .tv-tree { font-size: clamp(2rem, 5.5vw, 3.6rem); line-height: 1; margin-top: 14px;
   animation: grow 2.4s ease-in-out infinite; }
 
+/* 🎉 Bloc « Événements » (accueil Mouscron) — orange / marron clair, cliquable. */
+.home-event { display: flex; align-items: center; gap: 14px; width: 100%; max-width: 640px;
+  margin: 18px auto 0; padding: 16px 20px; cursor: pointer; text-align: left;
+  border: none; border-radius: 18px; color: #5a3410;
+  background: linear-gradient(135deg, #F4C58C 0%, #E1934E 55%, #C97B3D 100%);
+  box-shadow: 0 8px 22px rgba(201,123,61,.32); transition: transform .15s, box-shadow .15s; }
+.home-event:hover, .home-event:active { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(201,123,61,.4); }
+.home-event .he-emo { font-size: 2rem; line-height: 1; }
+.home-event .he-txt { flex: 1; display: flex; flex-direction: column; line-height: 1.25; }
+.home-event .he-txt b { font-family: 'Fredoka', sans-serif; font-size: 1.25rem; }
+.home-event .he-txt span { font-size: .92rem; opacity: .9; }
+.home-event .he-fleche { font-size: 1.8rem; font-weight: 800; opacity: .7; }
+
 /* --- La BORNE : plein écran, 3 grandes tuiles tactiles sur toute la largeur --- */
 body.mode-borne { justify-content: center; padding: 20px 2vw; }
 body.mode-borne #app { width: 100%; }
@@ -3785,6 +3798,11 @@ function renderHome() {
         <span class="bm-desc">${t("Ticket glace à gagner 🎁", "IJsjesticket te winnen 🎁")}</span>
       </button>
     </div>
+    ${SITE === "mouscron" ? `<button class="home-event" id="home-event">
+      <span class="he-emo">🎉</span>
+      <span class="he-txt"><b>${t("Événements", "Evenementen")}</b><span>${t("Ce qui se passe pour fêter le lancement 🥂", "Wat er gebeurt om de lancering te vieren 🥂")}</span></span>
+      <span class="he-fleche">›</span>
+    </button>` : ""}
     <div class="home-tease">${t("🎯 Le but : récolte un max de <b>graines</b> au quiz. Le <b>podium repart avec de très belles récompenses</b> — et en <b>terminant ton jardin</b>, tu gagnes toi aussi&nbsp;! 🌼", "🎯 Het doel: verzamel zoveel mogelijk <b>zaadjes</b> in de quiz. Het <b>podium wint heel mooie prijzen</b> — en door <b>je tuin af te werken</b> win jij ook&nbsp;! 🌼")}</div>
     <div class="home-liens">
       <button class="lien-explik" id="home-explik">${t("✨ Comment ça marche ?", "✨ Hoe werkt het?")}</button>
@@ -3841,10 +3859,34 @@ function renderHome() {
   if (bb) bb.addEventListener("click", () => { userView = "board"; quiz = null; render(); });
   const brg = app.querySelector("#home-rgpd");
   if (brg) brg.addEventListener("click", () => ouvrePageInfo("confidentialite"));
+  const bev = app.querySelector("#home-event");
+  if (bev) bev.addEventListener("click", modaleEvenements);
   // 🔧 Réconciliation des barres flottantes même si renderHome a été appelée
   // directement (renderEspace, retourAccueilVerrou, renderRetrouver) : sur l'accueil
   // il ne doit RESTER ni la barre borne « Retour/Accueil » ni le bouton Déconnexion.
   majNavBorne("home"); majDeco("home");
+}
+
+// 🎉 Modale « Événements » (accueil Mouscron) : les apéritifs de lancement.
+function modaleEvenements() {
+  if (document.querySelector(".modal-fond")) return;
+  const o = document.createElement("div");
+  o.className = "modal-fond";
+  o.innerHTML = `<div class="modal code-modal">
+    <div class="cm-emoji">🥂</div>
+    <h2 class="cm-titre">${t("Événements de lancement", "Lanceringsevenementen")}</h2>
+    <p class="cm-sous">${t("Pour <b>fêter le lancement du site</b>, on organise des <b>apéritifs</b> pendant le <b>temps de pause du midi</b> 🎉", "Om de <b>lancering van de site</b> te vieren, organiseren we <b>aperitieven</b> tijdens de <b>middagpauze</b> 🎉")}</p>
+    <div style="background:#fff4e2; border:1px solid #f0c98c; border-radius:14px; padding:12px 16px; margin:6px 0 16px; color:#5a3410; font-weight:700; line-height:1.6;">
+      🗓️ ${t("du <b>29 au 31/08</b>", "van <b>29 tot 31/08</b>")}<br>
+      🗓️ ${t("du <b>20 au 22/08</b>", "van <b>20 tot 22/08</b>")}
+    </div>
+    <p class="cm-sous" style="margin:0 0 16px;">${t("Passe nous voir sur ta pause — à très vite ! 🥂", "Kom langs tijdens je pauze — tot snel! 🥂")}</p>
+    <button class="btn" id="ev-ok" style="min-width:160px;">${t("Super ! 🎉", "Top! 🎉")}</button>
+  </div>`;
+  document.body.appendChild(o);
+  const ferme = () => o.remove();
+  o.querySelector("#ev-ok").addEventListener("click", ferme);
+  o.addEventListener("click", (e) => { if (e.target === o) ferme(); });
 }
 
 // 🔒 Message affiché quand on clique le module « Quiz & mon espace jardin »
