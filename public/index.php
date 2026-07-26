@@ -134,6 +134,11 @@ $isAdmin = ($role === 'admin');
 ensureModulesTable($db);
 famiFixLegacyDrafts($db); // débloque le contenu admin caché par l'ancienne règle (une seule fois)
 $dynamicModules = getModules($db, null, !$isAdmin); // l'admin voit aussi les modules inactifs
+// 🧪 Les modules réservés à la BETA (roles=beta) ne polluent PAS l'accueil normal
+// (ni admin ni autres) : ils ne se gèrent que depuis l'espace beta dédié.
+$dynamicModules = array_values(array_filter($dynamicModules, function ($m) {
+    return trim((string) ($m['roles'] ?? '')) !== 'beta';
+}));
 // Carte nom -> id des modules racine (pour router les tuiles conteneur vers le moteur module.php)
 $rootModuleIds = [];
 foreach (getModules($db, null, false) as $rm) {
@@ -601,6 +606,11 @@ if ($wcThemeOn && !empty($siteTheme) && is_array($siteTheme)) {
             <div class="tile-media"><span class="tile-icon">🧩</span></div>
             <div class="tile-title"><?= t('Gestion Quiz', 'Quizbeheer') ?></div>
             <div class="tile-desc"><?= t('Contrôler et corriger tous les quiz.', 'Alle quizzen nakijken en corrigeren.') ?></div>
+        </a>
+        <a href="gestion-beta.php" class="tile tile-admin">
+            <div class="tile-media"><span class="tile-icon">🧪</span></div>
+            <div class="tile-title"><?= t('Espace Beta', 'Beta-ruimte') ?></div>
+            <div class="tile-desc"><?= t('Ton espace pour déposer le contenu de la version beta (PDF + vidéos).', 'Jouw ruimte om de inhoud van de betaversie te uploaden (PDF + video\'s).') ?></div>
         </a>
         <a href="admin_questions.php" class="tile tile-admin">
             <div class="tile-media"><span class="tile-icon">🗄️</span></div>
