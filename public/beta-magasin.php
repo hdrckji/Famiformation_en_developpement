@@ -54,10 +54,17 @@ $rayons = [
         .badge-soon { position: absolute; top: -10px; right: -8px; background: #8a8f95; color: #fff; font-size: .72rem; font-weight: 800; padding: 4px 11px; border-radius: 20px; box-shadow: 0 3px 8px rgba(0,0,0,.18); }
         .back-link { margin: 6px 0 40px; color: #2d5a37; text-decoration: none; font-weight: bold; background: #fff; padding: 12px 25px; border-radius: 25px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
         .back-link:hover { background: #2d5a37; color: #fff; }
+        .lang-sw { position: fixed; top: 12px; right: 12px; z-index: 50; display: inline-flex; background: #fff; border: 2px solid #2d5a37; border-radius: 999px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .lang-sw a { padding: 7px 14px; font-weight: 700; font-size: .85rem; text-decoration: none; color: #2d5a37; }
+        .lang-sw a.on { background: #2d5a37; color: #fff; }
         @media (max-width: 560px) { .tiles-container { grid-template-columns: 1fr; } h1 { font-size: 1.25rem; } }
     </style>
 </head>
 <body>
+    <span class="lang-sw">
+        <a href="?lang=fr" class="<?= currentLang() === 'fr' ? 'on' : '' ?>">FR</a>
+        <a href="?lang=nl" class="<?= currentLang() === 'nl' ? 'on' : '' ?>">NL</a>
+    </span>
     <div class="header">
         <img src="logo.png" alt="Famiflora" class="logo">
         <h1>🛒 <?= t('Le magasin', 'De winkel') ?></h1>

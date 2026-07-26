@@ -32,6 +32,10 @@ $userPhoto = $_SESSION['photo_profil'] ?? null;
         .user-avatar { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; border: 3px solid #2d5a37; }
         .user-avatar-placeholder { width: 48px; height: 48px; border-radius: 50%; background: #e8f5e9; border: 3px solid #2d5a37; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; }
         .btn-logout { background: rgba(255,255,255,0.9); color: #d93025; text-decoration: none; padding: 11px 22px; border-radius: 30px; font-weight: bold; font-size: .9rem; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .lang-sw { display: inline-flex; background: #fff; border: 2px solid #2d5a37; border-radius: 999px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .lang-sw a { padding: 7px 14px; font-weight: 700; font-size: .85rem; text-decoration: none; color: #2d5a37; }
+        .lang-sw a.on { background: #2d5a37; color: #fff; }
+        .nav-right { display: flex; align-items: center; gap: 10px; }
 
         /* 🧪 Bandeau BETA */
         .beta-banner { width: 92%; max-width: 900px; margin: 10px auto 0; background: linear-gradient(135deg,#fff4d6,#ffe4a3);
@@ -67,7 +71,13 @@ $userPhoto = $_SESSION['photo_profil'] ?? null;
             <?php endif; ?>
             <span><?= htmlspecialchars($userNom ?: ($_SESSION['username'] ?? '')) ?></span>
         </a>
-        <a href="logout.php" class="btn-logout">Déconnexion</a>
+        <div class="nav-right">
+            <span class="lang-sw">
+                <a href="?lang=fr" class="<?= currentLang() === 'fr' ? 'on' : '' ?>">FR</a>
+                <a href="?lang=nl" class="<?= currentLang() === 'nl' ? 'on' : '' ?>">NL</a>
+            </span>
+            <a href="logout.php" class="btn-logout"><?= t('Déconnexion', 'Afmelden') ?></a>
+        </div>
     </div>
 
     <div class="beta-banner">
