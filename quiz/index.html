@@ -252,11 +252,25 @@ body.mode-tele .fami-magasin { font-size: clamp(1rem, 2.4vw, 1.4rem); }
 .rank-stade { font-size: 1.25rem; }
 
 /* --- Pastilles de navigation (après avoir joué) --- */
-.pills { display: flex; gap: 8px; background: var(--craie); padding: 6px; border-radius: 999px;
-         margin-bottom: 20px; box-shadow: 0 4px 18px rgba(14,59,36,.10); }
-.pills button { border: none; background: transparent; cursor: pointer; font-family: 'Fredoka', sans-serif;
-                font-weight: 600; font-size: .95rem; color: var(--foret); padding: 9px 18px; border-radius: 999px; }
+.pills { display: flex; gap: 6px; background: var(--craie); padding: 6px; border-radius: 999px;
+         margin: 0 auto 20px; box-shadow: 0 4px 18px rgba(14,59,36,.10);
+         width: 100%; max-width: 560px; box-sizing: border-box; }
+.pills button { flex: 1 1 0; min-width: 0; display: flex; align-items: center; justify-content: center; gap: 6px;
+                border: none; background: transparent; cursor: pointer; font-family: 'Fredoka', sans-serif;
+                font-weight: 600; font-size: .92rem; color: var(--foret); padding: 9px 8px; border-radius: 999px;
+                white-space: nowrap; overflow: hidden; }
 .pills button.on { background: var(--pousse); color: var(--craie); }
+.pills .pe { font-size: 1.05rem; line-height: 1; flex: none; }
+.pills .pl { overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 470px) {
+  .pills { gap: 3px; padding: 4px; }
+  .pills button { font-size: .78rem; padding: 8px 4px; gap: 3px; }
+}
+@media (max-width: 380px) {
+  .pills .pl { display: none; }   /* trop étroit : on garde l'emoji (tout tient) */
+  .pills button { padding: 9px 4px; }
+  .pills .pe { font-size: 1.2rem; }
+}
 
 /* --- Le jardin collectif --- */
 .jardin-solde {
@@ -2254,11 +2268,13 @@ function modaleJardinGagne() {
 // Pastilles Classement / Jardin, affichées quand le joueur a fini le quiz
 // (ou s'est identifié) : il peut circuler entre les deux librement.
 function pillsHtml(active) {
+  const pill = (p, emo, lab, on) =>
+    `<button data-p="${p}"${on ? ' class="on"' : ""} title="${esc(lab)}"><span class="pe">${emo}</span><span class="pl">${lab}</span></button>`;
   return `<div class="pills">
-    ${joueur ? `<button data-p="dashboard">${t("🏠 Mon espace", "🏠 Mijn ruimte")}</button>` : ""}
-    <button data-p="board" class="${active === "board" ? "on" : ""}">${t("🏆 Classement", "🏆 Ranking")}</button>
-    <button data-p="jardin" class="${active === "jardin" ? "on" : ""}">${t("🌼 Mon jardin", "🌼 Mijn tuin")}</button>
-    <button data-p="reclamer" class="${active === "reclamer" ? "on" : ""}">${t("🎁 Code", "🎁 Code")}</button>
+    ${joueur ? pill("dashboard", "🏠", t("Mon espace", "Mijn ruimte"), false) : ""}
+    ${pill("board", "🏆", t("Classement", "Ranking"), active === "board")}
+    ${pill("jardin", "🌼", t("Mon jardin", "Mijn tuin"), active === "jardin")}
+    ${pill("reclamer", "🎁", t("Code", "Code"), active === "reclamer")}
   </div>`;
 }
 function bindPills() {
