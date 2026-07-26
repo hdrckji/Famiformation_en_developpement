@@ -2211,7 +2211,7 @@ function modaleJardinGagne() {
     <div class="cm-emoji">🏆</div>
     <h2 class="cm-titre">${t("Bravo, tu as gagné !", "Bravo, je hebt gewonnen!")}</h2>
     <p class="cm-sous">${t("Tu as <b>complété tout ton jardin</b> et planté les <b>3 lotus</b> (or, argent, bronze) 🌸", "Je hebt <b>je hele tuin voltooid</b> en de <b>3 lotussen</b> (goud, zilver, brons) geplant 🌸")}<br>
-      ${t("Tu fais officiellement partie des <b>gagnants du jardin</b> — une <b>récompense t'attend</b> ! 🎁", "Je hoort officieel bij de <b>winnaars van de tuin</b> — een <b>beloning wacht op je</b>! 🎁")}</p>
+      ${t("Tu fais officiellement partie des <b>gagnants du jardin</b> 🎁 <b>Va récupérer ta récompense auprès des RH</b> du magasin.", "Je hoort officieel bij de <b>winnaars van de tuin</b> 🎁 <b>Haal je beloning op bij de HR</b> van de winkel.")}</p>
     <button class="btn" id="cm-ok" style="min-width:200px;">${t("Trop bien ! 🌟", "Geweldig! 🌟")}</button>
   </div>`;
   document.body.appendChild(o);
@@ -3137,8 +3137,21 @@ function renderDashboard() {
   // essayer. En vrai, le quiz ne se fait qu'une fois et le jardin s'ouvre après.
   const quizFait = toutOuvert() ? false : !!joueur.quizFait;
   const jardinOk = toutOuvert() ? true : quizFait;
+  // 🏆 Vainqueur : quand l'événement est TERMINÉ, si le joueur connecté est dans
+  // le top 3 du classement final, on l'en félicite et on l'oriente vers les RH.
+  let rangFinal = 0;
+  if (phase === "termine" && joueur) {
+    const classe = (board || []).filter((p) => p.quiz_fait !== false && !COMPTES_TEST.includes((p.name || "").toLowerCase()))
+      .slice().sort((a, b) => (b.score - a.score) || ((a.time || 0) - (b.time || 0)));
+    const idx = classe.findIndex((p) => (p.name || "").toLowerCase() === (joueur.name || "").toLowerCase());
+    if (idx >= 0 && idx < 3) rangFinal = idx + 1;
+  }
+  const ordinal = (r) => t(r === 1 ? "1er" : r + "e", r + "e");
   app.innerHTML = `<div class="home">
     <div class="dash-hello">${t("Salut", "Hallo")} <b>${esc(joueur.name)}</b> 🌱 <span>${affG(joueur.recoltees)} ${t("graines récoltées", "zaadjes geoogst")}</span></div>
+    ${rangFinal ? `<div class="alert ok" style="max-width:660px;margin:0 auto 16px;background:#fff7e4;border:2px solid #E9A93C;color:#7a4a11;font-weight:600;">
+      🏆 ${t("Bravo, tu finis <b>" + ordinal(rangFinal) + "</b> du classement ! Va <b>récupérer ta récompense auprès des RH</b> du magasin (dès le 01/09).", "Proficiat, je eindigt <b>" + ordinal(rangFinal) + "</b> in de ranking! <b>Haal je beloning op bij de HR</b> van de winkel (vanaf 01/09).")}
+    </div>` : ""}
     ${jardinMsg ? `<div class="alert" style="max-width:640px;margin:0 auto 16px;">${esc(jardinMsg)}</div>` : ""}
     <div class="borne-modules dash-modules">
       <button class="borne-mod${quizOuvert && !quizFait ? "" : " mod-inactif"}" id="dash-quiz">
