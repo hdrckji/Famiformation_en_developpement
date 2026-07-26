@@ -1640,9 +1640,15 @@ function oublieMoi() { try { localStorage.removeItem(LS_MOI); } catch (e) {} }
 function sauveJeton(j) { if (SIMULATION || estBorne()) return; try { localStorage.setItem(LS_JETON, j || ""); } catch (e) {} }
 function chargeJeton() { if (SIMULATION || estBorne()) return ""; try { return localStorage.getItem(LS_JETON) || ""; } catch (e) { return ""; } }
 function oublieJeton() { try { localStorage.removeItem(LS_JETON); } catch (e) {} }
-function metCodeAttente(c) { if (SIMULATION) return; try { localStorage.setItem(LS_ATTENTE, c); } catch (e) {} }
-function litCodeAttente() { if (SIMULATION) return ""; try { return localStorage.getItem(LS_ATTENTE) || ""; } catch (e) { return ""; } }
-function videCodeAttente() { try { localStorage.removeItem(LS_ATTENTE); } catch (e) {} }
+// 🎟️ CODE EN ATTENTE (saisi AVANT d'être connecté) : gardé UNIQUEMENT en mémoire
+// vive — plus dans le stockage. Il disparaît donc dès qu'on ferme ou recharge la
+// page. Conséquence voulue : un code saisi sans se connecter n'est JAMAIS réclamé
+// plus tard (ni par un autre compte, ni par soi après être reparti). Pour créditer
+// un code, il faut être connecté au moment où on le valide (même session).
+let codeAttenteMem = null;
+function metCodeAttente(c) { if (SIMULATION) return; codeAttenteMem = c || null; }
+function litCodeAttente() { if (SIMULATION) return ""; return codeAttenteMem || ""; }
+function videCodeAttente() { codeAttenteMem = null; try { localStorage.removeItem(LS_ATTENTE); } catch (e) {} }
 
 // 🖥️ Sommes-nous dans le parcours BORNE ? (le flag est posé au clic d'un module.)
 // 🖥️ Borne ou téléphone ? UNE SEULE source de vérité : l'URL. /quiz/<ville>/borne
@@ -2274,7 +2280,11 @@ function renderBoard() {
   const bc = $("#b-compte");
   if (bc) bc.addEventListener("click", () => { jardinMsg = null; userView = "retrouver"; quiz = null; render(); });
   $("#b-explik").addEventListener("click", ouvreExplication);
-  $("#b-refresh").addEventListener("click", async () => { board = await apiGetBoard(); renderBoard(); });
+  $("#b-refresh").addEventListener("click", async () => { board = await apiGetBoard(); render(); });
+  // 🔧 On réconcilie les barres flottantes même si renderBoard a été appelée
+  // directement (hors du routeur render) : sinon la barre borne « Retour/Accueil »
+  // ou le bouton Déconnexion pouvaient rester affichés à tort en changeant de vue.
+  majNavBorne("board"); majDeco("board");
 }
 
 /* ============================================================
@@ -3734,6 +3744,10 @@ function renderHome() {
   if (bb) bb.addEventListener("click", () => { userView = "board"; quiz = null; render(); });
   const brg = app.querySelector("#home-rgpd");
   if (brg) brg.addEventListener("click", () => ouvrePageInfo("confidentialite"));
+  // 🔧 Réconciliation des barres flottantes même si renderHome a été appelée
+  // directement (renderEspace, retourAccueilVerrou, renderRetrouver) : sur l'accueil
+  // il ne doit RESTER ni la barre borne « Retour/Accueil » ni le bouton Déconnexion.
+  majNavBorne("home"); majDeco("home");
 }
 
 // 🔒 Message affiché quand on clique le module « Quiz & mon espace jardin »
