@@ -973,7 +973,7 @@ body.mode-tele #app { flex: 0 0 auto; }
 
 <header class="fami-head">
   <div class="fami-logo">Famiformation <span>●</span></div>
-  <div class="fami-tag">Le grand quiz de lancement</div>
+  <div class="fami-tag" id="fami-tag">Le grand quiz de lancement</div>
   <div class="fami-magasin" id="fami-magasin"></div>
 </header>
 
@@ -1594,6 +1594,9 @@ function majLangSwitch() {
     s.querySelectorAll("[data-lang]").forEach((b) => b.addEventListener("click", () => setLang(b.dataset.lang)));
   }
   s.querySelectorAll("[data-lang]").forEach((b) => b.classList.toggle("on", b.dataset.lang === LANG));
+  // Le tag sous le logo (en-tête fixe) suit aussi la langue — y compris sur la télé.
+  const tag = document.getElementById("fami-tag");
+  if (tag) tag.textContent = t("Le grand quiz de lancement", "De grote lanceringsquiz");
 }
 
 // 🔒 Module « Quiz & mon espace jardin » de l'accueil : VERROUILLÉ pour tout le
