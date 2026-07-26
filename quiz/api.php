@@ -780,14 +780,16 @@ function mailRecompense(PDO $db, $cle, $info) {
     $rang = (int) ($info['rang'] ?? 0);
     $sujet = '🏆 Bravo — ta récompense t\'attend chez Famiflora !';
     $intro = 'Félicitations, tu termines <b>' . ($rang === 1 ? '1er' : $rang . 'e') . '</b> du grand quiz Famiformation&nbsp;! 🎉';
+    $quand = ' (à partir du <b>01/09</b>)';   // podium : remise à partir du 01/09
   } else {
     $sujet = '🎁 Bravo — ta récompense t\'attend chez Famiflora !';
     $intro = 'Bravo, tu as <b>terminé ton jardin</b> — tu fais partie des gagnants&nbsp;! 🌼';
+    $quand = '';                              // jardin : récompense dispo dès maintenant (pas d\'attente)
   }
   $body = '<div style="font-family:Arial,sans-serif;color:#244230;max-width:560px;margin:0 auto;padding:24px;">'
     . '<p style="font-size:16px;">Bonjour ' . htmlspecialchars($bonjour, ENT_QUOTES, 'UTF-8') . ',</p>'
     . '<p style="font-size:16px;line-height:1.6;">' . $intro . '</p>'
-    . '<p style="font-size:16px;line-height:1.6;">Pour <b>récupérer ta récompense</b>, présente-toi <b>auprès des RH</b> du magasin (à partir du <b>01/09</b>). '
+    . '<p style="font-size:16px;line-height:1.6;">Pour <b>récupérer ta récompense</b>, présente-toi <b>auprès des RH</b> du magasin' . $quand . '. '
     . 'Une question&nbsp;? Écris à <a href="mailto:admin@famiformation.com">admin@famiformation.com</a>.</p>'
     . '<p style="font-size:15px;color:#617268;">Merci d\'avoir joué, et à bientôt&nbsp;! 🌱<br>L\'équipe Famiflora · Famiformation</p></div>';
   return function_exists('sendMail') ? sendMail($email, $sujet, $body, true) : false;
@@ -1481,14 +1483,16 @@ switch ($action) {
       if ($info['type'] === 'podium') {
         $sujet = '🏆 Bravo — ta récompense t\'attend chez Famiflora !';
         $intro = 'Félicitations, tu termines <b>' . ($info['rang'] == 1 ? '1er' : $info['rang'] . 'e') . '</b> du grand quiz Famiformation&nbsp;! 🎉';
+        $quand = ' (à partir du <b>01/09</b>)';   // podium : remise à partir du 01/09
       } else {
         $sujet = '🎁 Bravo — ta récompense t\'attend chez Famiflora !';
         $intro = 'Bravo, tu as <b>terminé ton jardin</b> — tu fais partie des gagnants&nbsp;! 🌼';
+        $quand = '';                              // jardin : récompense dispo dès maintenant
       }
       $body = '<div style="font-family:Arial,sans-serif;color:#244230;max-width:560px;margin:0 auto;padding:24px;">'
         . '<p style="font-size:16px;">Bonjour ' . htmlspecialchars($bonjour, ENT_QUOTES, 'UTF-8') . ',</p>'
         . '<p style="font-size:16px;line-height:1.6;">' . $intro . '</p>'
-        . '<p style="font-size:16px;line-height:1.6;">Pour <b>récupérer ta récompense</b>, présente-toi <b>auprès des RH</b> du magasin (à partir du <b>01/09</b>). '
+        . '<p style="font-size:16px;line-height:1.6;">Pour <b>récupérer ta récompense</b>, présente-toi <b>auprès des RH</b> du magasin' . $quand . '. '
         . 'Une question&nbsp;? Écris à <a href="mailto:admin@famiformation.com">admin@famiformation.com</a>.</p>'
         . '<p style="font-size:15px;color:#617268;">Merci d\'avoir joué, et à bientôt&nbsp;! 🌱<br>L\'équipe Famiflora · Famiformation</p></div>';
       $ok = function_exists('sendMail') ? sendMail($email, $sujet, $body, true) : false;

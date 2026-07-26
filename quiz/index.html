@@ -2486,15 +2486,20 @@ function renderJardin() {
 
   // 🎉 Au moment PRÉCIS où l'objectif est atteint : une modale « tu as gagné »,
   // une seule fois (mémorisé pour ne pas re-popper à chaque visite/rechargement).
+  const cleFete = "fj_jgagne_" + SITE + "_" + (joueur ? joueur.name.toLowerCase() : "");
   if (eligible && !jardinObjectifFete) {
-    const cle = "fj_jgagne_" + SITE + "_" + (joueur ? joueur.name.toLowerCase() : "");
     let deja = false;
-    if (!SIMULATION) { try { deja = localStorage.getItem(cle) === "1"; } catch (e) {} }
+    if (!SIMULATION) { try { deja = localStorage.getItem(cleFete) === "1"; } catch (e) {} }
     if (!deja) {
       jardinObjectifFete = true;
-      if (!SIMULATION) { try { localStorage.setItem(cle, "1"); } catch (e) {} }
+      if (!SIMULATION) { try { localStorage.setItem(cleFete, "1"); } catch (e) {} }
       setTimeout(() => modaleJardinGagne(), 500);   // après le rendu de la grille
     }
+  } else if (!eligible) {
+    // Jardin plus complet (ex. après un reset admin) : on ré-arme la fête pour qu'elle
+    // repop la prochaine fois qu'il sera terminé.
+    jardinObjectifFete = false;
+    if (!SIMULATION) { try { localStorage.removeItem(cleFete); } catch (e) {} }
   }
 
   app.innerHTML = `${DEFS_METAL}<div class="board-wrap">${pillsHtml("jardin")}<div class="card">
