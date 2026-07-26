@@ -145,6 +145,7 @@ function rendre() {
     </div>
     <div class="top">
       <button class="btn ghost" id="rafraichir">🔄 Rafraîchir</button>
+      <button class="btn" id="mailer">✉️ Prévenir par mail</button>
       <span class="spacer"></span>
       <button class="btn ghost" id="deco">Se déconnecter</button>
     </div>
@@ -160,6 +161,21 @@ function rendre() {
   }));
   $("#rafraichir").addEventListener("click", charger);
   $("#deco").addEventListener("click", () => { auth = null; localStorage.removeItem("fj_rh_auth"); vueLogin(); });
+  $("#mailer").addEventListener("click", async () => {
+    const n = (data.podium || []).length + (data.jardin || []).length;
+    if (!n) { $("#msg").innerHTML = `<div class="msg">Personne à prévenir pour l'instant.</div>`; return; }
+    if (!confirm(`Envoyer un e-mail « viens voir les RH pour ta récompense » aux vainqueurs et jardins terminés du magasin ${SITES[site]} ?\n\nChaque personne n'est prévenue qu'une seule fois.`)) return;
+    const b = $("#mailer"); b.disabled = true; b.textContent = "Envoi…";
+    const r = await post("rh_mail");
+    b.disabled = false; b.textContent = "✉️ Prévenir par mail";
+    if (r.status === 401) { auth = null; localStorage.removeItem("fj_rh_auth"); vueLogin("Session expirée, reconnecte-toi."); return; }
+    if (!r.ok || !r.data || !r.data.ok) { $("#msg").innerHTML = `<div class="msg err">${(r.data && r.data.reason === "base_indisponible") ? "Base injoignable, réessaie plus tard." : "Envoi impossible, réessaie."}</div>`; return; }
+    const d = r.data;
+    $("#msg").innerHTML = `<div class="msg ok">✅ ${d.envoye} mail(s) envoyé(s)`
+      + (d.deja ? ` · ${d.deja} déjà prévenu(s)` : "")
+      + (d.sans_mail ? ` · ${d.sans_mail} sans e-mail` : "")
+      + (d.echec ? ` · ⚠️ ${d.echec} échec(s)` : "") + `.</div>`;
+  });
 
   document.querySelectorAll(".rh-row input").forEach((inp) => inp.addEventListener("change", async (e) => {
     const row = e.target.closest(".rh-row");

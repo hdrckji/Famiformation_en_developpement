@@ -1333,6 +1333,86 @@ switch ($action) {
     break;
   }
 
+  // ✉️ Prévenir par MAIL les vainqueurs (podium) + jardins terminés : message
+  // simple « viens récupérer ta récompense auprès des RH ». On ne renvoie qu'une
+  // fois par personne (suivi dans rh-<site>.json['prevenu']).
+  case 'rh_mail': {
+    exigeRh($input);
+    $db = famiDb();
+    if (!$db) { http_response_code(503); echo json_encode(['ok' => false, 'reason' => 'base_indisponible']); break; }
+    $board   = readJson($scoresFile);
+    $jardins = readJson($jardinFile);
+
+    // Cibles : identifiant (minuscule) => ['type'=>podium|jardin, 'rang'=>?]
+    $cibles = [];
+    $joueurs = [];
+    foreach ((is_array($board) ? $board : []) as $p) {
+      if (!is_array($p)) { continue; }
+      if (($p['quiz_fait'] ?? true) === false) { continue; }
+      if (in_array(mb_strtolower((string) ($p['name'] ?? '')), $COMPTES_TEST, true)) { continue; }
+      $joueurs[] = $p;
+    }
+    usort($joueurs, function ($a, $b) {
+      $d = floatval($b['score'] ?? 0) - floatval($a['score'] ?? 0);
+      if ($d > 0) { return 1; } if ($d < 0) { return -1; }
+      return intval($a['time'] ?? 0) - intval($b['time'] ?? 0);
+    });
+    $rang = 1;
+    foreach (array_slice($joueurs, 0, 3) as $p) { $cibles[mb_strtolower((string) $p['name'])] = ['type' => 'podium', 'rang' => $rang]; $rang++; }
+    if (is_array($jardins)) {
+      foreach ($jardins as $cle => $cases) {
+        if (!is_array($cases)) { continue; }
+        $nb = count($cases); $lotus = [];
+        foreach ($cases as $c) { $pl = is_array($c) ? (string) ($c['plante'] ?? '') : ''; if (in_array($pl, $LOTUS_REQUIS, true)) { $lotus[$pl] = true; } }
+        if ($nb >= $JARDIN_CASES && count($lotus) >= count($LOTUS_REQUIS) && !isset($cibles[$cle])) {
+          $cibles[$cle] = ['type' => 'jardin'];
+        }
+      }
+    }
+
+    $deja = readJson($rhFile);
+    $prevenus = (is_array($deja) && isset($deja['prevenu']) && is_array($deja['prevenu'])) ? $deja['prevenu'] : [];
+    $res = ['envoye' => 0, 'deja' => 0, 'sans_mail' => 0, 'echec' => 0];
+    $faits = [];
+    foreach ($cibles as $cle => $info) {
+      if (!empty($prevenus[$cle])) { $res['deja']++; continue; }
+      try {
+        $q = $db->prepare('SELECT email, prenom FROM utilisateurs WHERE LOWER(identifiant) = ? LIMIT 1');
+        $q->execute([$cle]);
+        $u = $q->fetch(PDO::FETCH_ASSOC);
+      } catch (Throwable $e) { $u = null; }
+      $email = $u ? trim((string) ($u['email'] ?? '')) : '';
+      if (!filter_var($email, FILTER_VALIDATE_EMAIL)) { $res['sans_mail']++; continue; }
+      $prenom = trim((string) ($u['prenom'] ?? ''));
+      $bonjour = $prenom !== '' ? $prenom : 'à toi';
+      if ($info['type'] === 'podium') {
+        $sujet = '🏆 Bravo — ta récompense t\'attend chez Famiflora !';
+        $intro = 'Félicitations, tu termines <b>' . ($info['rang'] == 1 ? '1er' : $info['rang'] . 'e') . '</b> du grand quiz Famiformation&nbsp;! 🎉';
+      } else {
+        $sujet = '🎁 Bravo — ta récompense t\'attend chez Famiflora !';
+        $intro = 'Bravo, tu as <b>terminé ton jardin</b> — tu fais partie des gagnants&nbsp;! 🌼';
+      }
+      $body = '<div style="font-family:Arial,sans-serif;color:#244230;max-width:560px;margin:0 auto;padding:24px;">'
+        . '<p style="font-size:16px;">Bonjour ' . htmlspecialchars($bonjour, ENT_QUOTES, 'UTF-8') . ',</p>'
+        . '<p style="font-size:16px;line-height:1.6;">' . $intro . '</p>'
+        . '<p style="font-size:16px;line-height:1.6;">Pour <b>récupérer ta récompense</b>, présente-toi <b>auprès des RH</b> du magasin (à partir du <b>01/09</b>). '
+        . 'Une question&nbsp;? Écris à <a href="mailto:admin@famiformation.com">admin@famiformation.com</a>.</p>'
+        . '<p style="font-size:15px;color:#617268;">Merci d\'avoir joué, et à bientôt&nbsp;! 🌱<br>L\'équipe Famiflora · Famiformation</p></div>';
+      $ok = function_exists('sendMail') ? sendMail($email, $sujet, $body, true) : false;
+      if ($ok) { $res['envoye']++; $faits[] = $cle; } else { $res['echec']++; }
+    }
+    if ($faits) {
+      withLock($rhFile, function (&$data, &$write) use ($faits) {
+        if (!is_array($data)) { $data = []; }
+        if (!isset($data['prevenu']) || !is_array($data['prevenu'])) { $data['prevenu'] = []; }
+        foreach ($faits as $c) { $data['prevenu'][$c] = 1; }
+        $write = true;
+      });
+    }
+    echo json_encode(['ok' => true] + $res, JSON_UNESCAPED_UNICODE);
+    break;
+  }
+
   // 🎁 Valider un code bonus (usage unique, premier arrivé premier servi).
   // « Premier arrivé premier servi » n'a de sens que si le test et la prise du
   // code sont indissociables : deux personnes qui scannent le MÊME QR code au
