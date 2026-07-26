@@ -644,6 +644,21 @@ body.mode-tele .lang-switch { display: none; }   /* pas sur la télé */
 .home .bm-titre { font-size: clamp(1.35rem, 3vw, 2.6rem); }
 .home .bm-desc { font-size: clamp(.95rem, 1.8vw, 1.5rem); }
 .home .bm-ticket .ticket-glace { width: clamp(110px, 15vw, 230px); }
+/* 🖥️ BORNE UNIQUEMENT : tout l'accueil doit tenir sur UN écran, sans scroll et
+   sans qu'un bloc soit coupé (ex. « Borne servant à… »), MÊME avec le bloc
+   Événements. On réduit la hauteur des tuiles (46vh → ~27vh) et on resserre les
+   espaces verticaux. N'affecte ni le téléphone ni la télé. */
+body.mode-borne { padding-top: 10px; padding-bottom: 10px; }
+body.mode-borne .home .borne-titre { font-size: clamp(1.8rem, 4vw, 3.4rem); }
+body.mode-borne .home .borne-sous { margin-bottom: clamp(8px, 1.4vh, 18px); }
+body.mode-borne .home .borne-mod { min-height: clamp(140px, 27vh, 340px);
+  padding: clamp(14px, 2.6vh, 34px) clamp(14px, 2vw, 30px); }
+body.mode-borne .home .bm-emo { font-size: clamp(2.6rem, 6.5vw, 4.6rem); }
+body.mode-borne .home .home-event { margin-top: clamp(8px, 1.3vh, 16px);
+  padding: clamp(9px, 1.4vh, 15px) 20px; }
+body.mode-borne .home .home-tease { margin-top: clamp(8px, 1.3vh, 16px); margin-bottom: 0; }
+body.mode-borne .home .home-liens { margin-top: clamp(6px, 1vh, 12px); }
+body.mode-borne .home .home-role { margin-top: clamp(8px, 1.2vh, 14px); }
 /* Téléphone / écran étroit : on empile en tuiles plus courtes. */
 @media (max-width: 720px) {
   .home .borne-modules { grid-template-columns: 1fr; }
