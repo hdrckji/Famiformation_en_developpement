@@ -779,7 +779,7 @@ function vueClassement() {
             <td class="num">${p.correct}</td>
             <td class="num">${p.codes}</td>
             <td class="num">${Math.floor(p.time / 60)} min ${p.time % 60} s</td>
-            <td><button class="btn danger small" data-del="${esc(p.name)}">Retirer</button></td>
+            <td style="white-space:nowrap;"><button class="btn ghost small" data-rj="${esc(p.name)}" title="Vider le jardin de ce joueur et lui rembourser ses graines (pour re-tester)">🌱 Reset jardin</button> <button class="btn danger small" data-del="${esc(p.name)}">Retirer</button></td>
           </tr>`).join("")}
       </table></div>` : `<p class="hint">Personne n'a encore joué.</p>`}
     </div>
@@ -800,6 +800,16 @@ function vueClassement() {
     await charger();
   }));
 
+  c.querySelectorAll("[data-rj]").forEach((el) => el.addEventListener("click", async () => {
+    const nom = el.dataset.rj;
+    if (!confirm(`Réinitialiser le jardin de « ${nom} » ?\n\nOn vide toutes ses cases et on lui rembourse ses graines dépensées (il pourra re-planter et re-terminer son jardin). Le mail « récompense » pourra repartir.`)) return;
+    const r = await post("reset_jardin_joueur", { name: nom });
+    if (r.status === 401) { auth = null; vueConnexion("Session expirée, reconnecte-toi."); return; }
+    if (!r.ok || !r.data || !r.data.ok) { message = { ok: false, texte: "Reset du jardin impossible." }; rendre(); return; }
+    message = { ok: true, texte: `Jardin de « ${nom} » remis à zéro.` };
+    await charger();
+  }));
+
   $("#c-reset").addEventListener("click", async () => {
     if (!confirm("Effacer TOUS les scores et libérer TOUS les codes bonus ?\n\nCette action est irréversible.")) return;
     if (!confirm("Confirmation : le classement sera définitivement vidé. Continuer ?")) return;
@@ -817,7 +827,7 @@ function stadeEmoji(graines) {
   if (graines >= 260) return "🌳";
   if (graines >= 200) return "🌸";
   if (graines >= 150) return "🌿";
-  if (graines >= 100) return "🪴";
+  if (graines >= 100) return "🍀";
   if (graines >= 50) return "🌱";
   return "🌰";
 }

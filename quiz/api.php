@@ -2218,6 +2218,31 @@ switch ($action) {
     break;
   }
 
+  // 🌱 RESET du jardin d'UN joueur (admin, pour re-tester) : on vide ses cases,
+  // on lui rembourse ses graines dépensées (depensees=0), et on efface son
+  // marqueur « prévenu » pour que le mail récompense puisse repartir à la
+  // prochaine complétion. Le classement (score) n'est PAS touché.
+  case 'reset_jardin_joueur': {
+    exigeAdmin($input);
+    $cle = mb_strtolower(trim((string) ($input['name'] ?? '')));
+    if ($cle === '') { echo json_encode(['ok' => false, 'reason' => 'nom_manquant']); break; }
+    $vide = withLock($jardinFile, function (&$j, &$write) use ($cle) {
+      if (is_array($j) && isset($j[$cle])) { unset($j[$cle]); $write = true; return true; }
+      return false;
+    });
+    withLock($scoresFile, function (&$board, &$write) use ($cle) {
+      foreach ($board as &$p) {
+        if (mb_strtolower($p['name'] ?? '') === $cle) { $p['depensees'] = 0; $write = true; break; }
+      }
+      return null;
+    });
+    withLock($rhFile, function (&$data, &$write) use ($cle) {
+      if (is_array($data) && isset($data['prevenu'][$cle])) { unset($data['prevenu'][$cle]); $write = true; }
+    });
+    echo json_encode(['ok' => true, 'vide' => (bool) $vide], JSON_UNESCAPED_UNICODE);
+    break;
+  }
+
   // 🧹 Réinitialiser (tests) : api.php?action=reset&pin=XXXX
   case 'reset': {
     if (!hash_equals($ADMIN_PIN, (string)($_GET['pin'] ?? ''))) {
