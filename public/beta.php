@@ -7,12 +7,14 @@
 // ============================================================
 require_once 'config.php';
 verifierConnexion($db);
+require_once 'includes/widget.php';   // widget du ruban (météo/date/phrases qui défilent)
 
 $role = function_exists('getCurrentRole') ? getCurrentRole() : ($_SESSION['role'] ?? '');
 if ($role !== 'beta') {
     header('Location: index.php');
     exit();
 }
+if (function_exists('ensureWidgetTables')) { try { ensureWidgetTables($db); } catch (Throwable $e) {} }
 
 $userNom = trim(($_SESSION['prenom'] ?? '') . ' ' . ($_SESSION['nom'] ?? ''));
 $userPhoto = $_SESSION['photo_profil'] ?? null;
@@ -79,6 +81,14 @@ $userPhoto = $_SESSION['photo_profil'] ?? null;
             <a href="logout.php" class="btn-logout"><?= t('Déconnexion', 'Afmelden') ?></a>
         </div>
     </div>
+
+    <?php
+        // 🎠 Le widget du ruban (météo, date, phrases qui défilent) — comme sur
+        // l'accueil normal. On l'affiche pour la beta aussi (c'est amusant).
+        if (function_exists('renderWidget')) {
+            try { echo renderWidget($db); } catch (Throwable $e) {}
+        }
+    ?>
 
     <div class="beta-banner">
         <div class="beta-tag">VERSION BETA</div><br>
