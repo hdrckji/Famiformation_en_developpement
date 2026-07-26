@@ -2093,9 +2093,7 @@ function renderQuiz() {
         <span class="graines">${affG(graines)} 🌰${quiz.lastGain ? `<span class="gain">+${affG(quiz.lastGain)}</span>` : ""}${quiz.streak >= 2 ? `<span class="serie">🔥 ${quiz.streak}</span>` : ""}</span>
       </div>
       <div class="q-progress"><div style="width:${(quiz.idx / quiz.questions.length) * 100}%"></div></div>
-      <div class="q-num">${t("Question", "Vraag")} ${quiz.idx + 1} / ${quiz.questions.length}
-        <span class="q-chrono" id="q-chrono" title="${t("Plus tu réponds vite, plus tu gagnes de graines", "Hoe sneller je antwoordt, hoe meer zaadjes je wint")}">⏱ 0,0 s</span>
-      </div>
+      <div class="q-num">${t("Question", "Vraag")} ${quiz.idx + 1} / ${quiz.questions.length}</div>
       <div class="q-text">${esc(q.q)}</div>
       ${q.options.map((o, i) => {
         let cls = "q-opt";
@@ -2119,13 +2117,10 @@ function renderQuiz() {
       return;
     }
 
-    // ⏱ Chrono de la question : il tourne à l'écran pour encourager la rapidité.
+    // ⏱ Plus de chrono affiché (trop stressant). On mesure quand même le temps de
+    // réponse en interne, pour un tout petit bonus qui ne sert qu'à départager les
+    // ex æquo au classement — mais rien ne s'affiche, aucune pression.
     clearInterval(chronoQ);
-    chronoQ = setInterval(() => {
-      const el = document.getElementById("q-chrono");
-      if (!el) { clearInterval(chronoQ); return; }
-      el.textContent = "⏱ " + ((Date.now() - quiz.qStart) / 1000).toFixed(1).replace(".", ",") + " s";
-    }, 100);
 
     app.querySelectorAll(".q-opt").forEach((btn) => btn.addEventListener("click", () => {
       if (quiz.reveal) return;                            // déjà répondu
