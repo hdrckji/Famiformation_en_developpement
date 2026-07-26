@@ -30,8 +30,8 @@
  * {"ok":false,"error":"unauthorized"}.
  */
 
-const SECRET = 'A_REMPLACER_PAR_UN_MOT_DE_PASSE_LONG';
-const NOM_ONGLET = 'recolte de mail';
+const SECRET = 'admin';
+const NOM_ONGLET = 'Récolte de mails - Famifromation - Google Sheets';
 
 function doGet(e) {
   const out = (obj) =>
