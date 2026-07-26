@@ -29,7 +29,8 @@ $userPhoto = $_SESSION['photo_profil'] ?? null;
     <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Open Sans', sans-serif; background: url('background.jpg') no-repeat center center fixed; background-size: cover; margin: 0; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
-        .top-nav { width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 8px 16px 0; box-sizing: border-box; }
+        .top-nav { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding: 10px 16px 0; box-sizing: border-box; }
+        .top-nav > * { min-width: 0; }
         .user-info { display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,0.9); padding: 8px 16px; border-radius: 30px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); text-decoration: none; color: #333; font-weight: 600; font-size: .9rem; }
         .user-avatar { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; border: 3px solid #2d5a37; }
         .user-avatar-placeholder { width: 48px; height: 48px; border-radius: 50%; background: #e8f5e9; border: 3px solid #2d5a37; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; }
@@ -73,6 +74,12 @@ $userPhoto = $_SESSION['photo_profil'] ?? null;
             <?php endif; ?>
             <span><?= htmlspecialchars($userNom ?: ($_SESSION['username'] ?? '')) ?></span>
         </a>
+
+        <?php
+            // 🎠 Widget du ruban (météo/date/phrases) — au CENTRE, dans le même ruban.
+            if (function_exists('renderWidget')) { try { echo renderWidget($db); } catch (Throwable $e) {} }
+        ?>
+
         <div class="nav-right">
             <span class="lang-sw">
                 <a href="?lang=fr" class="<?= currentLang() === 'fr' ? 'on' : '' ?>">FR</a>
@@ -81,14 +88,6 @@ $userPhoto = $_SESSION['photo_profil'] ?? null;
             <a href="logout.php" class="btn-logout"><?= t('Déconnexion', 'Afmelden') ?></a>
         </div>
     </div>
-
-    <?php
-        // 🎠 Le widget du ruban (météo, date, phrases qui défilent) — comme sur
-        // l'accueil normal. On l'affiche pour la beta aussi (c'est amusant).
-        if (function_exists('renderWidget')) {
-            try { echo renderWidget($db); } catch (Throwable $e) {}
-        }
-    ?>
 
     <div class="beta-banner">
         <div class="beta-tag">VERSION BETA</div><br>
