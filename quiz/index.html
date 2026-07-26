@@ -4533,6 +4533,26 @@ function arreteInactivite() {
   if (inactiviteTimer) { clearTimeout(inactiviteTimer); inactiviteTimer = null; }
   if (inactiviteBind) { INACTIVITE_EVTS.forEach((e) => document.removeEventListener(e, inactiviteBind)); inactiviteBind = null; }
 }
+
+// 🖥️ BORNE — RETOUR AUTO À L'ACCUEIL après 2 min sans interaction, DEPUIS
+// N'IMPORTE QUELLE PAGE (quiz, jardin, code, inscription, classement, page info…).
+// Si un visiteur s'en va, la borne se remet à zéro pour le suivant. Toute action
+// (toucher, clic, touche) relance le compteur. Ne s'active QUE sur la borne.
+const BORNE_INACTIVITE_MS = 2 * 60 * 1000;
+let borneIdleTimer = null;
+function borneReArme() {
+  if (borneIdleTimer) clearTimeout(borneIdleTimer);
+  borneIdleTimer = setTimeout(() => {
+    // Déjà sur un accueil « propre » (sans fenêtre/cadre ouvert) → rien à faire.
+    const propre = (currentView() === "home") && !document.querySelector(".ext-overlay, .modal-fond, .modal");
+    if (!propre) { retourAccueilBorne(); }   // recharge l'accueil de la borne, page fraîche
+  }, BORNE_INACTIVITE_MS);
+}
+function demarreBorneIdle() {
+  ["click", "keydown", "touchstart", "pointerdown", "mousemove", "scroll"].forEach((e) =>
+    document.addEventListener(e, borneReArme, { passive: true }));
+  borneReArme();
+}
 // « Retour » : on dépile la vue précédente. Plus rien à dépiler → l'accueil.
 function retourNav() {
   if (!navPile.length) { retourAccueilBorne(); return; }
@@ -4676,6 +4696,7 @@ function retourNav() {
         }
       }, 60000);
     }
+    demarreBorneIdle();   // ⏲️ retour auto à l'accueil après 2 min d'inactivité (toute page)
     render();
     return;
   }
