@@ -1623,6 +1623,21 @@ function espaceAccessible() {
   if (espaceDebloque) return true;
   try { return phaseNow() !== "avant"; } catch (e) { return false; }
 }
+// 🔓 GESTE CACHÉ (téléphone/tactile) : 5 tapes rapides sur le logo « Famiformation »
+// (en haut) débloquent / reverrouillent le Quiz & jardin — l'équivalent au doigt du
+// mot « admin » tapé au clavier sur ordinateur. Volontairement non évident.
+(function () {
+  const logo = document.querySelector(".fami-logo");
+  if (!logo) return;
+  let n = 0, dernier = 0;
+  logo.style.cursor = "default";
+  logo.addEventListener("click", () => {
+    const now = Date.now();
+    if (now - dernier > 1200) n = 0;   // trop lent entre 2 tapes → on repart de zéro
+    dernier = now; n++;
+    if (n >= 5) { n = 0; basculeEspaceAdmin(); }
+  });
+})();
 
 let board = [];
 let userView = "auto";       // auto | board | jardin (après avoir joué)

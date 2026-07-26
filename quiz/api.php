@@ -1496,12 +1496,16 @@ switch ($action) {
     $name = trim($input['name'] ?? '');
     $h = is_array($input['herbes'] ?? null) ? $input['herbes'] : [];
 
-    $gain = 0;
+    // Score du mini-jeu = herbes attrapées × leur valeur (normale 1, bronze 2,
+    // argent 3, or 5). Ce score est ensuite CONVERTI en graines : 1 graine par
+    // tranche de 10 points, plafonné à 10 graines par partie (ex. 10→1, 20→2,
+    // 100→10, plus de 100 → 10).
+    $score = 0;
     foreach ($HERBE_GAIN as $sorte => $valeur) {
       $n = max(0, min($HERBE_MAX_PAR_HERBE, intval($h[$sorte] ?? 0)));
-      $gain += $n * $valeur;
+      $score += $n * $valeur;
     }
-    $gain = min($gain, $HERBE_MAX_GAIN);
+    $gain = min($HERBE_MAX_GAIN, intdiv($score, 10));
     if ($gain <= 0) { echo json_encode(['ok' => false, 'reason' => 'rien']); break; }
 
     $res = withLock($scoresFile, function (&$board, &$write) use ($name, $gain) {
