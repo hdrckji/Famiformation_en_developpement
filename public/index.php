@@ -602,11 +602,6 @@ if ($wcThemeOn && !empty($siteTheme) && is_array($siteTheme)) {
             <div class="tile-title"><?= t('Gestion Quiz', 'Quizbeheer') ?></div>
             <div class="tile-desc"><?= t('Contrôler et corriger tous les quiz.', 'Alle quizzen nakijken en corrigeren.') ?></div>
         </a>
-        <a href="gestion-beta.php" class="tile tile-admin">
-            <div class="tile-media"><span class="tile-icon">🧪</span></div>
-            <div class="tile-title"><?= t('Gestion Beta', 'Beta-beheer') ?></div>
-            <div class="tile-desc"><?= t('Créer le contenu de la version beta (Onboarding + Caisse) : dépose tes PDF et vidéos.', 'De inhoud van de betaversie aanmaken (Onboarding + Kassa): upload je PDF\'s en video\'s.') ?></div>
-        </a>
         <a href="admin_questions.php" class="tile tile-admin">
             <div class="tile-media"><span class="tile-icon">🗄️</span></div>
             <div class="tile-title"><?= t('Gestion Questions', 'Beheer vragen') ?> <span style="font-size:.7rem; color:#8a968f; font-weight:600;">(<?= t('historique', 'geschiedenis') ?>)</span></div>
