@@ -481,9 +481,10 @@ function joueurAutorise($input, $name, $ficheCode) {
   return $ficheCode !== '' && $ficheCode === $code4;   // ancien compte pseudo + code
 }
 
-// Un identifiant libre, construit à partir du prénom et du nom (jimmy.hendrickx,
-// puis jimmy.hendrickx2, etc.). C'est ce que la personne tapera pour se connecter
-// — mais son email marchera aussi.
+// Un identifiant libre au format « PrénomN » : le prénom avec une majuscule à la
+// 1re lettre, suivi de la 1re lettre du nom en majuscule. Ex. : Jean Dupont →
+// « JeanD ». En cas de doublon on ajoute un numéro (JeanD2, JeanD3…). C'est ce
+// que la personne tapera pour se connecter — mais son e-mail marchera aussi.
 function identifiantLibre(PDO $db, $prenom, $nom) {
   $sansAccent = function ($s) {
     $s = (string) $s;
@@ -492,8 +493,12 @@ function identifiantLibre(PDO $db, $prenom, $nom) {
            'ù'=>'u','ú'=>'u','û'=>'u','ü'=>'u','ý'=>'y','ÿ'=>'y','œ'=>'oe','æ'=>'ae'];
     return strtr(mb_strtolower($s), $tr);
   };
-  $base = trim(preg_replace('/[^a-z0-9]+/', '', $sansAccent($prenom)) . '.' . preg_replace('/[^a-z0-9]+/', '', $sansAccent($nom)), '.');
-  if ($base === '' || $base === '.') { $base = 'joueur'; }
+  // On ne garde que les lettres/chiffres (les espaces, tirets, etc. sautent).
+  $p = preg_replace('/[^a-z0-9]+/', '', $sansAccent($prenom));
+  $n = preg_replace('/[^a-z0-9]+/', '', $sansAccent($nom));
+  if ($p === '') { $p = 'joueur'; }
+  // Prénom : 1re lettre en majuscule, reste en minuscule. Nom : 1re lettre en maj.
+  $base = ucfirst($p) . ($n !== '' ? strtoupper(substr($n, 0, 1)) : '');
   $base = substr($base, 0, 40);
   $stmt = $db->prepare('SELECT COUNT(*) FROM utilisateurs WHERE identifiant = ?');
   for ($i = 0; $i < 200; $i++) {
@@ -501,7 +506,7 @@ function identifiantLibre(PDO $db, $prenom, $nom) {
     $stmt->execute([$essai]);
     if ((int) $stmt->fetchColumn() === 0) { return $essai; }
   }
-  return $base . '.' . bin2hex(random_bytes(3));
+  return $base . bin2hex(random_bytes(3));
 }
 
 // 🎁 Mail « fun » d'invitation à créer son compte AVANT le lancement (envoi groupé).
@@ -597,28 +602,41 @@ function litFluxFormulaire() {
   return ['ok' => true, 'lignes' => $out];
 }
 
-// 📇 Ensemble des e-mails du formulaire (['email'=>true,…]), avec cache court sur
-// disque : l'inscription publique peut arriver souvent, on n'appelle donc pas le
-// script Google à chaque fois. En cas d'échec réseau on garde l'ancien cache.
-function emailsFluxCache($ttl = 300) {
+// 🔑 Clé « prénom|nom » normalisée (minuscule, sans espaces superflus) pour
+// comparer deux personnes par leur nom.
+function clePrenomNom($prenom, $nom) {
+  return mb_strtolower(trim((string) $prenom)) . '|' . mb_strtolower(trim((string) $nom));
+}
+
+// 📇 Contenu du formulaire mis en cache court sur disque (l'inscription publique
+// peut arriver souvent : on n'appelle donc pas le script Google à chaque fois).
+// Renvoie ['emails' => ['x@y'=>true,…], 'noms' => ['prenom|nom'=>true,…]].
+// En cas d'échec réseau, on garde l'ancien cache.
+function fluxCache($ttl = 300) {
   global $dataDir, $FORM_FEED_URL, $FORM_FEED_SECRET;
-  if ($FORM_FEED_URL === '' || $FORM_FEED_SECRET === '') { return []; }
-  $cache = $dataDir . '/form-emails-cache.json';
+  $vide = ['emails' => [], 'noms' => []];
+  if ($FORM_FEED_URL === '' || $FORM_FEED_SECRET === '') { return $vide; }
+  $cache = $dataDir . '/form-cache.json';
   $lire = function () use ($cache) {
     if (!is_file($cache)) { return null; }
     $c = json_decode((string) @file_get_contents($cache), true);
-    return is_array($c) ? $c : null;
+    return (is_array($c) && isset($c['emails'], $c['noms'])) ? $c : null;
   };
   if (is_file($cache) && (time() - (int) @filemtime($cache) < $ttl)) {
     $c = $lire();
     if ($c !== null) { return $c; }
   }
   $flux = litFluxFormulaire();
-  if (!$flux['ok']) { $c = $lire(); return $c !== null ? $c : []; }
-  $set = [];
-  foreach ($flux['lignes'] as $l) { $set[$l['email']] = true; }
-  @file_put_contents($cache, json_encode($set), LOCK_EX);
-  return $set;
+  if (!$flux['ok']) { $c = $lire(); return $c !== null ? $c : $vide; }
+  $sets = ['emails' => [], 'noms' => []];
+  foreach ($flux['lignes'] as $l) {
+    $sets['emails'][$l['email']] = true;
+    if (trim($l['prenom']) !== '' && trim($l['nom']) !== '') {
+      $sets['noms'][clePrenomNom($l['prenom'], $l['nom'])] = true;
+    }
+  }
+  @file_put_contents($cache, json_encode($sets), LOCK_EX);
+  return $sets;
 }
 
 // 🔒 Interrupteur de l'envoi AUTOMATIQUE (temps réel) à chaque nouvelle réponse
@@ -980,11 +998,6 @@ switch ($action) {
     }
     if (envoiRefuse($email)) { http_response_code(429); echo json_encode(['ok' => false, 'reason' => 'trop_dessais']); break; }
 
-    // 📄 On recopie l'inscription dans le Google Form de l'accueil AVANT tout le
-    // reste : ainsi la feuille est alimentée même si la base venait à être
-    // indisponible. « Au mieux » : un échec n'interrompt jamais l'inscription.
-    pousseVersForm($prenom, $nom, $email);
-
     $db = famiDb();
     if (!$db) { http_response_code(503); echo json_encode(['ok' => false, 'reason' => 'base_indisponible']); break; }
 
@@ -1003,13 +1016,27 @@ switch ($action) {
       break;
     }
 
-    // 📄 Pas de compte en base, mais l'adresse est-elle DÉJÀ dans le formulaire
-    // (onglet « recolte de mail ») ? Alors la personne a déjà donné son mail via
-    // le Form : on lui crée quand même son compte + envoie SON lien, mais on lui
-    // affiche « tu as déjà donné ton mail » (réponse renvoye:true) plutôt que le
-    // classique « compte créé ».
-    $feed = emailsFluxCache();
-    $dejaForm = isset($feed[$email]);
+    // 📄 On regarde le formulaire (onglet « recolte de mail ») en cache.
+    $fc = fluxCache();
+    $cleNom = clePrenomNom($prenom, $nom);
+    // « Déjà donné son mail » = son e-mail est déjà dans la feuille → on lui crée
+    // quand même son compte + envoie SON lien, mais on affiche « tu as déjà donné
+    // ton mail » (renvoye:true) plutôt que « compte créé ».
+    $dejaForm = isset($fc['emails'][$email]);
+    // Déjà connu par prénom+nom en base ?
+    $connuNomBase = false;
+    try {
+      $qn = $db->prepare('SELECT 1 FROM utilisateurs WHERE LOWER(TRIM(prenom)) = ? AND LOWER(TRIM(nom)) = ? LIMIT 1');
+      $qn->execute([mb_strtolower($prenom), mb_strtolower($nom)]);
+      $connuNomBase = ($qn->fetchColumn() !== false);
+    } catch (Throwable $e) { /* colonnes/table absentes en test */ }
+    // 📄 On ne COMPLÈTE le Google Form QUE si la personne est réellement nouvelle :
+    // ni son e-mail ni son prénom+nom déjà dans la feuille, et pas déjà en base.
+    // (Évite les doublons dans l'Excel.)
+    $dansFeuille = $dejaForm || isset($fc['noms'][$cleNom]);
+    if (!$dansFeuille && !$connuNomBase) {
+      pousseVersForm($prenom, $nom, $email);
+    }
 
     // 🏬 Le magasin où la personne s'inscrit → son `site_id` dans la base, pour
     // pouvoir distinguer les inscrits de Mouscron de ceux de La Panne. On lit
