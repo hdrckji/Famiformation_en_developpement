@@ -121,6 +121,9 @@ unset($_SESSION['module_flash']);
                 <input type="hidden" name="action" value="content">
                 <input type="hidden" name="id" value="<?= (int) $sec['id'] ?>">
                 <input type="hidden" name="return" value="gestion-beta.php">
+                <!-- 🤖 Déclenche l'IA (extraction PDF + mise en page). PAS de a_evaluer -->
+                <!-- => pas de génération de quiz. -->
+                <input type="hidden" name="uniformize" value="1">
                 <div class="zones">
                     <div class="zone">
                         <label>📄 Guide (PDF)</label>
