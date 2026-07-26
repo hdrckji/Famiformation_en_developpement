@@ -1155,13 +1155,20 @@ let QUESTIONS = [
    🌐 API (serveur PHP)
    ============================================================ */
 
+// 🔄 GET « frais » : on ajoute un paramètre unique + cache:no-store pour que le
+// navigateur/proxy ne serve JAMAIS une vieille réponse en cache. Sans ça, la télé
+// et la borne peuvent rester bloquées sur d'anciennes données (classement, codes
+// restants, questions…) alors que l'admin vient de changer quelque chose.
+function fetchFrais(action) {
+  return fetch(`${CONFIG.api}?site=${SITE}&action=${action}&_=${Date.now()}`, { cache: "no-store" });
+}
 async function apiGetBoard() {
   // En simulation : on lit le vrai classement UNE fois (pour un décor réaliste),
   // puis on garde la version en mémoire — sinon le rafraîchissement automatique
   // effacerait les participations simulées.
   if (SIMULATION && simPret.board) return board;
   try {
-    const r = await fetch(`${CONFIG.api}?site=${SITE}&action=board`);
+    const r = await fetchFrais("board");
     const b = r.ok ? await r.json() : [];
     if (SIMULATION) simPret.board = true;
     return b;
@@ -1189,7 +1196,7 @@ async function apiClaimCode(code, name) {
 // les dates par défaut inscrites dans CONFIG.
 async function apiConfig() {
   try {
-    const r = await fetch(`${CONFIG.api}?site=${SITE}&action=config_get`);
+    const r = await fetchFrais("config_get");
     return r.ok ? await r.json() : null;
   } catch { return null; }
 }
@@ -1197,7 +1204,7 @@ async function apiConfig() {
 // liste de secours déjà chargée : mieux vaut un quiz de secours qu'un écran vide.
 async function apiQuestions() {
   try {
-    const r = await fetch(`${CONFIG.api}?site=${SITE}&action=questions`);
+    const r = await fetchFrais("questions");
     if (!r.ok) return null;
     const d = await r.json();
     return (Array.isArray(d) && d.length) ? d : null;
@@ -1334,7 +1341,7 @@ async function apiPlantes() {
 async function apiCodesRestants() {
   if (SIMULATION) { const pris = (window.__simCodes || new Set()).size; return { total: 20, restants: Math.max(0, 13 - pris), pris: 7 + pris }; }
   try {
-    const r = await fetch(`${CONFIG.api}?site=${SITE}&action=codes_restants`);
+    const r = await fetchFrais("codes_restants");
     return r.ok ? await r.json() : null;
   } catch { return null; }
 }
@@ -3161,10 +3168,16 @@ function ouvrePseudoPuisQuiz() {
   </div>`;
   document.body.appendChild(o);
   const ferme = () => o.remove();
-  const go = () => {
+  const go = async () => {
     const v = $("#ps-in").value.trim();
     if (v.length < 2) { $("#ps-err").innerHTML = `<div class="alert">${t("Choisis un pseudo (au moins 2 lettres).", "Kies een bijnaam (minstens 2 letters).")}</div>`; return; }
     if (joueur) joueur.pseudo = v;
+    // 🔄 On recharge les questions JUSTE avant de lancer : ainsi la borne (qui peut
+    // rester allumée des heures) et le téléphone jouent TOUJOURS la version à jour
+    // du quiz, même si l'admin vient de la modifier.
+    const btn = $("#ps-ok"); if (btn) { btn.disabled = true; }
+    const d = await apiQuestions().catch(() => null);
+    if (d && d.length) { QUESTIONS = d; }
     ferme();
     userView = "quiz"; quiz = null; render();
   };
@@ -3574,7 +3587,7 @@ async function renderTeleBoard() {
     if (ph === "avant") render();
     else if (ph === "termine") renderTeleWinners();
     else renderTeleBoard();
-  }, termine ? 12000 : 20000);
+  }, 12000);   // classement + codes restants rafraîchis toutes les 12 s
 }
 
 // 📺 Télé — ÉCRAN DES 3 VAINQUEURS (fin d'événement) : podium en marches, puis on
@@ -4626,6 +4639,26 @@ function retourNav() {
   // toute la session : la navigation se fait dans l'application (render), jamais
   // par un changement d'URL, donc on ne bascule jamais côté téléphone.
   if (ECRAN === "borne") {
+    // 🔄 La borne (Raspberry) reste allumée des heures. Toutes les 60 s on
+    // resynchronise dates + version. Si une nouvelle version du site est en ligne,
+    // la borne se recharge TOUTE SEULE — mais UNIQUEMENT quand elle est sur son
+    // accueil (aucun visiteur en train de jouer/s'inscrire), pour ne rien couper.
+    // (Les questions, elles, sont déjà rechargées à chaque début de quiz.)
+    if (!SIMULATION) {
+      const versionBorne = CONFIG.version || "";
+      setInterval(async () => {
+        const c = await apiConfig().catch(() => null);
+        if (!c) return;
+        if (c.lancement) CONFIG.dateLancement = new Date(c.lancement);
+        if (c.cloture)   CONFIG.dateCloture = new Date(c.cloture);
+        if (c.resultats) CONFIG.dateResultats = c.resultats;
+        CONFIG.zones = Array.isArray(c.zones) ? c.zones : [];
+        CONFIG.recompenses = Array.isArray(c.recompenses) ? c.recompenses : [];
+        if ((c.version || "") !== versionBorne && currentView() === "home" && !document.querySelector(".modal-fond, .modal")) {
+          location.reload();
+        }
+      }, 60000);
+    }
     render();
     return;
   }
