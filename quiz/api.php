@@ -280,7 +280,10 @@ function nettoieQuestion($item) {
   $theme = strtolower(trim((string)($item['theme'] ?? '')));
   if ($theme === 'anecdote') { $theme = 'fun'; }                  // ancien nom → nouveau
   if (!in_array($theme, ['entreprise', 'culture', 'fun'], true)) { $theme = 'entreprise'; }
-  return ['q' => mb_substr($q, 0, 300), 'options' => $opts, 'correct' => $correct, 'theme' => $theme];
+  // ⭐ Favorite : question qui apparaîtra plus souvent. Ne concerne QUE entreprise
+  // et fun (la culture n'a pas de favoris). On la conserve à l'enregistrement.
+  $fav = !empty($item['fav']) && in_array($theme, ['entreprise', 'fun'], true);
+  return ['q' => mb_substr($q, 0, 300), 'options' => $opts, 'correct' => $correct, 'theme' => $theme, 'fav' => $fav];
 }
 
 /** Les questions en vigueur (fichier si présent, sinon la liste par défaut). */

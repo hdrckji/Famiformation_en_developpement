@@ -605,7 +605,7 @@ function vueQuestions() {
       let theme = String(it && it.theme || "").toLowerCase();
       if (theme === "anecdote") theme = "fun";
       if (!["entreprise", "culture", "fun"].includes(theme)) theme = "entreprise";
-      propres.push({ q, options, correct, theme });
+      propres.push({ q, options, correct, theme, fav: !!(it && it.fav) && theme !== "culture" });
     }
     if (!propres.length) { msg.innerHTML = `<div class="alert">Aucune question valide trouvée (il faut un intitulé et au moins 2 réponses).</div>`; return null; }
     return propres;
@@ -656,8 +656,9 @@ function dessineListe() {
     return `
     <div class="qbloc">
       <div class="qtitre">
-        <span class="qnum">Question ${i + 1}</span>
+        <span class="qnum">Question ${i + 1}${themeDe(q) !== "culture" && q.fav ? ` <span title="Favorite : apparaît plus souvent">⭐</span>` : ""}</span>
         <span>
+          ${themeDe(q) !== "culture" ? `<button class="btn ghost small" data-fav="${i}" title="Favorite : apparaît plus souvent dans les quiz">${q.fav ? "⭐ Favorite" : "☆ Favori"}</button>` : ""}
           <button class="btn ghost small" data-monte="${i}" ${i === 0 ? "disabled" : ""}>↑</button>
           <button class="btn ghost small" data-descend="${i}" ${i === brouillon.length - 1 ? "disabled" : ""}>↓</button>
           <button class="btn danger small" data-suppr="${i}">Supprimer</button>
@@ -696,8 +697,11 @@ function dessineListe() {
     const nb = (t) => brouillon.filter((q) => { const th = q.theme === "anecdote" ? "fun" : (q.theme || "entreprise"); return th === t; }).length;
     const e = nb("entreprise"), cg = nb("culture"), an = nb("fun");
     const court = e < 10 || cg < 5 || an < 5;
+    const favN = (t) => brouillon.filter((q) => { const th = q.theme === "anecdote" ? "fun" : (q.theme || "entreprise"); return th === t && q.fav; }).length;
+    const fe = favN("entreprise"), fa = favN("fun");
     cpt.innerHTML = `${brouillon.length} question(s) — <b>${e}</b> entreprise · <b>${cg}</b> culture G · <b>${an}</b> fun`
       + ` <span style="opacity:.7;">(chaque joueur en tire 20 : 10 / 5 / 5)</span>`
+      + ((fe || fa) ? `<br>⭐ Favorites : <b>${fe}</b> entreprise (3 tirées/quiz) · <b>${fa}</b> fun (2 tirées/quiz)` : "")
       + (court ? `<br><span style="color:#E4572E;font-weight:800;">⚠️ Il en faut au moins 10 / 5 / 5. En dessous, on complète avec les autres thèmes.</span>` : "");
   }
 
@@ -709,6 +713,11 @@ function dessineListe() {
   liste.querySelectorAll("[data-theme]").forEach((el) => el.addEventListener("change", () => {
     brouillon[+el.dataset.theme].theme = el.value;
     rendre();   // pour rafraîchir le compteur par thème
+  }));
+  liste.querySelectorAll("[data-fav]").forEach((el) => el.addEventListener("click", () => {
+    const i = +el.dataset.fav;
+    brouillon[i].fav = !brouillon[i].fav;
+    rendre();   // redessine (l'étoile change)
   }));
   liste.querySelectorAll("[data-opt]").forEach((el) => el.addEventListener("input", () => {
     const [i, j] = el.dataset.opt.split("-").map(Number);

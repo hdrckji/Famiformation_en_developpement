@@ -1472,15 +1472,28 @@ function shuffle(arr) {
 // réservoir — 10 sur l'entreprise, 5 de culture générale (jardinage), 5 « fun ».
 // Deux personnes n'ont donc pas le même questionnaire : ça limite la triche.
 const QUIZ_THEMES = { entreprise: 10, culture: 5, fun: 5 };
+// ⭐ FAVORIS : par quiz, on garantit ce nombre de questions FAVORITES par thème
+// (tirées au hasard parmi TOUTES les favorites du thème → rotation naturelle),
+// le reste étant complété par des questions normales. La culture n'a pas de favoris.
+const FAV_PAR_THEME = { entreprise: 3, fun: 2, culture: 0 };
 const QUIZ_TOTAL = Object.values(QUIZ_THEMES).reduce((a, b) => a + b, 0);
 function prepareQuestions() {
   const parTheme = { entreprise: [], culture: [], fun: [] };
   QUESTIONS.forEach((q) => { (parTheme[q.theme === "anecdote" ? "fun" : q.theme] || parTheme.entreprise).push(q); });
   let choix = [], restes = [];
   for (const t in QUIZ_THEMES) {
-    const dispo = shuffle(parTheme[t]);
-    choix = choix.concat(dispo.slice(0, QUIZ_THEMES[t]));
-    restes = restes.concat(dispo.slice(QUIZ_THEMES[t]));
+    const total = QUIZ_THEMES[t];
+    const nFav = FAV_PAR_THEME[t] || 0;
+    const favs = shuffle(parTheme[t].filter((q) => q.fav));       // toutes les favorites du thème, mélangées
+    const normaux = shuffle(parTheme[t].filter((q) => !q.fav));
+    const pris = [];
+    pris.push(...favs.slice(0, nFav));                             // 1) le quota de favorites
+    for (const q of normaux) { if (pris.length >= total) break; pris.push(q); }   // 2) complété en normales
+    for (const q of favs.slice(nFav)) { if (pris.length >= total) break; pris.push(q); } // 3) si trop peu de normales
+    const gardees = pris.slice(0, total);
+    choix = choix.concat(gardees);
+    const set = new Set(gardees);
+    restes = restes.concat(parTheme[t].filter((q) => !set.has(q)));   // le surplus alimente le filet global
   }
   // S'il n'y a pas assez de questions dans un thème, on complète avec les autres
   // (mieux vaut un quiz complet qu'un quiz tronqué).
