@@ -481,10 +481,12 @@ function joueurAutorise($input, $name, $ficheCode) {
   return $ficheCode !== '' && $ficheCode === $code4;   // ancien compte pseudo + code
 }
 
-// Un identifiant libre au format « PrénomNn » : le prénom avec une majuscule à la
-// 1re lettre, suivi des 2 premières lettres du nom (1re en MAJ, 2e en min).
-// Ex. : Jean Dupont → « JeanDu ». En cas de doublon on ajoute un numéro (JeanDu2,
-// JeanDu3…). C'est ce que la personne tapera pour se connecter — l'e-mail marche aussi.
+// Un identifiant libre au format « PrénomN » : le prénom (1re lettre en majuscule)
+// suivi de la 1re lettre du nom en MAJ. Ex. : Jean Dupont → « JeanD ». En cas de
+// DOUBLON, on n'ajoute PAS de numéro : on ALLONGE le nom lettre par lettre →
+// « JeanDu », « JeanDup », etc., jusqu'à trouver un identifiant libre. (Un numéro
+// n'arrive qu'en dernier recours, si même le nom entier est déjà pris.)
+// C'est ce que la personne tapera pour se connecter — l'e-mail marche aussi.
 function identifiantLibre(PDO $db, $prenom, $nom) {
   $sansAccent = function ($s) {
     $s = (string) $s;
@@ -497,17 +499,28 @@ function identifiantLibre(PDO $db, $prenom, $nom) {
   $p = preg_replace('/[^a-z0-9]+/', '', $sansAccent($prenom));
   $n = preg_replace('/[^a-z0-9]+/', '', $sansAccent($nom));
   if ($p === '') { $p = 'joueur'; }
-  // Prénom : 1re lettre en majuscule, reste en minuscule. Nom : 2 premières lettres
-  // (1re en MAJ, 2e en min) — ex. « Du » pour Dupont. ($n est déjà en minuscules.)
-  $base = ucfirst($p) . ($n !== '' ? ucfirst(substr($n, 0, 2)) : '');
-  $base = substr($base, 0, 40);
+  $prefixe = ucfirst($p);   // « Jean »
   $stmt = $db->prepare('SELECT COUNT(*) FROM utilisateurs WHERE identifiant = ?');
-  for ($i = 0; $i < 200; $i++) {
-    $essai = $i === 0 ? $base : $base . ($i + 1);
-    $stmt->execute([$essai]);
-    if ((int) $stmt->fetchColumn() === 0) { return $essai; }
+  $libre = function ($id) use ($stmt) { $stmt->execute([$id]); return (int) $stmt->fetchColumn() === 0; };
+
+  $lenN = strlen($n);
+  if ($lenN > 0) {
+    // On allonge le nom : JeanD, JeanDu, JeanDup… jusqu'au 1er identifiant libre.
+    for ($k = 1; $k <= $lenN; $k++) {
+      $essai = substr($prefixe . ucfirst(substr($n, 0, $k)), 0, 40);
+      if ($libre($essai)) { return $essai; }
+    }
+    // Nom entier épuisé et toujours pris → dernier recours : un numéro.
+    $complet = substr($prefixe . ucfirst($n), 0, 37);
+    for ($i = 2; $i < 500; $i++) { if ($libre($complet . $i)) { return $complet . $i; } }
+    return $complet . bin2hex(random_bytes(2));
   }
-  return $base . bin2hex(random_bytes(3));
+  // Pas de nom : prénom seul, puis un numéro si déjà pris.
+  for ($i = 0; $i < 500; $i++) {
+    $essai = $i === 0 ? $prefixe : $prefixe . ($i + 1);
+    if ($libre($essai)) { return $essai; }
+  }
+  return $prefixe . bin2hex(random_bytes(3));
 }
 
 // 🎁 Mail « fun » d'invitation à créer son compte AVANT le lancement (envoi groupé).

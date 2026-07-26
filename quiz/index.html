@@ -4432,8 +4432,14 @@ function render() {
   else if (v === "retrouver") renderRetrouver();
   else if (v === "reclamer") renderReclamer();
   else renderBoard();
-  majNavBorne(v);   // barre « Retour / Accueil » de la borne (sauf sur l'accueil)
-  majDeco(v);       // bouton « Déconnexion » (espace connecté, téléphone/ordi)
+  // ⚠️ On RECALCULE la vue réellement affichée : une fonction de rendu a pu
+  // REDIRIGER en cours de route (ex. avant le lancement, « Voir le classement »
+  // est verrouillé → retourAccueilVerrou() nous ramène à l'accueil). Le `v`
+  // calculé au début serait alors périmé (« board ») et la barre borne
+  // « Retour/Accueil » resterait affichée à tort sur l'accueil.
+  const vAffichee = currentView();
+  majNavBorne(vAffichee);   // barre « Retour / Accueil » de la borne (sauf sur l'accueil)
+  majDeco(vAffichee);       // bouton « Déconnexion » (espace connecté, téléphone/ordi)
 }
 
 // 🖥️ BARRE DE NAVIGATION DE LA BORNE (haut à droite) : « ◂ Retour » (recule d'un
