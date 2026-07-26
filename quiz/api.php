@@ -2106,18 +2106,24 @@ switch ($action) {
           $optsNl[] = trim((string)($r[$col . '_nl'] ?? ''));   // NL aligné (vide → fallback FR)
         }
         if ($q === '' || count($opts) < 2) { continue; }
+        // Y a-t-il une VRAIE traduction NL de la question (énoncé ou vraies réponses) ?
+        // On regarde AVANT d'ajouter la réponse rigolote, pour ne pas afficher une seule
+        // proposition en NL au milieu d'une question restée en FR.
+        $aDuNlReel = ($qNl !== '') || count(array_filter($optsNl, static function ($x) { return $x !== ''; })) > 0;
         $lettre = strtoupper(trim((string)($r['reponse_correcte'] ?? 'A')));
         $correct = $lettreVersIndex[$lettre] ?? 0;
         if ($correct >= count($opts)) { $correct = 0; }
-        $opts[] = $RIGOLOTES[$i % count($RIGOLOTES)];         // réponse fausse rigolote à la fin
-        $optsNl[] = $RIGOLOTES_NL[$i % count($RIGOLOTES_NL)]; // sa version NL (alignée)
-        $i++;
+        $opts[] = $RIGOLOTES[$i % count($RIGOLOTES)];   // réponse fausse rigolote à la fin
         $item = ['q' => $q, 'options' => $opts, 'correct' => $correct, 'theme' => 'entreprise'];
-        // On ne pose les champs NL que s'il y a au moins une traduction réelle.
-        if ($qNl !== '' || count(array_filter($optsNl, static function ($x) { return $x !== ''; })) > 0) {
+        // On ne passe en bilingue QUE si la question a une vraie trad NL : dans ce cas
+        // seulement, on traduit aussi la réponse rigolote (pour rester 100 % cohérent).
+        // Sinon la question entreprise reste entièrement en FR.
+        if ($aDuNlReel) {
+          $optsNl[] = $RIGOLOTES_NL[$i % count($RIGOLOTES_NL)];
           $item['q_nl'] = $qNl;
           $item['options_nl'] = $optsNl;
         }
+        $i++;
         $tout[] = $item;
         $nbEntreprise++;
       }
