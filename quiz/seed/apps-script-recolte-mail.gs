@@ -43,8 +43,11 @@
 
 const SECRET = 'admin';
 const NOM_ONGLET = 'Récolte de mails - Famifromation - Google Sheets';
-// Adresse du point d'entrée du site (Railway). Si tu utilises un domaine perso
-// (ex. https://famiformation.com/quiz/api.php), remplace-le ici.
+// Adresse du point d'entrée du site.
+// ⚠️ GARDE l'adresse « .up.railway.app » : elle est PERMANENTE et ne change PAS
+// quand tu brancheras ton domaine IONOS (famiflora.com…). Ne la remplace PAS par
+// le domaine perso — l'automatisation continuera de marcher quoi qu'il arrive.
+// (À ne changer QUE si un jour tu recrées le service Railway sous un autre nom.)
 const SITE_ENDPOINT = 'https://famiformation-production-f92e.up.railway.app/quiz/api.php?action=form_nouveau';
 
 // ⚡ Déclencheur « à chaque envoi du formulaire ». Extrait prénom/nom/e-mail de la
