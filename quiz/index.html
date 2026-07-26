@@ -450,6 +450,15 @@ body.mode-tele .fami-bulle { display: none; }   /* pas sur la télé */
 .lang-switch button.on { background: var(--pousse); color: #fff; }
 .lang-switch button:not(.on):hover { background: var(--brume); }
 body.mode-tele .lang-switch { display: none; }   /* pas sur la télé */
+/* 🚪 Bouton « se déconnecter » (haut à droite), présent dans l'espace connecté
+   (tableau de bord, jardin, classement…) sur téléphone/ordi. */
+.btn-deco { position: fixed; top: 16px; right: 16px; z-index: 100002; display: inline-flex; align-items: center;
+  gap: 6px; border: 2px solid var(--pousse); background: #fff; color: var(--foret); cursor: pointer;
+  font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: .92rem; line-height: 1; padding: 8px 14px;
+  border-radius: 999px; box-shadow: 0 6px 18px rgba(0,0,0,.14); transition: background .15s, transform .15s; }
+.btn-deco:hover, .btn-deco:active { background: var(--brume); transform: translateY(-1px); }
+.btn-deco .bd-txt { white-space: nowrap; }
+@media (max-width: 560px) { .btn-deco .bd-txt { display: none; } .btn-deco { padding: 9px 11px; } }
 .home-liens { display: flex; flex-wrap: wrap; gap: 10px 20px; align-items: center; justify-content: center; }
 /* ✉️ Page « Je m'inscris » : bloc de saisie + sections d'info dépliables */
 .insc-page { max-width: 620px; }
@@ -4366,6 +4375,7 @@ function render() {
   else if (v === "reclamer") renderReclamer();
   else renderBoard();
   majNavBorne(v);   // barre « Retour / Accueil » de la borne (sauf sur l'accueil)
+  majDeco(v);       // bouton « Déconnexion » (espace connecté, téléphone/ordi)
 }
 
 // 🖥️ BARRE DE NAVIGATION DE LA BORNE (haut à droite) : « ◂ Retour » (recule d'un
@@ -4385,6 +4395,79 @@ function majNavBorne(v) {
     bar.querySelector("#nb-retour").addEventListener("click", retourNav);
     bar.querySelector("#nb-home").addEventListener("click", () => retourAccueilBorne());
   }
+}
+
+// 🚪 DÉCONNEXION. Bouton fixe en haut à droite, présent dans l'espace connecté
+// (tableau de bord, jardin, classement, codes) sur téléphone/ordi — pas sur la
+// borne (appareil partagé, elle a sa propre navigation) ni sur la télé.
+function seDeconnecter() {
+  arreteInactivite();
+  oublieJeton();
+  oublieMoi();
+  joueur = null; quiz = null; jardin = {}; jardinMsg = null;
+  userView = "auto";
+  render();
+}
+function demandeDeconnexion() {
+  const o = document.createElement("div");
+  o.className = "modal-fond";
+  o.innerHTML = `<div class="modal code-modal">
+    <div class="cm-emoji">🚪</div>
+    <h2 class="cm-titre">${t("Se déconnecter ?", "Afmelden?")}</h2>
+    <p class="cm-sous">${t("Tu pourras te reconnecter avec ton identifiant Famiformation quand tu veux.", "Je kan je later opnieuw aanmelden met je Famiformation-gegevens.")}</p>
+    <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+      <button class="btn" id="deco-oui" style="min-width:150px;">${t("Oui, me déconnecter", "Ja, afmelden")}</button>
+      <button class="btn ghost" id="deco-non" style="min-width:120px;">${t("Annuler", "Annuleren")}</button>
+    </div>
+  </div>`;
+  document.body.appendChild(o);
+  const ferme = () => o.remove();
+  o.querySelector("#deco-non").addEventListener("click", ferme);
+  o.querySelector("#deco-oui").addEventListener("click", () => { ferme(); seDeconnecter(); });
+  o.addEventListener("click", (e) => { if (e.target === o) ferme(); });
+}
+// Montre/retire le bouton selon la vue (uniquement connecté, hors borne/télé).
+// Arme aussi la déconnexion auto pour inactivité tant qu'on est dans l'espace.
+function majDeco(v) {
+  let b = document.getElementById("btn-deco");
+  const vuesEspace = ["dashboard", "jardin", "board", "reclamer", "herbes"];
+  const montrer = joueur && !estBorne() && ECRAN !== "tele" && vuesEspace.indexOf(v) !== -1;
+  if (!montrer) { if (b) b.remove(); arreteInactivite(); return; }
+  if (!b) {
+    b = document.createElement("button");
+    b.id = "btn-deco"; b.className = "btn-deco";
+    b.innerHTML = `<span aria-hidden="true">🚪</span><span class="bd-txt"></span>`;
+    document.body.appendChild(b);
+    b.addEventListener("click", demandeDeconnexion);
+  }
+  b.title = t("Se déconnecter", "Afmelden");
+  b.querySelector(".bd-txt").textContent = t("Déconnexion", "Afmelden");
+  demarreInactivite();
+}
+
+// ⏲️ DÉCONNEXION AUTOMATIQUE après 5 min sans aucune interaction, quand on est
+// connecté dans son espace. Toute action (clic, touche, toucher, scroll) relance
+// le compteur. Sur un appareil perso comme partagé, ça évite de rester connecté.
+const INACTIVITE_MS = 5 * 60 * 1000;
+let inactiviteTimer = null, inactiviteBind = null;
+const INACTIVITE_EVTS = ["click", "keydown", "touchstart", "mousemove", "scroll"];
+function reArmeInactivite() {
+  if (inactiviteTimer) clearTimeout(inactiviteTimer);
+  inactiviteTimer = setTimeout(() => {
+    if (!joueur) return;
+    seDeconnecter();
+    toastAdmin(t("Déconnecté après 5 min d'inactivité 💤", "Afgemeld na 5 min inactiviteit 💤"));
+  }, INACTIVITE_MS);
+}
+function demarreInactivite() {
+  if (inactiviteBind) { reArmeInactivite(); return; }   // déjà armé → on relance juste
+  inactiviteBind = () => reArmeInactivite();
+  INACTIVITE_EVTS.forEach((e) => document.addEventListener(e, inactiviteBind, { passive: true }));
+  reArmeInactivite();
+}
+function arreteInactivite() {
+  if (inactiviteTimer) { clearTimeout(inactiviteTimer); inactiviteTimer = null; }
+  if (inactiviteBind) { INACTIVITE_EVTS.forEach((e) => document.removeEventListener(e, inactiviteBind)); inactiviteBind = null; }
 }
 // « Retour » : on dépile la vue précédente. Plus rien à dépiler → l'accueil.
 function retourNav() {
