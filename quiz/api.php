@@ -1030,24 +1030,20 @@ switch ($action) {
       break;
     }
 
-    // 📄 On regarde le formulaire (onglet « recolte de mail ») en cache.
+    // 🎟️ Le Google Form (onglet « recolte de mail ») ne sert PLUS à décider si on
+    // envoie le mail : SEULE la base de données compte (ci-dessus). La feuille
+    // sert juste au contrôle des tickets glace. On la complète donc pour cette
+    // personne, MAIS sans créer de doublon : on n'ajoute pas une ligne si son
+    // prénom+nom (ou son e-mail) y est déjà, ou si elle est déjà en base.
     $fc = fluxCache();
     $cleNom = clePrenomNom($prenom, $nom);
-    // « Déjà donné son mail » = son e-mail est déjà dans la feuille → on lui crée
-    // quand même son compte + envoie SON lien, mais on affiche « tu as déjà donné
-    // ton mail » (renvoye:true) plutôt que « compte créé ».
-    $dejaForm = isset($fc['emails'][$email]);
-    // Déjà connu par prénom+nom en base ?
     $connuNomBase = false;
     try {
       $qn = $db->prepare('SELECT 1 FROM utilisateurs WHERE LOWER(TRIM(prenom)) = ? AND LOWER(TRIM(nom)) = ? LIMIT 1');
       $qn->execute([mb_strtolower($prenom), mb_strtolower($nom)]);
       $connuNomBase = ($qn->fetchColumn() !== false);
     } catch (Throwable $e) { /* colonnes/table absentes en test */ }
-    // 📄 On ne COMPLÈTE le Google Form QUE si la personne est réellement nouvelle :
-    // ni son e-mail ni son prénom+nom déjà dans la feuille, et pas déjà en base.
-    // (Évite les doublons dans l'Excel.)
-    $dansFeuille = $dejaForm || isset($fc['noms'][$cleNom]);
+    $dansFeuille = isset($fc['emails'][$email]) || isset($fc['noms'][$cleNom]);
     if (!$dansFeuille && !$connuNomBase) {
       pousseVersForm($prenom, $nom, $email);
     }
@@ -1081,12 +1077,9 @@ switch ($action) {
       try { $db->prepare('DELETE FROM utilisateurs WHERE id = ?')->execute([$uid]); } catch (Throwable $e) {}
       http_response_code(500); echo json_encode(['ok' => false, 'reason' => 'mail_impossible']); break;
     }
-    // Déjà dans le form → écran « tu as déjà donné ton mail » ; sinon « compte créé ».
-    if ($dejaForm) {
-      echo json_encode(['ok' => true, 'renvoye' => true], JSON_UNESCAPED_UNICODE);
-    } else {
-      echo json_encode(['ok' => true, 'identifiant' => $identifiant], JSON_UNESCAPED_UNICODE);
-    }
+    // Compte créé + mail envoyé (le seul cas « déjà donné ton mail » vient de la
+    // base : compte en attente → on renvoie le lien, géré plus haut).
+    echo json_encode(['ok' => true, 'identifiant' => $identifiant], JSON_UNESCAPED_UNICODE);
     break;
   }
 
