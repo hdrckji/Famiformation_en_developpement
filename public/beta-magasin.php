@@ -14,24 +14,45 @@ if ($role !== 'beta') {
     exit();
 }
 
-// Id d'un module beta par son nom (pour ouvrir le contenu uploadé).
-function betaModId(PDO $db, $nom) {
+// Id d'un module beta par nom + parent (les modules Caisse sont SOUS le conteneur « Caisse »).
+function betaModId(PDO $db, $nom, $parentId = null) {
     try {
-        $st = $db->prepare("SELECT id FROM modules WHERE nom = ? AND roles = 'beta' AND parent_id IS NULL LIMIT 1");
-        $st->execute([$nom]);
+        $sql = "SELECT id FROM modules WHERE nom = ? AND roles = 'beta' AND "
+            . ($parentId === null ? "parent_id IS NULL" : "parent_id = ?") . " LIMIT 1";
+        $st = $db->prepare($sql);
+        $st->execute($parentId === null ? [$nom] : [$nom, (int) $parentId]);
         $v = $st->fetchColumn();
         return $v !== false ? (int) $v : 0;
     } catch (Throwable $e) { return 0; }
 }
-$lien = function ($nom) use ($db) { $id = betaModId($db, $nom); return $id ? ('module.php?id=' . $id) : 'gestion-beta.php'; };
+// Lien vers le CONTENU : si le module a UN seul sous-module de contenu, on ouvre
+// directement ce sous-module (affichage direct, pas de liste intermédiaire).
+function betaLien(PDO $db, $id) {
+    if (!$id) { return 'gestion-beta.php'; }
+    try {
+        $self = $db->prepare("SELECT (pdf_path IS NOT NULL OR video_path IS NOT NULL OR contenu_ia IS NOT NULL) FROM modules WHERE id = ?");
+        $self->execute([(int) $id]);
+        if ((int) $self->fetchColumn()) { return 'module.php?id=' . (int) $id; }
+        $st = $db->prepare("SELECT id FROM modules WHERE parent_id = ? AND (pdf_path IS NOT NULL OR video_path IS NOT NULL OR contenu_ia IS NOT NULL)");
+        $st->execute([(int) $id]);
+        $enfants = $st->fetchAll(PDO::FETCH_COLUMN);
+        if (count($enfants) === 1) { return 'module.php?id=' . (int) $enfants[0]; }
+        return 'module.php?id=' . (int) $id;
+    } catch (Throwable $e) { return 'module.php?id=' . (int) $id; }
+}
+
+$idCaisse    = betaModId($db, 'Caisse', null);
+$idFormation = betaModId($db, 'Formation Caisse', $idCaisse);
+$idTechnique = betaModId($db, 'Module technique', $idCaisse);
+$id2Sem      = betaModId($db, 'Mes 2 premières semaines en caisse', $idCaisse);
 
 // Caisse = 3 modules ACTIFS. Les autres rayons = aperçu grisé.
 $rayons = [
-    ['icon' => '💳', 'href' => $lien('Formation Caisse'), 'actif' => true,
+    ['icon' => '💳', 'href' => $idFormation ? betaLien($db, $idFormation) : 'gestion-beta.php', 'actif' => true,
      'titre' => t('Formation Caisse', 'Kassaopleiding'), 'desc' => t('Le parcours pour bien démarrer.', 'Het traject om goed te starten.')],
-    ['icon' => '🔧', 'href' => $lien('Module technique'), 'actif' => true,
+    ['icon' => '🔧', 'href' => $idTechnique ? betaLien($db, $idTechnique) : 'gestion-beta.php', 'actif' => true,
      'titre' => t('Module technique', 'Technische module'), 'desc' => t('La partie technique de la caisse.', 'Het technische deel van de kassa.')],
-    ['icon' => '🗓️', 'href' => $lien('Mes 2 premières semaines en caisse'), 'actif' => true,
+    ['icon' => '🗓️', 'href' => $id2Sem ? betaLien($db, $id2Sem) : 'gestion-beta.php', 'actif' => true,
      'titre' => t('Mes 2 premières semaines', 'Mijn eerste 2 weken'), 'desc' => t('Ce qui t\'attend au début.', 'Wat je aan het begin te wachten staat.')],
     ['icon' => '🌿', 'href' => null, 'actif' => false,
      'titre' => t('Green', 'Green'),             'desc' => t('Plantes & jardin.', 'Planten & tuin.')],
