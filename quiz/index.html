@@ -4587,7 +4587,7 @@ function majNavBorne(v) {
       <button class="nb-btn nb-home" id="nb-home">🏠 Accueil</button>`;
     document.body.appendChild(bar);
     bar.querySelector("#nb-retour").addEventListener("click", retourNav);
-    bar.querySelector("#nb-home").addEventListener("click", () => retourAccueilBorne());
+    bar.querySelector("#nb-home").addEventListener("click", () => { if (estBorne() && joueur) sortirBorne(); else retourAccueilBorne(); });
   }
 }
 
@@ -4683,15 +4683,28 @@ function demarreBorneIdle() {
     document.addEventListener(e, borneReArme, { passive: true }));
   borneReArme();
 }
+// 🖥️ Borne : quitter la session et revenir à l'accueil (page fraîche, aucun
+// visiteur ne reste connecté sous le compte du précédent).
+function sortirBorne() {
+  oublieMoi(); oublieJeton();
+  joueur = null; quiz = null; jardin = {}; jardinMsg = null;
+  navPile = []; vuePrec = null;   // on repart d'une base propre
+  retourAccueilBorne();
+}
 // « Retour » : on dépile la vue précédente. Plus rien à dépiler → l'accueil.
-// 🔒 Borne (kiosque) : « Retour » DÉCONNECTE aussi la session (comme « Accueil ») —
-// le compte du visiteur précédent ne doit pas rester actif quand on revient en arrière.
+// 🔙 Borne (kiosque), connecté : « Retour » est HIÉRARCHIQUE.
+//   • depuis une sous-page de l'espace (quiz, jardin, classement, herbes, codes…)
+//     → on revient DANS « mon espace » (le tableau de bord), on reste connecté ;
+//   • depuis « mon espace » lui-même → accueil + déconnexion (pour le suivant).
 function retourNav() {
   if (estBorne() && joueur) {
-    oublieMoi(); oublieJeton();
-    joueur = null; quiz = null; jardin = {}; jardinMsg = null;
-    navPile = []; vuePrec = null;   // on repart d'une base propre
-    retourAccueilBorne();
+    if (currentView() !== "dashboard") {
+      quiz = null;
+      userView = "dashboard";
+      render();
+      return;
+    }
+    sortirBorne();
     return;
   }
   if (!navPile.length) { retourAccueilBorne(); return; }
