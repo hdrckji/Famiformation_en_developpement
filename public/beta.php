@@ -73,8 +73,8 @@ $userPhoto = $_SESSION['photo_profil'] ?? null;
     <div class="beta-banner">
         <div class="beta-tag">VERSION BETA</div><br>
         <?= t(
-            "Tu utilises une <b>version bêta</b> de Famiformation : tu peux déjà découvrir les modules et faire les quiz (ils <b>ne sont pas encore évalués</b>). Le <b>29/07</b>, les <b>internes</b> recevront la <b>vraie version</b> avec leur parcours complet.",
-            "Je gebruikt een <b>bètaversie</b> van Famiformation: je kan de modules al ontdekken en de quiz doen (ze worden <b>nog niet beoordeeld</b>). Op <b>29/07</b> krijgen de <b>internen</b> de <b>echte versie</b> met hun volledig traject."
+            "Tu utilises une <b>version bêta</b> de Famiformation : tu peux déjà découvrir les <b>formations</b> et faire les <b>quiz</b>. Le <b>29/07</b>, les <b>internes</b> recevront la <b>vraie version</b> avec leur parcours complet.",
+            "Je gebruikt een <b>bètaversie</b> van Famiformation: je kan de <b>opleidingen</b> al ontdekken en de <b>quiz</b> doen. Op <b>29/07</b> krijgen de <b>internen</b> de <b>echte versie</b> met hun volledig traject."
         ) ?>
     </div>
 
@@ -89,10 +89,10 @@ $userPhoto = $_SESSION['photo_profil'] ?? null;
             <div class="tile-desc"><?= t("Bienvenue chez Famiflora ! Découvre notre univers.", "Welkom bij Famiflora! Ontdek onze wereld.") ?></div>
         </a>
 
-        <a href="formation-caisse.php" class="tile">
+        <a href="beta-magasin.php" class="tile">
             <span class="tile-icon">🛒</span>
             <div class="tile-title"><?= t('Magasin', 'Winkel') ?></div>
-            <div class="tile-desc"><?= t("La caisse : le parcours pour bien démarrer.", "De kassa: het traject om goed te starten.") ?></div>
+            <div class="tile-desc"><?= t("Les rayons du magasin — commence par la Caisse.", "De afdelingen van de winkel — begin bij de kassa.") ?></div>
         </a>
     </div>
 </body>
