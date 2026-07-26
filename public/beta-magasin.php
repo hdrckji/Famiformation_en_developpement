@@ -14,20 +14,31 @@ if ($role !== 'beta') {
     exit();
 }
 
-// Rayons du magasin. Seul « caisse » est actif ; les autres = aperçu grisé.
+// Id d'un module beta par son nom (pour ouvrir le contenu uploadé).
+function betaModId(PDO $db, $nom) {
+    try {
+        $st = $db->prepare("SELECT id FROM modules WHERE nom = ? AND roles = 'beta' AND parent_id IS NULL LIMIT 1");
+        $st->execute([$nom]);
+        $v = $st->fetchColumn();
+        return $v !== false ? (int) $v : 0;
+    } catch (Throwable $e) { return 0; }
+}
+$lien = function ($nom) use ($db) { $id = betaModId($db, $nom); return $id ? ('module.php?id=' . $id) : 'gestion-beta.php'; };
+
+// Caisse = 3 modules ACTIFS. Les autres rayons = aperçu grisé.
 $rayons = [
-    ['key' => 'caisse',     'icon' => '💳', 'href' => 'formation-caisse.php', 'actif' => true,
-     'titre' => t('Caisse', 'Kassa'),           'desc' => t('Le parcours pour bien démarrer.', 'Het traject om goed te starten.')],
-    ['key' => 'green',      'icon' => '🌿', 'href' => null, 'actif' => false,
+    ['icon' => '💳', 'href' => $lien('Formation Caisse'), 'actif' => true,
+     'titre' => t('Formation Caisse', 'Kassaopleiding'), 'desc' => t('Le parcours pour bien démarrer.', 'Het traject om goed te starten.')],
+    ['icon' => '🔧', 'href' => $lien('Module technique'), 'actif' => true,
+     'titre' => t('Module technique', 'Technische module'), 'desc' => t('La partie technique de la caisse.', 'Het technische deel van de kassa.')],
+    ['icon' => '🗓️', 'href' => $lien('Mes 2 premières semaines en caisse'), 'actif' => true,
+     'titre' => t('Mes 2 premières semaines', 'Mijn eerste 2 weken'), 'desc' => t('Ce qui t\'attend au début.', 'Wat je aan het begin te wachten staat.')],
+    ['icon' => '🌿', 'href' => null, 'actif' => false,
      'titre' => t('Green', 'Green'),             'desc' => t('Plantes & jardin.', 'Planten & tuin.')],
-    ['key' => 'deco',       'icon' => '🖼️', 'href' => null, 'actif' => false,
+    ['icon' => '🖼️', 'href' => null, 'actif' => false,
      'titre' => t('Déco', 'Deco'),               'desc' => t('Décoration & intérieur.', 'Decoratie & interieur.')],
-    ['key' => 'animalerie', 'icon' => '🐾', 'href' => null, 'actif' => false,
+    ['icon' => '🐾', 'href' => null, 'actif' => false,
      'titre' => t('Animalerie', 'Dierenwinkel'), 'desc' => t('Bien-être animal.', 'Dierenwelzijn.')],
-    ['key' => 'food',       'icon' => '🍫', 'href' => null, 'actif' => false,
-     'titre' => 'Food',                          'desc' => t('Épicerie & gourmandises.', 'Kruidenier & lekkers.')],
-    ['key' => 'logistique', 'icon' => '📦', 'href' => null, 'actif' => false,
-     'titre' => t('Logistique', 'Logistiek'),    'desc' => t('Flux & stock.', 'Stromen & voorraad.')],
 ];
 ?>
 <!DOCTYPE html>
@@ -68,7 +79,7 @@ $rayons = [
     <div class="header">
         <img src="logo.png" alt="Famiflora" class="logo">
         <h1>🛒 <?= t('Le magasin', 'De winkel') ?></h1>
-        <div class="soon-note"><?= t("Pour l'instant, seule la <b>Caisse</b> est ouverte. Les autres rayons arrivent bientôt.", "Voorlopig is enkel de <b>Kassa</b> open. De andere afdelingen komen binnenkort.") ?></div>
+        <div class="soon-note"><?= t("Pour l'instant, seule la <b>Caisse</b> est ouverte (ses 3 modules). Les autres rayons arrivent bientôt.", "Voorlopig is enkel de <b>Kassa</b> open (haar 3 modules). De andere afdelingen komen binnenkort.") ?></div>
     </div>
 
     <div class="tiles-container">

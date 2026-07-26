@@ -16,6 +16,18 @@ if ($role !== 'beta') {
 }
 if (function_exists('ensureWidgetTables')) { try { ensureWidgetTables($db); } catch (Throwable $e) {} }
 
+// Id d'un module beta (conteneur racine) par son nom — pour ouvrir le VRAI
+// contenu uploadé (module.php), pas une vieille page codée en dur.
+function betaModId(PDO $db, $nom) {
+    try {
+        $st = $db->prepare("SELECT id FROM modules WHERE nom = ? AND roles = 'beta' AND parent_id IS NULL LIMIT 1");
+        $st->execute([$nom]);
+        $v = $st->fetchColumn();
+        return $v !== false ? (int) $v : 0;
+    } catch (Throwable $e) { return 0; }
+}
+$idOnboarding = betaModId($db, 'Onboarding');
+
 $userNom = trim(($_SESSION['prenom'] ?? '') . ' ' . ($_SESSION['nom'] ?? ''));
 $userPhoto = $_SESSION['photo_profil'] ?? null;
 ?>
@@ -102,7 +114,7 @@ $userPhoto = $_SESSION['photo_profil'] ?? null;
     </div>
 
     <div class="tiles-container">
-        <a href="onboarding.php" class="tile">
+        <a href="<?= $idOnboarding ? 'module.php?id=' . $idOnboarding : 'gestion-beta.php' ?>" class="tile">
             <span class="tile-icon">🚀</span>
             <div class="tile-title"><?= t('Onboarding', 'Onboarding') ?></div>
             <div class="tile-desc"><?= t("Bienvenue chez Famiflora ! Découvre notre univers.", "Welkom bij Famiflora! Ontdek onze wereld.") ?></div>
