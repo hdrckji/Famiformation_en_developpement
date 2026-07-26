@@ -622,6 +622,20 @@ body.mode-tele .lang-switch { display: none; }   /* pas sur la télé */
   .home .borne-modules { grid-template-columns: 1fr; }
   .home .borne-mod { min-height: clamp(150px, 22vh, 260px); }
   .home .bm-emo { font-size: clamp(2.6rem, 12vw, 3.8rem); }
+  /* 📱 On dégage le haut : le titre ne passe plus sous les boutons fixes
+     (FR/NL à gauche, bulle « c'est quoi Famiformation » / déconnexion à droite).
+     Le body a déjà 24px en haut, on complète juste. */
+  .home { padding-top: 46px; }
+}
+/* 📱 Vrai téléphone (9:16) : la bulle devient une pastille compacte (icône seule)
+   pour ne plus empiéter sur le titre ni gêner au scroll. */
+@media (max-width: 560px) {
+  .fami-bulle { top: 12px; right: 12px; padding: 9px; gap: 0; }
+  .fami-bulle .fb-txt { display: none; }
+  .fami-bulle .fb-emo { font-size: 1.45rem; padding: 5px; }
+  .lang-switch { top: 12px; left: 12px; }
+  .lang-switch button { padding: 6px 12px; font-size: .88rem; }
+  .btn-deco { top: 12px; right: 12px; }
 }
 
 /* Bouton « maison » permanent quand on est arrivé par la borne. */
