@@ -516,18 +516,18 @@ function envoiFunActivation(PDO $db, $userId, $heures = 336) {
   $validite = $heures >= 48 ? ((int) round($heures / 24) . ' jours') : ((int) $heures . ' heures');
   $e = function ($s) { return htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8'); };
 
-  $subject = '🎁 Noël avant l\'heure : crée déjà ton compte Famiformation !';
+  $subject = '🌱 Prends de l\'avance : crée déjà ton compte Famiformation !';
   $body = '<div style="margin:0;padding:32px;background:#eef4ef;font-family:Open Sans,Arial,sans-serif;color:#244230;">'
     . '<div style="max-width:680px;margin:0 auto;background:#fff;border-radius:24px;overflow:hidden;box-shadow:0 18px 38px rgba(27,54,36,.12);">'
     . '<div style="padding:30px 32px;background:linear-gradient(135deg,#2d5a37 0%,#4a7b55 100%);color:#fff;">'
     . '<div style="font-size:12px;letter-spacing:.08em;text-transform:uppercase;opacity:.85;">Famiformation · Famiflora</div>'
-    . '<h1 style="margin:10px 0 8px;font-size:28px;line-height:1.2;">🎁 Noël avant l\'heure&nbsp;!</h1>'
-    . '<p style="margin:0;font-size:15px;line-height:1.6;opacity:.95;">Tu peux déjà créer ton compte Famiformation, sans attendre le lancement.</p>'
+    . '<h1 style="margin:10px 0 8px;font-size:28px;line-height:1.2;">🌱 Prends de l\'avance&nbsp;!</h1>'
+    . '<p style="margin:0;font-size:15px;line-height:1.6;opacity:.95;">Tu peux déjà créer ton compte Famiformation, avant le grand lancement du 29/07.</p>'
     . '</div>'
     . '<div style="padding:32px;">'
     . '<p style="margin:0 0 16px;font-size:16px;line-height:1.7;">Bonjour ' . $e($bonjour) . ',</p>'
-    . '<p style="margin:0 0 16px;font-size:16px;line-height:1.7;">Surprise&nbsp;! 🎉 On t\'avait dit que tu recevrais ton lien le 29/07… mais on te l\'envoie <b>en avance</b>. '
-    . 'Tu peux <b>dès maintenant créer ton compte Famiformation</b> (choisir ton mot de passe) pour être fin prêt(e) le jour du lancement.</p>'
+    . '<p style="margin:0 0 16px;font-size:16px;line-height:1.7;">Bonne nouvelle&nbsp;! 🎉 On t\'avait dit que tu recevrais ton lien le 29/07… mais on te l\'envoie <b>en avance</b>. '
+    . 'Tu peux <b>dès maintenant créer ton compte Famiformation</b> (choisir ton mot de passe) pour être fin prêt(e) le jour du lancement — le <b>quiz</b> et ton <b>espace jardin</b> t\'attendront&nbsp;! 🌿</p>'
     . '<div style="margin:22px 0;padding:20px;border-radius:18px;background:#f6faf7;border:1px solid #dde9df;">'
     . '<div style="font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:#6a7d72;margin-bottom:10px;">Ton identifiant</div>'
     . '<p style="margin:0;font-size:16px;"><b>' . $e($u['identifiant']) . '</b></p>'
@@ -536,7 +536,7 @@ function envoiFunActivation(PDO $db, $userId, $heures = 336) {
     . '<p style="margin:0 0 14px;font-size:15px;line-height:1.7;color:#3a5443;">Ce lien est valable ' . $e($validite) . '. Une fois connecté(e), tu pourras déjà découvrir Famiformation. 🌿</p>'
     . '<p style="margin:0;font-size:14px;line-height:1.7;color:#617268;">Tu n\'es pas concerné(e) par ce message&nbsp;? Ignore-le simplement. Une question&nbsp;? Écris à admin@famiformation.com.</p>'
     . '</div>'
-    . '<div style="padding:18px 32px;background:#f5f8f6;color:#617268;font-size:13px;">🎄 Message envoyé par Famiformation — Famiflora.</div>'
+    . '<div style="padding:18px 32px;background:#f5f8f6;color:#617268;font-size:13px;">🌱 Message envoyé par Famiformation — Famiflora.</div>'
     . '</div></div>';
 
   return sendMail($u['email'], $subject, $body, true);
