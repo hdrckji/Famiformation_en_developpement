@@ -710,7 +710,11 @@ function autoEnvoiDefinir($actif) {
 // $parNom = true → on considère « déjà dans le site » un compte au même
 // prénom+nom (contrôle demandé pour la liste du formulaire) ; sinon par e-mail.
 // Renvoie l'un de : cree | renvoye | deja_present | mail_ko | erreur.
-function traiteInscritGroupe(PDO $db, array $p, $siteId, $heures, $parNom = false) {
+// $resendPending : en envoi MANUEL on ré-envoie le lien à un compte encore en
+// attente (utile pour relancer). En temps réel (formulaire auto) on met false :
+// si l'e-mail existe déjà (ex. personne inscrite à la BORNE, qui a déjà reçu son
+// mail), on NE renvoie PAS un 2e mail. Évite le doublon borne + formulaire.
+function traiteInscritGroupe(PDO $db, array $p, $siteId, $heures, $parNom = false, $resendPending = true) {
   $email  = mb_strtolower(trim((string) ($p['email'] ?? '')));
   $prenom = trim(mb_substr((string) ($p['prenom'] ?? ''), 0, 40));
   $nom    = trim(mb_substr((string) ($p['nom'] ?? ''), 0, 60));
@@ -729,6 +733,9 @@ function traiteInscritGroupe(PDO $db, array $p, $siteId, $heures, $parNom = fals
     if ($u) {
       // Compte actif (mot de passe choisi) → on ne redérange pas.
       if (empty($u['account_activation_pending']) && !empty($u['mot_de_passe'])) { return 'deja_present'; }
+      // Compte encore en attente : en temps réel (auto) on NE renvoie PAS un 2e
+      // mail (la personne a déjà reçu son lien, ex. inscrite à la borne).
+      if (!$resendPending) { return 'deja_present'; }
       return envoiFunActivation($db, (int) $u['id'], $heures) ? 'renvoye' : 'mail_ko';
     }
     // 2) Aucun compte : on le crée (comme à l'inscription) puis mail.
@@ -893,6 +900,7 @@ $input  = json_decode(file_get_contents('php://input'), true) ?: [];
 $SITE = siteDe($input, $SITES, $SITE_DEFAUT);
 $scoresFile    = $dataDir . "/scores-$SITE.json";
 $codesFile     = $dataDir . "/codes-$SITE.json";
+$indicesFile   = $dataDir . "/codes-indices-$SITE.json";   // 🔎 indice (cache) par code, saisi en admin
 $questionsFile = $dataDir . "/questions-$SITE.json";
 $jardinFile    = $dataDir . "/jardin-$SITE.json";
 $configFile    = $dataDir . "/config-$SITE.json";
@@ -1339,7 +1347,7 @@ switch ($action) {
       'prenom' => (string) ($input['prenom'] ?? ''),
       'nom'    => (string) ($input['nom'] ?? ''),
       'email'  => $email,
-    ], $siteId, $ACTIVATION_HEURES, true);   // contrôle par prénom+nom
+    ], $siteId, $ACTIVATION_HEURES, true, false);   // contrôle prénom+nom ; PAS de 2e mail si e-mail déjà connu (anti-doublon borne)
 
     echo json_encode(['ok' => in_array($etat, ['cree', 'renvoye', 'deja_present'], true), 'etat' => $etat], JSON_UNESCAPED_UNICODE);
     break;
@@ -1934,6 +1942,21 @@ switch ($action) {
 
   // 🚫 BLOQUER un code (admin) : il devient indisponible pour tout le monde, sans
   // etre attribue a un joueur (code perdu, carte abimee, retiree du magasin...).
+  // 🔎 INDICE (cache) d'un code : l'organisateur note OÙ il a caché le code en
+  // magasin, pour s'y retrouver (admin uniquement). Indice vide = on l'efface.
+  case 'code_indice': {
+    exigeAdmin($input);
+    $bonus = strtoupper(trim($input['code'] ?? ''));
+    if (!in_array($bonus, $BONUS_CODES, true)) { echo json_encode(['ok' => false, 'reason' => 'inconnu']); break; }
+    $indice = mb_substr(trim((string) ($input['indice'] ?? '')), 0, 300);
+    $tout = readJson($indicesFile);
+    if (!is_array($tout)) { $tout = []; }
+    if ($indice === '') { unset($tout[$bonus]); } else { $tout[$bonus] = $indice; }
+    writeJson($indicesFile, $tout);
+    echo json_encode(['ok' => true, 'indice' => $indice], JSON_UNESCAPED_UNICODE);
+    break;
+  }
+
   case 'code_bloquer': {
     exigeAdmin($input);
     $bonus = strtoupper(trim($input['code'] ?? ''));
@@ -2166,14 +2189,17 @@ switch ($action) {
     $board = readJson($scoresFile);
     sortBoard($board);
     $pris = readJson($codesFile);
+    $indices = readJson($indicesFile);
+    if (!is_array($indices)) { $indices = []; }
     $codes = [];
     foreach ($BONUS_CODES as $c) {
       if ($c === $CODE_TEST_OK || $c === $CODE_TEST_USED) { continue; }   // codes de test : hors liste
       $codes[] = [
-        'code' => $c,
-        'pris' => isset($pris[$c]),
-        'par'  => $pris[$c]['par'] ?? null,
-        'date' => $pris[$c]['date'] ?? null,
+        'code'   => $c,
+        'pris'   => isset($pris[$c]),
+        'par'    => $pris[$c]['par'] ?? null,
+        'date'   => $pris[$c]['date'] ?? null,
+        'indice' => $indices[$c] ?? '',                                   // 🔎 où il est caché
       ];
     }
     $j = readJson($jardinFile);

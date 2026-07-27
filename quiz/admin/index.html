@@ -262,11 +262,18 @@ function parseLignesEnvoi(txt) {
   for (const ligne of lignes) {
     const l = ligne.trim();
     if (!l) continue;
-    const cols = l.split(/[\t;,]+/).map((s) => s.trim()).filter(Boolean);
+    // On coupe sur tabulation / ; / , ET les espaces → « Nom Prénom email »
+    // écrit à la main marche (et le copier-coller Excel aussi).
+    const cols = l.split(/[\t;,\s]+/).map((s) => s.trim()).filter(Boolean);
     const email = cols.find((c) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(c)) || "";
     const autres = cols.filter((c) => c !== email);
-    // Format conseillé : Prénom  Nom  email → prénom = 1er, nom = 2e.
-    out.push({ prenom: autres[0] || "", nom: autres[1] || "", email });
+    // Format demandé : Nom  Prénom  email → le PRÉNOM est le dernier mot,
+    // le NOM est tout ce qui précède (gère « Van Damme Jean »). L'id devient
+    // alors PrénomN (ex. Jean + Dupont → JeanD), comme partout ailleurs.
+    let prenom = "", nom = "";
+    if (autres.length === 1) { nom = autres[0]; }
+    else if (autres.length >= 2) { prenom = autres[autres.length - 1]; nom = autres.slice(0, -1).join(" "); }
+    out.push({ prenom, nom, email });
   }
   return out;
 }
@@ -309,13 +316,14 @@ function vueEnvoi() {
       <p class="hint">Pour les personnes <b>déjà inscrites sur le formulaire</b> (ou l'Excel) qui n'ont pas encore de compte Famiformation.
       On leur crée le compte si besoin et on leur envoie l'invitation à créer leur compte <b>avant le lancement</b> 🌱.</p>
       <p class="hint" style="background:#eef6ef;border-radius:10px;padding:10px 14px;">
-        📋 <b>Colle une personne par ligne</b>, au format <code>Prénom&nbsp;&nbsp;Nom&nbsp;&nbsp;email</code>
-        (copier-coller direct depuis Excel/Sheets fonctionne — colonnes séparées par tabulation, virgule ou point-virgule).<br>
-        Une ligne avec juste un <b>e-mail</b> marche aussi (le compte sera créé sans prénom/nom).
+        📋 <b>Une personne par ligne</b>, au format <code>Nom&nbsp;&nbsp;Prénom&nbsp;&nbsp;email</code>
+        (sépare avec un simple <b>espace</b> — ou tabulation/virgule/point-virgule si tu copies depuis Excel).<br>
+        L'identifiant est créé tout seul au format <b>PrénomN</b> (ex. <code>Dupont Jean jean@…</code> → <b>JeanD</b>).
+        Une ligne avec juste un <b>e-mail</b> marche aussi (compte créé sans prénom/nom).
       </p>
-      <textarea class="field" id="ev-txt" rows="9" placeholder="Marie	Dupont	marie.dupont@exemple.be
-Ali;Ben;ali.ben@exemple.be
-jean.martin@exemple.be" style="font-family:monospace; font-size:.9rem;"></textarea>
+      <textarea class="field" id="ev-txt" rows="9" placeholder="Dupont Jean jean.dupont@exemple.be
+Van Damme Marie marie.vandamme@exemple.be
+ali.ben@exemple.be" style="font-family:monospace; font-size:.9rem;"></textarea>
       <div id="ev-apercu" class="hint" style="margin:6px 0;"></div>
       <div id="ev-msg"></div>
       <div id="ev-progress" style="display:none; margin:10px 0;">
@@ -1154,15 +1162,20 @@ function vueCodes() {
       abîmée, retirée du magasin). Tu pourras le libérer à nouveau plus tard.<br>
       <em>Les 2 codes de test (FAMI-TEST-OK / FAMI-TEST-USED) ne sont pas dans cette liste : ils ne comptent
       pas dans les 20 codes du magasin.</em></p>
+      <p class="hint">🔎 <strong>Indice</strong> : note où tu as caché chaque code en magasin (rayon, meuble…).
+      C'est <strong>pour toi</strong> (ça reste dans l'admin), ça t'évite d'oublier tes caches. Enregistré tout seul dès que tu sors du champ.</p>
       <div style="overflow-x:auto">
       <table>
-        <tr><th>Code</th><th>État</th><th>Récupéré par</th><th>Quand</th><th></th></tr>
+        <tr><th>Code</th><th>État</th><th>Récupéré par</th><th>Quand</th><th>🔎 Indice (où il est caché)</th><th></th></tr>
         ${data.codes.map((x) => `
           <tr>
             <td><strong>${esc(x.code)}</strong></td>
             <td class="${x.pris ? "pris" : "libre"}">${x.pris ? (x.par === "Organisateur" ? "Bloqué" : "Pris") : "Libre"}</td>
             <td>${x.par ? esc(x.par) : "—"}</td>
             <td>${x.date ? esc(new Date(x.date).toLocaleString("fr-BE")) : "—"}</td>
+            <td><input type="text" class="ind-code" data-ind="${esc(x.code)}" value="${esc(x.indice || "")}"
+              placeholder="ex. Rayon barbecue, sous les housses" maxlength="300"
+              style="width:100%;min-width:200px;padding:7px 10px;border:1px solid #cdd6ce;border-radius:8px;font-size:.85rem;"></td>
             <td>${x.pris
               ? `<button class="btn ghost" data-lib="${esc(x.code)}" data-par="${esc(x.par || "")}" style="padding:6px 12px;font-size:.85rem;white-space:nowrap;">🔓 Libérer</button>`
               : `<button class="btn ghost" data-blo="${esc(x.code)}" style="padding:6px 12px;font-size:.85rem;white-space:nowrap;">🚫 Bloquer</button>`}</td>
