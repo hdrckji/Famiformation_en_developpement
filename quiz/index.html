@@ -3342,28 +3342,22 @@ function labelMoment(ts) {
   const h = d.getMinutes() ? `${d.getHours()}h${pad(d.getMinutes())}` : `${d.getHours()}h`;
   return `${pad(d.getDate())}/${pad(d.getMonth() + 1)} à ${h}`;
 }
+// Les indices sont-ils dispo ? À partir de la veille du lancement, OU tout de
+// suite en mode aperçu (compte de test, ?ouvert=1, simulation) pour prévisualiser.
+function zonesDispo() { return (Date.now() >= zonesDispoLe()) || toutOuvert() || FORCE_OUVERT; }
 function zonesHintHtml() {
-  const zones = (CONFIG.zones || []).filter((z) => z.nom && z.nb > 0);
-  // 👁️ Mode APERÇU (compte de test, ?ouvert=1, ou simulation) : on affiche le
-  // rendu réel des indices AVANT J-1, pour pouvoir prévisualiser. Les vrais
-  // joueurs gardent, eux, le bloc verrouillé jusqu'à la veille du lancement.
-  const apercu = toutOuvert() || FORCE_OUVERT;
-  // Avant l'ouverture : le bloc est TOUJOURS visible (même si les zones ne sont
-  // pas encore renseignées côté admin), mais verrouillé — au clic on dit quand il
-  // sera dispo. C'est ce qui garantit un affichage identique partout.
-  if (Date.now() < zonesDispoLe() && !apercu) {
+  // 🔎 TOUJOURS un bouton : au clic, une fenêtre modale s'ouvre avec les indices
+  // (zones + nombre de codes). Verrouillé avant J-1 → la modale dit quand ça arrive.
+  if (!zonesDispo()) {
     return `<button class="zones-hint zones-lock" id="rc-indice">
       <div class="zh-titre">${t("🔒 Indices : où chercher les codes", "🔒 Tips: waar de codes zoeken")}</div>
       <div class="zh-lock">${t("Bientôt disponible — appuie pour savoir quand", "Binnenkort beschikbaar — tik om te weten wanneer")}</div>
     </button>`;
   }
-  const rows = zones.length
-    ? zones.map((z) => `<div class="zh-row"><span>${esc(z.nom)}</span><span>${z.nb} ${t("code", "code")}${z.nb > 1 ? "s" : ""}</span></div>`).join("")
-    : (apercu ? `<div class="zh-row" style="opacity:.7"><span>${t("Aperçu : aucune zone renseignée pour l'instant (à ajouter dans l'admin → onglet Compte à rebours).", "Voorbeeld: nog geen zone ingevuld (toe te voegen in de admin).")}</span></div>` : "");
-  return `<div class="zones-hint">
-    <div class="zh-titre">${t("🎯 Où chercher les codes", "🎯 Waar de codes zoeken")}</div>
-    ${rows}
-  </div>`;
+  return `<button class="zones-hint zones-lock" id="rc-indice">
+    <div class="zh-titre">${t("🔎 Indices : où chercher les codes", "🔎 Tips: waar de codes zoeken")}</div>
+    <div class="zh-lock">${t("Appuie pour voir où chercher 👀", "Tik om te zien waar zoeken 👀")}</div>
+  </button>`;
 }
 // ✨ « Comment ça marche ? » version CODES — tout sur la chasse aux codes bonus.
 function ouvreExplicationCodes() {
@@ -3406,6 +3400,32 @@ function modaleIndices() {
   o.addEventListener("click", (e) => { if (e.target === o) ferme(); });
 }
 
+// 🎯 Modale des INDICES : au clic sur le bloc, on ouvre cette fenêtre avec les
+// zones du magasin où des codes sont cachés (et combien dans chacune).
+function modaleZones() {
+  const zones = (CONFIG.zones || []).filter((z) => z.nom && z.nb > 0);
+  const corps = zones.length
+    ? `<div style="margin:6px 0 4px; text-align:left;">${zones.map((z) =>
+        `<div style="display:flex; justify-content:space-between; gap:16px; padding:11px 14px; border-bottom:1px solid #eef2ec;">
+           <span style="font-weight:600;">${esc(z.nom)}</span>
+           <span style="font-weight:800; color:var(--pousse); white-space:nowrap;">${z.nb} ${t("code", "code")}${z.nb > 1 ? "s" : ""}</span>
+         </div>`).join("")}</div>`
+    : `<p class="cm-sous">${t("Aucune zone n'a encore été renseignée. Ouvre l'œil dans tout le magasin ! 👀", "Er is nog geen zone ingevuld. Hou je ogen open in heel de winkel! 👀")}</p>`;
+  const o = document.createElement("div");
+  o.className = "modal-fond";
+  o.innerHTML = `<div class="modal code-modal">
+    <div class="cm-emoji">🎯</div>
+    <h2 class="cm-titre">${t("Où chercher les codes", "Waar de codes zoeken")}</h2>
+    ${zones.length ? `<p class="cm-sous">${t("Des codes sont cachés dans ces zones du magasin :", "Er zijn codes verstopt in deze zones van de winkel:")}</p>` : ""}
+    ${corps}
+    <button class="btn" id="cm-ok" style="min-width:180px; margin-top:14px;">${t("Compris, j'y vais ! 🔎", "Begrepen, ik ga! 🔎")}</button>
+  </div>`;
+  document.body.appendChild(o);
+  const ferme = () => o.remove();
+  o.querySelector("#cm-ok").addEventListener("click", ferme);
+  o.addEventListener("click", (e) => { if (e.target === o) ferme(); });
+}
+
 async function renderReclamer() {
   clearInterval(tickTimer);
   let code = (codeAReclamer || "").toUpperCase();
@@ -3434,7 +3454,7 @@ async function renderReclamer() {
     if (joueur && espaceAccessible()) bindPills();
     brancheRetour();
     const bi = $("#rc-indice");
-    if (bi) bi.addEventListener("click", modaleIndices);
+    if (bi) bi.addEventListener("click", () => { if (zonesDispo()) modaleZones(); else modaleIndices(); });
     $("#rc-explik").addEventListener("click", ouvreExplicationCodes);
     apiCodesRestants().then((cr) => {
       const el = $("#rc-restants");
