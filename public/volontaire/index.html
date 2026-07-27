@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Devenez créateur de contenu — FamiFormation</title>
+<meta name="description" content="Aidez à créer le contenu de FamiFormation : mettez en page et en vidéo le savoir-faire de vos collègues.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --green:#2e7d46; --deep:#1f5c34; --leaf:#7cb342; --mint:#eef6ec; --mint-line:#d7e8d2;
+  --ink:#243027; --muted:#5c6f60; --card:#ffffff; --bg:#eef4ea;
+  --shadow:0 10px 30px rgba(20,55,38,.10); --shadow-lg:0 24px 60px rgba(20,55,38,.16);
+}
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Inter',system-ui,-apple-system,sans-serif;}
+html{scroll-behavior:smooth;}
+body{background:var(--bg);color:var(--ink);line-height:1.55;}
+img,svg{display:block;max-width:100%;}
+a{color:inherit;}
+[hidden]{display:none !important;}
+
+.nav{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.86);backdrop-filter:blur(10px);border-bottom:1px solid var(--mint-line);}
+.nav-in{max-width:1080px;margin:0 auto;padding:12px 20px;display:flex;align-items:center;gap:14px;justify-content:space-between;}
+.brand{display:flex;align-items:center;gap:11px;font-weight:900;color:var(--deep);font-size:1.05rem;letter-spacing:-.01em;text-decoration:none;}
+.famiflogo{height:34px;width:auto;display:block;}
+.brand .sep{width:1px;height:22px;background:var(--mint-line);}
+.nav-right{display:flex;align-items:center;gap:12px;}
+.nav-cta{text-decoration:none;color:var(--muted);font-weight:700;font-size:.86rem;padding:8px 14px;border-radius:999px;transition:.2s;}
+.nav-cta:hover{background:var(--mint);color:var(--deep);}
+.langtoggle{display:flex;background:#fff;border:1px solid var(--mint-line);border-radius:999px;overflow:hidden;box-shadow:var(--shadow);}
+.langtoggle button{border:0;background:transparent;color:var(--muted);font-weight:800;font-size:.8rem;padding:7px 12px;cursor:pointer;font-family:inherit;}
+.langtoggle button.active{background:var(--deep);color:#fff;}
+@media(max-width:520px){.nav-cta{display:none;}}
+
+.wrap{max-width:1080px;margin:0 auto;padding:0 20px;}
+.btn{display:inline-flex;align-items:center;gap:9px;text-decoration:none;font-weight:800;font-size:.98rem;padding:14px 24px;border-radius:14px;border:none;cursor:pointer;transition:transform .18s ease,box-shadow .18s ease;}
+.btn-ghost{background:#fff;color:var(--deep);box-shadow:var(--shadow);}
+.btn-ghost:hover{transform:translateY(-2px);}
+.kicker{display:inline-block;color:var(--green);font-weight:800;font-size:.76rem;letter-spacing:.16em;text-transform:uppercase;margin-bottom:10px;}
+.back{display:inline-flex;align-items:center;gap:8px;text-decoration:none;font-weight:800;font-size:.9rem;color:var(--deep);background:#fff;box-shadow:var(--shadow);padding:10px 16px;border-radius:999px;margin-bottom:24px;transition:.2s;}
+.back:hover{transform:translateX(-2px);}
+
+.home-hero{background:linear-gradient(165deg,#eaf5e7 0%,#d6efce 55%,#c7ead1 100%);border-bottom:1px solid var(--mint-line);}
+.home-hero .inner{max-width:1080px;margin:0 auto;padding:48px 20px 78px;text-align:center;}
+.famiflogo-hero{height:62px;width:auto;margin:0 auto 20px;}
+.eyebrow{display:inline-flex;align-items:center;gap:8px;background:#fff;color:var(--deep);font-weight:800;font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;padding:8px 15px;border-radius:999px;box-shadow:var(--shadow);}
+.home-hero h1{margin:18px auto 0;color:var(--deep);font-weight:900;font-size:clamp(1.8rem,4.6vw,2.8rem);line-height:1.07;letter-spacing:-.02em;max-width:18ch;}
+.home-hero p{margin:14px auto 0;max-width:52ch;font-size:1.05rem;color:#3f4a41;}
+.home-hero p b{color:var(--deep);}
+
+.tiles{max-width:1000px;margin:0 auto;padding:0 20px;transform:translateY(-44px);}
+.tiles-grid{display:grid;grid-template-columns:1fr 1fr;gap:22px;}
+@media(max-width:720px){.tiles-grid{grid-template-columns:1fr;} .tiles{transform:translateY(-30px);}}
+.tile{position:relative;display:flex;flex-direction:column;text-decoration:none;background:var(--card);border:1px solid var(--mint-line);border-radius:22px;padding:30px 26px 26px;box-shadow:var(--shadow-lg);transition:transform .2s ease,box-shadow .2s ease;overflow:hidden;}
+.tile:hover{transform:translateY(-6px);box-shadow:0 30px 66px rgba(20,55,38,.2);}
+.tile::after{content:"";position:absolute;right:-40px;top:-40px;width:150px;height:150px;border-radius:50%;background:radial-gradient(circle,rgba(124,179,66,.18),transparent 70%);}
+.tile .tic{width:60px;height:60px;border-radius:18px;background:linear-gradient(150deg,#eaf5e7,#cfeccb);display:flex;align-items:center;justify-content:center;font-size:1.9rem;margin-bottom:16px;box-shadow:0 6px 16px rgba(31,92,52,.14);}
+.tile h2{color:var(--deep);font-size:1.5rem;font-weight:900;letter-spacing:-.01em;line-height:1.1;}
+.tile .teaser{margin-top:8px;color:var(--muted);font-size:1rem;flex:1;}
+.tile .go{margin-top:18px;display:inline-flex;align-items:center;gap:8px;font-weight:900;color:var(--green);font-size:.98rem;}
+.tile:hover .go{gap:12px;}
+.home-note{text-align:center;color:var(--muted);font-size:.92rem;padding:6px 20px 6px;}
+
+.detail{padding:40px 0 70px;}
+.detail-head{max-width:60ch;margin:0 0 34px;}
+.detail-head h2{color:var(--deep);font-weight:900;font-size:clamp(1.6rem,3.6vw,2.3rem);line-height:1.1;letter-spacing:-.02em;}
+.detail-head p{margin-top:12px;color:var(--muted);font-size:1.05rem;}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:18px;}
+.fcard{background:var(--card);border:1px solid var(--mint-line);border-radius:18px;padding:22px;box-shadow:var(--shadow);transition:transform .2s ease,box-shadow .2s ease;}
+.fcard:hover{transform:translateY(-4px);box-shadow:var(--shadow-lg);}
+.fcard .ic{width:48px;height:48px;border-radius:14px;background:var(--mint);display:flex;align-items:center;justify-content:center;font-size:1.5rem;margin-bottom:12px;}
+.fcard h3{color:var(--deep);font-size:1.08rem;font-weight:800;margin-bottom:6px;}
+.fcard p{color:#495449;font-size:.95rem;}
+
+.reassure{display:flex;gap:16px;align-items:flex-start;background:linear-gradient(135deg,#f2fbef,#e4f4dc);border:1px solid var(--mint-line);border-radius:20px;padding:22px 24px;box-shadow:var(--shadow);margin-bottom:30px;}
+.reassure .big{font-size:2rem;line-height:1;}
+.reassure h3{color:var(--deep);font-size:1.2rem;font-weight:900;margin-bottom:6px;}
+.reassure p{color:#3f4a41;font-size:1rem;}
+.reassure p b{color:var(--deep);}
+.block-title{color:var(--deep);font-weight:900;font-size:1.3rem;margin:36px 0 16px;letter-spacing:-.01em;}
+
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:18px;}
+.step{position:relative;background:var(--card);border:1px solid var(--mint-line);border-radius:18px;padding:26px 22px 22px;box-shadow:var(--shadow);}
+.step .num{position:absolute;top:-18px;left:22px;width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--green),var(--deep));color:#fff;font-weight:900;font-size:1.2rem;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 18px rgba(31,92,52,.3);}
+.step h3{margin-top:16px;color:var(--deep);font-size:1.1rem;font-weight:800;}
+.step p{margin-top:8px;color:#495449;font-size:.96rem;}
+
+.skills{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;}
+.skill{display:flex;gap:12px;align-items:center;background:#fff;border:1px solid var(--mint-line);border-radius:14px;padding:16px;box-shadow:var(--shadow);}
+.skill .e{font-size:1.6rem;}
+.skill b{color:var(--deep);display:block;font-size:1rem;}
+.skill span{color:var(--muted);font-size:.88rem;}
+
+.deliv{display:grid;grid-template-columns:1fr 1fr;gap:30px;align-items:start;margin-top:14px;}
+@media(max-width:860px){.deliv{grid-template-columns:1fr;}}
+.deliv.rev .deliv-copy{order:2;}
+@media(max-width:860px){.deliv.rev .deliv-copy{order:0;}}
+.deliv-copy h3{color:var(--deep);font-size:1.35rem;font-weight:900;margin-bottom:8px;}
+.deliv-copy .sub{color:var(--muted);margin-bottom:18px;}
+.checklist{list-style:none;display:flex;flex-direction:column;gap:12px;}
+.checklist li{display:flex;gap:12px;align-items:flex-start;background:#fff;border:1px solid var(--mint-line);border-radius:12px;padding:12px 14px;box-shadow:var(--shadow);}
+.checklist li .tick{flex:0 0 auto;width:24px;height:24px;border-radius:50%;background:var(--mint);color:var(--green);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:.9rem;margin-top:1px;}
+.checklist li b{color:var(--deep);}
+.checklist li span{font-size:.95rem;color:#3f4a41;}
+
+.example{background:var(--card);border:1px solid var(--mint-line);border-radius:20px;padding:16px;box-shadow:var(--shadow-lg);}
+.example .ex-tag{display:inline-flex;align-items:center;gap:7px;font-size:.72rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--deep);background:var(--mint);padding:6px 12px;border-radius:999px;margin-bottom:12px;}
+.example h4{color:var(--deep);font-size:1.02rem;margin:0 0 12px;padding-left:2px;}
+.ex-callout{background:#fff8e8;border:1px solid #f2e2b8;color:#6b551d;border-radius:12px;padding:11px 14px;font-size:.9rem;line-height:1.45;margin:0 0 12px;}
+.ex-callout b{color:#4d3d10;}
+.frame{border-radius:14px;overflow:hidden;border:1px solid var(--mint-line);background:#0d1f16;}
+.frame video{width:100%;display:block;background:#0d1f16;max-height:70vh;}
+#pdfViewer{max-height:640px;overflow-y:auto;background:#f4f7f4;border:1px solid var(--mint-line);border-radius:14px;padding:10px;display:flex;flex-direction:column;gap:10px;-webkit-overflow-scrolling:touch;}
+#pdfViewer .pdf-page{width:100%;height:auto;border-radius:6px;box-shadow:0 3px 10px rgba(0,0,0,.12);background:#fff;}
+#pdfViewer .pdf-loading,#pdfViewer .pdf-fallback{color:var(--muted);text-align:center;padding:34px 12px;font-size:.95rem;}
+#pdfViewer .pdf-fallback a{color:var(--green);font-weight:800;}
+@media(max-width:760px){#pdfViewer{max-height:74vh;}}
+.ex-actions{margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;}
+.pill-link{display:inline-flex;align-items:center;gap:8px;text-decoration:none;font-weight:800;font-size:.9rem;padding:11px 16px;border-radius:12px;background:var(--mint);color:var(--deep);transition:.2s;}
+.pill-link:hover{background:#e0efdb;}
+.pill-link.solid{background:linear-gradient(135deg,var(--green),var(--deep));color:#fff;}
+.note{margin-top:12px;font-size:.86rem;color:var(--muted);}
+
+.final{background:linear-gradient(150deg,var(--deep),#17492a);color:#eafaef;border-radius:26px;padding:46px 30px;text-align:center;box-shadow:var(--shadow-lg);margin-top:44px;}
+.final h2{font-size:clamp(1.5rem,3.4vw,2.1rem);font-weight:900;line-height:1.1;}
+.final p{margin:14px auto 0;max-width:52ch;color:#d7f2df;font-size:1.04rem;}
+.final p b{color:#fff;}
+.signup{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin:24px auto 0;max-width:560px;}
+.signup input{flex:1 1 170px;max-width:230px;border:none;border-radius:12px;padding:14px 16px;font-size:1rem;font-family:inherit;background:#fff;color:var(--ink);}
+.signup input::placeholder{color:#9aa89f;}
+.btn-signup{background:linear-gradient(135deg,var(--leaf),#5c9e2f);color:#fff;font-weight:900;border:none;border-radius:12px;padding:14px 22px;cursor:pointer;font-size:1rem;box-shadow:0 12px 26px rgba(0,0,0,.25);transition:transform .18s ease;white-space:nowrap;}
+.btn-signup:hover{transform:translateY(-2px);}
+.signup-note{margin-top:14px;font-size:.85rem;color:#bfe6c9;}
+
+footer{text-align:center;padding:34px 20px 46px;color:var(--muted);font-size:.86rem;}
+footer .brand{justify-content:center;margin-bottom:8px;color:var(--deep);}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-in">
+    <a class="brand" href="#home">
+      <img class="famiflogo" src="famiflora-logo.png" alt="Famiflora">
+      <span class="sep"></span>
+      FamiFormation
+    </a>
+    <div class="nav-right">
+      <a class="nav-cta" href="#mission" data-i18n="nav_mission">Ma mission →</a>
+      <div class="langtoggle">
+        <button type="button" data-lang="fr">FR</button>
+        <button type="button" data-lang="nl">NL</button>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<!-- ================= ACCUEIL : 2 modules ================= -->
+<div class="view" data-view="home">
+  <header class="home-hero">
+    <div class="inner">
+      <img class="famiflogo-hero" src="famiflora-logo.png" alt="Famiflora">
+      <div><span class="eyebrow" data-i18n="hero_eyebrow">🌱 Nouvelle plateforme de formation</span></div>
+      <h1 data-i18n="hero_h1">Aide à créer le contenu de FamiFormation</h1>
+      <p data-i18n="hero_p">On cherche des personnes à l'aise avec l'ordinateur pour <b>mettre en page et en vidéo</b> le savoir-faire de Famiflora. Par où veux-tu commencer&nbsp;?</p>
+    </div>
+  </header>
+
+  <div class="tiles">
+    <div class="tiles-grid">
+      <a class="tile" href="#famiformation">
+        <span class="tic">🎓</span>
+        <h2 data-i18n="t1_h2">C'est quoi FamiFormation&nbsp;?</h2>
+        <span class="teaser" data-i18n="t1_teaser">La plateforme de formation en ligne de Famiflora — et pourquoi elle a besoin de toi.</span>
+        <span class="go" data-i18n="go_discover">Découvrir →</span>
+      </a>
+      <a class="tile" href="#mission">
+        <span class="tic">🧑‍💻</span>
+        <h2 data-i18n="t2_h2">Ma mission</h2>
+        <span class="teaser" data-i18n="t2_teaser">Ce qu'on te demande concrètement… et pourquoi tu n'as pas besoin d'être un expert du métier.</span>
+        <span class="go" data-i18n="go_discover">Découvrir →</span>
+      </a>
+    </div>
+    <p class="home-note" data-i18n="home_note">Clique sur un module pour voir le détail.</p>
+
+    <div class="final">
+      <h2 data-i18n="signup_h2">Intéressé(e)&nbsp;? Rejoins l'aventure&nbsp;!</h2>
+      <p data-i18n="signup_p">Passe voir <b>Séverine Santraine</b> — ou inscris-toi directement ci-dessous, on te recontactera.</p>
+      <form class="signup" method="post" action="inscription.php">
+        <input type="hidden" name="lang" class="lang-field" value="fr">
+        <input type="text" name="prenom" data-i18n-ph="ph_prenom" placeholder="Ton prénom" autocomplete="given-name" maxlength="80" required>
+        <input type="text" name="nom" data-i18n-ph="ph_nom" placeholder="Ton nom" autocomplete="family-name" maxlength="80" required>
+        <button type="submit" class="btn-signup" data-i18n="signup_btn">Je suis intéressé(e) ✉️</button>
+      </form>
+      <p class="signup-note" data-i18n="signup_note">Un e-mail est envoyé à l'équipe FamiFormation pour te recontacter.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ================= DÉTAIL : FAMIFORMATION ================= -->
+<div class="view" data-view="famiformation" hidden>
+  <div class="wrap detail">
+    <a class="back" href="#home" data-i18n="back_home">← Retour</a>
+    <div class="detail-head">
+      <span class="kicker" data-i18n="ff_kicker">Le contexte</span>
+      <h2 data-i18n="ff_h2">C'est quoi FamiFormation&nbsp;?</h2>
+      <p data-i18n="ff_p">FamiFormation est la plateforme en ligne de Famiflora qui réunit tout ce dont on a besoin pour bien travailler. Où que l'on soit, même livré(e) à soi-même, on y trouve la réponse. Pour la remplir, elle a besoin de contenus clairs — c'est là que tu interviens.</p>
+    </div>
+    <div class="grid">
+      <div class="fcard"><div class="ic">🎓</div><h3 data-i18n="ff_c1_t">Grandir dans son métier</h3><p data-i18n="ff_c1_d">Apprendre directement en ligne, quand on veut, à son rythme.</p></div>
+      <div class="fcard"><div class="ic">🌟</div><h3 data-i18n="ff_c2_t">Découvrir ses points forts</h3><p data-i18n="ff_c2_d">Suivre ses progrès sans pression, étape par étape.</p></div>
+      <div class="fcard"><div class="ic">🧰</div><h3 data-i18n="ff_c3_t">Ne jamais rester bloqué</h3><p data-i18n="ff_c3_d">Tous les outils pour travailler, même seul(e) sur le terrain.</p></div>
+      <div class="fcard"><div class="ic">📅</div><h3 data-i18n="ff_c4_t">S'inscrire aux formations</h3><p data-i18n="ff_c4_d">Réserver sa place aux sessions en présentiel, en quelques clics.</p></div>
+      <div class="fcard"><div class="ic">🏆</div><h3 data-i18n="ff_c5_t">Une expérience motivante</h3><p data-i18n="ff_c5_d">Progresser à son rythme, avec quelques récompenses à la clé.</p></div>
+      <div class="fcard"><div class="ic">🌿</div><h3 data-i18n="ff_c6_t">Accessible à tout moment</h3><p data-i18n="ff_c6_d">Une plateforme interactive, en ligne, disponible où et quand on veut.</p></div>
+    </div>
+    <div class="final">
+      <h2 data-i18n="ff_final_h2">Envie de participer&nbsp;?</h2>
+      <p data-i18n="ff_final_p">Découvre en quoi consiste concrètement ta mission — c'est plus simple que tu ne le penses.</p>
+      <div style="margin-top:22px;"><a class="btn btn-ghost" href="#mission" data-i18n="ff_final_btn">Voir ma mission →</a></div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= DÉTAIL : MA MISSION ================= -->
+<div class="view" data-view="mission" hidden>
+  <div class="wrap detail">
+    <a class="back" href="#home" data-i18n="back_home">← Retour</a>
+    <div class="detail-head">
+      <span class="kicker" data-i18n="mi_kicker">Ta mission</span>
+      <h2 data-i18n="mi_h2">En quoi consiste concrètement le travail&nbsp;?</h2>
+    </div>
+
+    <div class="reassure">
+      <span class="big">💡</span>
+      <div>
+        <h3 data-i18n="mi_re_h3">Pas besoin d'être expert, ni de connaître le métier&nbsp;!</h3>
+        <p data-i18n="mi_re_p">Tu vas voir les <b>personnes qui savent</b> (celles qui connaissent bien le sujet) : elles t'expliquent ce qu'il faut. <b>Ton rôle</b>, c'est de mettre ça <b>en page (PDF)</b> et <b>en vidéo</b>. Il faut juste être <b>à l'aise en informatique</b> : savoir faire un PDF et un peu de montage vidéo. C'est tout.</p>
+      </div>
+    </div>
+
+    <h3 class="block-title" data-i18n="mi_bt1">Comment ça marche&nbsp;?</h3>
+    <div class="steps">
+      <div class="step"><div class="num">1</div><h3 data-i18n="mi_s1_t">Va voir ceux qui savent</h3><p data-i18n="mi_s1_d">Les collègues qui maîtrisent le sujet t'expliquent le geste et ce qui compte vraiment. Tu n'as rien à inventer.</p></div>
+      <div class="step"><div class="num">2</div><h3 data-i18n="mi_s2_t">Mets-le en page</h3><p data-i18n="mi_s2_d">Tu transformes leurs explications en une <b>fiche PDF</b> claire, avec des photos.</p></div>
+      <div class="step"><div class="num">3</div><h3 data-i18n="mi_s3_t">Filme et monte</h3><p data-i18n="mi_s3_d">Tu réalises la <b>vidéo</b> (plans du geste + voix off) et tu la montes. Sa longueur dépend du sujet.</p></div>
+    </div>
+
+    <h3 class="block-title" data-i18n="mi_bt2">Ce qu'il faut savoir faire</h3>
+    <div class="skills">
+      <div class="skill"><span class="e">🖥️</span><div><b data-i18n="mi_sk1_t">À l'aise en informatique</b><span data-i18n="mi_sk1_d">Se débrouiller sur un ordinateur.</span></div></div>
+      <div class="skill"><span class="e">📄</span><div><b data-i18n="mi_sk2_t">Faire un PDF propre</b><span data-i18n="mi_sk2_d">Mettre en page texte + photos.</span></div></div>
+      <div class="skill"><span class="e">🎬</span><div><b data-i18n="mi_sk3_t">Un peu de montage vidéo</b><span data-i18n="mi_sk3_d">Couper, assembler, ajouter la voix.</span></div></div>
+      <div class="skill"><span class="e">🚫</span><div><b data-i18n="mi_sk4_t">Connaître le métier ? Non&nbsp;!</b><span data-i18n="mi_sk4_d">Ce sont les experts qui t'expliquent.</span></div></div>
+    </div>
+
+    <h3 class="block-title" data-i18n="mi_bt3">Les 2 supports à réaliser</h3>
+    <div class="tiles-grid" style="margin-top:2px;">
+      <a class="tile" href="#pdf">
+        <span class="tic">📄</span>
+        <h2 data-i18n="mi_tpdf_h2">La fiche PDF</h2>
+        <span class="teaser" data-i18n="mi_tpdf_teaser">Le document de référence, avec photos, pour retrouver l'info en un coup d'œil.</span>
+        <span class="go" data-i18n="go_detail">Voir en détail →</span>
+      </a>
+      <a class="tile" href="#video">
+        <span class="tic">🎬</span>
+        <h2 data-i18n="mi_tvid_h2">La vidéo</h2>
+        <span class="teaser" data-i18n="mi_tvid_teaser">Des plans du geste + une voix off, pour visualiser ce qu'on attend.</span>
+        <span class="go" data-i18n="go_detail">Voir en détail →</span>
+      </a>
+    </div>
+
+    <div class="final" id="inscription">
+      <h2 data-i18n="signup_h2">Intéressé(e)&nbsp;? Rejoins l'aventure&nbsp;!</h2>
+      <p data-i18n="signup_p">Passe voir <b>Séverine Santraine</b> — ou inscris-toi directement ci-dessous, on te recontactera.</p>
+      <form class="signup" method="post" action="inscription.php">
+        <input type="hidden" name="lang" class="lang-field" value="fr">
+        <input type="text" name="prenom" data-i18n-ph="ph_prenom" placeholder="Ton prénom" autocomplete="given-name" maxlength="80" required>
+        <input type="text" name="nom" data-i18n-ph="ph_nom" placeholder="Ton nom" autocomplete="family-name" maxlength="80" required>
+        <button type="submit" class="btn-signup" data-i18n="signup_btn">Je suis intéressé(e) ✉️</button>
+      </form>
+      <p class="signup-note" data-i18n="signup_note">Un e-mail est envoyé à l'équipe FamiFormation pour te recontacter.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ================= DÉTAIL : LA FICHE PDF ================= -->
+<div class="view" data-view="pdf" hidden>
+  <div class="wrap detail">
+    <a class="back" href="#mission" data-i18n="back_mission">← Retour à ma mission</a>
+    <div class="detail-head">
+      <span class="kicker" data-i18n="pdf_kicker">Support n°1</span>
+      <h2 data-i18n="pdf_h2">📄 La fiche PDF</h2>
+      <p data-i18n="pdf_p">Le document de référence : celui qu'on garde sous la main pour retrouver une info rapidement.</p>
+    </div>
+    <div class="deliv">
+      <div class="deliv-copy">
+        <ul class="checklist">
+          <li><span class="tick">✓</span><span data-i18n="pdf_l1"><b>Toutes les infos utiles.</b> Ce qu'une personne débutante doit savoir pour comprendre et refaire le geste.</span></li>
+          <li><span class="tick">✓</span><span data-i18n="pdf_l2"><b>Étape par étape.</b> Dans l'ordre logique du geste, du début à la fin.</span></li>
+          <li><span class="tick">✓</span><span data-i18n="pdf_l3"><b>Des photos, sans hésiter.</b> Montre le bon geste, le bon outil, le bon résultat.</span></li>
+          <li><span class="tick">✓</span><span data-i18n="pdf_l4"><b>Facile à parcourir.</b> Titres clairs, points courts : on retrouve l'info en un coup d'œil.</span></li>
+          <li><span class="tick">✓</span><span data-i18n="pdf_l5"><b>Au plus c'est détaillé, au mieux c'est.</b> Il n'y a pas de limite : plus il y a d'infos utiles, mieux c'est. Les petits détails font la différence.</span></li>
+        </ul>
+      </div>
+      <div class="example">
+        <span class="ex-tag" data-i18n="pdf_extag">★ Exemple à suivre</span>
+        <h4 data-i18n="pdf_h4">Fiche «&nbsp;Comment arroser une plante&nbsp;»</h4>
+        <div id="pdfViewer" data-pdf="ex/exemple-pdf-arroser.pdf">
+          <div class="pdf-loading" data-i18n="pdf_loading">Chargement de l'aperçu…</div>
+        </div>
+        <div class="ex-actions">
+          <a class="pill-link solid" href="ex/exemple-pdf-arroser.pdf" target="_blank" rel="noopener" data-i18n="pdf_open">Ouvrir en grand ↗</a>
+          <a class="pill-link" href="ex/exemple-pdf-arroser.pdf" download data-i18n="pdf_dl">Télécharger ↓</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= DÉTAIL : LA VIDÉO ================= -->
+<div class="view" data-view="video" hidden>
+  <div class="wrap detail">
+    <a class="back" href="#mission" data-i18n="back_mission">← Retour à ma mission</a>
+    <div class="detail-head">
+      <span class="kicker" data-i18n="vid_kicker">Support n°2</span>
+      <h2 data-i18n="vid_h2">🎬 La vidéo</h2>
+      <p data-i18n="vid_p">Elle permet de <b>visualiser</b> ce qu'on attend : on voit le geste en vrai, en mouvement.</p>
+    </div>
+    <div class="deliv rev">
+      <div class="deliv-copy">
+        <ul class="checklist">
+          <li><span class="tick">✓</span><span data-i18n="vid_l1"><b>Droit au but, sans intro ni outro.</b> Pas de générique : on entre directement dans le vif du sujet.</span></li>
+          <li><span class="tick">✓</span><span data-i18n="vid_l2"><b>Aussi détaillée que nécessaire.</b> La durée dépend du sujet : au plus c'est détaillé, au mieux c'est — comme pour le PDF.</span></li>
+          <li><span class="tick">✓</span><span data-i18n="vid_l3"><b>Des plans du geste.</b> Filme les étapes : les mains, l'outil, ce qu'on regarde.</span></li>
+          <li><span class="tick">✓</span><span data-i18n="vid_l4"><b>Une voix off par-dessus.</b> Tu expliques pendant qu'on voit les images. Pas besoin d'être à l'écran.</span></li>
+          <li><span class="tick">✓</span><span data-i18n="vid_l5"><b>Même sujet que la fiche.</b> Les deux se répondent.</span></li>
+        </ul>
+      </div>
+      <div class="example">
+        <span class="ex-tag" data-i18n="vid_extag">★ Exemple — extrait</span>
+        <h4 data-i18n="vid_h4">Vidéo «&nbsp;Arroser une plante&nbsp;» (plans + voix off)</h4>
+        <div class="ex-callout" data-i18n="vid_callout">ℹ️ Ceci est un <b>extrait</b> : la vidéo ne montre pas tout. Il sert juste à te faire comprendre <b>le type de rendu attendu</b>.</div>
+        <div class="frame">
+          <video controls preload="metadata" playsinline>
+            <source src="ex/exemple-video-arroser.mp4" type="video/mp4">
+          </video>
+        </div>
+        <div class="ex-actions">
+          <a class="pill-link solid" href="ex/exemple-video-arroser.mp4" target="_blank" rel="noopener" data-i18n="vid_open">Ouvrir la vidéo ↗</a>
+        </div>
+        <p class="note" data-i18n="vid_note">Pas besoin de matériel pro&nbsp;: un smartphone suffit.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <div class="brand" style="justify-content:center;">
+    <img class="famiflogo" src="famiflora-logo.png" alt="Famiflora" style="height:28px;">
+  </div>
+  <span data-i18n="footer">FamiFormation · La plateforme de formation en ligne de Famiflora</span>
+</footer>
+
+<script>
+// ---------- Traductions néerlandaises (le français est le texte du HTML) ----------
+var NL = {
+  nav_mission: "Mijn opdracht →",
+  go_discover: "Ontdekken →",
+  go_detail: "Bekijk in detail →",
+  back_home: "← Terug",
+  back_mission: "← Terug naar mijn opdracht",
+  hero_eyebrow: "🌱 Nieuw opleidingsplatform",
+  hero_h1: "Help mee de inhoud van FamiFormation te maken",
+  hero_p: "We zoeken mensen die vlot zijn met de computer om de knowhow van Famiflora <b>in fiches en video's</b> te gieten. Waar wil je beginnen?",
+  t1_h2: "Wat is FamiFormation?",
+  t1_teaser: "Het online opleidingsplatform van Famiflora — en waarom het jou nodig heeft.",
+  t2_h2: "Mijn opdracht",
+  t2_teaser: "Wat we concreet van je vragen… en waarom je geen vakexpert hoeft te zijn.",
+  home_note: "Klik op een module voor meer details.",
+  signup_h2: "Geïnteresseerd? Doe mee!",
+  signup_p: "Ga langs bij <b>Séverine Santraine</b> — of schrijf je hieronder rechtstreeks in, we nemen contact met je op.",
+  signup_btn: "Ik ben geïnteresseerd ✉️",
+  signup_note: "Er wordt een e-mail naar het FamiFormation-team gestuurd om contact met je op te nemen.",
+  ph_prenom: "Je voornaam",
+  ph_nom: "Je naam",
+  ff_kicker: "De context",
+  ff_h2: "Wat is FamiFormation?",
+  ff_p: "FamiFormation is het online platform van Famiflora dat alles bundelt wat je nodig hebt om goed te werken. Waar je ook bent, zelfs op jezelf aangewezen, je vindt er het antwoord. Om het te vullen heeft het duidelijke inhoud nodig — en daar kom jij in beeld.",
+  ff_c1_t: "Groeien in je vak", ff_c1_d: "Leer online, wanneer je wil, op je eigen tempo.",
+  ff_c2_t: "Je sterke punten ontdekken", ff_c2_d: "Volg je vooruitgang zonder druk, stap voor stap.",
+  ff_c3_t: "Nooit vastlopen", ff_c3_d: "Alle tools om te werken, zelfs alleen op het terrein.",
+  ff_c4_t: "Inschrijven voor opleidingen", ff_c4_d: "Reserveer je plek voor sessies ter plaatse, in enkele klikken.",
+  ff_c5_t: "Een motiverende ervaring", ff_c5_d: "Ga vooruit op je tempo, met enkele beloningen.",
+  ff_c6_t: "Altijd bereikbaar", ff_c6_d: "Een interactief platform, online, waar en wanneer je wil.",
+  ff_final_h2: "Zin om mee te doen?",
+  ff_final_p: "Ontdek wat je opdracht concreet inhoudt — het is eenvoudiger dan je denkt.",
+  ff_final_btn: "Bekijk mijn opdracht →",
+  mi_kicker: "Jouw opdracht",
+  mi_h2: "Wat houdt het werk concreet in?",
+  mi_re_h3: "Je hoeft geen expert te zijn en het vak niet te kennen!",
+  mi_re_p: "Je gaat langs bij de <b>mensen die het weten</b> (zij die het onderwerp goed kennen): zij leggen je uit wat nodig is. <b>Jouw rol</b> is om dat <b>op te maken (PDF)</b> en <b>in video</b> te zetten. Je moet gewoon <b>vlot zijn met de computer</b>: een PDF kunnen maken en een beetje videomontage. Meer niet.",
+  mi_bt1: "Hoe werkt het?",
+  mi_s1_t: "Ga langs bij wie het weet", mi_s1_d: "De collega's die het onderwerp beheersen leggen je de handeling uit en wat écht telt. Je hoeft niets te verzinnen.",
+  mi_s2_t: "Zet het op papier", mi_s2_d: "Je maakt van hun uitleg een duidelijke <b>PDF-fiche</b>, met foto's.",
+  mi_s3_t: "Film en monteer", mi_s3_d: "Je maakt de <b>video</b> (beelden van de handeling + voice-over) en monteert ze. De lengte hangt af van het onderwerp.",
+  mi_bt2: "Wat je moet kunnen",
+  mi_sk1_t: "Vlot met de computer", mi_sk1_d: "Je weg vinden op een computer.",
+  mi_sk2_t: "Een nette PDF maken", mi_sk2_d: "Tekst + foto's opmaken.",
+  mi_sk3_t: "Een beetje videomontage", mi_sk3_d: "Knippen, samenvoegen, stem toevoegen.",
+  mi_sk4_t: "Het vak kennen? Nee!", mi_sk4_d: "De experts leggen het jou uit.",
+  mi_bt3: "De 2 te maken supports",
+  mi_tpdf_h2: "De PDF-fiche", mi_tpdf_teaser: "Het referentiedocument, met foto's, om de info in één oogopslag terug te vinden.",
+  mi_tvid_h2: "De video", mi_tvid_teaser: "Beelden van de handeling + een voice-over, om te tonen wat we verwachten.",
+  pdf_kicker: "Support nr. 1",
+  pdf_h2: "📄 De PDF-fiche",
+  pdf_p: "Het referentiedocument: dat je bij de hand houdt om snel info terug te vinden.",
+  pdf_l1: "<b>Alle nuttige info.</b> Wat een beginner moet weten om de handeling te begrijpen en na te doen.",
+  pdf_l2: "<b>Stap voor stap.</b> In de logische volgorde van de handeling, van begin tot eind.",
+  pdf_l3: "<b>Foto's, zonder aarzelen.</b> Toon de juiste handeling, het juiste gereedschap, het juiste resultaat.",
+  pdf_l4: "<b>Makkelijk te overlopen.</b> Duidelijke titels, korte punten: je vindt de info in één oogopslag.",
+  pdf_l5: "<b>Hoe gedetailleerder, hoe beter.</b> Er is geen limiet: hoe meer nuttige info, hoe beter. De kleine details maken het verschil.",
+  pdf_extag: "★ Voorbeeld om te volgen",
+  pdf_h4: "Fiche « Hoe geef je een plant water »",
+  pdf_loading: "Voorbeeld laden…",
+  pdf_open: "Groot openen ↗",
+  pdf_dl: "Downloaden ↓",
+  vid_kicker: "Support nr. 2",
+  vid_h2: "🎬 De video",
+  vid_p: "Ze laat <b>zien</b> wat we verwachten: je ziet de handeling echt, in beweging.",
+  vid_l1: "<b>Meteen ter zake, zonder intro of outro.</b> Geen generiek: je gaat meteen tot de kern.",
+  vid_l2: "<b>Zo gedetailleerd als nodig.</b> De duur hangt af van het onderwerp: hoe gedetailleerder, hoe beter — net als bij de PDF.",
+  vid_l3: "<b>Beelden van de handeling.</b> Film de stappen: de handen, het gereedschap, waar je naar kijkt.",
+  vid_l4: "<b>Een voice-over erover.</b> Je legt uit terwijl we de beelden zien. Je hoeft niet in beeld te zijn.",
+  vid_l5: "<b>Zelfde onderwerp als de fiche.</b> De twee vullen elkaar aan.",
+  vid_extag: "★ Voorbeeld — fragment",
+  vid_h4: "Video « Hoe geef je een plant water » (beelden + voice-over)",
+  vid_callout: "ℹ️ Dit is een <b>fragment</b>: de video toont niet alles. Het dient enkel om je te tonen <b>welk soort resultaat we verwachten</b>.",
+  vid_open: "Video openen ↗",
+  vid_note: "Geen profmateriaal nodig: een smartphone volstaat.",
+  footer: "FamiFormation · Het online opleidingsplatform van Famiflora"
+};
+
+// ---------- Application de la langue ----------
+(function () {
+  var els = document.querySelectorAll('[data-i18n]');
+  var phEls = document.querySelectorAll('[data-i18n-ph]');
+  // Mémorise le français d'origine (texte du HTML) pour pouvoir y revenir.
+  for (var i = 0; i < els.length; i++) { els[i].setAttribute('data-fr-html', els[i].innerHTML); }
+  for (var j = 0; j < phEls.length; j++) { phEls[j].setAttribute('data-fr-ph', phEls[j].getAttribute('placeholder') || ''); }
+
+  function apply(lang) {
+    for (var i = 0; i < els.length; i++) {
+      var k = els[i].getAttribute('data-i18n');
+      els[i].innerHTML = (lang === 'nl' && NL[k]) ? NL[k] : els[i].getAttribute('data-fr-html');
+    }
+    for (var j = 0; j < phEls.length; j++) {
+      var k2 = phEls[j].getAttribute('data-i18n-ph');
+      phEls[j].setAttribute('placeholder', (lang === 'nl' && NL[k2]) ? NL[k2] : phEls[j].getAttribute('data-fr-ph'));
+    }
+    var lf = document.querySelectorAll('.lang-field');
+    for (var m = 0; m < lf.length; m++) { lf[m].value = lang; }
+    document.documentElement.setAttribute('lang', lang);
+    var btns = document.querySelectorAll('.langtoggle button');
+    for (var b = 0; b < btns.length; b++) {
+      btns[b].classList.toggle('active', btns[b].getAttribute('data-lang') === lang);
+    }
+    try { localStorage.setItem('fami_lang', lang); } catch (e) {}
+  }
+
+  var saved = null;
+  try { saved = localStorage.getItem('fami_lang'); } catch (e) {}
+  var start = saved || ((navigator.language || 'fr').toLowerCase().indexOf('nl') === 0 ? 'nl' : 'fr');
+  apply(start);
+
+  var btns = document.querySelectorAll('.langtoggle button');
+  for (var b = 0; b < btns.length; b++) {
+    btns[b].addEventListener('click', function () { apply(this.getAttribute('data-lang')); });
+  }
+})();
+
+// ---------- Navigation entre vues (par #) ----------
+(function () {
+  var views = ['home', 'famiformation', 'mission', 'pdf', 'video'];
+  function show(name) {
+    if (views.indexOf(name) === -1) { name = 'home'; }
+    var all = document.querySelectorAll('.view');
+    for (var i = 0; i < all.length; i++) { all[i].hidden = (all[i].getAttribute('data-view') !== name); }
+    window.scrollTo(0, 0);
+  }
+  function route() {
+    var h = (location.hash || '#home').replace('#', '');
+    if (h === 'inscription') {
+      show('mission');
+      var el = document.getElementById('inscription');
+      if (el) { setTimeout(function () { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 30); }
+      return;
+    }
+    show(h);
+  }
+  window.addEventListener('hashchange', route);
+  route();
+})();
+</script>
+
+<!-- Visionneur PDF (rend les pages en images -> lisible sur ordinateur ET téléphone) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+(function () {
+  var container = document.getElementById('pdfViewer');
+  if (!container) { return; }
+  var url = container.getAttribute('data-pdf');
+  function fallback() {
+    container.style.display = 'block';
+    container.innerHTML = '<div class="pdf-fallback"><a href="' + url + '" target="_blank" rel="noopener">Ouvrir le PDF ↗</a></div>';
+  }
+  if (!window['pdfjsLib']) { fallback(); return; }
+  try { pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'; } catch (e) {}
+  pdfjsLib.getDocument(url).promise.then(function (pdf) {
+    container.innerHTML = '';
+    var canvases = [];
+    for (var n = 1; n <= pdf.numPages; n++) {
+      var c = document.createElement('canvas'); c.className = 'pdf-page'; container.appendChild(c); canvases.push(c);
+    }
+    function renderPage(num) {
+      pdf.getPage(num).then(function (page) {
+        var base = page.getViewport({ scale: 1 });
+        var scale = Math.min(1.8, 1100 / base.width);
+        var vp = page.getViewport({ scale: scale });
+        var canvas = canvases[num - 1];
+        canvas.width = vp.width; canvas.height = vp.height;
+        page.render({ canvasContext: canvas.getContext('2d'), viewport: vp });
+      });
+    }
+    for (var i = 1; i <= pdf.numPages; i++) { renderPage(i); }
+  }).catch(fallback);
+})();
+</script>
+</body>
+</html>

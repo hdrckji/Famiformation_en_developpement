@@ -1,0 +1,5 @@
+# Empêche le téléchargement direct du .env (et .env.example) via le navigateur.
+<FilesMatch "^\.env">
+  Order allow,deny
+  Deny from all
+</FilesMatch>

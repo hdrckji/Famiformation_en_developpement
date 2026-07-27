@@ -1,3 +1,6 @@
 # Fichiers d'environnement (secrets) — fournis via les variables Railway
 .env
 */.env
+
+public/volontaire/.env
+public/emails/.env

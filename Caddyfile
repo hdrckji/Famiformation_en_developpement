@@ -72,6 +72,15 @@
 		@quizSite path /quiz/mouscron /quiz/lapanne
 		rewrite @quizSite /quiz/index.html
 
+		# Mini-sites statiques /volontaire et /emails : leur index est index.html.
+		# php_server ne sert que index.php comme index de dossier -> sans ca, /volontaire
+		# retomberait sur l'app principale. On sert explicitement leur index.html
+		# (les .php internes comme /volontaire/inscription.php restent servis normalement).
+		@volontaireIndex path /volontaire /volontaire/
+		rewrite @volontaireIndex /volontaire/index.html
+		@emailsIndex path /emails /emails/
+		rewrite @emailsIndex /emails/index.html
+
 		# Bloque les fichiers caches (.env, .htaccess, .gitignore, ...)
 		@dotfiles path_regexp dotfiles /\.[^/]+$
 		respond @dotfiles 403
