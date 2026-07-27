@@ -829,7 +829,7 @@ function marquePrevenu($cle) {
 // minuscule). $info = ['type'=>'podium'|'jardin','rang'=>?]. true si parti.
 function mailRecompense(PDO $db, $cle, $info) {
   try {
-    $q = $db->prepare('SELECT email, prenom FROM utilisateurs WHERE LOWER(identifiant) = ? LIMIT 1');
+    $q = $db->prepare('SELECT email, prenom, nom FROM utilisateurs WHERE LOWER(identifiant) = ? LIMIT 1');
     $q->execute([$cle]);
     $u = $q->fetch(PDO::FETCH_ASSOC);
   } catch (Throwable $e) { return false; }
@@ -853,7 +853,45 @@ function mailRecompense(PDO $db, $cle, $info) {
     . '<p style="font-size:16px;line-height:1.6;">Pour <b>récupérer ta récompense</b>, présente-toi <b>auprès des RH</b> du magasin' . $quand . '. '
     . 'Une question&nbsp;? Écris à <a href="mailto:admin@famiformation.com">admin@famiformation.com</a>.</p>'
     . '<p style="font-size:15px;color:#617268;">Merci d\'avoir joué, et à bientôt&nbsp;! 🌱<br>L\'équipe Famiflora · Famiformation</p></div>';
-  return function_exists('sendMail') ? sendMail($email, $sujet, $body, true) : false;
+  $ok = function_exists('sendMail') ? sendMail($email, $sujet, $body, true) : false;
+  // ✅ La personne a bien été prévenue → on prévient AUSSI l'admin (RH) pour qu'il
+  // prépare la récompense. Une seule fois par personne (les appelants gardent le
+  // drapeau dejaPrevenu après un envoi réussi).
+  if ($ok) { mailAdminRecompense($cle, $u, $info); }
+  return $ok;
+}
+
+// 📣 Notifie l'ADMIN (RH) qu'une personne vient de devenir éligible à une
+// récompense (jardin terminé ou podium), pour qu'il la prépare. Destinataire
+// configurable via la variable d'env RH_NOTIF_MAIL (sinon adresse par défaut).
+function mailAdminRecompense($cle, $u, $info) {
+  if (!function_exists('sendMail')) { return false; }
+  $dest = getenv('RH_NOTIF_MAIL');
+  if ($dest === false || $dest === '') { $dest = 'enylson.laine@famiflora.be'; }
+  $e = function ($s) { return htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8'); };
+  $qui = trim(trim((string) ($u['prenom'] ?? '')) . ' ' . trim((string) ($u['nom'] ?? '')));
+  if ($qui === '') { $qui = (string) $cle; }
+  if (($info['type'] ?? '') === 'podium') {
+    $rang = (int) ($info['rang'] ?? 0);
+    $motif = 'Podium — ' . ($rang === 1 ? '1re place 🥇' : ($rang === 2 ? '2e place 🥈' : ($rang === 3 ? '3e place 🥉' : $rang . 'e place')));
+    $sujet = '🎁 Récompense à préparer (podium) — ' . $qui;
+  } else {
+    $motif = 'Jardin terminé 🌼';
+    $sujet = '🎁 Récompense à préparer (jardin) — ' . $qui;
+  }
+  $mailPers = trim((string) ($u['email'] ?? ''));
+  $body = '<div style="font-family:Arial,sans-serif;color:#244230;max-width:560px;margin:0 auto;padding:24px;">'
+    . '<p style="font-size:16px;"><b>🎁 Nouvelle récompense à préparer</b></p>'
+    . '<p style="font-size:15px;line-height:1.7;">Une personne vient de devenir éligible à une récompense du quiz Famiformation.</p>'
+    . '<table style="font-size:15px;line-height:1.9;border-collapse:collapse;">'
+    . '<tr><td style="padding-right:12px;"><b>Personne</b></td><td>' . $e($qui) . '</td></tr>'
+    . '<tr><td style="padding-right:12px;"><b>Identifiant</b></td><td>' . $e($cle) . '</td></tr>'
+    . ($mailPers !== '' ? '<tr><td style="padding-right:12px;"><b>E-mail</b></td><td>' . $e($mailPers) . '</td></tr>' : '')
+    . '<tr><td style="padding-right:12px;"><b>Motif</b></td><td>' . $motif . '</td></tr>'
+    . '</table>'
+    . '<p style="font-size:15px;line-height:1.7;">👉 Liste complète des récompenses à remettre dans l\'espace <b>RH du quiz</b> (/quiz/rh).</p>'
+    . '<p style="font-size:13px;color:#617268;">Notification automatique · Famiformation</p></div>';
+  return sendMail($dest, $sujet, $body, true);
 }
 // 🏆 Envoi AUTOMATIQUE aux 3 vainqueurs, une fois l'heure des résultats passée
 // (31/08 12h30, heure belge). Ne part qu'UNE fois (drapeau dans le fichier RH).
