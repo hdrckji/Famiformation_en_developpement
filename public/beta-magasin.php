@@ -48,14 +48,14 @@ $id2Sem      = betaModId($db, 'Mes 2 premières semaines en caisse');
 
 // Caisse = 3 modules ACTIFS. Les autres rayons = aperçu grisé.
 $rayons = [
-    ['icon' => '💳', 'href' => $idFormation ? betaLien($db, $idFormation) : 'gestion-beta.php', 'actif' => true,
+    // Formation Caisse porte LE quiz Caisse → on ouvre la PAGE du module (Guide +
+    // Vidéo + tuile Quiz), pas l'accès direct, pour que le quiz soit visible.
+    ['icon' => '💳', 'href' => $idFormation ? 'module.php?id=' . (int) $idFormation : 'gestion-beta.php', 'actif' => true,
      'titre' => t('Formation Caisse', 'Kassaopleiding'), 'desc' => t('Le parcours pour bien démarrer.', 'Het traject om goed te starten.')],
     ['icon' => '🔧', 'href' => $idTechnique ? betaLien($db, $idTechnique) : 'gestion-beta.php', 'actif' => true,
      'titre' => t('Module technique', 'Technische module'), 'desc' => t('La partie technique de la caisse.', 'Het technische deel van de kassa.')],
     ['icon' => '🗓️', 'href' => $id2Sem ? betaLien($db, $id2Sem) : 'gestion-beta.php', 'actif' => true,
      'titre' => t('Mes 2 premières semaines', 'Mijn eerste 2 weken'), 'desc' => t('Ce qui t\'attend au début.', 'Wat je aan het begin te wachten staat.')],
-    ['icon' => '📝', 'href' => $idFormation ? 'quiz.php?id=' . (int) $idFormation : 'gestion-beta.php', 'actif' => true,
-     'titre' => t('Quiz Caisse', 'Quiz Kassa'), 'desc' => t('10 questions — 6 PDF + 4 vidéo (non noté).', '10 vragen — 6 PDF + 4 video (niet beoordeeld).')],
     ['icon' => '🌿', 'href' => null, 'actif' => false,
      'titre' => t('Green', 'Green'),             'desc' => t('Plantes & jardin.', 'Planten & tuin.')],
     ['icon' => '🖼️', 'href' => null, 'actif' => false,

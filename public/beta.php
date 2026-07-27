@@ -125,14 +125,6 @@ $userPhoto = $_SESSION['photo_profil'] ?? null;
             <div class="tile-title"><?= t('Magasin', 'Winkel') ?></div>
             <div class="tile-desc"><?= t("Les rayons du magasin — commence par la Caisse.", "De afdelingen van de winkel — begin bij de kassa.") ?></div>
         </a>
-
-        <?php if ($idOnboarding): ?>
-        <a href="quiz.php?id=<?= (int) $idOnboarding ?>" class="tile">
-            <span class="tile-icon">📝</span>
-            <div class="tile-title"><?= t('Quiz Onboarding', 'Quiz Onboarding') ?></div>
-            <div class="tile-desc"><?= t("Teste tes connaissances — 10 questions (non noté).", "Test je kennis — 10 vragen (niet beoordeeld).") ?></div>
-        </a>
-        <?php endif; ?>
     </div>
 </body>
 </html>

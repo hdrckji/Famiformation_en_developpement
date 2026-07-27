@@ -297,7 +297,16 @@ $isVideoPage = !$isContainer && empty($module['is_booking']) && $mHasVideoAny &&
                     <?php endif; ?>
                 <?php endif; ?>
             <?php endforeach; ?>
-            <?php if (empty($children)): ?>
+            <?php // 📝 Le module lui-même porte un quiz (ex. version beta) → tuile Quiz DANS le module. ?>
+            <?php if (!empty($module['quiz_json'])): ?>
+                <a href="quiz.php?id=<?= (int) $module['id'] ?>" class="tile">
+                    <span class="badge-eval">📝</span>
+                    <div class="tile-icon">📝</div>
+                    <div class="tile-title"><?= t('Quiz', 'Quiz') ?></div>
+                    <div class="tile-desc"><?= t('Teste tes connaissances.', 'Test je kennis.') ?></div>
+                </a>
+            <?php endif; ?>
+            <?php if (empty($children) && empty($module['quiz_json'])): ?>
                 <div class="content-card" style="text-align:center;"><?= t("Aucun sous-module pour l'instant.", 'Nog geen submodules.') ?></div>
             <?php endif; ?>
         </div>

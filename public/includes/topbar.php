@@ -115,7 +115,8 @@ if (!function_exists('famiTopbarHtml')) {
         $feeAttr     = $backFee ? ' data-fee' : '';
         $titleBlock  = $title !== '' ? '<div class="rb-title">' . htmlspecialchars($title) . '</div>' : '';
         $notifTitle  = htmlspecialchars(t('Notifications', 'Meldingen'));
-        $dotHtml     = $n > 0 ? '<span class="rb-dot">' . (int) $n . '</span>' : '';
+        // 🔕 Pas de CHIFFRE dans la cloche : juste un petit point si du nouveau.
+        $dotHtml     = $n > 0 ? '<span class="rb-dot"></span>' : '';
         $paramTitle  = htmlspecialchars($isAdmin ? t('Paramètres', 'Instellingen') : t('Préférences', 'Voorkeuren'));
         $homeTitle   = htmlspecialchars(t('Accueil', 'Start'));
         $logoutTitle = htmlspecialchars(t('Déconnexion', 'Afmelden'));
@@ -171,8 +172,8 @@ if (!function_exists('famiTopbarHtml')) {
         .fami-rib .rb-lang:hover { background: #fff; }
         .fami-rib .rb-lang.active:hover { background: #357a44; }
         .fami-rib .rb-dot {
-            position: absolute; top: -6px; right: -6px; background: #c0392b; color: #fff;
-            border-radius: 999px; font-size: 0.7rem; font-weight: 800; padding: 1px 6px; line-height: 1.4;
+            position: absolute; top: -2px; right: -2px; background: #c0392b;
+            width: 10px; height: 10px; border-radius: 999px; padding: 0;
             box-shadow: 0 0 0 2px #fff;
         }
         @media (max-width: 760px) {
