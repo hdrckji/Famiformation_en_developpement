@@ -411,19 +411,20 @@ jean.martin@exemple.be" style="font-family:monospace; font-size:.9rem;"></textar
       if (r.status === 401) { auth = null; vueConnexion("Session expirée, reconnecte-toi."); return; }
       if (!r.ok || !r.data || !r.data.ok) { bt.disabled = false; $("#fo-msg").innerHTML = `<div class="alert">Impossible de changer l'état. Réessaie.</div>`; return; }
       majAutoUI(!!r.data.actif);
-      // À l'ACTIVATION : on rattrape tout de suite tous ceux du formulaire pas
-      // encore inscrits → l'admin n'a rien d'autre à faire, le site s'occupe du
-      // reste (backlog maintenant + nouveaux en temps réel ensuite).
+      // À l'ACTIVATION : on NE contacte PAS les gens déjà dans le formulaire.
+      // L'activation est une « ligne de départ » : seules les NOUVELLES réponses
+      // (après ce clic) créent le compte + envoient le lien, en temps réel.
+      // Pour relancer d'anciens inscrits, l'admin utilise « Envoyer à tous ».
       if (r.data.actif) {
-        const cumul = await boucleEnvoiForm();
-        if (cumul) { message = { ok: true, texte: recapEnvoi(cumul, "Envoi automatique activé ✅ — rattrapage : ") }; rendre(); }
+        message = { ok: true, texte: "Envoi automatique activé ✅ — à partir de maintenant, seules les nouvelles réponses au formulaire sont contactées." };
+        rendre();
       }
     };
     if (veutActiver) {
       modaleConfirm({
         titre: "Activer l'envoi automatique ?",
-        texte: "Deux choses d'un coup : (1) on envoie MAINTENANT le lien à tous ceux du formulaire pas encore inscrits, et (2) à partir de là, chaque nouvelle réponse créera le compte Mouscron + enverra le lien automatiquement. Tu n'as rien d'autre à faire.",
-        ok: "Activer et envoyer",
+        texte: "À partir de maintenant (ligne de départ), chaque NOUVELLE réponse au formulaire créera le compte Mouscron + enverra le lien automatiquement. Les personnes DÉJÀ présentes dans le formulaire ne seront PAS recontactées. (Si un jour tu veux les relancer, utilise le bouton « Envoyer à tous » ci-dessous.)",
+        ok: "Activer",
       }, faire);
     } else { faire(); }
   });
