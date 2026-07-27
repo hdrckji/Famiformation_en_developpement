@@ -584,10 +584,20 @@ function envoiFunActivation(PDO $db, $userId, $heures = 336) {
     return false;
   }
   if (function_exists('ensureUserAccountAccessColumns')) { ensureUserAccountAccessColumns($db); }
-  $stmt = $db->prepare('SELECT id, identifiant, prenom, email FROM utilisateurs WHERE id = ? LIMIT 1');
+  $stmt = $db->prepare('SELECT id, identifiant, prenom, nom, email FROM utilisateurs WHERE id = ? LIMIT 1');
   $stmt->execute([(int) $userId]);
   $u = $stmt->fetch(PDO::FETCH_ASSOC);
   if (!$u || empty($u['email'])) { return false; }
+
+  // 🔧 Anti « Compte » — DERNIER rempart : si l'identifiant est un placeholder
+  // (« Compte… » ou vide), on le régénère ICI, juste avant de construire le mail
+  // (prénom si présent, sinon dérivé de l'e-mail). Ainsi le mail n'affiche JAMAIS
+  // « Compte », quelle que soit l'origine du compte.
+  if (idEstPlaceholder($u['identifiant'] ?? '')) {
+    $nouveau = identifiantLibre($db, baseIdFrom($u['prenom'] ?? '', $u['email']), (string) ($u['nom'] ?? ''));
+    try { $db->prepare('UPDATE utilisateurs SET identifiant = ? WHERE id = ?')->execute([$nouveau, (int) $u['id']]); } catch (Throwable $e) {}
+    $u['identifiant'] = $nouveau;
+  }
 
   $heures = max(1, (int) $heures);
   $token = issueUserAccountAccessToken($db, $u['id'], 'activation', $heures);
