@@ -3344,18 +3344,25 @@ function labelMoment(ts) {
 }
 function zonesHintHtml() {
   const zones = (CONFIG.zones || []).filter((z) => z.nom && z.nb > 0);
+  // 👁️ Mode APERÇU (compte de test, ?ouvert=1, ou simulation) : on affiche le
+  // rendu réel des indices AVANT J-1, pour pouvoir prévisualiser. Les vrais
+  // joueurs gardent, eux, le bloc verrouillé jusqu'à la veille du lancement.
+  const apercu = toutOuvert() || FORCE_OUVERT;
   // Avant l'ouverture : le bloc est TOUJOURS visible (même si les zones ne sont
   // pas encore renseignées côté admin), mais verrouillé — au clic on dit quand il
   // sera dispo. C'est ce qui garantit un affichage identique partout.
-  if (Date.now() < zonesDispoLe()) {
+  if (Date.now() < zonesDispoLe() && !apercu) {
     return `<button class="zones-hint zones-lock" id="rc-indice">
       <div class="zh-titre">${t("🔒 Indices : où chercher les codes", "🔒 Tips: waar de codes zoeken")}</div>
       <div class="zh-lock">${t("Bientôt disponible — appuie pour savoir quand", "Binnenkort beschikbaar — tik om te weten wanneer")}</div>
     </button>`;
   }
+  const rows = zones.length
+    ? zones.map((z) => `<div class="zh-row"><span>${esc(z.nom)}</span><span>${z.nb} ${t("code", "code")}${z.nb > 1 ? "s" : ""}</span></div>`).join("")
+    : (apercu ? `<div class="zh-row" style="opacity:.7"><span>${t("Aperçu : aucune zone renseignée pour l'instant (à ajouter dans l'admin → onglet Compte à rebours).", "Voorbeeld: nog geen zone ingevuld (toe te voegen in de admin).")}</span></div>` : "");
   return `<div class="zones-hint">
     <div class="zh-titre">${t("🎯 Où chercher les codes", "🎯 Waar de codes zoeken")}</div>
-    ${zones.map((z) => `<div class="zh-row"><span>${esc(z.nom)}</span><span>${z.nb} ${t("code", "code")}${z.nb > 1 ? "s" : ""}</span></div>`).join("")}
+    ${rows}
   </div>`;
 }
 // ✨ « Comment ça marche ? » version CODES — tout sur la chasse aux codes bonus.

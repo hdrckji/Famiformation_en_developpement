@@ -1162,20 +1162,15 @@ function vueCodes() {
       abîmée, retirée du magasin). Tu pourras le libérer à nouveau plus tard.<br>
       <em>Les 2 codes de test (FAMI-TEST-OK / FAMI-TEST-USED) ne sont pas dans cette liste : ils ne comptent
       pas dans les 20 codes du magasin.</em></p>
-      <p class="hint">🔎 <strong>Indice</strong> : note où tu as caché chaque code en magasin (rayon, meuble…).
-      C'est <strong>pour toi</strong> (ça reste dans l'admin), ça t'évite d'oublier tes caches. Enregistré tout seul dès que tu sors du champ.</p>
       <div style="overflow-x:auto">
       <table>
-        <tr><th>Code</th><th>État</th><th>Récupéré par</th><th>Quand</th><th>🔎 Indice (où il est caché)</th><th></th></tr>
+        <tr><th>Code</th><th>État</th><th>Récupéré par</th><th>Quand</th><th></th></tr>
         ${data.codes.map((x) => `
           <tr>
             <td><strong>${esc(x.code)}</strong></td>
             <td class="${x.pris ? "pris" : "libre"}">${x.pris ? (x.par === "Organisateur" ? "Bloqué" : "Pris") : "Libre"}</td>
             <td>${x.par ? esc(x.par) : "—"}</td>
             <td>${x.date ? esc(new Date(x.date).toLocaleString("fr-BE")) : "—"}</td>
-            <td><input type="text" class="ind-code" data-ind="${esc(x.code)}" value="${esc(x.indice || "")}"
-              placeholder="ex. Rayon barbecue, sous les housses" maxlength="300"
-              style="width:100%;min-width:200px;padding:7px 10px;border:1px solid #cdd6ce;border-radius:8px;font-size:.85rem;"></td>
             <td>${x.pris
               ? `<button class="btn ghost" data-lib="${esc(x.code)}" data-par="${esc(x.par || "")}" style="padding:6px 12px;font-size:.85rem;white-space:nowrap;">🔓 Libérer</button>`
               : `<button class="btn ghost" data-blo="${esc(x.code)}" style="padding:6px 12px;font-size:.85rem;white-space:nowrap;">🚫 Bloquer</button>`}</td>
@@ -1215,21 +1210,6 @@ function vueCodes() {
       message = { ok: true, texte: `Code ${code} libéré${par ? ` — retiré à ${par}, ses graines ont été reprises.` : "."}` };
       await charger();
     });
-  }));
-  // 🔎 Enregistrement de l'indice (où le code est caché) — automatique quand on
-  // sort du champ. Pas de rechargement pour ne pas perdre le focus.
-  c.querySelectorAll("[data-ind]").forEach((el) => el.addEventListener("change", async () => {
-    const code = el.dataset.ind, indice = el.value.trim();
-    const r = await post("code_indice", { code, indice });
-    if (r.status === 401) { auth = null; vueConnexion("Session expirée, reconnecte-toi."); return; }
-    if (!r.ok || !(r.data && r.data.ok)) {
-      el.style.borderColor = "#c0392b";
-      message = { ok: false, texte: `Indice non enregistré pour ${code}.` }; rendre();
-      return;
-    }
-    const it = data.codes.find((z) => z.code === code); if (it) it.indice = indice;   // maj locale
-    el.style.borderColor = "#57a05a";                                                  // petit ✓ visuel
-    setTimeout(() => { el.style.borderColor = "#cdd6ce"; }, 1000);
   }));
 }
 
