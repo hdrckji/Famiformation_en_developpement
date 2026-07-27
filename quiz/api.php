@@ -1182,9 +1182,12 @@ switch ($action) {
       $connuNomBase = ($qn->fetchColumn() !== false);
     } catch (Throwable $e) { /* colonnes/table absentes en test */ }
     $dansFeuille = isset($fc['emails'][$email]) || isset($fc['noms'][$cleNom]);
-    if (!$dansFeuille && !$connuNomBase) {
-      pousseVersForm($prenom, $nom, $email);
-    }
+    // ⚠️ On calcule ICI s'il faut compléter la feuille (avant de créer le compte),
+    // mais on ne POUSSE le formulaire qu'APRÈS création + 1er mail (plus bas).
+    // Sinon la soumission du form déclenche l'envoi auto AVANT que l'e-mail
+    // existe en base → 2e mail. En poussant après, l'e-mail est déjà connu, donc
+    // form_nouveau répond « déjà présent » et n'envoie rien.
+    $aPousserVersForm = (!$dansFeuille && !$connuNomBase);
 
     // 🏬 Le magasin où la personne s'inscrit → son `site_id` dans la base, pour
     // pouvoir distinguer les inscrits de Mouscron de ceux de La Panne. On lit
@@ -1215,6 +1218,11 @@ switch ($action) {
       try { $db->prepare('DELETE FROM utilisateurs WHERE id = ?')->execute([$uid]); } catch (Throwable $e) {}
       http_response_code(500); echo json_encode(['ok' => false, 'reason' => 'mail_impossible']); break;
     }
+    // ✅ Compte créé + 1er mail parti. MAINTENANT seulement on complète la feuille
+    // Google (contrôle tickets glace). Comme l'e-mail existe déjà en base, si la
+    // soumission déclenche l'envoi auto, il verra « déjà présent » → aucun 2e mail.
+    if ($aPousserVersForm) { pousseVersForm($prenom, $nom, $email); }
+
     // Compte créé + mail envoyé (le seul cas « déjà donné ton mail » vient de la
     // base : compte en attente → on renvoie le lien, géré plus haut).
     echo json_encode(['ok' => true, 'identifiant' => $identifiant], JSON_UNESCAPED_UNICODE);
