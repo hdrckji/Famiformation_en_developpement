@@ -6,6 +6,14 @@
 //   Chaque action alimente un fil d'événements (cloche).
 // ============================================================
 
+// events.php se sert de getModuleById()/userCanSeeModule() (dans modules.php).
+// Certaines pages (ex. onboarding.php) chargent le ruban sans avoir inclus
+// modules.php → « Call to undefined function getModuleById » (une Error, non
+// rattrapée par les catch(Exception)). On s'assure donc de la charger ici.
+if (!function_exists('getModuleById')) {
+    require_once __DIR__ . '/modules.php';
+}
+
 if (!function_exists('eventsEnsureTables')) {
     function eventsEnsureTables($db)
     {
