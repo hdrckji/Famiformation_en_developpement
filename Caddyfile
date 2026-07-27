@@ -76,9 +76,13 @@
 		# php_server ne sert que index.php comme index de dossier -> sans ca, /volontaire
 		# retomberait sur l'app principale. On sert explicitement leur index.html
 		# (les .php internes comme /volontaire/inscription.php restent servis normalement).
-		@volontaireIndex path /volontaire /volontaire/
+		# Slash final impose : sans lui, /volontaire (sans /) fait resoudre les chemins
+		# relatifs (logo, ex/...) a la RACINE du site -> logo/pdf/video "perdus".
+		redir /volontaire /volontaire/ 308
+		@volontaireIndex path /volontaire/
 		rewrite @volontaireIndex /volontaire/index.html
-		@emailsIndex path /emails /emails/
+		redir /emails /emails/ 308
+		@emailsIndex path /emails/
 		rewrite @emailsIndex /emails/index.html
 
 		# Bloque les fichiers caches (.env, .htaccess, .gitignore, ...)

@@ -308,12 +308,12 @@ footer .brand{justify-content:center;margin-bottom:8px;color:var(--deep);}
       <div class="example">
         <span class="ex-tag" data-i18n="pdf_extag">★ Exemple à suivre</span>
         <h4 data-i18n="pdf_h4">Fiche «&nbsp;Comment arroser une plante&nbsp;»</h4>
-        <div id="pdfViewer" data-pdf="ex/exemple-pdf-arroser.pdf">
+        <div id="pdfViewer" data-pdf="fichier.php?f=pdf">
           <div class="pdf-loading" data-i18n="pdf_loading">Chargement de l'aperçu…</div>
         </div>
         <div class="ex-actions">
-          <a class="pill-link solid" href="ex/exemple-pdf-arroser.pdf" target="_blank" rel="noopener" data-i18n="pdf_open">Ouvrir en grand ↗</a>
-          <a class="pill-link" href="ex/exemple-pdf-arroser.pdf" download data-i18n="pdf_dl">Télécharger ↓</a>
+          <a class="pill-link solid" href="fichier.php?f=pdf" target="_blank" rel="noopener" data-i18n="pdf_open">Ouvrir en grand ↗</a>
+          <a class="pill-link" href="fichier.php?f=pdf" download data-i18n="pdf_dl">Télécharger ↓</a>
         </div>
       </div>
     </div>
@@ -332,6 +332,7 @@ footer .brand{justify-content:center;margin-bottom:8px;color:var(--deep);}
     <div class="deliv rev">
       <div class="deliv-copy">
         <ul class="checklist">
+          <li><span class="tick">✓</span><span data-i18n="vid_format"><b>Filme en format paysage (16:9).</b> Tiens ton téléphone à l'horizontale (couché), jamais à la verticale — la vidéo doit remplir tout l'écran large.</span></li>
           <li><span class="tick">✓</span><span data-i18n="vid_l1"><b>Droit au but, sans intro ni outro.</b> Pas de générique : on entre directement dans le vif du sujet.</span></li>
           <li><span class="tick">✓</span><span data-i18n="vid_l2"><b>Aussi détaillée que nécessaire.</b> La durée dépend du sujet : au plus c'est détaillé, au mieux c'est — comme pour le PDF.</span></li>
           <li><span class="tick">✓</span><span data-i18n="vid_l3"><b>Des plans du geste.</b> Filme les étapes : les mains, l'outil, ce qu'on regarde.</span></li>
@@ -345,11 +346,11 @@ footer .brand{justify-content:center;margin-bottom:8px;color:var(--deep);}
         <div class="ex-callout" data-i18n="vid_callout">ℹ️ Ceci est un <b>extrait</b> : la vidéo ne montre pas tout. Il sert juste à te faire comprendre <b>le type de rendu attendu</b>.</div>
         <div class="frame">
           <video controls preload="metadata" playsinline>
-            <source src="ex/exemple-video-arroser.mp4" type="video/mp4">
+            <source src="fichier.php?f=video" type="video/mp4">
           </video>
         </div>
         <div class="ex-actions">
-          <a class="pill-link solid" href="ex/exemple-video-arroser.mp4" target="_blank" rel="noopener" data-i18n="vid_open">Ouvrir la vidéo ↗</a>
+          <a class="pill-link solid" href="fichier.php?f=video" target="_blank" rel="noopener" data-i18n="vid_open">Ouvrir la vidéo ↗</a>
         </div>
         <p class="note" data-i18n="vid_note">Pas besoin de matériel pro&nbsp;: un smartphone suffit.</p>
       </div>
@@ -430,6 +431,7 @@ var NL = {
   vid_kicker: "Support nr. 2",
   vid_h2: "🎬 De video",
   vid_p: "Ze laat <b>zien</b> wat we verwachten: je ziet de handeling echt, in beweging.",
+  vid_format: "<b>Film in liggend formaat (16:9).</b> Houd je telefoon horizontaal (liggend), nooit verticaal — de video moet het volledige brede scherm vullen.",
   vid_l1: "<b>Meteen ter zake, zonder intro of outro.</b> Geen generiek: je gaat meteen tot de kern.",
   vid_l2: "<b>Zo gedetailleerd als nodig.</b> De duur hangt af van het onderwerp: hoe gedetailleerder, hoe beter — net als bij de PDF.",
   vid_l3: "<b>Beelden van de handeling.</b> Film de stappen: de handen, het gereedschap, waar je naar kijkt.",
