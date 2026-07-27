@@ -21,6 +21,10 @@ if ($role === 'etudiant') {
     $title = "Livret d'accueil - OS";
 }
 
+// On sert le PDF via pdf-onboarding.php (en-tête application/pdf garanti) au lieu
+// du fichier statique, qui s'affichait parfois en « texte bizarre » sur Railway.
+$pdfSrc = 'pdf-onboarding.php?f=' . ($role === 'etudiant' ? 'os' : 'op');
+
 // CORRECTION : On définit le lien direct vers le quiz onboarding PDF
 $quiz_link = "quiz_engine.php?theme=quiz_onboarding_pdf";
 ?>
@@ -105,7 +109,7 @@ $quiz_link = "quiz_engine.php?theme=quiz_onboarding_pdf";
     <div style="width: 60px;"></div> </nav>
 
 <div class="pdf-container">
-    <iframe src="<?php echo htmlspecialchars($file); ?>#toolbar=0" type="application/pdf"></iframe>
+    <iframe src="<?php echo htmlspecialchars($pdfSrc); ?>#toolbar=0" type="application/pdf"></iframe>
 </div>
 
 <div class="quiz-action-container">
