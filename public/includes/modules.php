@@ -678,13 +678,15 @@ if (!function_exists('ensureModulesTable')) {
      */
     function userCanSeeModule(array $module, $role)
     {
-        // Rôles gestionnaires : voient tous les modules (pour gérer le contenu)
-        if ($role === 'admin' || $role === 'teamcoach') {
+        // Admin : super-utilisateur, voit tout (c'est lui qui pose les restrictions).
+        // Le teamcoach, lui, RESPECTE la visibilité choisie par module : un module
+        // réservé « admin » ne doit PAS lui apparaître.
+        if ($role === 'admin') {
             return true;
         }
         $roles = trim((string) ($module['roles'] ?? ''));
         if ($roles === '') {
-            return true; // tous
+            return true; // aucun rôle précisé => visible par tout le monde
         }
         $allowed = array_filter(array_map('trim', explode(',', $roles)));
         return in_array($role, $allowed, true);
