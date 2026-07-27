@@ -146,11 +146,9 @@ unset($_SESSION['module_flash']);
         // pour toujours avoir la dernière version de la banque.
         $quizNb = 0;
         if (isset($bank[$s['nom']])) {
-            try {
-                $db->prepare('UPDATE modules SET quiz_json = ? WHERE id = ?')
-                   ->execute([json_encode($bank[$s['nom']], JSON_UNESCAPED_UNICODE), (int) $sec['id']]);
-                $quizNb = count($bank[$s['nom']]['questions']);
-            } catch (Throwable $e) { /* colonne quiz_json absente en test : sans gravité */ }
+            // Installe le quiz FR + NL sur le module beta (écrase → toujours à jour).
+            betaQuizInstall($db, (int) $sec['id'], $s['nom']);
+            $quizNb = count($bank[$s['nom']]['questions']);
         }
     ?>
         <div class="card">

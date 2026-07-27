@@ -21,6 +21,11 @@ if (!$isAdmin && function_exists('userCanSeeModule') && !userCanSeeModule($modul
     exit();
 }
 
+// 🧪 Module BETA (Onboarding / Formation Caisse) : garantir son quiz FR + NL
+// (ré-installé si effacé par un ré-upload de contenu).
+require_once __DIR__ . '/includes/beta_quiz_data.php';
+if (function_exists('betaQuizEnsure')) { $module = betaQuizEnsure($db, $module); }
+
 $flash = '';
 if (!empty($_SESSION['module_flash'])) {
     $flash = $_SESSION['module_flash'];

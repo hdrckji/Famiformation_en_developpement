@@ -11,6 +11,11 @@ require_once 'includes/i18n_nl.php'; // moduleQuizJson() : quiz en NL si l'utili
 
 $id = isset($_GET['id']) ? (int) $_GET['id'] : 0;
 $module = $id > 0 ? getModuleById($db, $id) : null;
+// 🧪 Module BETA : ré-installe son quiz FR + NL s'il a été effacé, avant le contrôle.
+if ($module) {
+    require_once __DIR__ . '/includes/beta_quiz_data.php';
+    if (function_exists('betaQuizEnsure')) { $module = betaQuizEnsure($db, $module); }
+}
 if (!$module || empty($module['quiz_json'])) { header('Location: index.php'); exit(); }
 
 $isAdmin = ((($_SESSION['role'] ?? '') === 'admin') && (!function_exists('isApercuActif') || !isApercuActif()));
