@@ -13,7 +13,18 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     $stmt = $db->prepare("SELECT * FROM quiz_questions WHERE theme = ? ORDER BY RAND() LIMIT 10");
     $stmt->execute([$theme]);
     $questions = $stmt->fetchAll();
-    
+
+    // 🌱 Quiz onboarding vide ? On l'alimente automatiquement avec les questions
+    // (mêmes que la version beta) puis on re-tire. Évite le « Aucune question ».
+    if (!$questions) {
+        require_once 'includes/onboarding_quiz_seed.php';
+        if (seedOnboardingTheme($db, $theme) > 0) {
+            $stmt = $db->prepare("SELECT * FROM quiz_questions WHERE theme = ? ORDER BY RAND() LIMIT 10");
+            $stmt->execute([$theme]);
+            $questions = $stmt->fetchAll();
+        }
+    }
+
     if (!$questions) {
         die("Aucune question trouvée pour ce thème.");
     }
