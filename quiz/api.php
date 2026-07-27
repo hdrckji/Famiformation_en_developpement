@@ -524,6 +524,22 @@ function joueurAutorise($input, $name, $ficheCode) {
 // « JeanDu », « JeanDup », etc., jusqu'à trouver un identifiant libre. (Un numéro
 // n'arrive qu'en dernier recours, si même le nom entier est déjà pris.)
 // C'est ce que la personne tapera pour se connecter — l'e-mail marche aussi.
+// Base d'un identifiant quand on n'a pas forcément le prénom : on prend le
+// prénom s'il existe, sinon la PARTIE LOCALE de l'e-mail (avant le @). Comme ça
+// on ne retombe JAMAIS sur un « compte » générique dans le mail.
+function baseIdFrom($prenom, $email) {
+  $prenom = trim((string) $prenom);
+  if ($prenom !== '') { return $prenom; }
+  $local = strstr((string) $email, '@', true);
+  $local = ($local === false) ? '' : trim($local);
+  return $local !== '' ? $local : 'membre';
+}
+// Un identifiant est-il un placeholder à corriger (« Compte… » ou vide) ?
+function idEstPlaceholder($id) {
+  $id = trim((string) $id);
+  return $id === '' || preg_match('/^compte/i', $id) === 1;
+}
+
 function identifiantLibre(PDO $db, $prenom, $nom) {
   $sansAccent = function ($s) {
     $s = (string) $s;
@@ -736,18 +752,22 @@ function traiteInscritGroupe(PDO $db, array $p, $siteId, $heures, $parNom = fals
       // Compte encore en attente : en temps réel (auto) on NE renvoie PAS un 2e
       // mail (la personne a déjà reçu son lien, ex. inscrite à la borne).
       if (!$resendPending) { return 'deja_present'; }
-      // 🔧 L'id du compte est un placeholder « Compte… » (créé avant qu'on ait le
-      // prénom) et on a maintenant un vrai prénom → on le remet au bon format
-      // (PrénomN) AVANT d'envoyer, pour que le mail affiche le bon identifiant.
-      if ($prenom !== '' && preg_match('/^compte/i', (string) ($u['identifiant'] ?? ''))) {
-        $nouveau = identifiantLibre($db, $prenom, $nom);
-        try { $db->prepare('UPDATE utilisateurs SET identifiant = ?, prenom = ?, nom = ? WHERE id = ?')
-                 ->execute([$nouveau, $prenom, $nom, (int) $u['id']]); } catch (Throwable $e) {}
+      // 🔧 L'id du compte est un placeholder (« Compte… » ou vide, créé avant
+      // qu'on ait les infos) → on le régénère AVANT d'envoyer, pour que le mail
+      // affiche un vrai identifiant : PrénomN si on a le prénom, sinon dérivé de
+      // l'e-mail. On complète aussi prénom/nom s'ils étaient vides.
+      if (idEstPlaceholder($u['identifiant'] ?? '')) {
+        $nouveau = identifiantLibre($db, baseIdFrom($prenom, $email), $nom);
+        $np = $prenom !== '' ? $prenom : null;
+        $nn = $nom !== '' ? $nom : null;
+        try { $db->prepare('UPDATE utilisateurs SET identifiant = ?, prenom = COALESCE(?, prenom), nom = COALESCE(?, nom) WHERE id = ?')
+                 ->execute([$nouveau, $np, $nn, (int) $u['id']]); } catch (Throwable $e) {}
       }
       return envoiFunActivation($db, (int) $u['id'], $heures) ? 'renvoye' : 'mail_ko';
     }
-    // 2) Aucun compte : on le crée (comme à l'inscription) puis mail.
-    $identifiant = identifiantLibre($db, $prenom !== '' ? $prenom : 'compte', $nom);
+    // 2) Aucun compte : on le crée (comme à l'inscription) puis mail. L'id part
+    // du prénom, ou de l'e-mail si pas de prénom → jamais « Compte ».
+    $identifiant = identifiantLibre($db, baseIdFrom($prenom, $email), $nom);
     $ins = $db->prepare('INSERT INTO utilisateurs (identifiant, nom, prenom, email, mot_de_passe, role, account_activation_pending, site_id, statut_date)
                          VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)');
     $ins->execute([$identifiant, $nom, $prenom, $email,
