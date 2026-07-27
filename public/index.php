@@ -142,6 +142,10 @@ $dynamicModules = array_values(array_filter($dynamicModules, function ($m) {
 // Carte nom -> id des modules racine (pour router les tuiles conteneur vers le moteur module.php)
 $rootModuleIds = [];
 foreach (getModules($db, null, false) as $rm) {
+    // 🧪 On IGNORE les modules beta (roles=beta) : ils portent parfois les mêmes
+    // noms (« Onboarding », « Formation Caisse »…). Sans ce filtre, la tuile
+    // normale pointerait vers le module beta (inaccessible) → elle « disparaît ».
+    if (trim((string) ($rm['roles'] ?? '')) === 'beta') { continue; }
     $rootModuleIds[(string) $rm['nom']] = (int) $rm['id'];
 }
 $moduleFlash = '';
