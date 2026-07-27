@@ -1216,6 +1216,21 @@ function vueCodes() {
       await charger();
     });
   }));
+  // 🔎 Enregistrement de l'indice (où le code est caché) — automatique quand on
+  // sort du champ. Pas de rechargement pour ne pas perdre le focus.
+  c.querySelectorAll("[data-ind]").forEach((el) => el.addEventListener("change", async () => {
+    const code = el.dataset.ind, indice = el.value.trim();
+    const r = await post("code_indice", { code, indice });
+    if (r.status === 401) { auth = null; vueConnexion("Session expirée, reconnecte-toi."); return; }
+    if (!r.ok || !(r.data && r.data.ok)) {
+      el.style.borderColor = "#c0392b";
+      message = { ok: false, texte: `Indice non enregistré pour ${code}.` }; rendre();
+      return;
+    }
+    const it = data.codes.find((z) => z.code === code); if (it) it.indice = indice;   // maj locale
+    el.style.borderColor = "#57a05a";                                                  // petit ✓ visuel
+    setTimeout(() => { el.style.borderColor = "#cdd6ce"; }, 1000);
+  }));
 }
 
 /* ---------------------- DÉMARRAGE ---------------------- */
