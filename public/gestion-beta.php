@@ -10,6 +10,7 @@ require_once 'config.php';
 verifierConnexion($db);
 require_once 'includes/modules.php';
 require_once 'includes/csrf.php';
+require_once 'includes/beta_quiz_data.php';   // banque de questions des quiz beta
 if (function_exists('ensureModulesTable')) { try { ensureModulesTable($db); } catch (Throwable $e) {} }
 
 $role = function_exists('getCurrentRole') ? getCurrentRole() : ($_SESSION['role'] ?? '');
@@ -138,13 +139,32 @@ unset($_SESSION['module_flash']);
         <a href="index.php" class="btn ghost">← Retour</a>
     </div>
 
-    <?php foreach ($sections as $s): $sec = betaSection($db, $s['nom'], $s['icon']); ?>
+    <?php $bank = betaQuizBank(); ?>
+    <?php foreach ($sections as $s): $sec = betaSection($db, $s['nom'], $s['icon']);
+        // 🧪 Installe/rafraîchit le quiz beta (Onboarding, Formation Caisse) sur le
+        // module — jouable en beta, non noté. Idempotent : on écrase à chaque visite
+        // pour toujours avoir la dernière version de la banque.
+        $quizNb = 0;
+        if (isset($bank[$s['nom']])) {
+            try {
+                $db->prepare('UPDATE modules SET quiz_json = ? WHERE id = ?')
+                   ->execute([json_encode($bank[$s['nom']], JSON_UNESCAPED_UNICODE), (int) $sec['id']]);
+                $quizNb = count($bank[$s['nom']]['questions']);
+            } catch (Throwable $e) { /* colonne quiz_json absente en test : sans gravité */ }
+        }
+    ?>
         <div class="card">
             <div class="card-h">
                 <span class="ico"><?= htmlspecialchars($s['icon']) ?></span>
                 <h2><?= htmlspecialchars($s['nom']) ?></h2>
                 <span class="badge <?= $sec['rempli'] ? 'ok' : 'vide' ?>"><?= $sec['rempli'] ? 'Contenu ajouté ✅' : 'Vide' ?></span>
             </div>
+            <?php if ($quizNb > 0): ?>
+                <div class="note" style="margin:0 0 12px; background:#eef6ef; border-color:#cfe3d5; color:#1E7A46;">
+                    📝 Quiz installé : <b><?= (int) $quizNb ?> questions</b> en banque, tirage <b>10 = 6 PDF + 4 vidéo</b> (jouable en beta, non noté).
+                    <a href="quiz.php?id=<?= (int) $sec['id'] ?>" style="color:#1E7A46; font-weight:700;">Tester le quiz →</a>
+                </div>
+            <?php endif; ?>
             <form method="POST" action="module_save.php" enctype="multipart/form-data">
                 <?= csrfField() ?>
                 <input type="hidden" name="action" value="content">

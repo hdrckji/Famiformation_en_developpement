@@ -65,7 +65,10 @@ $pct = $total > 0 ? round($score * 100 / $total) : 0;
 // Le quiz vit sur le guide ; on rattache la réussite à la FORMATION (le module parent).
 require_once 'includes/quiz_pass.php';
 $passModuleId = !empty($module['parent_id']) ? (int) $module['parent_id'] : (int) $id;
-$aReussi = quizRecordResult($db, (int) ($_SESSION['user_id'] ?? 0), $passModuleId, $score, $total);
+// 🧪 BETA = quiz NON NOTÉ : on affiche le score mais on n'enregistre aucun
+// résultat (rien à débloquer, pas d'évaluation conservée).
+$estBeta = (($_SESSION['role'] ?? '') === 'beta');
+$aReussi = $estBeta ? null : quizRecordResult($db, (int) ($_SESSION['user_id'] ?? 0), $passModuleId, $score, $total);
 ?>
 <!DOCTYPE html>
 <html lang="fr">

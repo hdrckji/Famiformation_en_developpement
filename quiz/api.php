@@ -727,7 +727,7 @@ function traiteInscritGroupe(PDO $db, array $p, $siteId, $heures, $parNom = fals
       $q->execute([mb_strtolower($prenom), mb_strtolower($nom)]);
       if ($q->fetchColumn() !== false) { return 'deja_present'; }
     }
-    $st = $db->prepare('SELECT id, mot_de_passe, account_activation_pending FROM utilisateurs WHERE email = ? LIMIT 1');
+    $st = $db->prepare('SELECT id, identifiant, mot_de_passe, account_activation_pending FROM utilisateurs WHERE email = ? LIMIT 1');
     $st->execute([$email]);
     $u = $st->fetch(PDO::FETCH_ASSOC);
     if ($u) {
@@ -736,6 +736,14 @@ function traiteInscritGroupe(PDO $db, array $p, $siteId, $heures, $parNom = fals
       // Compte encore en attente : en temps réel (auto) on NE renvoie PAS un 2e
       // mail (la personne a déjà reçu son lien, ex. inscrite à la borne).
       if (!$resendPending) { return 'deja_present'; }
+      // 🔧 L'id du compte est un placeholder « Compte… » (créé avant qu'on ait le
+      // prénom) et on a maintenant un vrai prénom → on le remet au bon format
+      // (PrénomN) AVANT d'envoyer, pour que le mail affiche le bon identifiant.
+      if ($prenom !== '' && preg_match('/^compte/i', (string) ($u['identifiant'] ?? ''))) {
+        $nouveau = identifiantLibre($db, $prenom, $nom);
+        try { $db->prepare('UPDATE utilisateurs SET identifiant = ?, prenom = ?, nom = ? WHERE id = ?')
+                 ->execute([$nouveau, $prenom, $nom, (int) $u['id']]); } catch (Throwable $e) {}
+      }
       return envoiFunActivation($db, (int) $u['id'], $heures) ? 'renvoye' : 'mail_ko';
     }
     // 2) Aucun compte : on le crée (comme à l'inscription) puis mail.

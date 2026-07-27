@@ -27,9 +27,15 @@ $backId = !empty($module['parent_id']) ? (int) $module['parent_id'] : (int) $id;
 // TIRAGE : on ne pose qu'une partie de la banque, tirée au hasard à chaque passage.
 // Nombre et ratio multiples/uniques réglables dans Paramètres → Préférences.
 require_once 'includes/quiz_config.php';
-list($askMul, $askSin) = quizCfgAskedSplit($db);
 $allQs = (isset($quiz['questions']) && is_array($quiz['questions'])) ? $quiz['questions'] : [];
-$sel = quizPickRandom($allQs, $askMul, $askSin);
+// 🧪 Quiz BETA : tirage par SOURCE (ex. 6 du PDF + 4 de la vidéo) si le quiz
+// déclare une clé 'pick'. Sinon, tirage habituel (multiples / uniques).
+if (isset($quiz['pick']) && is_array($quiz['pick']) && function_exists('quizPickBySource')) {
+    $sel = quizPickBySource($allQs, $quiz['pick']);
+} else {
+    list($askMul, $askSin) = quizCfgAskedSplit($db);
+    $sel = quizPickRandom($allQs, $askMul, $askSin);
+}
 ?>
 <!DOCTYPE html>
 <html lang="fr">

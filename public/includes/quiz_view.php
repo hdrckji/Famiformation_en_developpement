@@ -41,6 +41,42 @@ if (!function_exists('quizPickRandom')) {
     }
 }
 
+if (!function_exists('quizPickBySource')) {
+    /**
+     * TIRAGE par SOURCE (version beta) : on tire un nombre fixe de questions
+     * pour chaque source (ex. ['pdf'=>6, 'video'=>4]) d'après le champ 'source'
+     * de chaque question. Si une source manque de questions, on complète avec
+     * les autres pour garder le total demandé.
+     *
+     * @return int[] indices retenus, ordre aléatoire
+     */
+    function quizPickBySource(array $qs, array $pick)
+    {
+        $bySrc = [];
+        foreach ($qs as $i => $q) {
+            $bySrc[(string) ($q['source'] ?? '')][] = $i;
+        }
+        $sel = [];
+        $voulu = 0;
+        foreach ($pick as $src => $n) {
+            $n = max(0, (int) $n);
+            $voulu += $n;
+            $ids = $bySrc[(string) $src] ?? [];
+            shuffle($ids);
+            $sel = array_merge($sel, array_slice($ids, 0, $n));
+        }
+        // Une source est à court ? On complète avec ce qui reste, tout mélangé.
+        if (count($sel) < $voulu) {
+            $reste = [];
+            foreach ($qs as $i => $q) { if (!in_array($i, $sel, true)) { $reste[] = $i; } }
+            shuffle($reste);
+            $sel = array_merge($sel, array_slice($reste, 0, $voulu - count($sel)));
+        }
+        shuffle($sel);
+        return array_values($sel);
+    }
+}
+
 if (!function_exists('renderQuizForm')) {
     /** @param int[]|null $sel indices des questions à poser (null = toutes) */
     function renderQuizForm($quiz, $moduleId, $sel = null)
