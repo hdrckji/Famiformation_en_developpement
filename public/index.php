@@ -616,6 +616,11 @@ if ($wcThemeOn && !empty($siteTheme) && is_array($siteTheme)) {
             <div class="tile-title"><?= t('Espace Beta', 'Beta-ruimte') ?></div>
             <div class="tile-desc"><?= t('Ton espace pour déposer le contenu de la version beta (PDF + vidéos).', 'Jouw ruimte om de inhoud van de betaversie te uploaden (PDF + video\'s).') ?></div>
         </a>
+        <a href="relance_mdp_beta.php" class="tile tile-admin">
+            <div class="tile-media"><span class="tile-icon">🔑</span></div>
+            <div class="tile-title"><?= t('Relance mot de passe', 'Herinnering wachtwoord') ?></div>
+            <div class="tile-desc"><?= t('Renvoyer son lien de création de mot de passe à chaque utilisateur beta bloqué.', 'De persoonlijke link om een wachtwoord aan te maken opnieuw versturen naar elke geblokkeerde betagebruiker.') ?></div>
+        </a>
         <a href="admin_questions.php" class="tile tile-admin">
             <div class="tile-media"><span class="tile-icon">🗄️</span></div>
             <div class="tile-title"><?= t('Gestion Questions', 'Beheer vragen') ?> <span style="font-size:.7rem; color:#8a968f; font-weight:600;">(<?= t('historique', 'geschiedenis') ?>)</span></div>

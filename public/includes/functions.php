@@ -1654,6 +1654,122 @@ if (!function_exists('sendAccountActivationEmail')) {
     }
 }
 
+if (!function_exists('sendBetaPasswordReminderEmail')) {
+    /**
+     * RELANCE « création du mot de passe » pour la version beta.
+     *
+     * Certains destinataires n'ont pas pu afficher le mail d'activation d'origine
+     * (clients de messagerie qui bloquaient le HTML) et n'ont donc jamais vu leur
+     * lien. On leur en renvoie un, PERSONNEL : chaque lien est unique, il ne peut
+     * pas être mutualisé — d'où l'envoi un par un.
+     *
+     * ⚠️ Émettre un nouveau jeton INVALIDE le précédent (une seule colonne de
+     * jeton par utilisateur). Le mail le dit explicitement au destinataire.
+     *
+     * Mail bilingue FR + NL : aucune langue n'est mémorisée par utilisateur
+     * (la langue vit en session), et la beta concerne Mouscron comme La Panne.
+     *
+     * @param int $heures Durée de validité du lien.
+     * @return bool true si le mail est parti.
+     */
+    function sendBetaPasswordReminderEmail(PDO $db, $userId, $heures = 336)
+    {
+        ensureUserAccountAccessColumns($db);
+
+        $stmt = $db->prepare('SELECT id, identifiant, prenom, nom, email FROM utilisateurs WHERE id = ? LIMIT 1');
+        $stmt->execute([(int) $userId]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$user || empty($user['email'])) {
+            setLastMailError('Utilisateur sans adresse e-mail.');
+            return false;
+        }
+
+        $heures = max(1, (int) $heures);
+
+        // Type « reset » et NON « activation », c'est capital ici : le type
+        // « activation » repositionne account_activation_pending à 1, et login.php
+        // refuse la connexion tant que ce drapeau est levé. Envoyer cette relance
+        // à quelqu'un ayant DÉJÀ créé son mot de passe l'aurait donc mis dehors de
+        // son propre compte — l'inverse exact du but recherché.
+        // « reset » ne touche pas au drapeau, et set_password.php accepte les deux
+        // types (voir findUserByAccountAccessToken), donc le lien fonctionne pareil.
+        $token = issueUserAccountAccessToken($db, $user['id'], 'reset', $heures);
+        $url = famiBuildAppUrl('set_password.php', ['token' => $token]);
+
+        $prenom = trim((string) ($user['prenom'] ?? ''));
+        $greeting = $prenom !== '' ? $prenom : trim((string) ($user['identifiant'] ?? ''));
+        $jours = max(1, (int) round($heures / 24));
+
+        $subject = 'Ton mot de passe FamiFormation / Jouw wachtwoord FamiFormation';
+        $body = famiBetaPasswordReminderBody($url, $greeting, (string) $user['identifiant'], $jours);
+
+        return sendMail($user['email'], $subject, $body, true);
+    }
+}
+
+if (!function_exists('famiBetaPasswordReminderBody')) {
+    /**
+     * Corps HTML de la relance « mot de passe » (fonction à part : la page
+     * d'administration s'en sert pour afficher un aperçu SANS rien envoyer,
+     * donc sans consommer de jeton).
+     */
+    function famiBetaPasswordReminderBody($url, $greeting, $identifiant, $jours)
+    {
+        $url = (string) $url;
+        $jours = max(1, (int) $jours);
+
+        // Encadré « tu n'es pas concerné » : placé tout en haut, c'est la première
+        // chose lue. Sans ça, les personnes déjà connectées recréent un mot de
+        // passe pour rien et s'inquiètent.
+        $avertissement = '<div style="margin:0 0 26px;padding:20px 22px;border-radius:18px;background:#fff7e8;border:1px solid #f0dbac;color:#7a5a11;">'
+            . '<div style="font-size:16px;line-height:1.7;"><strong>Tu as déjà créé ton mot de passe et tu arrives à te connecter ?</strong><br>'
+            . 'Ce message ne te concerne pas, tu peux simplement l\'ignorer. Il s\'adresse uniquement aux personnes qui n\'ont pas réussi à afficher le message précédent.</div>'
+            . '<div style="margin-top:14px;padding-top:14px;border-top:1px solid #f0dbac;font-size:16px;line-height:1.7;">'
+            . '<strong>Heb je jouw wachtwoord al aangemaakt en kan je inloggen?</strong><br>'
+            . 'Dan is dit bericht niet voor jou bestemd en mag je het negeren. Het is enkel bedoeld voor wie het vorige bericht niet kon openen.</div>'
+            . '</div>';
+
+        // Lien en clair sous le bouton : c'est le filet de sécurité. Le problème
+        // d'origine étant justement un mail mal affiché, on ne mise pas tout sur
+        // le rendu du bouton.
+        $bloclien = '<div style="margin:24px 0;padding:22px;border-radius:18px;background:#f6faf7;border:1px solid #dde9df;">'
+            . '<div style="font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:#6a7d72;margin-bottom:14px;">Ton lien personnel / Jouw persoonlijke link</div>'
+            . '<p style="margin:0 0 18px;"><a href="' . e($url) . '" style="display:inline-block;padding:14px 22px;border-radius:999px;background:#d6a21a;color:#ffffff;font-weight:700;text-decoration:none;">Créer mon mot de passe / Mijn wachtwoord aanmaken</a></p>'
+            . '<p style="margin:0 0 8px;font-size:14px;line-height:1.6;color:#6a7d72;">Si le bouton ne s\'affiche pas, copie ce lien dans ton navigateur :<br>'
+            . '<span style="color:#6a7d72;">Werkt de knop niet? Kopieer deze link in je browser:</span></p>'
+            . '<p style="margin:0;font-size:14px;line-height:1.6;word-break:break-all;"><a href="' . e($url) . '" style="color:#2d5a37;font-weight:700;">' . e($url) . '</a></p>'
+            . '</div>';
+
+        return '<div style="margin:0;padding:32px;background:#eef4ef;font-family:Open Sans,Arial,sans-serif;color:#244230;">'
+            . '<div style="max-width:680px;margin:0 auto;background:#ffffff;border-radius:24px;overflow:hidden;box-shadow:0 18px 38px rgba(27,54,36,0.12);">'
+            . '<div style="padding:28px 32px;background:linear-gradient(135deg,#2d5a37 0%,#4a7b55 100%);color:#ffffff;">'
+            . '<div style="font-size:12px;letter-spacing:.08em;text-transform:uppercase;opacity:.85;">FamiFormation</div>'
+            . '<h1 style="margin:10px 0 8px;font-size:30px;line-height:1.2;">Créer ton mot de passe</h1>'
+            . '<p style="margin:0;font-size:15px;line-height:1.6;opacity:.95;">Nouveau lien personnel / Nieuwe persoonlijke link</p>'
+            . '</div>'
+            . '<div style="padding:32px;">'
+            . '<p style="margin:0 0 22px;font-size:16px;line-height:1.7;">Bonjour ' . e($greeting) . ',</p>'
+            . $avertissement
+            . '<p style="margin:0 0 18px;font-size:16px;line-height:1.7;"><strong>🇫🇷 En français</strong><br>'
+            . 'Le message qui contenait ton lien de création de mot de passe ne s\'est pas affiché correctement chez tout le monde. '
+            . 'Voici donc un nouveau lien, personnel, qui te permet de définir ton mot de passe et d\'accéder à la version bêta de FamiFormation.</p>'
+            . '<p style="margin:0 0 22px;font-size:16px;line-height:1.7;">Ton identifiant de connexion : <strong>' . e($identifiant) . '</strong></p>'
+            . '<p style="margin:0 0 18px;font-size:16px;line-height:1.7;"><strong>🇳🇱 In het Nederlands</strong><br>'
+            . 'Het bericht met jouw link om een wachtwoord aan te maken werd niet bij iedereen correct weergegeven. '
+            . 'Hierbij een nieuwe, persoonlijke link waarmee je jouw wachtwoord kan instellen en toegang krijgt tot de bètaversie van FamiFormation.</p>'
+            . '<p style="margin:0 0 22px;font-size:16px;line-height:1.7;">Jouw gebruikersnaam: <strong>' . e($identifiant) . '</strong></p>'
+            . $bloclien
+            . '<p style="margin:0 0 8px;font-size:15px;line-height:1.7;color:#7a5a11;"><strong>⚠️ Ce lien remplace le précédent :</strong> l\'ancien lien ne fonctionne plus. Celui-ci est valable ' . $jours . ' jours.</p>'
+            . '<p style="margin:0 0 22px;font-size:15px;line-height:1.7;color:#7a5a11;"><strong>⚠️ Deze link vervangt de vorige:</strong> de oude link werkt niet meer. Deze blijft ' . $jours . ' dagen geldig.</p>'
+            . '<p style="margin:0;font-size:15px;line-height:1.7;color:#617268;">Un souci pour te connecter ? Réponds simplement à ce message.<br>'
+            . 'Lukt het inloggen niet? Antwoord gerust op dit bericht.</p>'
+            . '</div>'
+            . '<div style="padding:18px 32px;background:#f5f8f6;color:#617268;font-size:13px;">Message automatique envoyé par FamiFormation. / Automatisch bericht van FamiFormation.</div>'
+            . '</div></div>';
+    }
+}
+
 if (!function_exists('sendPasswordResetEmail')) {
     function sendPasswordResetEmail(PDO $db, $userId)
     {
