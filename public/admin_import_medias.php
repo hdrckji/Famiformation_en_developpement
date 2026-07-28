@@ -730,12 +730,21 @@ if (($_POST['action'] ?? '') === 'repair_structure') {
         $selfQ->execute([(int) $m['id']]);
         $self = $selfQ->fetch(PDO::FETCH_ASSOC) ?: [];
 
+        // Enfant vide : il n'apporte rien, on le supprime sans rien remonter.
         if (!$porte($e)) {
-            $flash[] = ['skip', (string) $m['nom'], "le sous-module « " . (string) $e['nom'] . " » ne porte aucun contenu — non touché"];
+            $db->prepare("DELETE FROM modules WHERE id = ?")->execute([(int) $e['id']]);
+            $db->prepare("UPDATE modules SET is_container = 0 WHERE id = ?")->execute([(int) $m['id']]);
+            $flash[] = ['ok', (string) $m['nom'], "sous-module vide « " . (string) $e['nom'] . " » supprimé"];
+            $n++;
             continue;
         }
+        // Contenu des DEUX côtés : le module a été réimporté depuis la correction,
+        // son contenu est donc le plus récent. L'enfant est un reliquat.
         if ($porte($self)) {
-            $flash[] = ['warn', (string) $m['nom'], "le module ET son sous-module portent du contenu — à démêler à la main"];
+            $db->prepare("DELETE FROM modules WHERE id = ?")->execute([(int) $e['id']]);
+            $db->prepare("UPDATE modules SET is_container = 0 WHERE id = ?")->execute([(int) $m['id']]);
+            $flash[] = ['ok', (string) $m['nom'], "reliquat « " . (string) $e['nom'] . " » supprimé (le module portait déjà le contenu)"];
+            $n++;
             continue;
         }
 
@@ -1054,6 +1063,54 @@ $pageTitle = 'Import des médias legacy';
             <button class="btn btn-go" type="submit">Importer les sous-titres</button>
         </div>
     </form>
+
+    <div class="card">
+        <p style="margin-top:0"><strong>Arborescence réelle</strong> — ce que la base contient vraiment</p>
+        <p class="muted">
+            Un module du périmètre doit apparaître <strong>sans enfant</strong> et marqué
+            « élément ». S'il affiche encore un sous-module, un clic mène au sous-module
+            au lieu du contenu.
+        </p>
+        <table>
+            <thead><tr><th>Module</th><th>Page d'origine</th><th>Type</th><th>Porte le contenu</th><th>Sous-modules</th></tr></thead>
+            <tbody>
+            <?php
+            $pagesMig = array_keys(famiLegacyMediaMap());
+            $arbre = [];
+            try {
+                $arbre = $db->query("SELECT id, nom, link, link_legacy, is_container, content_kind,
+                                            pdf_path, video_path, video_src_path, contenu_ia
+                                       FROM modules
+                                      WHERE (link IS NOT NULL AND link <> '')
+                                         OR (link_legacy IS NOT NULL AND link_legacy <> '')
+                                      ORDER BY nom")->fetchAll(PDO::FETCH_ASSOC);
+            } catch (Exception $e) { $arbre = []; }
+            foreach ($arbre as $a) {
+                $cle = basename(strtok((string) ($a['link'] ?: $a['link_legacy']), '?'));
+                if (!in_array($cle, $pagesMig, true)) { continue; }
+                $enf = $db->prepare("SELECT nom FROM modules WHERE parent_id = ?");
+                $enf->execute([(int) $a['id']]);
+                $noms = array_column($enf->fetchAll(PDO::FETCH_ASSOC), 'nom');
+                $aDuContenu = !empty($a['pdf_path']) || !empty($a['video_path'])
+                    || !empty($a['video_src_path']) || !empty($a['contenu_ia']);
+                $multi = (count(famiLegacyMediaMap()[$cle]['pdfs']) + count(famiLegacyMediaMap()[$cle]['videos'])) > 1;
+                $souci = (!$multi && $noms) || (!$aDuContenu && !$noms);
+            ?>
+                <tr<?= $souci ? ' style="background:#fdeaea"' : '' ?>>
+                    <td><?= htmlspecialchars((string) $a['nom']) ?></td>
+                    <td><code><?= htmlspecialchars($cle) ?></code></td>
+                    <td><?= !empty($a['is_container']) ? 'conteneur' : 'élément' ?>
+                        <?= $a['content_kind'] ? '<span class="muted">(' . htmlspecialchars((string) $a['content_kind']) . ')</span>' : '' ?></td>
+                    <td><?= $aDuContenu ? '<span class="tag t-ok">oui</span>' : '<span class="tag t-todo">non</span>' ?></td>
+                    <td><?= $noms
+                            ? '<span class="tag ' . ($multi ? 't-ok' : 't-ko') . '">' . htmlspecialchars(implode(' · ', $noms)) . '</span>'
+                            : '<span class="muted">aucun</span>' ?></td>
+                </tr>
+            <?php } ?>
+            </tbody>
+        </table>
+        <p class="muted">En rouge : un sous-module là où il ne devrait pas y en avoir, ou un module sans contenu ni enfant.</p>
+    </div>
 
     <div class="card">
         <p style="margin-top:0"><strong>2 quater. Réparer la structure</strong></p>
