@@ -1,6 +1,14 @@
 <?php
 require_once 'config.php';
 
+// Une session peut encore etre ouverte dans ce profil de navigateur. config.php
+// installe alors le buffer d'injection, qui pose le ruban « connecte » (retour,
+// notifications, deconnexion...) sur TOUTES les pages. Sur la page de creation de
+// mot de passe ce ruban n'a aucun sens, et il cassait la mise en page. On declare
+// donc le ruban « deja fait » : le buffer ne l'ajoutera pas.
+// (Meme correction que sur login.php.)
+$GLOBALS['__fami_topbar_done'] = true;
+
 ensureUserAccountAccessColumns($db);
 
 // Colonne "date de statut" : créée si absente
@@ -58,14 +66,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <link rel="shortcut icon" type="image/x-icon" href="favicon.ico">
     <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
+        /* Sans box-sizing, .container (width:100% + 68px de padding) et les champs
+           debordaient de l'ecran sur telephone : la page arrivait « en desordre »
+           quand on ouvrait le lien du mail depuis son mobile. */
+        *, *::before, *::after { box-sizing: border-box; }
         body {
             background: url('background.jpg') center/cover no-repeat #f6f6f6;
             font-family: 'Open Sans', sans-serif;
+            margin: 0;
+        }
+        /* Le centrage se fait dans .pw-wrap, jamais sur body lui-meme. Quand une
+           session est encore ouverte dans le navigateur, config.php injecte du
+           contenu en tete de page (ruban, fond de theme, fee) ; avec un body en
+           flex, ce contenu devenait un element de la meme ligne et poussait la
+           boite hors de l'ecran. La meme URL s'affichait donc correctement dans un
+           profil de navigateur et en desordre dans un autre. */
+        .pw-wrap {
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            margin: 0;
+            min-height: 100dvh; /* barre d'adresse mobile */
             padding: 18px;
         }
         .container {
@@ -75,6 +96,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             padding: 38px 34px;
             max-width: 560px;
             width: 100%;
+        }
+        @media (max-width: 480px) {
+            .container { padding: 30px 20px; }
         }
         h1 {
             color: #2d5a37;
@@ -133,6 +157,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </style>
 </head>
 <body>
+<div class="pw-wrap">
     <div class="container">
         <h1>Définir mon mot de passe</h1>
         <?php echo $message; ?>
@@ -158,5 +183,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <a href="account_help.php?mode=password" class="btn-link">Demander un nouveau lien</a>
         <?php endif; ?>
     </div>
+</div>
 </body>
 </html>

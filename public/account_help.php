@@ -1,6 +1,11 @@
 <?php
 require_once 'config.php';
 
+// Une session peut encore etre ouverte dans ce profil de navigateur : config.php
+// installerait alors le ruban « connecte » sur cette page, qui n'a rien a y faire
+// et cassait la mise en page. On le declare deja pose. (Meme correction que login.php.)
+$GLOBALS['__fami_topbar_done'] = true;
+
 ensureUserAccountAccessColumns($db);
 
 $mode = trim((string) ($_GET['mode'] ?? $_POST['mode'] ?? 'password'));
@@ -56,14 +61,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <link rel="shortcut icon" type="image/x-icon" href="favicon.ico">
     <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
+        /* Sans box-sizing, .container (width:100% + 68px de padding) debordait de
+           l'ecran sur telephone : la page arrivait « en desordre » sur mobile. */
+        *, *::before, *::after { box-sizing: border-box; }
         body {
             background: url('background.jpg') center/cover no-repeat #f6f6f6;
             font-family: 'Open Sans', sans-serif;
+            margin: 0;
+        }
+        /* Le centrage se fait dans .aide-wrap, jamais sur body lui-meme : si une
+           session est encore ouverte, config.php injecte du contenu en tete de page
+           (ruban, fond de theme, fee) et un body en flex le placerait sur la meme
+           ligne, poussant la boite hors de l'ecran. (Meme correction que login.php.) */
+        .aide-wrap {
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            margin: 0;
+            min-height: 100dvh; /* barre d'adresse mobile */
             padding: 18px;
         }
         .container {
@@ -73,6 +88,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             padding: 38px 34px;
             max-width: 560px;
             width: 100%;
+        }
+        @media (max-width: 480px) {
+            .container { padding: 30px 20px; }
         }
         h1 {
             color: #2d5a37;
@@ -152,6 +170,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </style>
 </head>
 <body>
+<div class="aide-wrap">
     <div class="container">
         <h1>Aide à la connexion</h1>
         <p>Choisis le type d’aide souhaité. Si les informations correspondent à un compte, un email sera envoyé à l’adresse enregistrée.</p>
@@ -190,5 +209,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <a href="login.php">⬅ Retour à la connexion</a>
         </div>
     </div>
+</div>
 </body>
 </html>

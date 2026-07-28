@@ -2,6 +2,13 @@
 
 require_once 'config.php';
 require_once __DIR__ . '/includes/theme.php'; // famiDefaultVectorBg() : fond vectoriel net
+
+// Une session peut encore etre active dans ce profil de navigateur (on n'a pas ferme
+// sa session avant de revenir ici). config.php installe alors le buffer d'injection,
+// qui pose le ruban « connecte » (retour, notifications, deconnexion...) sur TOUTES les
+// pages. Sur une page de connexion ce ruban n'a aucun sens, et il cassait la mise en
+// page. On declare donc le ruban « deja fait » : le buffer ne l'ajoutera pas.
+$GLOBALS['__fami_topbar_done'] = true;
 // Correction : forcer l'initialisation du token CSRF dès la première visite
 initCSRF();
 
@@ -12,6 +19,9 @@ $erreur = "";
 $requestedRedirect = trim((string) ($_GET['redirect'] ?? $_POST['redirect'] ?? ''));
 $requestHost = strtolower((string) ($_SERVER['HTTP_HOST'] ?? ''));
 $requestHost = explode(':', $requestHost)[0];
+// famiformation.com redirige vers www.famiformation.com : sans ça, tous les visiteurs
+// tombaient dans le cas par défaut et voyaient le titre générique « Connexion ».
+$requestHost = preg_replace('~^www\.~', '', $requestHost);
 $allowedRedirects = [
     '../Famijob/index.php',
     '/Famijob/index.php',
@@ -63,6 +73,22 @@ $loginBackgroundUrl = resolvePublicAssetUrl(
     ],
     $loginBackgroundImage
 );
+
+// Deja connecte : la page de connexion n'a plus rien a demander. On renvoie a l'accueil
+// plutot que d'afficher un formulaire inutile. Se deconnecter reste possible depuis le
+// ruban (logout.php detruit la session avant de revenir ici, donc pas de boucle).
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && !empty($_SESSION['user_id'])) {
+    $roleConnecte = (string) ($_SESSION['role'] ?? '');
+    if ($postLoginRedirect !== '' && in_array($roleConnecte, ['admin', 'teamcoach'], true)) {
+        $cibleConnecte = $postLoginRedirect;
+    } elseif ($roleConnecte === 'agence_interim') {
+        $cibleConnecte = 'interim_horaires.php';
+    } else {
+        $cibleConnecte = 'index.php';
+    }
+    header('Location: ' . $cibleConnecte);
+    exit();
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Validation CSRF
@@ -137,13 +163,30 @@ if ($host === 'famiformation.com') {
     <link rel="shortcut icon" type="image/x-icon" href="favicon.ico">
     <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
+        /* Sans box-sizing, .container (width:100% + 80px de padding) et les champs
+           debordaient de l'ecran sur telephone : la page arrivait « en desordre »
+           quand on ouvrait le lien du mail depuis son mobile. */
+        *, *::before, *::after { box-sizing: border-box; }
         body {
             background: url('<?php echo e($loginBackgroundUrl); ?>') center/cover no-repeat #f6f6f6;
             font-family: 'Open Sans', sans-serif;
+            margin: 0;
+        }
+        /* Le centrage se fait dans .login-wrap, jamais sur l'element body lui-meme.
+           Quand une session est encore ouverte dans le navigateur, config.php injecte
+           du contenu en tete de page (ruban, fond de theme, fee) ; si body etait en
+           flex, ce contenu devenait un element de la meme ligne et poussait la boite de
+           connexion hors de l'ecran. D'un profil de navigateur a l'autre, la page ne
+           s'affichait donc pas pareil.
+           NB : ne jamais ecrire la balise body en toutes lettres dans cette page.
+           famiInjectPageTheme() cherche son point d'injection par recherche de texte ;
+           une balise citee dans un commentaire l'enverrait injecter ici, en plein CSS. */
+        .login-wrap {
             display: flex;
             justify-content: center;
-            align-items: center;
             min-height: 100vh;
+            min-height: 100dvh; /* barre d'adresse mobile */
+            padding: 18px;
         }
         .container {
             background: rgba(255,255,255,0.95);
@@ -152,6 +195,12 @@ if ($host === 'famiformation.com') {
             padding: 48px 40px;
             max-width: 480px;
             width: 100%;
+            /* margin:auto plutot que align-items:center : centre verticalement sans
+               couper le haut de la boite quand elle depasse la hauteur de l'ecran. */
+            margin: auto;
+        }
+        @media (max-width: 480px) {
+            .container { padding: 32px 22px; }
         }
         .logo {
             display: flex;
@@ -204,6 +253,7 @@ if (empty($isFamijobLogin) && function_exists('famiDefaultVectorBg')): ?>
 <style id="fami-vec-bg"><?= famiDefaultVectorBg() ?></style>
 <?php endif; ?>
 
+<div class="login-wrap">
 <div class="container">
     <div class="logo">
         <img src="logo.png" alt="Logo">
@@ -229,14 +279,20 @@ if (empty($isFamijobLogin) && function_exists('famiDefaultVectorBg')): ?>
         <a href="account_help.php?mode=login" style="color:#2d5a37; text-decoration:none; font-weight:700;">Identifiant oublié ?</a>
     </div>
 </div>
+</div>
 
 <?php
-// La FÉE FAMIFLORA. Sur les pages connectées elle est injectée automatiquement, mais
-// ici on n'est pas encore connecté : le buffer d'injection (config.php) ne tourne pas.
-// On la pose donc à la main. Le formulaire porte data-fee → la fée sort au clic sur
+// La FÉE FAMIFLORA. Sur les pages connectées elle est injectée automatiquement par le
+// buffer de config.php ; ici on n'est en général pas connecté, donc ce buffer ne tourne
+// pas et on la pose à la main. Le formulaire porte data-fee → la fée sort au clic sur
 // « Se connecter », le temps de vérifier le mot de passe.
-require_once __DIR__ . '/includes/fee.php';
-echo feeOverlay();
+// Le test sur la session est indispensable : si une session est restée ouverte dans ce
+// navigateur, le buffer tourne quand même et la fée serait présente DEUX fois (mêmes
+// id="feeBack"/"feeTxt" en double, que le JS ne sait plus départager).
+if (empty($_SESSION['user_id'])) {
+    require_once __DIR__ . '/includes/fee.php';
+    echo feeOverlay();
+}
 ?>
 </body>
 </html>

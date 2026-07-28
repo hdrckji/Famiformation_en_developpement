@@ -612,7 +612,7 @@ if (!function_exists('ensureStudentDepartmentLinksTable')) {
 }
 
 if (!function_exists('sendMailViaSmtpSocket')) {
-    function sendMailViaSmtpSocket($to, $subject, $body, $isHtml = true)
+    function sendMailViaSmtpSocket($to, $subject, $body, $isHtml = true, $textBody = null)
     {
         $host = famiGetEnv('SMTP_HOST', '');
         $port = (int) famiGetEnv('SMTP_PORT', 465);
@@ -667,21 +667,61 @@ if (!function_exists('sendMailViaSmtpSocket')) {
             famiSendSmtpCommand($stream, 'DATA', [354]);
 
             $encodedSubject = '=?UTF-8?B?' . base64_encode((string) $subject) . '?=';
+            $encodedFromName = preg_match('/[^\x20-\x7E]/', (string) $fromName)
+                ? '=?UTF-8?B?' . base64_encode((string) $fromName) . '?='
+                : (string) $fromName;
+
+            // Message-ID sur notre propre domaine : sans lui, les filtres anti-spam
+            // (Microsoft/Outlook en tête) dégradent nettement la note du message.
+            $fromDomain = substr(strrchr($from, '@'), 1);
+            if ($fromDomain === false || $fromDomain === '') {
+                $fromDomain = 'famiformation.com';
+            }
+
             $headers = [
                 'Date: ' . date(DATE_RFC2822),
-                'From: ' . $fromName . ' <' . $from . '>',
+                'Message-ID: <' . bin2hex(random_bytes(12)) . '@' . $fromDomain . '>',
+                'From: ' . $encodedFromName . ' <' . $from . '>',
                 'Reply-To: ' . $from,
                 'Sender: ' . $from,
                 'To: ' . $to,
                 'Subject: ' . $encodedSubject,
                 'MIME-Version: 1.0',
-                'Content-Type: ' . ($isHtml ? 'text/html' : 'text/plain') . '; charset=UTF-8',
-                'Content-Transfer-Encoding: 8bit',
             ];
 
-            $messageBody = str_replace(["\r\n", "\r"], "\n", (string) $body);
-            $messageBody = preg_replace('/^\./m', '..', $messageBody);
-            $payload = implode("\r\n", $headers) . "\r\n\r\n" . str_replace("\n", "\r\n", $messageBody) . "\r\n.\r\n";
+            // Corps encodé en base64 et coupé tous les 76 caractères. Nos mails
+            // HTML sont construits par concaténation, donc sur UNE seule ligne de
+            // plusieurs milliers de caractères — or SMTP interdit les lignes de
+            // plus de 998 octets. Les serveurs coupaient donc la ligne au hasard,
+            // parfois en plein milieu d'une balise, et le mail arrivait cassé.
+            if ($isHtml) {
+                $text = ($textBody !== null && $textBody !== '')
+                    ? (string) $textBody
+                    : (function_exists('famiMailPlainText') ? famiMailPlainText($body) : strip_tags((string) $body));
+
+                // multipart/alternative : un mail HTML sans version texte est un
+                // signal de spam classique, et c'est le seul contenu affiché par
+                // les clients les plus restrictifs.
+                $boundary = 'fami_' . bin2hex(random_bytes(12));
+                $headers[] = 'Content-Type: multipart/alternative; boundary="' . $boundary . '"';
+                $messageBody = '--' . $boundary . "\r\n"
+                    . "Content-Type: text/plain; charset=UTF-8\r\n"
+                    . "Content-Transfer-Encoding: base64\r\n\r\n"
+                    . chunk_split(base64_encode($text), 76, "\r\n")
+                    . "\r\n" . '--' . $boundary . "\r\n"
+                    . "Content-Type: text/html; charset=UTF-8\r\n"
+                    . "Content-Transfer-Encoding: base64\r\n\r\n"
+                    . chunk_split(base64_encode((string) $body), 76, "\r\n")
+                    . "\r\n" . '--' . $boundary . "--\r\n";
+            } else {
+                $headers[] = 'Content-Type: text/plain; charset=UTF-8';
+                $headers[] = 'Content-Transfer-Encoding: base64';
+                $messageBody = chunk_split(base64_encode((string) $body), 76, "\r\n");
+            }
+
+            // base64 ne produit jamais de ligne trop longue ni de ligne commençant
+            // par un point : plus rien à échapper avant l'envoi.
+            $payload = implode("\r\n", $headers) . "\r\n\r\n" . $messageBody . "\r\n.\r\n";
             fwrite($stream, $payload);
 
             $dataResponse = famiReadSmtpResponse($stream);
@@ -712,6 +752,30 @@ if (!function_exists('sendMail')) {
         if ($to === '') {
             setLastMailError('Aucune adresse destinataire fournie.');
             return false;
+        }
+
+        // 📧 MISE EN FORME COMPATIBLE TOUS CLIENTS (voir includes/mail_html.php).
+        // Nos templates sont écrits en HTML moderne ; Outlook rend le HTML avec le
+        // moteur de Word et ignore dégradés, max-width et padding des boutons —
+        // au point de rendre le titre blanc INVISIBLE sur l'en-tête sans fond.
+        // On post-traite ici, une seule fois, pour tous les mails du site.
+        if (!function_exists('famiMailOutlookSafe')) {
+            foreach ([
+                __DIR__ . '/mail_html.php',
+                __DIR__ . '/../../includes/mail_html.php',
+                __DIR__ . '/../../public/includes/mail_html.php',
+            ] as $pisteMailHtml) {
+                if (is_file($pisteMailHtml)) {
+                    require_once $pisteMailHtml;
+                    break;
+                }
+            }
+        }
+
+        $textBody = (string) $body;
+        if ($isHtml && function_exists('famiMailOutlookSafe')) {
+            $textBody = famiMailPlainText($body);
+            $body = famiMailOutlookSafe($body, $subject);
         }
 
         $from = famiGetEnv('MAIL_FROM', 'admin@famiformation.com');
@@ -747,11 +811,27 @@ if (!function_exists('sendMail')) {
                 $mail->addReplyTo($from, $fromName);
                 $mail->addAddress($to);
                 $mail->CharSet = 'UTF-8';
+
+                // Domaine du Message-ID. Sans ça, PHPMailer prend le nom d'hôte
+                // interne du conteneur Railway (aléatoire), ce qui pénalise la
+                // délivrabilité chez Outlook/Gmail.
+                $fromDomain = substr(strrchr($from, '@'), 1);
+                if ($fromDomain !== false && $fromDomain !== '') {
+                    $mail->Hostname = $fromDomain;
+                }
+
+                // quoted-printable explicite. Nos mails sont construits par
+                // concaténation, donc sur UNE ligne de plusieurs milliers de
+                // caractères, alors que SMTP limite à 998 octets par ligne.
+                // PHPMailer sait le détecter seul, mais on ne dépend pas de cette
+                // détection : ici le découpage est garanti dans tous les cas.
+                $mail->Encoding = PHPMailer\PHPMailer\PHPMailer::ENCODING_QUOTED_PRINTABLE;
+
                 $mail->isHTML($isHtml);
                 $mail->Subject = $subject;
                 $mail->Body = $body;
                 if ($isHtml) {
-                    $mail->AltBody = trim(strip_tags(str_replace(['<br>', '<br/>', '<br />'], "\n", $body)));
+                    $mail->AltBody = $textBody;
                 }
                 return $mail->send();
             } catch (Throwable $e) {
@@ -761,7 +841,7 @@ if (!function_exists('sendMail')) {
                 }
                 setLastMailError($smtpError);
                 error_log('[FamiFormation] sendMail SMTP failed: ' . $smtpError);
-                if (sendMailViaSmtpSocket($to, $subject, $body, $isHtml)) {
+                if (sendMailViaSmtpSocket($to, $subject, $body, $isHtml, $textBody)) {
                     return true;
                 }
 
@@ -770,7 +850,7 @@ if (!function_exists('sendMail')) {
         }
 
         if ($smtpConfigured) {
-            if (sendMailViaSmtpSocket($to, $subject, $body, $isHtml)) {
+            if (sendMailViaSmtpSocket($to, $subject, $body, $isHtml, $textBody)) {
                 return true;
             }
 
@@ -790,8 +870,17 @@ if (!function_exists('sendMail')) {
         } else {
             $headers .= 'Content-Type: text/plain; charset=UTF-8' . "\r\n";
         }
+        // Comme pour l'envoi SMTP : base64 pour ne jamais dépasser la limite de
+        // 998 octets par ligne, et sujet encodé pour que les accents passent.
+        $headers .= 'Content-Transfer-Encoding: base64' . "\r\n";
 
-        $mailSent = mail($to, $subject, $body, $headers, '-f' . $from);
+        $mailSent = mail(
+            $to,
+            '=?UTF-8?B?' . base64_encode((string) $subject) . '?=',
+            chunk_split(base64_encode((string) $body), 76, "\r\n"),
+            $headers,
+            '-f' . $from
+        );
         if (!$mailSent) {
             setLastMailError('La fonction mail() a échoué.');
         }
@@ -1562,6 +1651,160 @@ if (!function_exists('sendAccountActivationEmail')) {
             . '</div></div>';
 
         return sendMail($user['email'], $subject, $body, true);
+    }
+}
+
+if (!function_exists('sendPasswordReminderEmail')) {
+    /**
+     * RELANCE « création du mot de passe », pour n'importe quel profil.
+     *
+     * Certains destinataires n'ont pas pu afficher le mail d'activation d'origine
+     * (clients de messagerie qui bloquaient le HTML) et n'ont donc jamais vu leur
+     * lien. On leur en renvoie un, PERSONNEL : chaque lien est unique, il ne peut
+     * pas être mutualisé — d'où l'envoi un par un.
+     *
+     * ⚠️ Émettre un nouveau jeton INVALIDE le précédent (une seule colonne de
+     * jeton par utilisateur). Le mail le dit explicitement au destinataire.
+     *
+     * Mail bilingue FR + NL : aucune langue n'est mémorisée par utilisateur
+     * (la langue vit en session), et Famiflora couvre Mouscron comme La Panne.
+     * Le texte s'adapte au profil : on ne parle de « version bêta » qu'aux beta.
+     *
+     * @param int  $heures  Durée de validité du lien.
+     * @param bool $estTest Envoi de contrôle : le lien est un VRAI lien (il faut
+     *                      bien ça pour valider la chaîne de bout en bout), mais
+     *                      le mail est marqué comme test pour lever toute
+     *                      ambiguïté chez celui qui le reçoit.
+     * @return bool true si le mail est parti.
+     */
+    function sendPasswordReminderEmail(PDO $db, $userId, $heures = 336, $estTest = false)
+    {
+        ensureUserAccountAccessColumns($db);
+
+        $stmt = $db->prepare('SELECT id, identifiant, prenom, nom, email, role FROM utilisateurs WHERE id = ? LIMIT 1');
+        $stmt->execute([(int) $userId]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$user || empty($user['email'])) {
+            setLastMailError('Utilisateur sans adresse e-mail.');
+            return false;
+        }
+
+        $heures = max(1, (int) $heures);
+
+        // Type « reset » et NON « activation », c'est capital ici : le type
+        // « activation » repositionne account_activation_pending à 1, et login.php
+        // refuse la connexion tant que ce drapeau est levé. Envoyer cette relance
+        // à quelqu'un ayant DÉJÀ créé son mot de passe l'aurait donc mis dehors de
+        // son propre compte — l'inverse exact du but recherché.
+        // « reset » ne touche pas au drapeau, et set_password.php accepte les deux
+        // types (voir findUserByAccountAccessToken), donc le lien fonctionne pareil.
+        $token = issueUserAccountAccessToken($db, $user['id'], 'reset', $heures);
+        $url = famiBuildAppUrl('set_password.php', ['token' => $token]);
+
+        $prenom = trim((string) ($user['prenom'] ?? ''));
+        $greeting = $prenom !== '' ? $prenom : trim((string) ($user['identifiant'] ?? ''));
+        $jours = max(1, (int) round($heures / 24));
+
+        $subject = ($estTest ? '[TEST] ' : '')
+            . 'Ton mot de passe FamiFormation / Jouw wachtwoord FamiFormation';
+        // On ne parle de « version bêta » qu'aux personnes qui sont réellement en
+        // bêta : la relance sert désormais à tous les profils, et promettre la
+        // bêta à un employé fixe ou à un étudiant serait faux.
+        $body = famiPasswordReminderBody(
+            $url,
+            $greeting,
+            (string) $user['identifiant'],
+            $jours,
+            $estTest ? 'test' : '',
+            (string) ($user['role'] ?? '') === 'beta'
+        );
+
+        return sendMail($user['email'], $subject, $body, true);
+    }
+}
+
+if (!function_exists('famiPasswordReminderBody')) {
+    /**
+     * Corps HTML de la relance « mot de passe » (fonction à part : la page
+     * d'administration s'en sert pour afficher un aperçu SANS rien envoyer,
+     * donc sans consommer de jeton).
+     */
+    function famiPasswordReminderBody($url, $greeting, $identifiant, $jours, $mode = '', $mentionBeta = true)
+    {
+        $url = (string) $url;
+        $jours = max(1, (int) $jours);
+
+        // Destination annoncée : « version bêta » uniquement pour les profils beta.
+        $ouFR = $mentionBeta ? 'à la version bêta de FamiFormation' : 'à la plateforme FamiFormation';
+        $ouNL = $mentionBeta ? 'tot de bètaversie van FamiFormation' : 'tot het platform FamiFormation';
+
+        // Bandeau des envois de contrôle. Sans lui, un lien de démonstration qui
+        // affiche « lien expiré » se confond avec une vraie panne — c'est arrivé.
+        $bandeauTest = '';
+        if ($mode === 'test') {
+            $bandeauTest = '<div style="margin:0 0 24px;padding:16px 20px;border-radius:14px;background:#1f3b8a;color:#ffffff;">'
+                . '<div style="font-size:15px;line-height:1.6;"><strong>🧪 MESSAGE DE TEST</strong><br>'
+                . 'Ce message a été envoyé pour vérifier l\'affichage. Le lien ci-dessous est un <strong>vrai lien qui fonctionne</strong> et pointe sur ce compte. '
+                . 'La page de création de mot de passe doit s\'ouvrir — ne valide le formulaire que si tu veux réellement changer ce mot de passe.</div>'
+                . '</div>';
+        } elseif ($mode === 'demo') {
+            $bandeauTest = '<div style="margin:0 0 24px;padding:16px 20px;border-radius:14px;background:#8f2d2d;color:#ffffff;">'
+                . '<div style="font-size:15px;line-height:1.6;"><strong>🧪 MESSAGE DE TEST — LIEN NON FONCTIONNEL</strong><br>'
+                . 'Ce message sert uniquement à contrôler l\'affichage. Cette adresse ne correspond à aucun compte, '
+                . 'le lien ci-dessous affichera donc « lien expiré » : <strong>c\'est normal, ce n\'est pas une panne</strong>.</div>'
+                . '</div>';
+        }
+
+        // Encadré « tu n'es pas concerné » : placé tout en haut, c'est la première
+        // chose lue. Sans ça, les personnes déjà connectées recréent un mot de
+        // passe pour rien et s'inquiètent.
+        $avertissement = '<div style="margin:0 0 26px;padding:20px 22px;border-radius:18px;background:#fff7e8;border:1px solid #f0dbac;color:#7a5a11;">'
+            . '<div style="font-size:16px;line-height:1.7;"><strong>Tu as déjà créé ton mot de passe et tu arrives à te connecter ?</strong><br>'
+            . 'Ce message ne te concerne pas, tu peux simplement l\'ignorer. Il s\'adresse uniquement aux personnes qui n\'ont pas réussi à afficher le message précédent.</div>'
+            . '<div style="margin-top:14px;padding-top:14px;border-top:1px solid #f0dbac;font-size:16px;line-height:1.7;">'
+            . '<strong>Heb je jouw wachtwoord al aangemaakt en kan je inloggen?</strong><br>'
+            . 'Dan is dit bericht niet voor jou bestemd en mag je het negeren. Het is enkel bedoeld voor wie het vorige bericht niet kon openen.</div>'
+            . '</div>';
+
+        // Lien en clair sous le bouton : c'est le filet de sécurité. Le problème
+        // d'origine étant justement un mail mal affiché, on ne mise pas tout sur
+        // le rendu du bouton.
+        $bloclien = '<div style="margin:24px 0;padding:22px;border-radius:18px;background:#f6faf7;border:1px solid #dde9df;">'
+            . '<div style="font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:#6a7d72;margin-bottom:14px;">Ton lien personnel / Jouw persoonlijke link</div>'
+            . '<p style="margin:0 0 18px;"><a href="' . e($url) . '" style="display:inline-block;padding:14px 22px;border-radius:999px;background:#d6a21a;color:#ffffff;font-weight:700;text-decoration:none;">Créer mon mot de passe / Mijn wachtwoord aanmaken</a></p>'
+            . '<p style="margin:0 0 8px;font-size:14px;line-height:1.6;color:#6a7d72;">Si le bouton ne s\'affiche pas, copie ce lien dans ton navigateur :<br>'
+            . '<span style="color:#6a7d72;">Werkt de knop niet? Kopieer deze link in je browser:</span></p>'
+            . '<p style="margin:0;font-size:14px;line-height:1.6;word-break:break-all;"><a href="' . e($url) . '" style="color:#2d5a37;font-weight:700;">' . e($url) . '</a></p>'
+            . '</div>';
+
+        return '<div style="margin:0;padding:32px;background:#eef4ef;font-family:Open Sans,Arial,sans-serif;color:#244230;">'
+            . '<div style="max-width:680px;margin:0 auto;background:#ffffff;border-radius:24px;overflow:hidden;box-shadow:0 18px 38px rgba(27,54,36,0.12);">'
+            . '<div style="padding:28px 32px;background:linear-gradient(135deg,#2d5a37 0%,#4a7b55 100%);color:#ffffff;">'
+            . '<div style="font-size:12px;letter-spacing:.08em;text-transform:uppercase;opacity:.85;">FamiFormation</div>'
+            . '<h1 style="margin:10px 0 8px;font-size:30px;line-height:1.2;">Créer ton mot de passe</h1>'
+            . '<p style="margin:0;font-size:15px;line-height:1.6;opacity:.95;">Nouveau lien personnel / Nieuwe persoonlijke link</p>'
+            . '</div>'
+            . '<div style="padding:32px;">'
+            . $bandeauTest
+            . '<p style="margin:0 0 22px;font-size:16px;line-height:1.7;">Bonjour ' . e($greeting) . ',</p>'
+            . $avertissement
+            . '<p style="margin:0 0 18px;font-size:16px;line-height:1.7;"><strong>🇫🇷 En français</strong><br>'
+            . 'Le message qui contenait ton lien de création de mot de passe ne s\'est pas affiché correctement chez tout le monde. '
+            . 'Voici donc un nouveau lien, personnel, qui te permet de définir ton mot de passe et d\'accéder ' . $ouFR . '.</p>'
+            . '<p style="margin:0 0 22px;font-size:16px;line-height:1.7;">Ton identifiant de connexion : <strong>' . e($identifiant) . '</strong></p>'
+            . '<p style="margin:0 0 18px;font-size:16px;line-height:1.7;"><strong>🇳🇱 In het Nederlands</strong><br>'
+            . 'Het bericht met jouw link om een wachtwoord aan te maken werd niet bij iedereen correct weergegeven. '
+            . 'Hierbij een nieuwe, persoonlijke link waarmee je jouw wachtwoord kan instellen en toegang krijgt ' . $ouNL . '.</p>'
+            . '<p style="margin:0 0 22px;font-size:16px;line-height:1.7;">Jouw gebruikersnaam: <strong>' . e($identifiant) . '</strong></p>'
+            . $bloclien
+            . '<p style="margin:0 0 8px;font-size:15px;line-height:1.7;color:#7a5a11;"><strong>⚠️ Ce lien remplace le précédent :</strong> l\'ancien lien ne fonctionne plus. Celui-ci est valable ' . $jours . ' jours.</p>'
+            . '<p style="margin:0 0 22px;font-size:15px;line-height:1.7;color:#7a5a11;"><strong>⚠️ Deze link vervangt de vorige:</strong> de oude link werkt niet meer. Deze blijft ' . $jours . ' dagen geldig.</p>'
+            . '<p style="margin:0;font-size:15px;line-height:1.7;color:#617268;">Un souci pour te connecter ? Réponds simplement à ce message.<br>'
+            . 'Lukt het inloggen niet? Antwoord gerust op dit bericht.</p>'
+            . '</div>'
+            . '<div style="padding:18px 32px;background:#f5f8f6;color:#617268;font-size:13px;">Message automatique envoyé par FamiFormation. / Automatisch bericht van FamiFormation.</div>'
+            . '</div></div>';
     }
 }
 
