@@ -227,7 +227,22 @@ if (($_POST['action'] ?? '') === 'upload') {
     $files = $_FILES['medias'] ?? null;
     $count = $files ? count((array) $files['name']) : 0;
 
-    for ($i = 0; $i < $count; $i++) {
+    // La version NÉERLANDAISE d'un document se greffe sur le sous-module que crée
+    // sa version FR : elle doit donc passer APRÈS lui. On ne peut pas compter sur
+    // l'ordre d'envoi du navigateur (il suit l'ordre de sélection, pas forcément
+    // l'alphabet), alors on force le classement ici.
+    $order = ($count > 0) ? range(0, $count - 1) : [];
+    usort($order, function ($a, $b) use ($files) {
+        $rang = function ($i) use ($files) {
+            $hit = famiImportRecognize((string) $files['name'][$i]);
+            return (($hit['kind'] ?? '') === 'pdf_nl') ? 1 : 0;
+        };
+        $ra = $rang($a);
+        $rb = $rang($b);
+        return ($ra === $rb) ? ($a <=> $b) : ($ra <=> $rb);
+    });
+
+    foreach ($order as $i) {
         $name = (string) $files['name'][$i];
         $tmp  = (string) $files['tmp_name'][$i];
         if (($files['error'][$i] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
