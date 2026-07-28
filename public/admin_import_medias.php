@@ -439,6 +439,32 @@ if (($_POST['action'] ?? '') === 'process') {
 }
 
 // ------------------------------------------------------------------
+//  ACTION 2 bis — EXTRACTION DES IMAGES, sans IA et donc SANS COÛT.
+//  pdfimages (poppler) est un binaire local : il tourne sur le volume et
+//  n'appelle aucune API. Il faut le lancer AVANT de rédiger les fiches
+//  ailleurs, car son filtrage (petites images, bandeaux, doublons écartés)
+//  décide de la numérotation que les blocs `image` référencent.
+// ------------------------------------------------------------------
+if (($_POST['action'] ?? '') === 'extract_images') {
+    requireValidCSRF();
+    @set_time_limit(0);
+    require_once 'includes/ai_uniformise.php'; // aiExtractPdfImages()
+
+    $st = $db->query("SELECT id, nom, pdf_path FROM modules WHERE content_kind = 'ecrit' AND pdf_path IS NOT NULL AND pdf_path <> ''");
+    $n = 0;
+    foreach (($st ? $st->fetchAll(PDO::FETCH_ASSOC) : []) as $g) {
+        $imgs = aiExtractPdfImages(moduleFileAbsPath($g['pdf_path']), (string) $g['pdf_path']);
+        $db->prepare("UPDATE modules SET contenu_images = ? WHERE id = ?")
+           ->execute([$imgs ? json_encode($imgs) : null, (int) $g['id']]);
+        $flash[] = [$imgs ? 'ok' : 'skip', (string) $g['nom'], $imgs ? (count($imgs) . " image(s) retenue(s)") : "aucune image exploitable"];
+        $n++;
+    }
+    if ($n === 0) {
+        $flash[] = ['warn', 'extraction', "aucun PDF sur le volume — commence par l'étape 1"];
+    }
+}
+
+// ------------------------------------------------------------------
 //  ACTION 3 — IMPORT D'UN JSON produit hors API (Claude web).
 //  Le contenu des fiches est rédigé ailleurs et déposé ici : aucun appel
 //  facturé. Le JSON porte les DEUX langues, donc ni extraction ni traduction
@@ -525,6 +551,7 @@ $map = famiLegacyMediaMap();
 $byPage = famiImportModulesByPage($db);
 $plan = [];
 $stat = ['pages' => 0, 'sansModule' => 0, 'pdfOk' => 0, 'pdfTodo' => 0, 'vidOk' => 0, 'vidTodo' => 0, 'iaTodo' => 0, 'manuel' => 0];
+$manifest = []; // fichier PDF => nombre d'images retenues (à coller dans le prompt)
 
 foreach ($map as $page => $entry) {
     $mods = $byPage[$page] ?? [];
@@ -557,6 +584,14 @@ foreach ($map as $page => $entry) {
         $done = $cible && !empty($cible[$estNl ? 'pdf_nl_path' : 'pdf_path']);
         $ia = $cible && !empty($cible[$estNl ? 'contenu_ia_nl' : 'contenu_ia']);
         $nl = $estNl ? $ia : ($cible && !empty($cible['contenu_ia_nl']));
+
+        // Nombre d'images RETENUES après filtrage : c'est ce chiffre, pas le
+        // nombre d'images visibles dans le PDF, qui numérote les blocs `image`.
+        $nbImg = 0;
+        if ($cible && !empty($cible['contenu_images'])) {
+            $nbImg = count((array) json_decode((string) $cible['contenu_images'], true));
+        }
+        if (!$estNl && $nbImg > 0) { $manifest[$p] = $nbImg; }
         $row['items'][] = ['type' => 'pdf', 'nom' => $p, 'done' => $done, 'ia' => $ia, 'nl' => $nl,
                            'cible' => $spec['nom'] ?? ($estNl ? 'version néerlandaise (même module)' : null),
                            'roles' => (!empty($spec['nom'])) ? famiImportResolveRoles($db, $spec) : null,
@@ -664,11 +699,37 @@ $pageTitle = 'Import des médias legacy';
         </div>
     </form>
 
+    <div class="card">
+        <form method="post" style="margin:0 0 12px">
+            <?= csrfField() ?>
+            <input type="hidden" name="action" value="extract_images">
+            <p style="margin-top:0"><strong>2 bis-a. Extraire les images</strong> — gratuit, aucun appel IA</p>
+            <p class="muted">
+                <code>pdfimages</code> tourne sur le serveur. Il écarte les images de moins de
+                160 px, les bandeaux, et toute image répétée (logos, en-têtes) —
+                <strong>c'est la numérotation d'APRÈS ce filtrage</strong> que les blocs
+                <code>image</code> référencent. Lance-le avant de rédiger les fiches ailleurs.
+            </p>
+            <button class="btn btn-sm" type="submit">Extraire les images de tous les PDF</button>
+        </form>
+
+        <?php if ($manifest): ?>
+            <p style="margin-bottom:4px"><strong>Manifeste à coller dans le prompt</strong> —
+                dit à Claude combien d'images il a à placer, et sous quels numéros :</p>
+            <textarea readonly onclick="this.select()" style="width:100%; height:120px; font-family:ui-monospace,monospace; font-size:.8rem; border:1px solid #dfe1e5; border-radius:8px; padding:8px;"><?php
+                foreach ($manifest as $f => $c) {
+                    echo htmlspecialchars($f) . ' : ' . (int) $c . " image(s), numerotees 1 a " . (int) $c . "\n";
+                } ?></textarea>
+        <?php else: ?>
+            <p class="muted">Aucune image extraite pour l'instant — le manifeste apparaîtra ici après l'extraction.</p>
+        <?php endif; ?>
+    </div>
+
     <form class="card" method="post" enctype="multipart/form-data">
         <?= csrfField() ?>
         <input type="hidden" name="action" value="import_json">
         <div class="drop">
-            <p><strong>2 bis. Importer un JSON</strong> — contenu rédigé hors API (Claude web)</p>
+            <p><strong>2 bis-b. Importer un JSON</strong> — contenu rédigé hors API (Claude web)</p>
             <input type="file" name="contenu_json" accept=".json,application/json">
             <p class="muted">
                 Alternative gratuite au bouton « Traiter » : le JSON porte les deux langues,

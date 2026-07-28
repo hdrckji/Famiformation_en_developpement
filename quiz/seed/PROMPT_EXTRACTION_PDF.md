@@ -54,10 +54,29 @@ TYPES DE BLOCS AUTORISÉS — n'en utilise AUCUN autre
 {"type":"callout","style":"info|tip|warning","title":"Titre","text":"Message","fix":"doute éventuel"}
 {"type":"keyfigures","items":[{"value":"30 %","label":"Ce que ça mesure"}]}
 {"type":"quote","text":"Une citation du document","align":"left|center|right"}
+{"type":"image","n":1,"caption":"Légende","size":"s|m|l"}
 
 - "align" et "fix" sont facultatifs : ne les mets que s'ils servent.
-- N'utilise JAMAIS le type "image" : les illustrations sont gérées
-  séparément par le site, pas par toi.
+
+IMAGES — LIS BIEN CECI
+Le serveur a déjà extrait les illustrations de chaque PDF et te donne leur
+nombre dans le MANIFESTE ci-dessous. Ce nombre est celui d'APRÈS filtrage :
+les logos, en-têtes, images répétées et vignettes de moins de 160 px ont été
+écartés. Il ne correspond donc PAS au nombre d'images que tu vois dans le PDF.
+
+- Place exactement autant de blocs "image" que le manifeste en annonce pour ce
+  fichier, avec "n" de 1 à ce nombre, chacun UNE SEULE FOIS.
+- Les images sont numérotées dans l'ordre des pages. Place-les dans cet ordre
+  croissant, à l'endroit de la fiche qui correspond au propos de leur page.
+- Écris une légende courte dans "caption", déduite du contexte de la page.
+- Si un fichier n'apparaît pas dans le manifeste, il n'a aucune image : n'émets
+  alors aucun bloc "image" pour lui.
+- Les blocs "image" ne se traduisent pas : mets-les à la même position dans
+  "blocks" et "blocks_nl", avec le même "n" et la légende traduite.
+
+MANIFESTE DES IMAGES
+(colle ici le bloc fourni par la page d'import ; s'il est vide, n'émets aucun
+bloc "image")
 - "section" exige un "title" non vide, "text" et "quote" un "text" non vide,
   "list"/"steps"/"keyfigures" au moins un item — sinon le bloc est jeté.
 
@@ -74,13 +93,20 @@ paquets et donne-moi un JSON par paquet — je les importerai l'un après l'autr
 
 ---
 
+## L'ordre des opérations (important)
+
+1. **Téléverser** les PDF sur le volume (étape 1 de la page d'import).
+2. **Extraire les images** (étape 2 bis-a) — gratuit, c'est `pdfimages`, pas l'IA.
+   C'est cette étape qui fixe la numérotation des images.
+3. **Copier le manifeste** affiché par la page et le coller à la fin du prompt.
+4. Donner le ZIP + le prompt à Claude web, récupérer le JSON.
+5. **Importer le JSON** (étape 2 bis-b).
+
+Inverser 2 et 3 donne des blocs `image` dont les numéros ne correspondent à rien :
+le site les afficherait vides ou décalés.
+
 ## Ce que ce circuit NE fait pas
 
-- **Pas d'images.** `aiUniformisePdf()` extrait les illustrations du PDF avec
-  `pdfimages` côté serveur ; Claude web n'y a pas accès. Les fiches importées
-  par JSON sont donc en texte seul. Les images peuvent être rajoutées ensuite à
-  la main depuis l'éditeur de module.
 - **Pas de quiz.** `aiGenerateQuiz()` reste un appel API séparé.
-- Le PDF source doit quand même être téléversé sur le volume (onglet « 1.
-  Téléverser ») pour rester téléchargeable ; l'import JSON ne remplit que le
-  contenu de la fiche.
+- Le PDF source doit rester téléversé sur le volume pour être téléchargeable ;
+  l'import JSON ne remplit que le contenu de la fiche.
