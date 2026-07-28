@@ -774,8 +774,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($id > 0) {
             $module = getModuleById($db, $id);
             if ($module) {
-                if (!adminPasswordOk($db, (string) ($_POST['admin_password'] ?? ''))) {
-                    $_SESSION['module_flash'] = "❌ Mot de passe incorrect : suppression annulée.";
+                // Le mot de passe n'est exigé que pour un module VERROUILLÉ — ou dont
+                // un descendant l'est. La suppression étant récursive, se contenter de
+                // regarder le module lui-même permettrait d'effacer un sous-module
+                // verrouillé en supprimant son parent, sans jamais taper le mot de passe.
+                $verrouille = !empty($module['is_locked']);
+                if (!$verrouille) {
+                    $file = [$id];
+                    $g = 0;
+                    while ($file && $g++ < 10000) {
+                        $pid = array_shift($file);
+                        $q = $db->prepare("SELECT id, is_locked FROM modules WHERE parent_id = ?");
+                        $q->execute([$pid]);
+                        foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $enf) {
+                            if (!empty($enf['is_locked'])) { $verrouille = true; break 2; }
+                            $file[] = (int) $enf['id'];
+                        }
+                    }
+                }
+
+                if ($verrouille && !adminPasswordOk($db, (string) ($_POST['admin_password'] ?? ''))) {
+                    $_SESSION['module_flash'] = "❌ Module verrouillé : mot de passe requis, suppression annulée.";
                 } else {
                     // Suppression RÉCURSIVE : le module + TOUS ses descendants (sous-modules,
                     // sous-sous-modules...), même verrouillés (l'admin a confirmé via l'alerte).

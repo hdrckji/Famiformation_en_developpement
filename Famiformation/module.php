@@ -279,7 +279,7 @@ $isVideoPage = !$isContainer && empty($module['is_booking']) && $mHasVideoAny &&
                     $childExternal = (stripos($childLink, 'http') === 0);
                 ?>
                 <?php if ($childActive): ?>
-                <a href="<?= htmlspecialchars($childHref) ?>" class="tile<?= $isAdmin ? ' mod-tile' : '' ?>"<?= $isAdmin ? ' data-mod-id="' . (int) $child['id'] . '"' : '' ?><?= $childExternal ? ' target="_blank" rel="noopener"' : '' ?>>
+                <a href="<?= htmlspecialchars($childHref) ?>" class="tile<?= $isAdmin ? ' mod-tile' : '' ?>"<?= $isAdmin ? ' data-mod-id="' . (int) $child['id'] . '" data-nom="' . htmlspecialchars(moduleNom($child), ENT_QUOTES) . '" data-locked="' . (!empty($child['is_locked']) ? '1' : '0') . '"' : '' ?><?= $childExternal ? ' target="_blank" rel="noopener"' : '' ?>>
                     <?php if (!empty($child['a_evaluer'])): ?><span class="badge-eval">📝</span><?php endif; ?>
                     <div class="tile-icon"><?= moduleIconHtml($child, '3rem') ?></div>
                     <div class="tile-title"><?= htmlspecialchars(moduleNom($child)) ?></div>
@@ -298,14 +298,14 @@ $isVideoPage = !$isContainer && empty($module['is_booking']) && $mHasVideoAny &&
                             : 'module.php?id=' . (int) $child['id'];
                     ?>
                     <?php if ($enRelecture && $peutRelire): ?>
-                    <a href="<?= htmlspecialchars($lienRelire) ?>" class="tile tile-review<?= $isAdmin ? ' mod-tile' : '' ?>"<?= $isAdmin ? ' data-mod-id="' . (int) $child['id'] . '"' : '' ?> title="<?= t('Ce contenu attend votre relecture. Il sera visible dès que vous l\'aurez validé.', 'Deze inhoud wacht op je nalezing. Ze wordt zichtbaar zodra je ze goedkeurt.') ?>">
+                    <a href="<?= htmlspecialchars($lienRelire) ?>" class="tile tile-review<?= $isAdmin ? ' mod-tile' : '' ?>"<?= $isAdmin ? ' data-mod-id="' . (int) $child['id'] . '" data-nom="' . htmlspecialchars(moduleNom($child), ENT_QUOTES) . '" data-locked="' . (!empty($child['is_locked']) ? '1' : '0') . '"' : '' ?> title="<?= t('Ce contenu attend votre relecture. Il sera visible dès que vous l\'aurez validé.', 'Deze inhoud wacht op je nalezing. Ze wordt zichtbaar zodra je ze goedkeurt.') ?>">
                         <span class="badge-eval" style="background:#e8a13a;">✍️ <?= t('À relire', 'Na te lezen') ?></span>
                         <div class="tile-icon"><?= moduleIconHtml($child, '3rem') ?></div>
                         <div class="tile-title"><?= htmlspecialchars(moduleNom($child)) ?></div>
                         <div class="tile-desc"><?= t('Pas encore visible par les apprenants — termine la relecture pour le publier.', 'Nog niet zichtbaar voor de lerenden — lees na en keur goed om te publiceren.') ?></div>
                     </a>
                     <?php else: ?>
-                    <div class="tile inactive<?= $isAdmin ? ' mod-tile' : '' ?>"<?= $isAdmin ? ' data-mod-id="' . (int) $child['id'] . '"' : '' ?> title="<?= $isAdmin ? 'Module inactif — clic droit pour modifier' : t('Module inactif — réactive-le dans Gestion des modules', 'Module niet actief — heractiveer hem in Modulebeheer') ?>" style="cursor:<?= $isAdmin ? 'context-menu' : 'not-allowed' ?>;">
+                    <div class="tile inactive<?= $isAdmin ? ' mod-tile' : '' ?>"<?= $isAdmin ? ' data-mod-id="' . (int) $child['id'] . '" data-nom="' . htmlspecialchars(moduleNom($child), ENT_QUOTES) . '" data-locked="' . (!empty($child['is_locked']) ? '1' : '0') . '"' : '' ?> title="<?= $isAdmin ? 'Module inactif — clic droit pour modifier' : t('Module inactif — réactive-le dans Gestion des modules', 'Module niet actief — heractiveer hem in Modulebeheer') ?>" style="cursor:<?= $isAdmin ? 'context-menu' : 'not-allowed' ?>;">
                         <span class="badge-eval" style="background:#999;"><?= t('Inactif', 'Niet actief') ?></span>
                         <div class="tile-icon"><?= moduleIconHtml($child, '3rem') ?></div>
                         <div class="tile-title"><?= htmlspecialchars(moduleNom($child)) ?></div>
@@ -578,12 +578,22 @@ $isVideoPage = !$isContainer && empty($module['is_booking']) && $mHasVideoAny &&
         <div id="tileCtx" style="position:fixed; z-index:100000; display:none; background:#fff; border:1px solid #d0d7d2; border-radius:10px; box-shadow:0 10px 34px rgba(0,0,0,.2); padding:6px; min-width:190px;">
             <button type="button" data-act="edit" style="display:block; width:100%; text-align:left; border:none; background:none; padding:9px 12px; border-radius:7px; cursor:pointer; font-weight:600; color:#244230;">✏️ Modifier</button>
             <button type="button" data-act="open" style="display:block; width:100%; text-align:left; border:none; background:none; padding:9px 12px; border-radius:7px; cursor:pointer; font-weight:600; color:#244230;">➡ Ouvrir</button>
+            <button type="button" data-act="del" style="display:block; width:100%; text-align:left; border:none; background:none; padding:9px 12px; border-radius:7px; cursor:pointer; font-weight:600; color:#b42318;">🗑 Supprimer</button>
         </div>
+        <!-- Formulaire de suppression piloté par le menu contextuel. Le mot de passe
+             n'est rempli que si le module (ou un descendant) est verrouillé. -->
+        <form id="ctxDelForm" method="POST" action="module_save.php" style="display:none">
+            <?= csrfField() ?>
+            <input type="hidden" name="action" value="delete">
+            <input type="hidden" name="id" id="ctxDelId" value="">
+            <input type="hidden" name="admin_password" id="ctxDelPwd" value="">
+            <input type="hidden" name="return" value="module.php?id=<?= (int) $module['id'] ?>">
+        </form>
         <script>
         (function () {
             var menu = document.getElementById('tileCtx');
             if (!menu) { return; }
-            var curId = null, curHref = null;
+            var curId = null, curHref = null, curNom = '', curLock = false;
             function show(x, y) {
                 menu.style.left = Math.min(x, window.innerWidth - 200) + 'px';
                 menu.style.top = Math.min(y, window.innerHeight - 110) + 'px';
@@ -595,10 +605,12 @@ $isVideoPage = !$isContainer && empty($module['is_booking']) && $mHasVideoAny &&
                     e.preventDefault();
                     curId = tile.getAttribute('data-mod-id');
                     curHref = tile.getAttribute('href') || ('module.php?id=' + curId);
+                    curNom = tile.getAttribute('data-nom') || 'ce module';
+                    curLock = tile.getAttribute('data-locked') === '1';
                     show(e.clientX, e.clientY);
                 });
                 var t;
-                tile.addEventListener('touchstart', function () { t = setTimeout(function () { tile._sup = true; curId = tile.getAttribute('data-mod-id'); curHref = tile.getAttribute('href') || ('module.php?id=' + curId); var r = tile.getBoundingClientRect(); show(r.left, r.bottom); }, 500); }, { passive: true });
+                tile.addEventListener('touchstart', function () { t = setTimeout(function () { tile._sup = true; curId = tile.getAttribute('data-mod-id'); curHref = tile.getAttribute('href') || ('module.php?id=' + curId); curNom = tile.getAttribute('data-nom') || 'ce module'; curLock = tile.getAttribute('data-locked') === '1'; var r = tile.getBoundingClientRect(); show(r.left, r.bottom); }, 500); }, { passive: true });
                 tile.addEventListener('touchend', function () { clearTimeout(t); });
                 tile.addEventListener('touchmove', function () { clearTimeout(t); });
                 tile.addEventListener('click', function (e) { if (tile._sup) { e.preventDefault(); tile._sup = false; } });
@@ -608,6 +620,22 @@ $isVideoPage = !$isContainer && empty($module['is_booking']) && $mHasVideoAny &&
                 hide();
             });
             menu.querySelector('[data-act=open]').addEventListener('click', function () { if (curHref) { window.location = curHref; } });
+            menu.querySelector('[data-act=del]').addEventListener('click', function () {
+                if (!curId) { return; }
+                // Module verrouillé : le mot de passe reste exigé (le serveur le
+                // revérifie de toute façon, y compris si un descendant est verrouillé).
+                var pwd = '';
+                if (curLock) {
+                    pwd = window.prompt('Module verrouillé.\nMot de passe de verrouillage pour supprimer « ' + curNom + '» :');
+                    if (pwd === null || pwd === '') { hide(); return; }
+                } else if (!window.confirm('Supprimer « ' + curNom + ' » ?\n\nLe module et tous ses sous-modules seront supprimés, ainsi que leurs fichiers. Cette action est définitive.')) {
+                    hide();
+                    return;
+                }
+                document.getElementById('ctxDelId').value = curId;
+                document.getElementById('ctxDelPwd').value = pwd;
+                document.getElementById('ctxDelForm').submit();
+            });
             document.addEventListener('click', function (e) { if (menu.style.display === 'block' && !menu.contains(e.target)) { hide(); } });
             window.addEventListener('scroll', hide, true);
         })();
