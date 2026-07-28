@@ -331,7 +331,7 @@ foreach ($db->query("SELECT interim, COUNT(*) AS c FROM utilisateurs WHERE inter
         .fold-body { padding:16px 18px; }
 
         .type-container { background:#e8f5e9; color:#2d5a37; }
-        /* Sous-types d'Élément : C = affiche du contenu (PDF/vidéo) · S = fonction spéciale dédiée */
+        /* Sous-types de Module : C = affiche du contenu (PDF/vidéo) · S = fonction spéciale dédiée */
         .type-content { background:#e3f0fb; color:#1f5c8c; }
         .type-special { background:#fff3e0; color:#8a5a00; }
         .type-empty   { background:#f1f1f1; color:#8f9a94; }
@@ -440,9 +440,9 @@ foreach ($db->query("SELECT interim, COUNT(*) AS c FROM utilisateurs WHERE inter
             </div>
             <div style="display:flex; align-items:center; gap:8px; margin:0 0 10px; font-size:0.8rem; flex-wrap:wrap;">
                 <span class="muted" style="font-weight:700;">Types :</span>
-                <span class="type-badge type-container">📁 Conteneur</span><span class="muted">contient d'autres modules</span>
-                <span class="type-badge type-content">📄 Élément <span class="tb-letter">C</span></span><span class="muted">affiche du <strong>contenu</strong> (PDF / vidéo)</span>
-                <span class="type-badge type-special">⚙️ Élément <span class="tb-letter">S</span></span><span class="muted">fonction <strong>spéciale</strong> (ex. Formation présentiel, Classement)</span>
+                <span class="type-badge type-container">📁 Module</span><span class="muted">contient d'autres modules</span>
+                <span class="type-badge type-content">📄 Module <span class="tb-letter">C</span></span><span class="muted">porte du <strong>contenu</strong> (PDF / vidéo)</span>
+                <span class="type-badge type-special">⚙️ Module <span class="tb-letter">S</span></span><span class="muted">fonction <strong>spéciale</strong> (ex. Formation présentiel, Classement)</span>
             </div>
             <?php bulkBar('module'); ?>
             <table class="bulk-table" data-entity="module">
@@ -466,16 +466,16 @@ foreach ($db->query("SELECT interim, COUNT(*) AS c FROM utilisateurs WHERE inter
                             <?php if (!empty($m['is_container']) || $hasChildren): ?>
                                 <span class="type-badge type-container">📁 Conteneur</span>
                             <?php else:
-                                // Sous-type d'Élément : C = contenu (PDF/vidéo), S = fonction spéciale (page dédiée).
+                                // Sous-type de Module : C = contenu (PDF/vidéo), S = fonction spéciale (page dédiée).
                                 $elHasContent = !empty($m['pdf_path']) || !empty($m['video_path']) || !empty($m['contenu_ia']);
                                 $elHasLink = trim((string) ($m['link'] ?? '')) !== '';
                             ?>
                                 <?php if ($elHasContent): ?>
-                                    <span class="type-badge type-content" title="Élément CONTENU — affiche un PDF et/ou une vidéo">📄 Élément <span class="tb-letter">C</span></span>
+                                    <span class="type-badge type-content" title="Module C — porte un PDF et/ou une vidéo">📄 Module <span class="tb-letter">C</span></span>
                                 <?php elseif ($elHasLink): ?>
-                                    <span class="type-badge type-special" title="Élément SPÉCIAL — fonction dédiée (ex. Formation présentiel, Classement)">⚙️ Élément <span class="tb-letter">S</span></span>
+                                    <span class="type-badge type-special" title="Module S — fonction dédiée (ex. Formation présentiel, Classement)">⚙️ Module <span class="tb-letter">S</span></span>
                                 <?php else: ?>
-                                    <span class="type-badge type-empty" title="Élément vide — en attente de contenu">📄 Élément</span>
+                                    <span class="type-badge type-empty" title="Module sans contenu — en attente">📄 Module</span>
                                 <?php endif; ?>
                             <?php endif; ?>
                         </td>

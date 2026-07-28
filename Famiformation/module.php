@@ -472,11 +472,9 @@ $isVideoPage = !$isContainer && empty($module['is_booking']) && $mHasVideoAny &&
     <?php endif; ?>
 
     <?php if ($isAdmin || $canContribHere): ?>
-        <?php if ($isAdmin): ?>
-        <div class="admin-actions">
-            <button type="button" class="btn btn-create" onclick="document.getElementById('editModal').style.display='flex';">✏️ Modifier ce module</button>
-        </div>
-        <?php endif; ?>
+        <?php /* Bouton « Modifier ce module » retiré : l'édition passe désormais
+                 uniquement par le clic droit sur la tuile, comme la suppression.
+                 La modale editModal reste en place, ouverte par ce menu. */ ?>
         <?php if ($isContainer): ?>
         <!-- Même bouton qu'à l'accueil : flottant, en bas à droite, libellé « Créer ». -->
         <button type="button" class="quick-create-btn" onclick="document.getElementById('createModal').style.display='flex';">➕ <?= t('Créer', 'Maken') ?></button>
@@ -576,8 +574,8 @@ $isVideoPage = !$isContainer && empty($module['is_booking']) && $mHasVideoAny &&
 
         <!-- Menu contextuel (clic droit / appui long sur une tuile) -->
         <div id="tileCtx" style="position:fixed; z-index:100000; display:none; background:#fff; border:1px solid #d0d7d2; border-radius:10px; box-shadow:0 10px 34px rgba(0,0,0,.2); padding:6px; min-width:190px;">
-            <button type="button" data-act="edit" style="display:block; width:100%; text-align:left; border:none; background:none; padding:9px 12px; border-radius:7px; cursor:pointer; font-weight:600; color:#244230;">✏️ Modifier</button>
             <button type="button" data-act="open" style="display:block; width:100%; text-align:left; border:none; background:none; padding:9px 12px; border-radius:7px; cursor:pointer; font-weight:600; color:#244230;">➡ Ouvrir</button>
+            <button type="button" data-act="edit" style="display:block; width:100%; text-align:left; border:none; background:none; padding:9px 12px; border-radius:7px; cursor:pointer; font-weight:600; color:#244230;">✏️ Modifier</button>
             <button type="button" data-act="del" style="display:block; width:100%; text-align:left; border:none; background:none; padding:9px 12px; border-radius:7px; cursor:pointer; font-weight:600; color:#b42318;">🗑 Supprimer</button>
         </div>
         <!-- Formulaire de suppression piloté par le menu contextuel. Le mot de passe

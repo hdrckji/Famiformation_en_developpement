@@ -179,7 +179,8 @@ if (!function_exists('_designedPages')) {
 
             $inner = '';
             foreach ($g as $b) { $inner .= _dBlockHtml($b, $ctx); }
-            $contentPages[] = '<main class="page">' . $inner . '</main>';
+            // Ancre nommée : le sommaire et le bouton « Commencer » défilent jusqu'ici.
+            $contentPages[] = '<main class="page" id="uni-p' . $pageIndex . '">' . $inner . '</main>';
             $pageIndex++;
         }
 
@@ -370,7 +371,21 @@ if (!function_exists('renderUniformContent')) {
             .fami-doc .page { max-width:none; }
             .fami-doc .doc-pdf, .fami-doc .pagenav, .fami-doc #famiDoneModal { display:none !important; }
         }
+        /* Lecture en continu : les sections s'enchaînent, on descend en scrollant.
+           Seule la couverture occupe l'écran entier ; le reste suit d'un trait. */
+        .fami-doc { scroll-behavior: smooth; }
+        .fami-doc .page{ scroll-margin-top: 16px; }
         </style>
+        <script>
+        // uniGoto() était appelée par le sommaire et par « Commencer la formation »
+        // mais n'était définie nulle part : les liens ne faisaient donc rien.
+        // Elle fait simplement défiler jusqu'à la section demandée.
+        function uniGoto(n) {
+            var cible = document.getElementById('uni-p' + n);
+            if (!cible) { return; }
+            cible.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        </script>
 
         <div class="fami-doc">
             <div class="doc-view doc-read">
