@@ -184,6 +184,47 @@ function famiImportFindOrCreateTarget(PDO $db, $parentId, array $spec, $parentRo
 }
 
 /**
+ * MODULE QUI DOIT PORTER LE CONTENU.
+ *
+ * Règle du site : un module est soit CONTENEUR (il contient des modules), soit
+ * ÉLÉMENT (il porte un contenu — « élément C » — ou une fonction — « élément S »).
+ *
+ * À la création normale, le parent n'existe pas encore : d'où la création
+ * automatique d'un sous-module « Guide » par module_save.php. Ici c'est
+ * l'inverse — le module ciblé par `link` EXISTE DÉJÀ et c'est lui l'élément.
+ * Lui greffer un enfant unique le transformerait en conteneur et ajouterait un
+ * niveau de navigation qui ne porte rien.
+ *
+ * On ne crée donc un sous-module que là où la page porte VRAIMENT plusieurs
+ * contenus distincts : livret op/os séparé par profil, deux vidéos Lollyland.
+ * Ces cas-là sont déclarés dans famiImportSpecialTargets() avec un `nom`.
+ *
+ * @return array|null la ligne `modules` à remplir, ou null si elle est introuvable
+ */
+function famiImportCible(PDO $db, array $mod, array $hit, $creer = true)
+{
+    $parentId = (int) $mod['id'];
+    $spec = famiImportSpecialTargets()[$hit['ref']] ?? null;
+
+    // Cas conteneur : sous-module dédié, explicitement déclaré.
+    if ($spec && $spec['page'] === $hit['page'] && !empty($spec['nom'])) {
+        return $creer
+            ? famiImportFindOrCreateTarget($db, $parentId, $spec, (string) ($mod['roles'] ?? ''))
+            : famiImportChildByName($db, $parentId, $spec['nom']);
+    }
+
+    // Cas élément : le module lui-même. On le relit pour disposer de toutes ses
+    // colonnes (contenu_ia, pdf_path…), l'index des modules n'en portant qu'une partie.
+    try {
+        $st = $db->prepare("SELECT * FROM modules WHERE id = ? LIMIT 1");
+        $st->execute([$parentId]);
+        return $st->fetch(PDO::FETCH_ASSOC) ?: null;
+    } catch (Exception $e) {
+        return null;
+    }
+}
+
+/**
  * Reconnaît le média visé par un fichier déposé, d'après son seul nom.
  * @return array{page:string,kind:string,ref:string}|null
  */
@@ -282,45 +323,29 @@ if (($_POST['action'] ?? '') === 'upload') {
         $parentId = (int) $mod['id'];
         $slug = moduleFileSlug($mod['nom'] ?? $hit['page']);
 
-        // Un module ne porte qu'UN sous-module 'ecrit' et UN 'video'. Quand une page
-        // référence plusieurs médias du même type, le fichier va dans un sous-module
-        // DÉDIÉ (livret Étudiant / autres profils, les 2 vidéos Lollyland) — sinon le
-        // second écraserait le premier en silence.
-        $spec = famiImportSpecialTargets()[$hit['ref']] ?? null;
-        $target = null;
-        if ($spec && $spec['page'] === $hit['page'] && !empty($spec['nom'])) {
-            $target = famiImportFindOrCreateTarget($db, $parentId, $spec, (string) ($mod['roles'] ?? ''));
-            if (!$target) {
-                $flash[] = ['ko', $name, "création du module dédié « " . $spec['nom'] . " » impossible"];
-                continue;
-            }
-        } elseif (!$spec) {
-            $entry = famiLegacyMediaMap()[$hit['page']] ?? ['pdfs' => [], 'videos' => []];
-            $sameKind = $hit['kind'] === 'pdf' ? count($entry['pdfs']) : count($entry['videos']);
-            if ($sameKind > 1) {
-                $flash[] = ['warn', $name, $hit['page'] . " porte " . $sameKind . " médias de ce type sans module dédié — à rattacher à la main"];
-                continue;
-            }
+        // Le module ciblé porte le contenu LUI-MÊME (élément). Un sous-module n'est
+        // créé que pour les pages qui portent plusieurs contenus distincts.
+        $cible = famiImportCible($db, $mod, $hit);
+        if (!$cible) {
+            $flash[] = ['ko', $name, "module cible introuvable"];
+            continue;
         }
+        $dedie = ((int) $cible['id'] !== $parentId); // vrai = sous-module dédié
+        $ou = $dedie ? ("« " . (string) $mod['nom'] . " » → « " . (string) $cible['nom'] . " »")
+                     : ("« " . (string) $mod['nom'] . " »");
 
         if ($hit['kind'] === 'pdf_nl') {
-            // Version NÉERLANDAISE humaine du même document : elle se range à côté du
-            // FR, sur le sous-module existant. Aucune traduction machine ne sera faite.
+            // Version NÉERLANDAISE humaine du même document : elle se range à côté
+            // du FR, sur le MÊME module. Aucune traduction machine ne sera faite.
             $key = famiStoreUploadedFileAt($tmp, $name, ['application/pdf' => 'pdf'], 60 * 1024 * 1024, 'pdf', $slug . '-guide-nl');
             if ($key === null) {
                 $flash[] = ['ko', $name, "refusé (format ou taille)"];
                 continue;
             }
-            $child = famiImportChild($db, $parentId, 'ecrit');
-            if (!$child) {
-                $flash[] = ['warn', $name, "dépose d'abord la version FR : le sous-module n'existe pas encore"];
-                volumeUnlink($key);
-                continue;
-            }
-            if (!empty($child['pdf_nl_path'])) { volumeUnlink((string) $child['pdf_nl_path']); }
+            if (!empty($cible['pdf_nl_path'])) { volumeUnlink((string) $cible['pdf_nl_path']); }
             $db->prepare("UPDATE modules SET pdf_nl_path = ?, contenu_ia_nl = NULL, nl_hash = NULL WHERE id = ?")
-               ->execute([$key, (int) $child['id']]);
-            $flash[] = ['ok', $name, "version NL rattachée à « " . (string) $mod['nom'] . " » (pas de traduction machine)"];
+               ->execute([$key, (int) $cible['id']]);
+            $flash[] = ['ok', $name, "version NL rattachée à " . $ou];
 
         } elseif ($hit['kind'] === 'pdf') {
             $key = famiStoreUploadedFileAt($tmp, $name, ['application/pdf' => 'pdf'], 60 * 1024 * 1024, 'pdf', $slug . '-guide');
@@ -328,20 +353,14 @@ if (($_POST['action'] ?? '') === 'upload') {
                 $flash[] = ['ko', $name, "refusé (format ou taille)"];
                 continue;
             }
-            $child = $target ?: famiImportChild($db, $parentId, 'ecrit');
-            if ($child) {
-                if (!empty($child['pdf_path'])) { volumeUnlink((string) $child['pdf_path']); }
-                $db->prepare("UPDATE modules SET pdf_path = ?, uniformized = 0, contenu_ia = NULL,
-                                contenu_ia_nl = NULL, quiz_json_nl = NULL, nl_hash = NULL WHERE id = ?")
-                   ->execute([$key, (int) $child['id']]);
-            } else {
-                $db->prepare("INSERT INTO modules (nom, nom_nl, is_container, parent_id, icon, roles, is_active, pdf_path, uniformized, contenu_by, content_kind)
-                              VALUES (?, ?, 0, ?, '📄', ?, 1, ?, 0, ?, 'ecrit')")
-                   ->execute(['Guide', 'Gids', $parentId, (string) ($mod['roles'] ?? ''), $key, (int) ($_SESSION['user_id'] ?? 0) ?: null]);
-            }
-            $db->prepare("UPDATE modules SET is_container = 1 WHERE id = ?")->execute([$parentId]);
-            $flash[] = ['ok', $name, "rattaché à « " . (string) $mod['nom'] . " » → "
-                . ($target ? "module dédié « " . (string) $target['nom'] . " » (" . (((string) $target['roles']) !== '' ? (string) $target['roles'] : 'tous profils') . ")" : "guide")];
+            if (!empty($cible['pdf_path'])) { volumeUnlink((string) $cible['pdf_path']); }
+            $db->prepare("UPDATE modules SET pdf_path = ?, content_kind = 'ecrit', is_container = 0,
+                            uniformized = 0, contenu_ia = NULL, contenu_ia_nl = NULL,
+                            quiz_json_nl = NULL, nl_hash = NULL WHERE id = ?")
+               ->execute([$key, (int) $cible['id']]);
+            // Un parent ne devient conteneur QUE s'il a réellement un enfant.
+            if ($dedie) { $db->prepare("UPDATE modules SET is_container = 1 WHERE id = ?")->execute([$parentId]); }
+            $flash[] = ['ok', $name, "rattaché à " . $ou];
 
         } else {
             $key = famiStoreUploadedFileAt($tmp, $name, ['video/mp4' => 'mp4', 'video/quicktime' => 'mov'], 1024 * 1024 * 1024, 'video_raw', $slug . '-video');
@@ -349,25 +368,17 @@ if (($_POST['action'] ?? '') === 'upload') {
                 $flash[] = ['ko', $name, "refusé (format ou taille)"];
                 continue;
             }
-            $child = $target ?: famiImportChild($db, $parentId, 'video');
-            if ($child) {
-                foreach (['video_path', 'video_src_path'] as $c) {
-                    if (!empty($child[$c])) { volumeUnlink((string) $child[$c]); }
-                }
-                $vidId = (int) $child['id'];
-                $db->prepare("UPDATE modules SET video_src_path = ?, video_path = NULL, video_status = 'processing' WHERE id = ?")
-                   ->execute([$key, $vidId]);
-            } else {
-                $db->prepare("INSERT INTO modules (nom, nom_nl, is_container, parent_id, icon, roles, is_active, video_src_path, video_status, contenu_by, content_kind)
-                              VALUES (?, ?, 0, ?, '🎬', ?, 1, ?, 'processing', ?, 'video')")
-                   ->execute(['Vidéo', 'Video', $parentId, (string) ($mod['roles'] ?? ''), $key, (int) ($_SESSION['user_id'] ?? 0) ?: null]);
-                $vidId = (int) $db->lastInsertId();
+            foreach (['video_path', 'video_src_path'] as $c) {
+                if (!empty($cible[$c])) { volumeUnlink((string) $cible[$c]); }
             }
-            $db->prepare("UPDATE modules SET is_container = 1 WHERE id = ?")->execute([$parentId]);
+            $vidId = (int) $cible['id'];
+            $db->prepare("UPDATE modules SET video_src_path = ?, video_path = NULL, video_status = 'processing',
+                            content_kind = 'video', is_container = 0 WHERE id = ?")
+               ->execute([$key, $vidId]);
+            if ($dedie) { $db->prepare("UPDATE modules SET is_container = 1 WHERE id = ?")->execute([$parentId]); }
             // Transcodage 720p + transcription Whisper, en tâche de fond.
             spawnVideoTranscode($key, $vidId);
-            $flash[] = ['ok', $name, "rattaché à « " . (string) $mod['nom'] . " » → "
-                . ($target ? "module dédié « " . (string) $target['nom'] . " »" : "vidéo") . ", transcodage lancé"];
+            $flash[] = ['ok', $name, "rattaché à " . $ou . ", transcodage lancé"];
         }
 
         if (count($mods) > 1) {
@@ -517,13 +528,9 @@ if (($_POST['action'] ?? '') === 'import_subs') {
             $flash[] = ['ko', $name, "aucun module ne pointe vers " . $hit['page']];
             continue;
         }
-        $parentId = (int) $mods[0]['id'];
-        $spec = famiImportSpecialTargets()[$hit['ref']] ?? null;
-        $child = ($spec && !empty($spec['nom']))
-            ? famiImportFindOrCreateTarget($db, $parentId, $spec, (string) ($mods[0]['roles'] ?? ''))
-            : famiImportChild($db, $parentId, 'video');
+        $child = famiImportCible($db, $mods[0], $hit);
         if (!$child) {
-            $flash[] = ['warn', $name, "téléverse d'abord la vidéo : le sous-module n'existe pas encore"];
+            $flash[] = ['warn', $name, "module cible introuvable — téléverse d'abord la vidéo"];
             continue;
         }
         if (($child['video_status'] ?? '') === 'processing') {
@@ -615,12 +622,9 @@ if (($_POST['action'] ?? '') === 'import_json') {
             $mod = $mods[0];
             $parentId = (int) $mod['id'];
 
-            $spec = famiImportSpecialTargets()[$hit['ref']] ?? null;
-            $child = ($spec && !empty($spec['nom']))
-                ? famiImportFindOrCreateTarget($db, $parentId, $spec, (string) ($mod['roles'] ?? ''))
-                : famiImportChild($db, $parentId, 'ecrit');
+            $child = famiImportCible($db, $mod, $hit);
             if (!$child) {
-                $flash[] = ['warn', $nom, "téléverse d'abord le PDF : le sous-module n'existe pas encore"];
+                $flash[] = ['warn', $nom, "module cible introuvable — téléverse d'abord le PDF"];
                 continue;
             }
 
@@ -656,6 +660,83 @@ if (($_POST['action'] ?? '') === 'import_json') {
 }
 
 // ------------------------------------------------------------------
+//  ACTION 3 bis — RÉPARATION DE STRUCTURE.
+//
+//  Les premiers imports appliquaient la règle « contenu ⇒ créer un sous-module
+//  Guide ». Elle vaut à la CRÉATION, quand le parent n'existe pas encore. Ici le
+//  module ciblé existait déjà et était l'élément : il a été transformé en
+//  conteneur avec un enfant unique, soit un niveau de navigation qui ne porte rien.
+//
+//  On remonte donc le contenu de cet enfant sur le parent, puis on le supprime.
+//  Prudence : on ne touche QUE les parents du périmètre de migration qui ont
+//  exactement UN enfant, portant l'un des noms créés par l'import.
+// ------------------------------------------------------------------
+if (($_POST['action'] ?? '') === 'repair_structure') {
+    requireValidCSRF();
+    @set_time_limit(0);
+
+    $nomsImport = ['Guide', 'Gids', 'Vidéo', 'Video'];
+    $colonnes = ['pdf_path', 'pdf_nl_path', 'video_path', 'video_src_path', 'video_status',
+                 'contenu_ia', 'contenu_ia_nl', 'contenu_images', 'contenu_by', 'quiz_json',
+                 'quiz_json_nl', 'nl_hash', 'source_lang', 'uniformized', 'a_evaluer',
+                 'content_kind', 'sub_fr_path', 'sub_nl_path', 'sub_src_path', 'sub_status', 'transcript'];
+
+    // Périmètre : les modules dont link (ou link_legacy) désigne une page migrée.
+    $pages = array_keys(famiLegacyMediaMap());
+    $rows = [];
+    try {
+        // Un module du périmètre porte forcément un lien : `link` s'il n'a pas
+        // encore été basculé, `link_legacy` s'il l'a été.
+        $rows = $db->query("SELECT id, nom, link, link_legacy FROM modules
+                             WHERE (link IS NOT NULL AND link <> '')
+                                OR (link_legacy IS NOT NULL AND link_legacy <> '')")
+                   ->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Exception $e) {
+        // link_legacy peut ne pas exister si aucune bascule n'a encore eu lieu.
+        try {
+            $rows = $db->query("SELECT id, nom, link, NULL AS link_legacy FROM modules
+                                 WHERE link IS NOT NULL AND link <> ''")->fetchAll(PDO::FETCH_ASSOC);
+        } catch (Exception $e2) { $rows = []; }
+    }
+
+    $n = 0;
+    foreach ($rows as $m) {
+        $cle = basename(strtok((string) ($m['link'] ?: $m['link_legacy']), '?'));
+        if ($cle === '' || !in_array($cle, $pages, true)) { continue; }
+        // Les pages à contenus multiples gardent légitimement leurs sous-modules.
+        $entry = famiLegacyMediaMap()[$cle];
+        if (count($entry['pdfs']) + count($entry['videos']) > 1) { continue; }
+
+        $enfants = $db->prepare("SELECT * FROM modules WHERE parent_id = ?");
+        $enfants->execute([(int) $m['id']]);
+        $liste = $enfants->fetchAll(PDO::FETCH_ASSOC);
+        if (count($liste) !== 1) { continue; }
+        $e = $liste[0];
+        if (!in_array((string) $e['nom'], $nomsImport, true)) { continue; }
+
+        // Remontée : on ne copie que les colonnes réellement présentes.
+        $set = [];
+        $val = [];
+        foreach ($colonnes as $c) {
+            if (array_key_exists($c, $e)) { $set[] = "`$c` = ?"; $val[] = $e[$c]; }
+        }
+        if (!$set) { continue; }
+        $val[] = (int) $m['id'];
+        try {
+            $db->prepare("UPDATE modules SET " . implode(', ', $set) . ", is_container = 0 WHERE id = ?")->execute($val);
+            $db->prepare("DELETE FROM modules WHERE id = ?")->execute([(int) $e['id']]);
+            $flash[] = ['ok', (string) $m['nom'], "contenu remonté depuis « " . (string) $e['nom'] . " », sous-module supprimé"];
+            $n++;
+        } catch (Exception $ex) {
+            $flash[] = ['ko', (string) $m['nom'], "remontée impossible : " . $ex->getMessage()];
+        }
+    }
+    if ($n === 0) {
+        $flash[] = ['skip', 'structure', "rien à réparer — aucun sous-module créé à tort"];
+    }
+}
+
+// ------------------------------------------------------------------
 //  ACTION 4 — BASCULE D'AFFICHAGE, réversible.
 //
 //  Tant que `modules.link` pointe vers l'ancienne page, la tuile y mène
@@ -685,9 +766,26 @@ if (in_array(($_POST['action'] ?? ''), ['switch_on', 'switch_off'], true)) {
             if ($on) {
                 // On ne bascule que si du contenu est réellement en place, sinon
                 // on remplacerait une page qui marche par un module vide.
-                $c = famiImportChild($db, $id, 'ecrit');
-                $v = famiImportChild($db, $id, 'video');
-                $pret = ($c && !empty($c['contenu_ia'])) || ($v && !empty($v['video_path']));
+                // Le contenu est porté par le module LUI-MÊME (élément) ou, pour les
+                // pages à contenus multiples, par l'un de ses sous-modules.
+                $porte = function ($r) {
+                    return $r && (!empty($r['contenu_ia']) || !empty($r['video_path']) || !empty($r['video_src_path']));
+                };
+                $self = null;
+                try {
+                    $q = $db->prepare("SELECT * FROM modules WHERE id = ? LIMIT 1");
+                    $q->execute([$id]);
+                    $self = $q->fetch(PDO::FETCH_ASSOC) ?: null;
+                } catch (Exception $e) { $self = null; }
+
+                $pret = $porte($self);
+                if (!$pret) {
+                    $q = $db->prepare("SELECT * FROM modules WHERE parent_id = ?");
+                    $q->execute([$id]);
+                    foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $enf) {
+                        if ($porte($enf)) { $pret = true; break; }
+                    }
+                }
                 if (!$pret) {
                     $flash[] = ['skip', $page, "pas encore de contenu — bascule ignorée"];
                     continue;
@@ -720,8 +818,11 @@ foreach ($map as $page => $entry) {
     if (!$mods) { $stat['sansModule']++; }
 
     $parentId = $mods ? (int) $mods[0]['id'] : 0;
-    $guide = $parentId ? famiImportChild($db, $parentId, 'ecrit') : null;
-    $video = $parentId ? famiImportChild($db, $parentId, 'video') : null;
+    // Résolution en LECTURE SEULE : l'affichage du plan ne doit rien créer.
+    $resoudre = function ($ref, $kind) use ($db, $mods, $page, $parentId) {
+        if (!$parentId) { return null; }
+        return famiImportCible($db, $mods[0], ['page' => $page, 'kind' => $kind, 'ref' => $ref], false);
+    };
 
     // Un média couvert par un module DÉDIÉ lit l'état de ce module-là. Les autres
     // lisent le sous-module générique ; s'ils sont plusieurs du même type sans
@@ -736,8 +837,7 @@ foreach ($map as $page => $entry) {
         // page du module) : seule la page désignée par le module dédié compte.
         if ($spec && $spec['page'] !== $page) { continue; }
         $estNl = ($spec && ($spec['kind'] ?? '') === 'pdf_nl'); // version NL humaine
-        $dedie = ($spec && !empty($spec['nom']) && $parentId) ? famiImportChildByName($db, $parentId, $spec['nom']) : null;
-        $cible = (!empty($spec['nom'])) ? $dedie : $guide;
+        $cible = $resoudre($p, $estNl ? 'pdf_nl' : 'pdf');
 
         // La version NL vit sur la MÊME ligne que le FR, dans sa propre colonne :
         // son état se lit donc sur pdf_nl_path / contenu_ia_nl, pas sur pdf_path.
@@ -765,8 +865,7 @@ foreach ($map as $page => $entry) {
     foreach ($entry['videos'] as $v) {
         $spec = ($specials[$v['id']] ?? null);
         if ($spec && $spec['page'] !== $page) { continue; }
-        $dedie = ($spec && !empty($spec['nom']) && $parentId) ? famiImportChildByName($db, $parentId, $spec['nom']) : null;
-        $cible = (!empty($spec['nom'])) ? $dedie : $video;
+        $cible = $resoudre($v['id'], 'video');
         $done = $cible && (!empty($cible['video_path']) || !empty($cible['video_src_path']));
         $row['items'][] = ['type' => 'video', 'nom' => $v['file'], 'id' => $v['id'], 'done' => $done,
                            'cible' => $spec['nom'] ?? null,
@@ -928,6 +1027,23 @@ $pageTitle = 'Import des médias legacy';
             <button class="btn btn-go" type="submit">Importer les sous-titres</button>
         </div>
     </form>
+
+    <div class="card">
+        <p style="margin-top:0"><strong>2 quater. Réparer la structure</strong></p>
+        <p class="muted">
+            Un module est soit <strong>conteneur</strong> (il contient des modules), soit
+            <strong>élément</strong> (il porte un contenu). Les premiers imports créaient
+            systématiquement un sous-module « Guide » — logique à la création, faux ici où
+            le module ciblé existait déjà et <em>était</em> l'élément. Résultat : un niveau
+            de navigation vide. Ce bouton remonte le contenu sur le module et supprime
+            l'enfant inutile. Les pages à contenus multiples (livret op/os, vidéos
+            Lollyland) gardent leurs sous-modules.
+        </p>
+        <form method="post" style="margin:0">
+            <?= csrfField() ?><input type="hidden" name="action" value="repair_structure">
+            <button class="btn btn-go" type="submit">Remonter les contenus et supprimer les sous-modules inutiles</button>
+        </form>
+    </div>
 
     <div class="card">
         <p style="margin-top:0"><strong>3. Basculer l'affichage</strong></p>
