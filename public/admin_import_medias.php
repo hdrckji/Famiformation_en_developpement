@@ -439,6 +439,86 @@ if (($_POST['action'] ?? '') === 'process') {
 }
 
 // ------------------------------------------------------------------
+//  ACTION 3 — IMPORT D'UN JSON produit hors API (Claude web).
+//  Le contenu des fiches est rédigé ailleurs et déposé ici : aucun appel
+//  facturé. Le JSON porte les DEUX langues, donc ni extraction ni traduction
+//  ne sont relancées — on écrit directement contenu_ia et contenu_ia_nl.
+// ------------------------------------------------------------------
+if (($_POST['action'] ?? '') === 'import_json') {
+    requireValidCSRF();
+    @set_time_limit(0);
+    require_once 'includes/ai_uniformise.php'; // aiSanitizeBlocks()
+
+    $f = $_FILES['contenu_json'] ?? null;
+    $raw = ($f && ($f['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) ? @file_get_contents($f['tmp_name']) : '';
+    $data = json_decode((string) $raw, true);
+
+    if (!is_array($data) || !isset($data['documents']) || !is_array($data['documents'])) {
+        $flash[] = ['ko', (string) ($f['name'] ?? 'fichier'), "JSON illisible ou clé « documents » absente"];
+    } else {
+        $byPage = famiImportModulesByPage($db);
+        foreach ($data['documents'] as $doc) {
+            $nom = basename((string) ($doc['file'] ?? ''));
+            if ($nom === '') { continue; }
+
+            $hit = famiImportRecognize($nom);
+            if (!$hit || $hit['kind'] === 'video') {
+                $flash[] = ['ko', $nom, "inconnu de la table de correspondance"];
+                continue;
+            }
+            // La version NL humaine n'a pas d'entrée propre ici : le JSON de la
+            // version FR porte déjà les deux langues dans blocks/blocks_nl.
+            if ($hit['kind'] === 'pdf_nl') {
+                $flash[] = ['skip', $nom, "inutile : la fiche FR du même document porte déjà le néerlandais"];
+                continue;
+            }
+
+            $mods = $byPage[$hit['page']] ?? [];
+            if (!$mods) {
+                $flash[] = ['ko', $nom, "aucun module ne pointe vers " . $hit['page']];
+                continue;
+            }
+            $mod = $mods[0];
+            $parentId = (int) $mod['id'];
+
+            $spec = famiImportSpecialTargets()[$hit['ref']] ?? null;
+            $child = ($spec && !empty($spec['nom']))
+                ? famiImportFindOrCreateTarget($db, $parentId, $spec, (string) ($mod['roles'] ?? ''))
+                : famiImportChild($db, $parentId, 'ecrit');
+            if (!$child) {
+                $flash[] = ['warn', $nom, "téléverse d'abord le PDF : le sous-module n'existe pas encore"];
+                continue;
+            }
+
+            // Les blocs passent par le même validateur que la sortie de l'IA :
+            // un bloc non conforme est écarté ici plutôt que de casser l'affichage.
+            $blocs = aiSanitizeBlocks($doc['blocks'] ?? []);
+            $blocsNl = aiSanitizeBlocks($doc['blocks_nl'] ?? []);
+            if (!$blocs) {
+                $flash[] = ['ko', $nom, "aucun bloc valide (vérifie les types autorisés)"];
+                continue;
+            }
+            $lang = ((string) ($doc['lang'] ?? 'fr') === 'nl') ? 'nl' : 'fr';
+            $jsonFr = json_encode(['lang' => $lang, 'blocks' => $blocs], JSON_UNESCAPED_UNICODE);
+            $jsonNl = $blocsNl ? json_encode(['lang' => ($lang === 'nl' ? 'fr' : 'nl'), 'blocks' => $blocsNl], JSON_UNESCAPED_UNICODE) : null;
+
+            // nl_hash calé sur le FR écrit : la traduction fournie est considérée
+            // à jour, donc nlSyncModule ne la remplacera pas par une version machine.
+            $hash = $jsonNl ? hash('sha256', trim((string) ($child['nom'] ?? '')) . '|' . trim((string) ($child['description'] ?? ''))
+                . '|' . $jsonFr . '|' . (string) ($child['quiz_json'] ?? '')) : null;
+
+            $db->prepare("UPDATE modules SET contenu_ia = ?, source_lang = ?, uniformized = 1,
+                            contenu_ia_nl = ?, nl_hash = ? WHERE id = ?")
+               ->execute([$jsonFr, $lang, $jsonNl, $hash, (int) $child['id']]);
+
+            $flash[] = ['ok', $nom, count($blocs) . " blocs en " . $lang
+                . ($jsonNl ? " + " . count($blocsNl) . " blocs traduits" : " (pas de traduction fournie)")
+                . " → « " . (string) $child['nom'] . " »"];
+        }
+    }
+}
+
+// ------------------------------------------------------------------
 //  PLAN : ce qui est attendu, ce qui est déjà en place.
 // ------------------------------------------------------------------
 $map = famiLegacyMediaMap();
@@ -581,6 +661,23 @@ $pageTitle = 'Import des médias legacy';
                 Un envoi trop gros risque de dépasser la limite du serveur.
             </p>
             <button class="btn btn-go" type="submit">Téléverser et rattacher</button>
+        </div>
+    </form>
+
+    <form class="card" method="post" enctype="multipart/form-data">
+        <?= csrfField() ?>
+        <input type="hidden" name="action" value="import_json">
+        <div class="drop">
+            <p><strong>2 bis. Importer un JSON</strong> — contenu rédigé hors API (Claude web)</p>
+            <input type="file" name="contenu_json" accept=".json,application/json">
+            <p class="muted">
+                Alternative gratuite au bouton « Traiter » : le JSON porte les deux langues,
+                donc ni extraction ni traduction ne sont relancées — aucun appel facturé.
+                Le prompt à utiliser est dans <code>quiz/seed/PROMPT_EXTRACTION_PDF.md</code>.
+                Les fiches importées ainsi sont <strong>en texte seul</strong> (les images du PDF
+                ne sont extraites que par la voie API).
+            </p>
+            <button class="btn btn-go" type="submit">Importer le contenu</button>
         </div>
     </form>
 
