@@ -74,11 +74,10 @@ les logos, en-têtes, images répétées et vignettes de moins de 160 px ont ét
 - Les blocs "image" ne se traduisent pas : mets-les à la même position dans
   "blocks" et "blocks_nl", avec le même "n" et la légende traduite.
 
-MANIFESTE DES IMAGES
-(colle ici le bloc fourni par la page d'import ; s'il est vide, n'émets aucun
-bloc "image")
-- "section" exige un "title" non vide, "text" et "quote" un "text" non vide,
-  "list"/"steps"/"keyfigures" au moins un item — sinon le bloc est jeté.
+CONTRAINTES DE VALIDATION (un bloc qui les enfreint est jeté à l'import)
+- "section" exige un "title" non vide.
+- "text" et "quote" exigent un "text" non vide.
+- "list", "steps" et "keyfigures" exigent au moins un item.
 
 STRUCTURE ATTENDUE D'UNE FICHE
 1. Un "hero" en ouverture (titre + sous-titre accrocheur).
@@ -89,6 +88,10 @@ STRUCTURE ATTENDUE D'UNE FICHE
 
 Si le ZIP est trop gros pour être traité en une fois, traite les documents par
 paquets et donne-moi un JSON par paquet — je les importerai l'un après l'autre.
+
+MANIFESTE DES IMAGES
+(colle ici le bloc fourni par la page d'import ; s'il est vide ou absent,
+n'émets aucun bloc "image")
 ````
 
 ---
