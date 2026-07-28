@@ -409,6 +409,14 @@ foreach ($db->query("SELECT interim, COUNT(*) AS c FROM utilisateurs WHERE inter
 
     <!-- ONGLET : Contenu (stockage) -->
     <div id="tab-contenu" class="tab-content">
+        <?php if ($isAdmin): ?>
+            <div class="card">
+                <h2 style="margin-top:0; color:#2d5a37;">📦 Migration des médias legacy</h2>
+                <p class="muted">Basculer les PDF servis en statique et les vidéos YouTube vers le volume,
+                    puis les faire traiter par l'IA (extraction, orthographe, néerlandais).</p>
+                <a class="btn" href="admin_import_medias.php">Ouvrir l'import par lot</a>
+            </div>
+        <?php endif; ?>
         <?php renderStorageTab($db); ?>
     </div>
 

@@ -5,6 +5,7 @@ require_once 'includes/modules.php';
 require_once 'includes/contrib_settings.php';
 require_once 'includes/storage_stats.php';
 require_once 'includes/i18n_nl.php'; // synchronisation automatique FR -> NL
+require_once 'includes/module_storage.php'; // helpers volume (partagés avec l'import par lot)
 
 $actorRole = (string) ($_SESSION['role'] ?? '');
 $isAdminActor = ($actorRole === 'admin');
@@ -47,15 +48,7 @@ function safeReturn($value, $default = 'index.php')
     return $default;
 }
 
-// Chemin absolu d'un fichier de module (volume Railway, ou ancien uploads/).
-function moduleFileAbsPath($rel)
-{
-    $rel = (string) $rel;
-    if ($rel === '') { return ''; }
-    if (strpos($rel, 'uploads/') === 0) { return __DIR__ . '/' . $rel; }
-    $base = defined('FAMI_STORAGE_BASE') ? FAMI_STORAGE_BASE : (__DIR__ . '/uploads');
-    return rtrim($base, '/') . '/' . $rel;
-}
+// moduleFileAbsPath() vit désormais dans includes/module_storage.php.
 
 // Gère l'upload d'une image d'icône -> renvoie le chemin relatif, ou null
 function handleModuleIconUpload()
@@ -95,90 +88,10 @@ function handleModuleIconUpload()
     return 'divers/icons/' . $name;
 }
 
-// Upload générique d'un fichier de module (pdf, vidéo) -> chemin relatif ou null
-// Slug lisible à partir du nom du module (pour des noms de fichiers clairs).
-function moduleFileSlug($nom)
-{
-    $s = (string) $nom;
-    $t = @iconv('UTF-8', 'ASCII//TRANSLIT', $s);
-    if ($t !== false && $t !== '') { $s = $t; }
-    $s = strtolower($s);
-    $s = preg_replace('/[^a-z0-9]+/', '-', $s);
-    $s = trim((string) $s, '-');
-    return $s !== '' ? substr($s, 0, 40) : 'fichier';
-}
+// moduleFileSlug(), volumeUnlink(), famiUploadedExt() et handleModuleFileUpload()
+// vivent désormais dans includes/module_storage.php (partagés avec l'import par lot).
 
-// Efface un fichier du volume en toute sécurité (dans FAMI_STORAGE_BASE).
-function volumeUnlink($key)
-{
-    $key = (string) $key;
-    if ($key === '') { return; }
-    $base = defined('FAMI_STORAGE_BASE') ? rtrim(FAMI_STORAGE_BASE, '/') : (__DIR__ . '/uploads');
-    $abs = realpath($base . '/' . $key);
-    $baseReal = realpath($base);
-    if ($abs !== false && $baseReal !== false && strpos($abs, $baseReal) === 0 && is_file($abs)) { @unlink($abs); }
-}
-
-/**
- * Extension du fichier réellement envoyé sur ce champ ('' si aucun).
- * Sert à EXPLIQUER un refus : sans ça, un .pptx déposé disparaissait en silence.
- */
-function famiUploadedExt($field)
-{
-    if (empty($_FILES[$field]) || ($_FILES[$field]['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
-        return '';
-    }
-    return strtolower(pathinfo((string) ($_FILES[$field]['name'] ?? ''), PATHINFO_EXTENSION));
-}
-
-function handleModuleFileUpload($field, array $allowedMap, $maxSize, $subdir, $namePrefix = '')
-{
-    if (empty($_FILES[$field]) || ($_FILES[$field]['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
-        return null;
-    }
-    $f = $_FILES[$field];
-    if ($f['error'] !== UPLOAD_ERR_OK || $f['size'] <= 0 || $f['size'] > $maxSize) {
-        return null;
-    }
-    $mime = function_exists('mime_content_type') ? @mime_content_type($f['tmp_name']) : '';
-    if (isset($allowedMap[$mime])) {
-        $ext = $allowedMap[$mime];
-    } else {
-        $ext = strtolower(pathinfo($f['name'], PATHINFO_EXTENSION));
-        if (!in_array($ext, array_values($allowedMap), true)) {
-            return null;
-        }
-    }
-    // Stockage sur le volume persistant (Railway) via FAMI_STORAGE_BASE ; fallback local.
-    $storeBase = defined('FAMI_STORAGE_BASE') ? FAMI_STORAGE_BASE : (__DIR__ . '/uploads');
-    $dir = $storeBase . '/modules/' . $subdir;
-    if (!is_dir($dir)) { @mkdir($dir, 0775, true); }
-    $prefix = ($namePrefix !== '') ? $namePrefix : $subdir;
-    $name = $prefix . '_' . date('Ymd_His') . '_' . substr(bin2hex(random_bytes(4)), 0, 6) . '.' . $ext;
-    if (!move_uploaded_file($f['tmp_name'], $dir . '/' . $name)) {
-        return null;
-    }
-    // Clé relative (servie par media.php) — plus de préfixe « uploads/ ».
-    return 'modules/' . $subdir . '/' . $name;
-}
-
-// Lance la compression vidéo 720p (ffmpeg) EN TÂCHE DE FOND : l'utilisateur n'attend pas.
-// Le worker video_transcode.php ré-encode la source brute puis met à jour l'état du module.
-function spawnVideoTranscode($rawKey, $moduleId)
-{
-    $rawKey = (string) $rawKey;
-    $moduleId = (int) $moduleId;
-    if ($rawKey === '' || $moduleId <= 0) {
-        return;
-    }
-    // Sous Windows (dév local), on ne lance pas : le worker tourne sur le serveur Linux (Railway/OVH).
-    if (stripos(PHP_OS, 'WIN') === 0 || !function_exists('exec')) {
-        return;
-    }
-    $worker = __DIR__ . '/video_transcode.php';
-    $cmd = 'nohup php ' . escapeshellarg($worker) . ' ' . escapeshellarg($rawKey) . ' ' . $moduleId . ' > /dev/null 2>&1 &';
-    @exec($cmd);
-}
+// spawnVideoTranscode() vit désormais dans includes/module_storage.php.
 
 /**
  * Journalise TOUTE modification du site dans le fil d'événements (boîte « Événements »).

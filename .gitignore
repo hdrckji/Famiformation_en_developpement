@@ -2,5 +2,9 @@
 .env
 */.env
 
+# Sources médias destinées au volume Railway (1,4 Go) : elles sont téléversées
+# sur le stockage objet, jamais versionnées. Voir la migration des modules.
+/Stockage objet/
+
 public/volontaire/.env
 public/emails/.env
