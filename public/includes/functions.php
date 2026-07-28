@@ -1669,10 +1669,14 @@ if (!function_exists('sendBetaPasswordReminderEmail')) {
      * Mail bilingue FR + NL : aucune langue n'est mémorisée par utilisateur
      * (la langue vit en session), et la beta concerne Mouscron comme La Panne.
      *
-     * @param int $heures Durée de validité du lien.
+     * @param int  $heures  Durée de validité du lien.
+     * @param bool $estTest Envoi de contrôle : le lien est un VRAI lien (il faut
+     *                      bien ça pour valider la chaîne de bout en bout), mais
+     *                      le mail est marqué comme test pour lever toute
+     *                      ambiguïté chez celui qui le reçoit.
      * @return bool true si le mail est parti.
      */
-    function sendBetaPasswordReminderEmail(PDO $db, $userId, $heures = 336)
+    function sendBetaPasswordReminderEmail(PDO $db, $userId, $heures = 336, $estTest = false)
     {
         ensureUserAccountAccessColumns($db);
 
@@ -1701,8 +1705,15 @@ if (!function_exists('sendBetaPasswordReminderEmail')) {
         $greeting = $prenom !== '' ? $prenom : trim((string) ($user['identifiant'] ?? ''));
         $jours = max(1, (int) round($heures / 24));
 
-        $subject = 'Ton mot de passe FamiFormation / Jouw wachtwoord FamiFormation';
-        $body = famiBetaPasswordReminderBody($url, $greeting, (string) $user['identifiant'], $jours);
+        $subject = ($estTest ? '[TEST] ' : '')
+            . 'Ton mot de passe FamiFormation / Jouw wachtwoord FamiFormation';
+        $body = famiBetaPasswordReminderBody(
+            $url,
+            $greeting,
+            (string) $user['identifiant'],
+            $jours,
+            $estTest ? 'test' : ''
+        );
 
         return sendMail($user['email'], $subject, $body, true);
     }
@@ -1714,10 +1725,27 @@ if (!function_exists('famiBetaPasswordReminderBody')) {
      * d'administration s'en sert pour afficher un aperçu SANS rien envoyer,
      * donc sans consommer de jeton).
      */
-    function famiBetaPasswordReminderBody($url, $greeting, $identifiant, $jours)
+    function famiBetaPasswordReminderBody($url, $greeting, $identifiant, $jours, $mode = '')
     {
         $url = (string) $url;
         $jours = max(1, (int) $jours);
+
+        // Bandeau des envois de contrôle. Sans lui, un lien de démonstration qui
+        // affiche « lien expiré » se confond avec une vraie panne — c'est arrivé.
+        $bandeauTest = '';
+        if ($mode === 'test') {
+            $bandeauTest = '<div style="margin:0 0 24px;padding:16px 20px;border-radius:14px;background:#1f3b8a;color:#ffffff;">'
+                . '<div style="font-size:15px;line-height:1.6;"><strong>🧪 MESSAGE DE TEST</strong><br>'
+                . 'Ce message a été envoyé pour vérifier l\'affichage. Le lien ci-dessous est un <strong>vrai lien qui fonctionne</strong> et pointe sur ce compte. '
+                . 'La page de création de mot de passe doit s\'ouvrir — ne valide le formulaire que si tu veux réellement changer ce mot de passe.</div>'
+                . '</div>';
+        } elseif ($mode === 'demo') {
+            $bandeauTest = '<div style="margin:0 0 24px;padding:16px 20px;border-radius:14px;background:#8f2d2d;color:#ffffff;">'
+                . '<div style="font-size:15px;line-height:1.6;"><strong>🧪 MESSAGE DE TEST — LIEN NON FONCTIONNEL</strong><br>'
+                . 'Ce message sert uniquement à contrôler l\'affichage. Cette adresse ne correspond à aucun compte, '
+                . 'le lien ci-dessous affichera donc « lien expiré » : <strong>c\'est normal, ce n\'est pas une panne</strong>.</div>'
+                . '</div>';
+        }
 
         // Encadré « tu n'es pas concerné » : placé tout en haut, c'est la première
         // chose lue. Sans ça, les personnes déjà connectées recréent un mot de
@@ -1749,6 +1777,7 @@ if (!function_exists('famiBetaPasswordReminderBody')) {
             . '<p style="margin:0;font-size:15px;line-height:1.6;opacity:.95;">Nouveau lien personnel / Nieuwe persoonlijke link</p>'
             . '</div>'
             . '<div style="padding:32px;">'
+            . $bandeauTest
             . '<p style="margin:0 0 22px;font-size:16px;line-height:1.7;">Bonjour ' . e($greeting) . ',</p>'
             . $avertissement
             . '<p style="margin:0 0 18px;font-size:16px;line-height:1.7;"><strong>🇫🇷 En français</strong><br>'

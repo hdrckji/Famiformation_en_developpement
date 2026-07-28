@@ -95,9 +95,16 @@ $flash = '';
 $resultats = null;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ENVOI DE TEST — vers l'adresse de l'admin connecté, avec un lien factice :
-// on vérifie l'affichage et la bonne réception SANS toucher au compte de
-// personne ni griller de jeton.
+// ENVOI DE TEST.
+//
+// Si l'adresse correspond à un compte existant, on émet un VRAI jeton pour ce
+// compte : le lien est alors réellement cliquable et le test valide toute la
+// chaîne (envoi -> affichage -> clic -> page de mot de passe). C'est le seul
+// test qui prouve vraiment que ça marche.
+//
+// Si l'adresse ne correspond à aucun compte, aucun jeton ne peut exister : le
+// lien est forcément mort. Le mail le dit alors NOIR SUR BLANC, en haut, pour
+// qu'un « lien expiré » ne soit pas pris pour une panne.
 // ─────────────────────────────────────────────────────────────────────────────
 if (($_POST['action'] ?? '') === 'test') {
     requireValidCSRF();
@@ -110,21 +117,40 @@ if (($_POST['action'] ?? '') === 'test') {
     if ($adresseTest === '' || !filter_var($adresseTest, FILTER_VALIDATE_EMAIL)) {
         $flash = "<div class='flash err'>❌ Adresse de test invalide.</div>";
     } else {
-        $corps = famiBetaPasswordReminderBody(
-            famiBuildAppUrl('set_password.php', ['token' => 'TEST-LIEN-DE-DEMONSTRATION']),
-            trim((string) ($admin['prenom'] ?? '')) ?: 'Prénom',
-            (string) ($admin['identifiant'] ?? 'identifiant'),
-            $jours
-        );
-        $ok = sendMail(
-            $adresseTest,
-            '[TEST] Ton mot de passe FamiFormation / Jouw wachtwoord FamiFormation',
-            $corps,
-            true
-        );
-        $flash = $ok
-            ? "<div class='flash ok'>✅ Mail de test envoyé à <b>" . e($adresseTest) . "</b>. Le lien qu'il contient est factice : c'est normal.</div>"
-            : "<div class='flash err'>❌ Le test n'est pas parti. Détail : " . e(getLastMailError()) . "</div>";
+        $rech = $db->prepare('SELECT id FROM utilisateurs WHERE email = ? LIMIT 1');
+        $rech->execute([$adresseTest]);
+        $compte = $rech->fetch(PDO::FETCH_ASSOC);
+
+        if ($compte) {
+            // Vrai jeton (type « reset » : ne bloque aucune connexion existante).
+            $ok = sendBetaPasswordReminderEmail($db, (int) $compte['id'], $jours * 24, true);
+            $flash = $ok
+                ? "<div class='flash ok'>✅ Mail de test envoyé à <b>" . e($adresseTest) . "</b>."
+                    . " Le lien est <b>réellement fonctionnel</b> : clique-le pour vérifier toute la chaîne."
+                    . " La page de création de mot de passe doit s'ouvrir — ne valide le formulaire que si tu veux vraiment changer ce mot de passe.</div>"
+                : "<div class='flash err'>❌ Le test n'est pas parti. Détail : " . e(getLastMailError()) . "</div>";
+        } else {
+            // Adresse hors base : impossible de fabriquer un lien valide.
+            $corps = famiBetaPasswordReminderBody(
+                famiBuildAppUrl('set_password.php', ['token' => 'LIEN-DE-DEMONSTRATION-SANS-COMPTE']),
+                trim((string) ($admin['prenom'] ?? '')) ?: 'Prénom',
+                (string) ($admin['identifiant'] ?? 'identifiant'),
+                $jours,
+                'demo'
+            );
+            $ok = sendMail(
+                $adresseTest,
+                '[TEST] Ton mot de passe FamiFormation / Jouw wachtwoord FamiFormation',
+                $corps,
+                true
+            );
+            $flash = $ok
+                ? "<div class='flash ok'>✅ Mail de test envoyé à <b>" . e($adresseTest) . "</b>."
+                    . " ⚠️ Cette adresse ne correspond à <b>aucun compte</b> : le lien du mail ne peut pas fonctionner"
+                    . " (il affichera « lien expiré », c'est normal et le mail le précise). Pour tester un vrai lien,"
+                    . " utilise l'adresse d'un compte existant.</div>"
+                : "<div class='flash err'>❌ Le test n'est pas parti. Détail : " . e(getLastMailError()) . "</div>";
+        }
     }
 }
 
@@ -238,7 +264,11 @@ if (($_POST['action'] ?? '') === 'envoyer') {
         <div class="card">
             <h2>📬 Résultat de l'envoi</h2>
             <?php if (!empty($resultats['ok'])): ?>
-                <div class="flash ok"><?= count($resultats['ok']) ?> mail(s) envoyé(s) avec succès.</div>
+                <div class="flash ok">
+                    <?= count($resultats['ok']) ?> mail(s) envoyé(s) avec succès.
+                    Les liens restent valables jusqu'au
+                    <b><?= date('d/m/Y à H\hi', strtotime('+' . ($jours * 24) . ' hours')) ?></b>.
+                </div>
                 <table>
                     <tr><th>Nom</th><th>Adresse</th></tr>
                     <?php foreach ($resultats['ok'] as $u): ?>
@@ -291,8 +321,14 @@ if (($_POST['action'] ?? '') === 'envoyer') {
     </div>
 
     <div class="card">
-        <h2>✉️ Vérifier le rendu avant d'envoyer</h2>
-        <p class="sub" style="margin-bottom:14px;">Reçois toi-même le mail pour contrôler son affichage. Le lien qu'il contient est factice, aucun compte n'est modifié.</p>
+        <h2>✉️ Vérifier avant d'envoyer</h2>
+        <p class="sub" style="margin-bottom:14px;">
+            Si l'adresse correspond à un <b>compte existant</b>, le lien reçu est un <b>vrai lien qui fonctionne</b> :
+            tu peux le cliquer pour valider toute la chaîne. La page de création de mot de passe doit s'ouvrir
+            (ne valide le formulaire que si tu veux vraiment changer ce mot de passe).<br>
+            Si l'adresse ne correspond à aucun compte, aucun lien valide ne peut exister : le mail est alors
+            marqué comme non fonctionnel, et afficher « lien expiré » est normal.
+        </p>
         <form method="POST" action="relance_mdp_beta.php">
             <?= csrfField() ?>
             <input type="hidden" name="action" value="test">
