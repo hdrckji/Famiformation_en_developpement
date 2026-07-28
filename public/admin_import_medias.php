@@ -41,6 +41,20 @@ try {
     }
 } catch (Exception $e) { /* migration non bloquante */ }
 
+// Colonnes de sous-titres : normalement créées par la chaîne vidéo, mais
+// l'import manuel peut arriver avant qu'une seule vidéo ait été transcodée.
+foreach ([
+    'sub_fr_path' => "ALTER TABLE modules ADD COLUMN sub_fr_path VARCHAR(255) NULL",
+    'sub_nl_path' => "ALTER TABLE modules ADD COLUMN sub_nl_path VARCHAR(255) NULL",
+    'sub_src_path' => "ALTER TABLE modules ADD COLUMN sub_src_path VARCHAR(255) NULL",
+    'sub_status'  => "ALTER TABLE modules ADD COLUMN sub_status VARCHAR(16) NULL",
+    'transcript'  => "ALTER TABLE modules ADD COLUMN transcript MEDIUMTEXT NULL",
+] as $col => $ddl) {
+    try {
+        if (!$db->query("SHOW COLUMNS FROM modules LIKE " . $db->quote($col))->fetch()) { $db->exec($ddl); }
+    } catch (Exception $e) { /* migration non bloquante */ }
+}
+
 // PDF volontairement laissés de côté : ils ne sont référencés par aucune page.
 // Listés ici pour qu'ils apparaissent comme un choix, pas comme un oubli.
 const FAMI_IMPORT_IGNORES = ['engrais.pdf', 'zoobase.pdf'];
@@ -465,6 +479,100 @@ if (($_POST['action'] ?? '') === 'extract_images') {
 }
 
 // ------------------------------------------------------------------
+//  ACTION 2 ter — IMPORT DE SOUS-TITRES rédigés hors API.
+//  Whisper tourne chez toi (OpenAI), la traduction NL vient de Claude web :
+//  aucun appel facturé ici. On dépose des .srt (ou .vtt) nommés avec l'ID
+//  YouTube de la vidéo ; le suffixe _fr / _nl donne la langue.
+//
+//  ⚠️ À faire APRÈS le transcodage : le worker video_transcode.php appelle
+//  famiBuildSubtitles(), qui réécrit ces mêmes colonnes. Importer pendant
+//  qu'une vidéo est en « processing » ferait écraser tes pistes.
+// ------------------------------------------------------------------
+if (($_POST['action'] ?? '') === 'import_subs') {
+    requireValidCSRF();
+    @set_time_limit(0);
+    require_once 'includes/transcription.php'; // famiSrtParse(), famiSrtToVtt()
+
+    $base = famiStorageBase();
+    $dir = $base . '/modules/subs';
+    if (!is_dir($dir)) { @mkdir($dir, 0775, true); }
+
+    $byPage = famiImportModulesByPage($db);
+    $files = $_FILES['subs'] ?? null;
+    $count = $files ? count((array) $files['name']) : 0;
+
+    for ($i = 0; $i < $count; $i++) {
+        $name = (string) $files['name'][$i];
+        if (($files['error'][$i] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+            $flash[] = ['ko', $name, "téléversement interrompu"];
+            continue;
+        }
+        $hit = famiImportRecognize($name);
+        if (!$hit || $hit['kind'] !== 'video') {
+            $flash[] = ['ko', $name, "aucun identifiant de vidéo reconnu dans le nom (il faut le [code] entre crochets)"];
+            continue;
+        }
+        $mods = $byPage[$hit['page']] ?? [];
+        if (!$mods) {
+            $flash[] = ['ko', $name, "aucun module ne pointe vers " . $hit['page']];
+            continue;
+        }
+        $parentId = (int) $mods[0]['id'];
+        $spec = famiImportSpecialTargets()[$hit['ref']] ?? null;
+        $child = ($spec && !empty($spec['nom']))
+            ? famiImportFindOrCreateTarget($db, $parentId, $spec, (string) ($mods[0]['roles'] ?? ''))
+            : famiImportChild($db, $parentId, 'video');
+        if (!$child) {
+            $flash[] = ['warn', $name, "téléverse d'abord la vidéo : le sous-module n'existe pas encore"];
+            continue;
+        }
+        if (($child['video_status'] ?? '') === 'processing') {
+            $flash[] = ['warn', $name, "transcodage en cours — attends qu'il finisse, sinon le worker écrasera ces pistes"];
+            continue;
+        }
+
+        // Langue : suffixe _nl / .nl / -nl dans le nom, sinon français par défaut.
+        $isNl = (bool) preg_match('/[._-]nl\b/i', pathinfo($name, PATHINFO_FILENAME));
+        $raw = (string) @file_get_contents($files['tmp_name'][$i]);
+        if (trim($raw) === '') {
+            $flash[] = ['ko', $name, "fichier vide"];
+            continue;
+        }
+        // Un .vtt commence par WEBVTT ; sinon on suppose du SRT et on convertit.
+        $isVtt = (stripos(ltrim($raw), 'WEBVTT') === 0);
+        $cues = famiSrtParse($isVtt ? preg_replace('/^WEBVTT.*?\R\R/s', '', $raw) : $raw);
+        if (!$cues) {
+            $flash[] = ['ko', $name, "aucun sous-titre lisible (format SRT ou VTT attendu)"];
+            continue;
+        }
+        $vtt = $isVtt ? $raw : famiSrtToVtt($raw);
+
+        $col = $isNl ? 'sub_nl_path' : 'sub_fr_path';
+        if (!empty($child[$col])) { volumeUnlink((string) $child[$col]); }
+
+        $stem = 'sub_' . date('Ymd_His') . '_' . bin2hex(random_bytes(4)) . ($isNl ? '_nl' : '_fr') . '.vtt';
+        if (@file_put_contents($dir . '/' . $stem, $vtt) === false) {
+            $flash[] = ['ko', $name, "écriture impossible sur le volume"];
+            continue;
+        }
+        $key = 'modules/subs/' . $stem;
+
+        // Le transcript en texte brut ne vient que de la piste d'origine (FR) :
+        // c'est lui qui sert à enrichir le quiz, pas la traduction.
+        if ($isNl) {
+            $db->prepare("UPDATE modules SET sub_nl_path = ?, sub_status = 'ready' WHERE id = ?")
+               ->execute([$key, (int) $child['id']]);
+        } else {
+            $texte = trim(implode("\n", array_map(function ($c) { return (string) ($c['text'] ?? ''); }, $cues)));
+            $db->prepare("UPDATE modules SET sub_fr_path = ?, transcript = ?, sub_status = 'ready' WHERE id = ?")
+               ->execute([$key, ($texte !== '' ? $texte : null), (int) $child['id']]);
+        }
+        $flash[] = ['ok', $name, count($cues) . " sous-titres en " . ($isNl ? 'NL' : 'FR')
+            . " → « " . (string) $child['nom'] . " »"];
+    }
+}
+
+// ------------------------------------------------------------------
 //  ACTION 3 — IMPORT D'UN JSON produit hors API (Claude web).
 //  Le contenu des fiches est rédigé ailleurs et déposé ici : aucun appel
 //  facturé. Le JSON porte les DEUX langues, donc ni extraction ni traduction
@@ -533,13 +641,65 @@ if (($_POST['action'] ?? '') === 'import_json') {
             $hash = $jsonNl ? hash('sha256', trim((string) ($child['nom'] ?? '')) . '|' . trim((string) ($child['description'] ?? ''))
                 . '|' . $jsonFr . '|' . (string) ($child['quiz_json'] ?? '')) : null;
 
+            // content_status = 'pending' masque la tuile en attendant une relecture
+            // (module.php). Le contenu importé ici est déjà relu hors du site, donc
+            // on le publie directement — sinon la fiche resterait invisible.
             $db->prepare("UPDATE modules SET contenu_ia = ?, source_lang = ?, uniformized = 1,
-                            contenu_ia_nl = ?, nl_hash = ? WHERE id = ?")
+                            contenu_ia_nl = ?, nl_hash = ?, content_status = NULL, is_active = 1 WHERE id = ?")
                ->execute([$jsonFr, $lang, $jsonNl, $hash, (int) $child['id']]);
 
             $flash[] = ['ok', $nom, count($blocs) . " blocs en " . $lang
                 . ($jsonNl ? " + " . count($blocsNl) . " blocs traduits" : " (pas de traduction fournie)")
                 . " → « " . (string) $child['nom'] . " »"];
+        }
+    }
+}
+
+// ------------------------------------------------------------------
+//  ACTION 4 — BASCULE D'AFFICHAGE, réversible.
+//
+//  Tant que `modules.link` pointe vers l'ancienne page, la tuile y mène
+//  directement (module.php) et le contenu importé n'est JAMAIS affiché.
+//  Vider `link` fait passer le module par le moteur générique.
+//
+//  L'ancien lien est RANGÉ dans link_legacy, jamais perdu : la bascule se
+//  défait tant qu'on n'a pas supprimé les pages statiques.
+// ------------------------------------------------------------------
+if (in_array(($_POST['action'] ?? ''), ['switch_on', 'switch_off'], true)) {
+    requireValidCSRF();
+    try {
+        if (!$db->query("SHOW COLUMNS FROM modules LIKE 'link_legacy'")->fetch()) {
+            $db->exec("ALTER TABLE modules ADD COLUMN link_legacy VARCHAR(255) NULL");
+        }
+    } catch (Exception $e) { /* migration non bloquante */ }
+
+    $vers = (string) ($_POST['page'] ?? '');   // vide = toutes les pages prêtes
+    $on = (($_POST['action'] ?? '') === 'switch_on');
+    $byPage = famiImportModulesByPage($db);
+
+    foreach ($byPage as $page => $mods) {
+        if ($vers !== '' && $page !== $vers) { continue; }
+        if (!isset(famiLegacyMediaMap()[$page])) { continue; } // hors périmètre migration
+        foreach ($mods as $m) {
+            $id = (int) $m['id'];
+            if ($on) {
+                // On ne bascule que si du contenu est réellement en place, sinon
+                // on remplacerait une page qui marche par un module vide.
+                $c = famiImportChild($db, $id, 'ecrit');
+                $v = famiImportChild($db, $id, 'video');
+                $pret = ($c && !empty($c['contenu_ia'])) || ($v && !empty($v['video_path']));
+                if (!$pret) {
+                    $flash[] = ['skip', $page, "pas encore de contenu — bascule ignorée"];
+                    continue;
+                }
+                $db->prepare("UPDATE modules SET link_legacy = COALESCE(link_legacy, link), link = NULL WHERE id = ?")
+                   ->execute([$id]);
+                $flash[] = ['ok', $page, "affiché par le moteur générique (ancien lien conservé)"];
+            } else {
+                $db->prepare("UPDATE modules SET link = COALESCE(link_legacy, link) WHERE id = ? AND link_legacy IS NOT NULL")
+                   ->execute([$id]);
+                $flash[] = ['ok', $page, "retour à l'ancienne page"];
+            }
         }
     }
 }
@@ -741,6 +901,47 @@ $pageTitle = 'Import des médias legacy';
             <button class="btn btn-go" type="submit">Importer le contenu</button>
         </div>
     </form>
+
+    <form class="card" method="post" enctype="multipart/form-data">
+        <?= csrfField() ?>
+        <input type="hidden" name="action" value="import_subs">
+        <div class="drop">
+            <p><strong>2 ter. Importer des sous-titres</strong> — Whisper chez toi, traduction par Claude web</p>
+            <input type="file" name="subs[]" multiple accept=".srt,.vtt">
+            <p class="muted">
+                Le nom du fichier doit contenir <strong>le code de la vidéo entre crochets</strong>
+                (ex. <code>Caisse [0v6VW-TlFfs].srt</code>) — c'est lui qui fait le routage.
+                Ajoute <code>_nl</code> pour la piste néerlandaise
+                (<code>Caisse [0v6VW-TlFfs]_nl.srt</code>) ; sans suffixe, la piste est traitée
+                comme la langue d'origine. SRT et VTT acceptés.
+            </p>
+            <p class="muted">
+                ⚠️ <strong>Attends la fin du transcodage</strong> avant d'importer : le worker
+                génère lui-même les pistes et écraserait les tiennes. Les lignes marquées
+                « transcodage… » dans le tableau ne sont pas prêtes.
+            </p>
+            <button class="btn btn-go" type="submit">Importer les sous-titres</button>
+        </div>
+    </form>
+
+    <div class="card">
+        <p style="margin-top:0"><strong>3. Basculer l'affichage</strong></p>
+        <p class="muted">
+            Tant qu'un module garde son ancien lien, la tuile mène à la page statique
+            d'origine et <strong>le contenu importé n'est jamais affiché</strong>. C'est
+            l'explication d'une fiche importée qui « ne change rien » à l'écran.
+            La bascule ne touche que les modules qui ont réellement du contenu, et
+            l'ancien lien est conservé — donc c'est réversible.
+        </p>
+        <form method="post" style="display:inline">
+            <?= csrfField() ?><input type="hidden" name="action" value="switch_on">
+            <button class="btn btn-go" type="submit">Basculer tout ce qui est prêt</button>
+        </form>
+        <form method="post" style="display:inline; margin-left:6px">
+            <?= csrfField() ?><input type="hidden" name="action" value="switch_off">
+            <button class="btn btn-sm" type="submit">↩ Revenir aux anciennes pages</button>
+        </form>
+    </div>
 
     <div class="card">
         <p><strong>2. Traiter</strong> — extraction Claude, correction orthographique, traduction NL.
