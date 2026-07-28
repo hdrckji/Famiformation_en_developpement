@@ -12,6 +12,9 @@ $erreur = "";
 $requestedRedirect = trim((string) ($_GET['redirect'] ?? $_POST['redirect'] ?? ''));
 $requestHost = strtolower((string) ($_SERVER['HTTP_HOST'] ?? ''));
 $requestHost = explode(':', $requestHost)[0];
+// famiformation.com redirige vers www.famiformation.com : sans ça, tous les visiteurs
+// tombaient dans le cas par défaut et voyaient le titre générique « Connexion ».
+$requestHost = preg_replace('~^www\.~', '', $requestHost);
 $allowedRedirects = [
     '../Famijob/index.php',
     '/Famijob/index.php',
@@ -137,13 +140,19 @@ if ($host === 'famiformation.com') {
     <link rel="shortcut icon" type="image/x-icon" href="favicon.ico">
     <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
+        /* Sans box-sizing, .container (width:100% + 80px de padding) et les champs
+           debordaient de l'ecran sur telephone : la page arrivait « en desordre »
+           quand on ouvrait le lien du mail depuis son mobile. */
+        *, *::before, *::after { box-sizing: border-box; }
         body {
             background: url('<?php echo e($loginBackgroundUrl); ?>') center/cover no-repeat #f6f6f6;
             font-family: 'Open Sans', sans-serif;
             display: flex;
             justify-content: center;
-            align-items: center;
             min-height: 100vh;
+            min-height: 100dvh; /* barre d'adresse mobile */
+            margin: 0;
+            padding: 18px;
         }
         .container {
             background: rgba(255,255,255,0.95);
@@ -152,6 +161,12 @@ if ($host === 'famiformation.com') {
             padding: 48px 40px;
             max-width: 480px;
             width: 100%;
+            /* margin:auto plutot que align-items:center : centre verticalement sans
+               couper le haut de la boite quand elle depasse la hauteur de l'ecran. */
+            margin: auto;
+        }
+        @media (max-width: 480px) {
+            .container { padding: 32px 22px; }
         }
         .logo {
             display: flex;
