@@ -38,7 +38,9 @@ if ($role !== 'admin') {
 ensureUserAccountAccessColumns($db);
 
 $JOURS_DEFAUT = 14;
-$ROLES_DEFAUT = ['beta'];
+// Aucun profil coché d'avance : l'outil ne sert plus qu'à la bêta, et un profil
+// pré-sélectionné se fait envoyer sans qu'on l'ait choisi.
+$ROLES_DEFAUT = [];
 
 // Libellés lisibles des profils. La liste réellement proposée vient de la BASE
 // (voir plus bas) : si un profil apparaît un jour sans passer par ici, il reste
@@ -88,7 +90,9 @@ if (empty($rolesChoisis)) {
 
 // Domaine : FACULTATIF (vide = toutes les adresses). On n'accepte qu'un domaine
 // plausible, jamais un motif SQL bricolé depuis l'URL.
-$domaine = trim((string) ($_REQUEST['domaine'] ?? '@famiflora.be'));
+// Pas de domaine par défaut : pré-remplir @famiflora.be masquait silencieusement
+// tous les comptes en adresse personnelle. Vide = toutes les adresses.
+$domaine = trim((string) ($_REQUEST['domaine'] ?? ''));
 if ($domaine !== '') {
     if (!preg_match('/^@?[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$/', $domaine)) {
         $domaine = '';

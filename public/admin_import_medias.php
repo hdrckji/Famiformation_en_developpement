@@ -675,7 +675,6 @@ if (($_POST['action'] ?? '') === 'repair_structure') {
     requireValidCSRF();
     @set_time_limit(0);
 
-    $nomsImport = ['Guide', 'Gids', 'Vidéo', 'Video'];
     $colonnes = ['pdf_path', 'pdf_nl_path', 'video_path', 'video_src_path', 'video_status',
                  'contenu_ia', 'contenu_ia_nl', 'contenu_images', 'contenu_by', 'quiz_json',
                  'quiz_json_nl', 'nl_hash', 'source_lang', 'uniformized', 'a_evaluer',
@@ -710,9 +709,35 @@ if (($_POST['action'] ?? '') === 'repair_structure') {
         $enfants = $db->prepare("SELECT * FROM modules WHERE parent_id = ?");
         $enfants->execute([(int) $m['id']]);
         $liste = $enfants->fetchAll(PDO::FETCH_ASSOC);
-        if (count($liste) !== 1) { continue; }
+        if (!$liste) { continue; } // déjà un élément : rien à faire
+        if (count($liste) > 1) {
+            $flash[] = ['skip', (string) $m['nom'], count($liste) . " sous-modules — structure voulue, laissée telle quelle"];
+            continue;
+        }
         $e = $liste[0];
-        if (!in_array((string) $e['nom'], $nomsImport, true)) { continue; }
+
+        // Critère indépendant du NOM de l'enfant : on remonte dès que l'enfant
+        // unique porte le contenu et que le parent n'en porte aucun. C'est
+        // exactement la situation créée par les premiers imports, quel que soit
+        // le libellé donné au sous-module.
+        $porte = function ($r) {
+            foreach (['pdf_path', 'video_path', 'video_src_path', 'contenu_ia'] as $c) {
+                if (!empty($r[$c])) { return true; }
+            }
+            return false;
+        };
+        $selfQ = $db->prepare("SELECT * FROM modules WHERE id = ? LIMIT 1");
+        $selfQ->execute([(int) $m['id']]);
+        $self = $selfQ->fetch(PDO::FETCH_ASSOC) ?: [];
+
+        if (!$porte($e)) {
+            $flash[] = ['skip', (string) $m['nom'], "le sous-module « " . (string) $e['nom'] . " » ne porte aucun contenu — non touché"];
+            continue;
+        }
+        if ($porte($self)) {
+            $flash[] = ['warn', (string) $m['nom'], "le module ET son sous-module portent du contenu — à démêler à la main"];
+            continue;
+        }
 
         // Remontée : on ne copie que les colonnes réellement présentes.
         $set = [];
@@ -732,7 +757,9 @@ if (($_POST['action'] ?? '') === 'repair_structure') {
         }
     }
     if ($n === 0) {
-        $flash[] = ['skip', 'structure', "rien à réparer — aucun sous-module créé à tort"];
+        $flash[] = ['skip', 'structure', count($rows) . " module(s) porteurs d'un lien examinés — aucun sous-module à remonter"];
+    } else {
+        $flash[] = ['ok', 'structure', $n . " module(s) remis à plat sur " . count($rows) . " examinés"];
     }
 }
 
