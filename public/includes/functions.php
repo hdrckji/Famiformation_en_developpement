@@ -612,7 +612,7 @@ if (!function_exists('ensureStudentDepartmentLinksTable')) {
 }
 
 if (!function_exists('sendMailViaSmtpSocket')) {
-    function sendMailViaSmtpSocket($to, $subject, $body, $isHtml = true)
+    function sendMailViaSmtpSocket($to, $subject, $body, $isHtml = true, $textBody = null)
     {
         $host = famiGetEnv('SMTP_HOST', '');
         $port = (int) famiGetEnv('SMTP_PORT', 465);
@@ -667,21 +667,61 @@ if (!function_exists('sendMailViaSmtpSocket')) {
             famiSendSmtpCommand($stream, 'DATA', [354]);
 
             $encodedSubject = '=?UTF-8?B?' . base64_encode((string) $subject) . '?=';
+            $encodedFromName = preg_match('/[^\x20-\x7E]/', (string) $fromName)
+                ? '=?UTF-8?B?' . base64_encode((string) $fromName) . '?='
+                : (string) $fromName;
+
+            // Message-ID sur notre propre domaine : sans lui, les filtres anti-spam
+            // (Microsoft/Outlook en tête) dégradent nettement la note du message.
+            $fromDomain = substr(strrchr($from, '@'), 1);
+            if ($fromDomain === false || $fromDomain === '') {
+                $fromDomain = 'famiformation.com';
+            }
+
             $headers = [
                 'Date: ' . date(DATE_RFC2822),
-                'From: ' . $fromName . ' <' . $from . '>',
+                'Message-ID: <' . bin2hex(random_bytes(12)) . '@' . $fromDomain . '>',
+                'From: ' . $encodedFromName . ' <' . $from . '>',
                 'Reply-To: ' . $from,
                 'Sender: ' . $from,
                 'To: ' . $to,
                 'Subject: ' . $encodedSubject,
                 'MIME-Version: 1.0',
-                'Content-Type: ' . ($isHtml ? 'text/html' : 'text/plain') . '; charset=UTF-8',
-                'Content-Transfer-Encoding: 8bit',
             ];
 
-            $messageBody = str_replace(["\r\n", "\r"], "\n", (string) $body);
-            $messageBody = preg_replace('/^\./m', '..', $messageBody);
-            $payload = implode("\r\n", $headers) . "\r\n\r\n" . str_replace("\n", "\r\n", $messageBody) . "\r\n.\r\n";
+            // Corps encodé en base64 et coupé tous les 76 caractères. Nos mails
+            // HTML sont construits par concaténation, donc sur UNE seule ligne de
+            // plusieurs milliers de caractères — or SMTP interdit les lignes de
+            // plus de 998 octets. Les serveurs coupaient donc la ligne au hasard,
+            // parfois en plein milieu d'une balise, et le mail arrivait cassé.
+            if ($isHtml) {
+                $text = ($textBody !== null && $textBody !== '')
+                    ? (string) $textBody
+                    : (function_exists('famiMailPlainText') ? famiMailPlainText($body) : strip_tags((string) $body));
+
+                // multipart/alternative : un mail HTML sans version texte est un
+                // signal de spam classique, et c'est le seul contenu affiché par
+                // les clients les plus restrictifs.
+                $boundary = 'fami_' . bin2hex(random_bytes(12));
+                $headers[] = 'Content-Type: multipart/alternative; boundary="' . $boundary . '"';
+                $messageBody = '--' . $boundary . "\r\n"
+                    . "Content-Type: text/plain; charset=UTF-8\r\n"
+                    . "Content-Transfer-Encoding: base64\r\n\r\n"
+                    . chunk_split(base64_encode($text), 76, "\r\n")
+                    . "\r\n" . '--' . $boundary . "\r\n"
+                    . "Content-Type: text/html; charset=UTF-8\r\n"
+                    . "Content-Transfer-Encoding: base64\r\n\r\n"
+                    . chunk_split(base64_encode((string) $body), 76, "\r\n")
+                    . "\r\n" . '--' . $boundary . "--\r\n";
+            } else {
+                $headers[] = 'Content-Type: text/plain; charset=UTF-8';
+                $headers[] = 'Content-Transfer-Encoding: base64';
+                $messageBody = chunk_split(base64_encode((string) $body), 76, "\r\n");
+            }
+
+            // base64 ne produit jamais de ligne trop longue ni de ligne commençant
+            // par un point : plus rien à échapper avant l'envoi.
+            $payload = implode("\r\n", $headers) . "\r\n\r\n" . $messageBody . "\r\n.\r\n";
             fwrite($stream, $payload);
 
             $dataResponse = famiReadSmtpResponse($stream);
@@ -712,6 +752,30 @@ if (!function_exists('sendMail')) {
         if ($to === '') {
             setLastMailError('Aucune adresse destinataire fournie.');
             return false;
+        }
+
+        // 📧 MISE EN FORME COMPATIBLE TOUS CLIENTS (voir includes/mail_html.php).
+        // Nos templates sont écrits en HTML moderne ; Outlook rend le HTML avec le
+        // moteur de Word et ignore dégradés, max-width et padding des boutons —
+        // au point de rendre le titre blanc INVISIBLE sur l'en-tête sans fond.
+        // On post-traite ici, une seule fois, pour tous les mails du site.
+        if (!function_exists('famiMailOutlookSafe')) {
+            foreach ([
+                __DIR__ . '/mail_html.php',
+                __DIR__ . '/../../includes/mail_html.php',
+                __DIR__ . '/../../public/includes/mail_html.php',
+            ] as $pisteMailHtml) {
+                if (is_file($pisteMailHtml)) {
+                    require_once $pisteMailHtml;
+                    break;
+                }
+            }
+        }
+
+        $textBody = (string) $body;
+        if ($isHtml && function_exists('famiMailOutlookSafe')) {
+            $textBody = famiMailPlainText($body);
+            $body = famiMailOutlookSafe($body, $subject);
         }
 
         $from = famiGetEnv('MAIL_FROM', 'admin@famiformation.com');
@@ -747,11 +811,27 @@ if (!function_exists('sendMail')) {
                 $mail->addReplyTo($from, $fromName);
                 $mail->addAddress($to);
                 $mail->CharSet = 'UTF-8';
+
+                // Domaine du Message-ID. Sans ça, PHPMailer prend le nom d'hôte
+                // interne du conteneur Railway (aléatoire), ce qui pénalise la
+                // délivrabilité chez Outlook/Gmail.
+                $fromDomain = substr(strrchr($from, '@'), 1);
+                if ($fromDomain !== false && $fromDomain !== '') {
+                    $mail->Hostname = $fromDomain;
+                }
+
+                // quoted-printable explicite. Nos mails sont construits par
+                // concaténation, donc sur UNE ligne de plusieurs milliers de
+                // caractères, alors que SMTP limite à 998 octets par ligne.
+                // PHPMailer sait le détecter seul, mais on ne dépend pas de cette
+                // détection : ici le découpage est garanti dans tous les cas.
+                $mail->Encoding = PHPMailer\PHPMailer\PHPMailer::ENCODING_QUOTED_PRINTABLE;
+
                 $mail->isHTML($isHtml);
                 $mail->Subject = $subject;
                 $mail->Body = $body;
                 if ($isHtml) {
-                    $mail->AltBody = trim(strip_tags(str_replace(['<br>', '<br/>', '<br />'], "\n", $body)));
+                    $mail->AltBody = $textBody;
                 }
                 return $mail->send();
             } catch (Throwable $e) {
@@ -761,7 +841,7 @@ if (!function_exists('sendMail')) {
                 }
                 setLastMailError($smtpError);
                 error_log('[FamiFormation] sendMail SMTP failed: ' . $smtpError);
-                if (sendMailViaSmtpSocket($to, $subject, $body, $isHtml)) {
+                if (sendMailViaSmtpSocket($to, $subject, $body, $isHtml, $textBody)) {
                     return true;
                 }
 
@@ -770,7 +850,7 @@ if (!function_exists('sendMail')) {
         }
 
         if ($smtpConfigured) {
-            if (sendMailViaSmtpSocket($to, $subject, $body, $isHtml)) {
+            if (sendMailViaSmtpSocket($to, $subject, $body, $isHtml, $textBody)) {
                 return true;
             }
 
@@ -790,8 +870,17 @@ if (!function_exists('sendMail')) {
         } else {
             $headers .= 'Content-Type: text/plain; charset=UTF-8' . "\r\n";
         }
+        // Comme pour l'envoi SMTP : base64 pour ne jamais dépasser la limite de
+        // 998 octets par ligne, et sujet encodé pour que les accents passent.
+        $headers .= 'Content-Transfer-Encoding: base64' . "\r\n";
 
-        $mailSent = mail($to, $subject, $body, $headers, '-f' . $from);
+        $mailSent = mail(
+            $to,
+            '=?UTF-8?B?' . base64_encode((string) $subject) . '?=',
+            chunk_split(base64_encode((string) $body), 76, "\r\n"),
+            $headers,
+            '-f' . $from
+        );
         if (!$mailSent) {
             setLastMailError('La fonction mail() a échoué.');
         }
