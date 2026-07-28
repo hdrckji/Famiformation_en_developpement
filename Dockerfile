@@ -10,8 +10,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg poppler-
 # ensuite compressée côté serveur). upload_max_filesize < post_max_size (PDF + vidéo possibles).
 RUN printf "upload_max_filesize=1024M\npost_max_size=1088M\nmemory_limit=512M\nmax_execution_time=600\n" > "$PHP_INI_DIR/conf.d/zz-uploads.ini"
 
-# Copie le contenu de public/ dans la racine servie par FrankenPHP
-COPY public/ /app/public/
+# Copie le contenu de Famiformation/ dans la racine servie par FrankenPHP.
+# Le dossier source a été renommé public/ -> Famiformation/ ; la racine servie
+# reste /app/public (Caddyfile), seul le chemin du DÉPÔT change.
+COPY Famiformation/ /app/public/
 
 # Copie l'app FamiJob comme sous-dossier de la racine web (accessible via /famijob/)
 COPY Famijob/ /app/public/famijob/
