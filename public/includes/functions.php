@@ -1654,9 +1654,9 @@ if (!function_exists('sendAccountActivationEmail')) {
     }
 }
 
-if (!function_exists('sendBetaPasswordReminderEmail')) {
+if (!function_exists('sendPasswordReminderEmail')) {
     /**
-     * RELANCE « création du mot de passe » pour la version beta.
+     * RELANCE « création du mot de passe », pour n'importe quel profil.
      *
      * Certains destinataires n'ont pas pu afficher le mail d'activation d'origine
      * (clients de messagerie qui bloquaient le HTML) et n'ont donc jamais vu leur
@@ -1667,7 +1667,8 @@ if (!function_exists('sendBetaPasswordReminderEmail')) {
      * jeton par utilisateur). Le mail le dit explicitement au destinataire.
      *
      * Mail bilingue FR + NL : aucune langue n'est mémorisée par utilisateur
-     * (la langue vit en session), et la beta concerne Mouscron comme La Panne.
+     * (la langue vit en session), et Famiflora couvre Mouscron comme La Panne.
+     * Le texte s'adapte au profil : on ne parle de « version bêta » qu'aux beta.
      *
      * @param int  $heures  Durée de validité du lien.
      * @param bool $estTest Envoi de contrôle : le lien est un VRAI lien (il faut
@@ -1676,11 +1677,11 @@ if (!function_exists('sendBetaPasswordReminderEmail')) {
      *                      ambiguïté chez celui qui le reçoit.
      * @return bool true si le mail est parti.
      */
-    function sendBetaPasswordReminderEmail(PDO $db, $userId, $heures = 336, $estTest = false)
+    function sendPasswordReminderEmail(PDO $db, $userId, $heures = 336, $estTest = false)
     {
         ensureUserAccountAccessColumns($db);
 
-        $stmt = $db->prepare('SELECT id, identifiant, prenom, nom, email FROM utilisateurs WHERE id = ? LIMIT 1');
+        $stmt = $db->prepare('SELECT id, identifiant, prenom, nom, email, role FROM utilisateurs WHERE id = ? LIMIT 1');
         $stmt->execute([(int) $userId]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -1707,28 +1708,36 @@ if (!function_exists('sendBetaPasswordReminderEmail')) {
 
         $subject = ($estTest ? '[TEST] ' : '')
             . 'Ton mot de passe FamiFormation / Jouw wachtwoord FamiFormation';
-        $body = famiBetaPasswordReminderBody(
+        // On ne parle de « version bêta » qu'aux personnes qui sont réellement en
+        // bêta : la relance sert désormais à tous les profils, et promettre la
+        // bêta à un employé fixe ou à un étudiant serait faux.
+        $body = famiPasswordReminderBody(
             $url,
             $greeting,
             (string) $user['identifiant'],
             $jours,
-            $estTest ? 'test' : ''
+            $estTest ? 'test' : '',
+            (string) ($user['role'] ?? '') === 'beta'
         );
 
         return sendMail($user['email'], $subject, $body, true);
     }
 }
 
-if (!function_exists('famiBetaPasswordReminderBody')) {
+if (!function_exists('famiPasswordReminderBody')) {
     /**
      * Corps HTML de la relance « mot de passe » (fonction à part : la page
      * d'administration s'en sert pour afficher un aperçu SANS rien envoyer,
      * donc sans consommer de jeton).
      */
-    function famiBetaPasswordReminderBody($url, $greeting, $identifiant, $jours, $mode = '')
+    function famiPasswordReminderBody($url, $greeting, $identifiant, $jours, $mode = '', $mentionBeta = true)
     {
         $url = (string) $url;
         $jours = max(1, (int) $jours);
+
+        // Destination annoncée : « version bêta » uniquement pour les profils beta.
+        $ouFR = $mentionBeta ? 'à la version bêta de FamiFormation' : 'à la plateforme FamiFormation';
+        $ouNL = $mentionBeta ? 'tot de bètaversie van FamiFormation' : 'tot het platform FamiFormation';
 
         // Bandeau des envois de contrôle. Sans lui, un lien de démonstration qui
         // affiche « lien expiré » se confond avec une vraie panne — c'est arrivé.
@@ -1782,11 +1791,11 @@ if (!function_exists('famiBetaPasswordReminderBody')) {
             . $avertissement
             . '<p style="margin:0 0 18px;font-size:16px;line-height:1.7;"><strong>🇫🇷 En français</strong><br>'
             . 'Le message qui contenait ton lien de création de mot de passe ne s\'est pas affiché correctement chez tout le monde. '
-            . 'Voici donc un nouveau lien, personnel, qui te permet de définir ton mot de passe et d\'accéder à la version bêta de FamiFormation.</p>'
+            . 'Voici donc un nouveau lien, personnel, qui te permet de définir ton mot de passe et d\'accéder ' . $ouFR . '.</p>'
             . '<p style="margin:0 0 22px;font-size:16px;line-height:1.7;">Ton identifiant de connexion : <strong>' . e($identifiant) . '</strong></p>'
             . '<p style="margin:0 0 18px;font-size:16px;line-height:1.7;"><strong>🇳🇱 In het Nederlands</strong><br>'
             . 'Het bericht met jouw link om een wachtwoord aan te maken werd niet bij iedereen correct weergegeven. '
-            . 'Hierbij een nieuwe, persoonlijke link waarmee je jouw wachtwoord kan instellen en toegang krijgt tot de bètaversie van FamiFormation.</p>'
+            . 'Hierbij een nieuwe, persoonlijke link waarmee je jouw wachtwoord kan instellen en toegang krijgt ' . $ouNL . '.</p>'
             . '<p style="margin:0 0 22px;font-size:16px;line-height:1.7;">Jouw gebruikersnaam: <strong>' . e($identifiant) . '</strong></p>'
             . $bloclien
             . '<p style="margin:0 0 8px;font-size:15px;line-height:1.7;color:#7a5a11;"><strong>⚠️ Ce lien remplace le précédent :</strong> l\'ancien lien ne fonctionne plus. Celui-ci est valable ' . $jours . ' jours.</p>'

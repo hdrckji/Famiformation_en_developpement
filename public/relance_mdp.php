@@ -1,12 +1,11 @@
 <?php
 // ============================================================
-// relance_mdp_beta.php — RENVOYER LE LIEN DE CRÉATION DE MOT DE PASSE.
+// relance_mdp.php — RENVOYER LE LIEN DE CRÉATION DE MOT DE PASSE.
 //
 // À QUOI ÇA SERT
-// Le mail d'activation d'origine ne s'affichait pas correctement chez tous les
-// destinataires : une partie des utilisateurs beta n'a donc jamais vu son lien
-// et n'a pas pu créer son mot de passe. Cette page permet de leur renvoyer, à
-// chacun, un lien neuf.
+// Un mail d'activation qui ne s'affiche pas, une adresse changée, un message
+// perdu dans les indésirables : la personne ne voit jamais son lien et reste
+// bloquée à la porte. Cette page permet de lui en renvoyer un, neuf.
 //
 // POURQUOI UN PAR UN
 // Le lien contient un jeton UNIQUE par personne : il est impossible d'envoyer
@@ -18,8 +17,12 @@
 //
 // QUI EST CONCERNÉ
 // La colonne `account_activation_pending` vaut 1 tant que la personne n'a pas
-// défini son mot de passe (remise à 0 par set_password.php). On peut donc viser
-// exactement ceux qui sont bloqués, sans déranger ceux qui ont réussi.
+// défini son mot de passe (remise à 0 par set_password.php). On voit donc d'un
+// coup d'œil qui est réellement bloqué, sans déranger ceux qui ont réussi.
+//
+// PÉRIMÈTRE
+// Tous les profils sont sélectionnables (beta, étudiants, magasin, mentors…),
+// avec un filtre facultatif sur le domaine de l'adresse.
 // ============================================================
 require_once 'config.php';
 verifierConnexion($db);
@@ -34,18 +37,64 @@ if ($role !== 'admin') {
 
 ensureUserAccountAccessColumns($db);
 
-$DOMAINE_DEFAUT = '@famiflora.be';
-$ROLE_CIBLE     = 'beta';
-$JOURS_DEFAUT   = 14;
+$JOURS_DEFAUT = 14;
+$ROLES_DEFAUT = ['beta'];
 
-// Domaine de filtrage, modifiable depuis le formulaire. On n'accepte que des
-// caractères plausibles pour un domaine mail (pas de joker maison, pas de %).
-$domaine = trim((string) ($_REQUEST['domaine'] ?? $DOMAINE_DEFAUT));
-if ($domaine === '' || !preg_match('/^@?[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$/', $domaine)) {
-    $domaine = $DOMAINE_DEFAUT;
+// Libellés lisibles des profils. La liste réellement proposée vient de la BASE
+// (voir plus bas) : si un profil apparaît un jour sans passer par ici, il reste
+// sélectionnable, simplement affiché sous son nom technique. Rien ne peut donc
+// être oublié en silence.
+$LIBELLES_ROLES = [
+    'beta'               => 'Beta 🧪',
+    'etudiant'           => 'Étudiant',
+    'employe_magasin'    => 'Magasin',
+    'employe_logistique' => 'Logistique',
+    'teamcoach'          => 'Teamcoach',
+    'mentor'             => 'Mentor',
+    'evaluateur'         => 'Évaluateur',
+    'agence_interim'     => 'Agence intérim',
+    'admin'              => 'Admin',
+];
+
+/** Libellé lisible d'un profil (nom technique s'il est inconnu). */
+function libelleRole($r)
+{
+    global $LIBELLES_ROLES;
+    return $LIBELLES_ROLES[$r] ?? $r;
 }
-if ($domaine[0] !== '@') {
-    $domaine = '@' . $domaine;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PROFILS DISPONIBLES, avec le nombre de comptes bloqués — c'est ce chiffre-là
+// qui compte : il dit tout de suite où il y a du travail.
+// ─────────────────────────────────────────────────────────────────────────────
+$dispo = $db->query(
+    "SELECT role,
+            COUNT(*) AS total,
+            SUM(CASE WHEN account_activation_pending = 1 THEN 1 ELSE 0 END) AS bloques
+     FROM utilisateurs
+     WHERE email IS NOT NULL AND email <> ''
+     GROUP BY role
+     ORDER BY role ASC"
+)->fetchAll(PDO::FETCH_ASSOC);
+
+$rolesConnus = array_column($dispo, 'role');
+
+// Profils cochés. Au premier affichage : beta (le besoin d'origine).
+$rolesChoisis = (array) ($_REQUEST['roles'] ?? $ROLES_DEFAUT);
+$rolesChoisis = array_values(array_intersect(array_map('strval', $rolesChoisis), $rolesConnus));
+if (empty($rolesChoisis)) {
+    $rolesChoisis = array_values(array_intersect($ROLES_DEFAUT, $rolesConnus));
+}
+
+// Domaine : FACULTATIF (vide = toutes les adresses). On n'accepte qu'un domaine
+// plausible, jamais un motif SQL bricolé depuis l'URL.
+$domaine = trim((string) ($_REQUEST['domaine'] ?? '@famiflora.be'));
+if ($domaine !== '') {
+    if (!preg_match('/^@?[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$/', $domaine)) {
+        $domaine = '';
+    } elseif ($domaine[0] !== '@') {
+        $domaine = '@' . $domaine;
+    }
 }
 
 $jours = (int) ($_REQUEST['jours'] ?? $JOURS_DEFAUT);
@@ -57,11 +106,13 @@ if (!in_array($jours, [7, 14, 21], true)) {
 // APERÇU DU MAIL — aucun envoi, aucun jeton consommé : le lien est factice.
 // ─────────────────────────────────────────────────────────────────────────────
 if (isset($_GET['apercu'])) {
-    $corps = famiBetaPasswordReminderBody(
+    $corps = famiPasswordReminderBody(
         famiBuildAppUrl('set_password.php', ['token' => 'APERCU-LIEN-DE-DEMONSTRATION']),
         'Prénom',
         'identifiant',
-        $jours
+        $jours,
+        '',
+        in_array('beta', $rolesChoisis, true)
     );
     header('Content-Type: text/html; charset=UTF-8');
     echo famiMailOutlookSafe($corps, 'Ton mot de passe FamiFormation / Jouw wachtwoord FamiFormation');
@@ -71,17 +122,27 @@ if (isset($_GET['apercu'])) {
 // ─────────────────────────────────────────────────────────────────────────────
 // LISTE DES DESTINATAIRES POSSIBLES
 // ─────────────────────────────────────────────────────────────────────────────
-$stmt = $db->prepare(
-    "SELECT id, identifiant, prenom, nom, email, account_activation_pending
-     FROM utilisateurs
-     WHERE role = ?
-       AND email IS NOT NULL
-       AND email <> ''
-       AND email LIKE ?
-     ORDER BY account_activation_pending DESC, nom ASC, prenom ASC"
-);
-$stmt->execute([$ROLE_CIBLE, '%' . $domaine]);
-$utilisateurs = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$utilisateurs = [];
+$stmt = null;
+$params = [];
+if (!empty($rolesChoisis)) {
+    $trous = implode(', ', array_fill(0, count($rolesChoisis), '?'));
+    $sql = "SELECT id, identifiant, prenom, nom, email, role, account_activation_pending
+            FROM utilisateurs
+            WHERE role IN ($trous)
+              AND email IS NOT NULL
+              AND email <> ''";
+    $params = $rolesChoisis;
+    if ($domaine !== '') {
+        $sql .= ' AND email LIKE ?';
+        $params[] = '%' . $domaine;
+    }
+    $sql .= ' ORDER BY account_activation_pending DESC, nom ASC, prenom ASC';
+
+    $stmt = $db->prepare($sql);
+    $stmt->execute($params);
+    $utilisateurs = $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
 
 $nbTotal   = count($utilisateurs);
 $nbBloques = 0;
@@ -123,7 +184,7 @@ if (($_POST['action'] ?? '') === 'test') {
 
         if ($compte) {
             // Vrai jeton (type « reset » : ne bloque aucune connexion existante).
-            $ok = sendBetaPasswordReminderEmail($db, (int) $compte['id'], $jours * 24, true);
+            $ok = sendPasswordReminderEmail($db, (int) $compte['id'], $jours * 24, true);
             $flash = $ok
                 ? "<div class='flash ok'>✅ Mail de test envoyé à <b>" . e($adresseTest) . "</b>."
                     . " Le lien est <b>réellement fonctionnel</b> : clique-le pour vérifier toute la chaîne."
@@ -131,12 +192,13 @@ if (($_POST['action'] ?? '') === 'test') {
                 : "<div class='flash err'>❌ Le test n'est pas parti. Détail : " . e(getLastMailError()) . "</div>";
         } else {
             // Adresse hors base : impossible de fabriquer un lien valide.
-            $corps = famiBetaPasswordReminderBody(
+            $corps = famiPasswordReminderBody(
                 famiBuildAppUrl('set_password.php', ['token' => 'LIEN-DE-DEMONSTRATION-SANS-COMPTE']),
                 trim((string) ($admin['prenom'] ?? '')) ?: 'Prénom',
                 (string) ($admin['identifiant'] ?? 'identifiant'),
                 $jours,
-                'demo'
+                'demo',
+                in_array('beta', $rolesChoisis, true)
             );
             $ok = sendMail(
                 $adresseTest,
@@ -185,7 +247,7 @@ if (($_POST['action'] ?? '') === 'envoyer') {
 
         $resultats = ['ok' => [], 'ko' => []];
         foreach ($cibles as $u) {
-            $envoye = sendBetaPasswordReminderEmail($db, (int) $u['id'], $jours * 24);
+            $envoye = sendPasswordReminderEmail($db, (int) $u['id'], $jours * 24);
             if ($envoye) {
                 $resultats['ok'][] = $u;
             } else {
@@ -198,8 +260,10 @@ if (($_POST['action'] ?? '') === 'envoyer') {
         }
 
         // La liste affichée doit refléter les nouveaux statuts.
-        $stmt->execute([$ROLE_CIBLE, '%' . $domaine]);
-        $utilisateurs = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        if ($stmt !== null) {
+            $stmt->execute($params);
+            $utilisateurs = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        }
     }
 }
 ?>
@@ -212,10 +276,11 @@ if (($_POST['action'] ?? '') === 'envoyer') {
     <link rel="shortcut icon" type="image/x-icon" href="favicon.ico">
     <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
+        *, *::before, *::after { box-sizing: border-box; }
         body { font-family: 'Open Sans', sans-serif; background: #eef4ef; margin: 0; padding: 24px 16px 60px; color: #244230; }
-        .wrap { max-width: 900px; margin: 0 auto; }
+        .wrap { max-width: 960px; margin: 0 auto; }
         h1 { color: #2d5a37; font-size: 1.6rem; margin: 0 0 4px; }
-        .sub { color: #5a6b60; margin: 0 0 18px; line-height: 1.5; }
+        .sub { color: #5a6b60; margin: 0 0 18px; line-height: 1.55; }
         .card { background: #fff; border-radius: 16px; padding: 20px 22px; margin-bottom: 16px; box-shadow: 0 6px 20px rgba(14,59,36,.08); border: 1px solid #e6efe8; }
         .card h2 { margin: 0 0 14px; font-size: 1.15rem; color: #2d5a37; }
         .flash { border-radius: 12px; padding: 12px 16px; margin-bottom: 16px; font-weight: 600; line-height: 1.5; }
@@ -225,7 +290,6 @@ if (($_POST['action'] ?? '') === 'envoyer') {
         .btn { display: inline-block; border: none; cursor: pointer; background: #2d5a37; color: #fff; font-weight: 700; padding: 11px 22px; border-radius: 999px; text-decoration: none; font-size: .95rem; }
         .btn.ghost { background: #fff; color: #2d5a37; border: 2px solid #2d5a37; }
         .btn.gold { background: #d6a21a; }
-        .btn:disabled { opacity: .45; cursor: not-allowed; }
         .top { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 18px; }
         table { width: 100%; border-collapse: collapse; font-size: .92rem; }
         th, td { text-align: left; padding: 9px 8px; border-bottom: 1px solid #eef2ef; }
@@ -234,22 +298,31 @@ if (($_POST['action'] ?? '') === 'envoyer') {
         .tag { border-radius: 999px; padding: 3px 11px; font-size: .76rem; font-weight: 800; white-space: nowrap; }
         .tag.bloque { background: #fdeaea; color: #a12; }
         .tag.ok { background: #e7f6ea; color: #1E7A46; }
-        .reglages { display: flex; gap: 18px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 6px; }
+        .tag.role { background: #eef4ef; color: #3d6b48; font-weight: 700; }
+        .reglages { display: flex; gap: 18px; flex-wrap: wrap; align-items: flex-end; }
         .reglages label { display: block; font-weight: 700; font-size: .86rem; margin-bottom: 5px; }
         .reglages input, .reglages select { padding: 9px 12px; border: 1px solid #cfe0d4; border-radius: 10px; font-family: inherit; font-size: .92rem; }
-        .compte { font-size: .9rem; color: #5a6b60; margin: 12px 0 0; }
+        .profils { display: flex; flex-wrap: wrap; gap: 9px; margin-bottom: 18px; }
+        .profil { display: flex; align-items: center; gap: 8px; border: 1px solid #cfe0d4; border-radius: 12px; padding: 9px 13px; cursor: pointer; background: #f8fbf9; font-size: .9rem; }
+        .profil:hover { border-color: #2d5a37; }
+        .profil input { margin: 0; }
+        .profil .nb { color: #8a968f; font-size: .82rem; }
+        .profil .nb b { color: #a12; }
+        .compte { font-size: .9rem; color: #5a6b60; margin: 14px 0 0; }
         .actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 16px; }
         .lien-mini { font-size: .86rem; color: #2d5a37; font-weight: 700; cursor: pointer; text-decoration: underline; background: none; border: none; padding: 0; font-family: inherit; }
+        .scroll { overflow-x: auto; }
     </style>
 </head>
 <body>
 <div class="wrap">
     <h1>🔑 Relancer la création de mot de passe</h1>
-    <p class="sub">Renvoie son lien personnel à chaque utilisateur <b>beta</b> qui n'a pas pu créer son mot de passe.</p>
+    <p class="sub">Renvoie son lien personnel à toute personne qui n'a pas pu créer son mot de passe, quel que soit son profil.</p>
 
     <div class="top">
         <a href="index.php" class="btn ghost">← Retour</a>
-        <a href="relance_mdp_beta.php?apercu=1&amp;jours=<?= (int) $jours ?>" target="_blank" class="btn ghost">👁 Voir l'aperçu du mail</a>
+        <a href="relance_mdp.php?apercu=1&amp;jours=<?= (int) $jours ?><?php foreach ($rolesChoisis as $r) { echo '&amp;roles%5B%5D=' . urlencode($r); } ?>"
+           target="_blank" class="btn ghost">👁 Voir l'aperçu du mail</a>
     </div>
 
     <?= $flash ?>
@@ -269,39 +342,64 @@ if (($_POST['action'] ?? '') === 'envoyer') {
                     Les liens restent valables jusqu'au
                     <b><?= date('d/m/Y à H\hi', strtotime('+' . ($jours * 24) . ' hours')) ?></b>.
                 </div>
-                <table>
-                    <tr><th>Nom</th><th>Adresse</th></tr>
-                    <?php foreach ($resultats['ok'] as $u): ?>
-                        <tr>
-                            <td><?= e(trim($u['prenom'] . ' ' . $u['nom'])) ?></td>
-                            <td><?= e($u['email']) ?></td>
-                        </tr>
-                    <?php endforeach; ?>
-                </table>
+                <div class="scroll">
+                    <table>
+                        <tr><th>Nom</th><th>Profil</th><th>Adresse</th></tr>
+                        <?php foreach ($resultats['ok'] as $u): ?>
+                            <tr>
+                                <td><?= e(trim($u['prenom'] . ' ' . $u['nom'])) ?></td>
+                                <td><span class="tag role"><?= e(libelleRole($u['role'])) ?></span></td>
+                                <td><?= e($u['email']) ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </table>
+                </div>
             <?php endif; ?>
             <?php if (!empty($resultats['ko'])): ?>
                 <div class="flash err" style="margin-top:16px;"><?= count($resultats['ko']) ?> échec(s) — ces personnes n'ont rien reçu, tu peux réessayer.</div>
-                <table>
-                    <tr><th>Nom</th><th>Adresse</th><th>Motif</th></tr>
-                    <?php foreach ($resultats['ko'] as $u): ?>
-                        <tr>
-                            <td><?= e(trim($u['prenom'] . ' ' . $u['nom'])) ?></td>
-                            <td><?= e($u['email']) ?></td>
-                            <td><?= e($u['erreur'] ?: 'Erreur inconnue') ?></td>
-                        </tr>
-                    <?php endforeach; ?>
-                </table>
+                <div class="scroll">
+                    <table>
+                        <tr><th>Nom</th><th>Adresse</th><th>Motif</th></tr>
+                        <?php foreach ($resultats['ko'] as $u): ?>
+                            <tr>
+                                <td><?= e(trim($u['prenom'] . ' ' . $u['nom'])) ?></td>
+                                <td><?= e($u['email']) ?></td>
+                                <td><?= e($u['erreur'] ?: 'Erreur inconnue') ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </table>
+                </div>
             <?php endif; ?>
         </div>
     <?php endif; ?>
 
     <div class="card">
         <h2>⚙️ Périmètre</h2>
-        <form method="GET" action="relance_mdp_beta.php">
+        <form method="GET" action="relance_mdp.php">
+            <p class="sub" style="margin-bottom:12px;">
+                Coche les profils à examiner. Le chiffre en <b style="color:#a12;">rouge</b> est le nombre de comptes
+                <b>sans mot de passe défini</b> : c'est là qu'il y a du travail.
+            </p>
+            <div class="profils">
+                <?php foreach ($dispo as $d): $coche = in_array($d['role'], $rolesChoisis, true); ?>
+                    <label class="profil">
+                        <input type="checkbox" name="roles[]" value="<?= e($d['role']) ?>" <?= $coche ? 'checked' : '' ?>>
+                        <span><?= e(libelleRole($d['role'])) ?></span>
+                        <span class="nb">
+                            <?php if ((int) $d['bloques'] > 0): ?>
+                                <b><?= (int) $d['bloques'] ?> bloqué(s)</b> / <?= (int) $d['total'] ?>
+                            <?php else: ?>
+                                <?= (int) $d['total'] ?> compte(s)
+                            <?php endif; ?>
+                        </span>
+                    </label>
+                <?php endforeach; ?>
+            </div>
+
             <div class="reglages">
                 <div>
-                    <label for="domaine">Domaine des adresses</label>
-                    <input type="text" id="domaine" name="domaine" value="<?= e($domaine) ?>" size="22">
+                    <label for="domaine">Domaine des adresses <span style="font-weight:400;color:#8a968f;">(vide = toutes)</span></label>
+                    <input type="text" id="domaine" name="domaine" value="<?= e($domaine) ?>" size="22" placeholder="toutes les adresses">
                 </div>
                 <div>
                     <label for="jours">Validité du lien</label>
@@ -313,9 +411,10 @@ if (($_POST['action'] ?? '') === 'envoyer') {
                 </div>
                 <div><button type="submit" class="btn ghost">Actualiser la liste</button></div>
             </div>
+
             <p class="compte">
-                Profil <b>beta</b> + adresse en <b><?= e($domaine) ?></b> :
-                <b><?= $nbTotal ?></b> compte(s), dont <b><?= $nbBloques ?></b> sans mot de passe défini.
+                Sélection actuelle : <b><?= $nbTotal ?></b> compte(s)<?= $domaine !== '' ? ' en <b>' . e($domaine) . '</b>' : ' (toutes adresses)' ?>,
+                dont <b><?= $nbBloques ?></b> sans mot de passe défini.
             </p>
         </form>
     </div>
@@ -329,11 +428,14 @@ if (($_POST['action'] ?? '') === 'envoyer') {
             Si l'adresse ne correspond à aucun compte, aucun lien valide ne peut exister : le mail est alors
             marqué comme non fonctionnel, et afficher « lien expiré » est normal.
         </p>
-        <form method="POST" action="relance_mdp_beta.php">
+        <form method="POST" action="relance_mdp.php">
             <?= csrfField() ?>
             <input type="hidden" name="action" value="test">
             <input type="hidden" name="domaine" value="<?= e($domaine) ?>">
             <input type="hidden" name="jours" value="<?= (int) $jours ?>">
+            <?php foreach ($rolesChoisis as $r): ?>
+                <input type="hidden" name="roles[]" value="<?= e($r) ?>">
+            <?php endforeach; ?>
             <div class="reglages">
                 <div>
                     <label for="email_test">Adresse de test</label>
@@ -347,14 +449,19 @@ if (($_POST['action'] ?? '') === 'envoyer') {
 
     <div class="card">
         <h2>👥 Destinataires</h2>
-        <?php if ($nbTotal === 0): ?>
-            <p class="sub">Aucun compte beta avec une adresse en <b><?= e($domaine) ?></b>.</p>
+        <?php if (empty($rolesChoisis)): ?>
+            <p class="sub">Coche au moins un profil ci-dessus.</p>
+        <?php elseif ($nbTotal === 0): ?>
+            <p class="sub">Aucun compte ne correspond à cette sélection.</p>
         <?php else: ?>
-            <form method="POST" action="relance_mdp_beta.php" id="formEnvoi">
+            <form method="POST" action="relance_mdp.php" id="formEnvoi">
                 <?= csrfField() ?>
                 <input type="hidden" name="action" value="envoyer">
                 <input type="hidden" name="domaine" value="<?= e($domaine) ?>">
                 <input type="hidden" name="jours" value="<?= (int) $jours ?>">
+                <?php foreach ($rolesChoisis as $r): ?>
+                    <input type="hidden" name="roles[]" value="<?= e($r) ?>">
+                <?php endforeach; ?>
 
                 <p style="margin:0 0 12px;">
                     <button type="button" class="lien-mini" onclick="cocher('bloques')">Cocher uniquement ceux qui sont bloqués</button> ·
@@ -362,33 +469,37 @@ if (($_POST['action'] ?? '') === 'envoyer') {
                     <button type="button" class="lien-mini" onclick="cocher('rien')">Tout décocher</button>
                 </p>
 
-                <table>
-                    <tr>
-                        <th style="width:34px;"></th>
-                        <th>Nom</th>
-                        <th>Identifiant</th>
-                        <th>Adresse</th>
-                        <th>Mot de passe</th>
-                    </tr>
-                    <?php foreach ($utilisateurs as $u): $bloque = !empty($u['account_activation_pending']); ?>
-                        <tr class="<?= $bloque ? '' : 'faite' ?>">
-                            <td>
-                                <input type="checkbox" name="user_ids[]" value="<?= (int) $u['id'] ?>"
-                                       class="case" data-bloque="<?= $bloque ? '1' : '0' ?>" <?= $bloque ? 'checked' : '' ?>>
-                            </td>
-                            <td><?= e(trim($u['prenom'] . ' ' . $u['nom'])) ?></td>
-                            <td><?= e($u['identifiant']) ?></td>
-                            <td><?= e($u['email']) ?></td>
-                            <td>
-                                <?php if ($bloque): ?>
-                                    <span class="tag bloque">Pas encore créé</span>
-                                <?php else: ?>
-                                    <span class="tag ok">Déjà créé</span>
-                                <?php endif; ?>
-                            </td>
+                <div class="scroll">
+                    <table>
+                        <tr>
+                            <th style="width:34px;"></th>
+                            <th>Nom</th>
+                            <th>Profil</th>
+                            <th>Identifiant</th>
+                            <th>Adresse</th>
+                            <th>Mot de passe</th>
                         </tr>
-                    <?php endforeach; ?>
-                </table>
+                        <?php foreach ($utilisateurs as $u): $bloque = !empty($u['account_activation_pending']); ?>
+                            <tr class="<?= $bloque ? '' : 'faite' ?>">
+                                <td>
+                                    <input type="checkbox" name="user_ids[]" value="<?= (int) $u['id'] ?>"
+                                           class="case" data-bloque="<?= $bloque ? '1' : '0' ?>" <?= $bloque ? 'checked' : '' ?>>
+                                </td>
+                                <td><?= e(trim($u['prenom'] . ' ' . $u['nom'])) ?></td>
+                                <td><span class="tag role"><?= e(libelleRole($u['role'])) ?></span></td>
+                                <td><?= e($u['identifiant']) ?></td>
+                                <td><?= e($u['email']) ?></td>
+                                <td>
+                                    <?php if ($bloque): ?>
+                                        <span class="tag bloque">Pas encore créé</span>
+                                    <?php else: ?>
+                                        <span class="tag ok">Déjà créé</span>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </table>
+                </div>
 
                 <div class="actions">
                     <button type="submit" class="btn"
