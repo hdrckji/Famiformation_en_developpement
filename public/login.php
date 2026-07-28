@@ -2,6 +2,13 @@
 
 require_once 'config.php';
 require_once __DIR__ . '/includes/theme.php'; // famiDefaultVectorBg() : fond vectoriel net
+
+// Une session peut encore etre active dans ce profil de navigateur (on n'a pas ferme
+// sa session avant de revenir ici). config.php installe alors le buffer d'injection,
+// qui pose le ruban « connecte » (retour, notifications, deconnexion...) sur TOUTES les
+// pages. Sur une page de connexion ce ruban n'a aucun sens, et il cassait la mise en
+// page. On declare donc le ruban « deja fait » : le buffer ne l'ajoutera pas.
+$GLOBALS['__fami_topbar_done'] = true;
 // Correction : forcer l'initialisation du token CSRF dès la première visite
 initCSRF();
 
@@ -147,11 +154,18 @@ if ($host === 'famiformation.com') {
         body {
             background: url('<?php echo e($loginBackgroundUrl); ?>') center/cover no-repeat #f6f6f6;
             font-family: 'Open Sans', sans-serif;
+            margin: 0;
+        }
+        /* Le centrage se fait dans .login-wrap, JAMAIS sur <body>. Quand une session est
+           encore ouverte dans le navigateur, config.php injecte du contenu juste apres
+           <body> (ruban, fond de theme, fee). Avec un <body> en flex, ce contenu devenait
+           un element de la meme ligne et poussait la boite de connexion hors de l'ecran :
+           d'un profil de navigateur a l'autre, la page ne s'affichait pas pareil. */
+        .login-wrap {
             display: flex;
             justify-content: center;
             min-height: 100vh;
             min-height: 100dvh; /* barre d'adresse mobile */
-            margin: 0;
             padding: 18px;
         }
         .container {
@@ -219,6 +233,7 @@ if (empty($isFamijobLogin) && function_exists('famiDefaultVectorBg')): ?>
 <style id="fami-vec-bg"><?= famiDefaultVectorBg() ?></style>
 <?php endif; ?>
 
+<div class="login-wrap">
 <div class="container">
     <div class="logo">
         <img src="logo.png" alt="Logo">
@@ -244,14 +259,20 @@ if (empty($isFamijobLogin) && function_exists('famiDefaultVectorBg')): ?>
         <a href="account_help.php?mode=login" style="color:#2d5a37; text-decoration:none; font-weight:700;">Identifiant oublié ?</a>
     </div>
 </div>
+</div>
 
 <?php
-// La FÉE FAMIFLORA. Sur les pages connectées elle est injectée automatiquement, mais
-// ici on n'est pas encore connecté : le buffer d'injection (config.php) ne tourne pas.
-// On la pose donc à la main. Le formulaire porte data-fee → la fée sort au clic sur
+// La FÉE FAMIFLORA. Sur les pages connectées elle est injectée automatiquement par le
+// buffer de config.php ; ici on n'est en général pas connecté, donc ce buffer ne tourne
+// pas et on la pose à la main. Le formulaire porte data-fee → la fée sort au clic sur
 // « Se connecter », le temps de vérifier le mot de passe.
-require_once __DIR__ . '/includes/fee.php';
-echo feeOverlay();
+// Le test sur la session est indispensable : si une session est restée ouverte dans ce
+// navigateur, le buffer tourne quand même et la fée serait présente DEUX fois (mêmes
+// id="feeBack"/"feeTxt" en double, que le JS ne sait plus départager).
+if (empty($_SESSION['user_id'])) {
+    require_once __DIR__ . '/includes/fee.php';
+    echo feeOverlay();
+}
 ?>
 </body>
 </html>
