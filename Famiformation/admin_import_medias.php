@@ -1076,48 +1076,61 @@ $pageTitle = 'Import des médias legacy';
     </form>
 
     <div class="card">
-        <p style="margin-top:0"><strong>Arborescence réelle</strong> — ce que la base contient vraiment</p>
+        <p style="margin-top:0"><strong>Arborescence réelle</strong> — tout le site, tel que la base le contient</p>
         <p class="muted">
-            Un module du périmètre doit apparaître <strong>sans enfant</strong> et marqué
-            « élément ». S'il affiche encore un sous-module, un clic mène au sous-module
-            au lieu du contenu.
+            <strong>module (conteneur)</strong> = contient des sous-modules ·
+            <strong>module C</strong> = porte le contenu ·
+            <strong>module S</strong> = fonction particulière.<br>
+            En rouge : un module qui n'a qu'<em>un seul</em> sous-module, lequel porte
+            le contenu que lui-même ne porte pas. C'est la tuile intermédiaire à
+            supprimer — le module doit redevenir un module C.
         </p>
         <table>
             <thead><tr><th>Module</th><th>Page d'origine</th><th>Type</th><th>Porte le contenu</th><th>Sous-modules</th></tr></thead>
             <tbody>
             <?php
-            $pagesMig = array_keys(famiLegacyMediaMap());
-            $arbre = [];
+            // ARBRE COMPLET du site. La version precedente ne montrait que les
+            // modules du perimetre de migration : un module transforme en simple
+            // support (« rechercher un article ») n'y figurait donc pas, ce qui
+            // rendait le probleme invisible ici comme dans le diagnostic.
+            $tous = [];
             try {
-                $arbre = $db->query("SELECT id, nom, link, link_legacy, is_container, content_kind,
-                                            pdf_path, video_path, video_src_path, contenu_ia
-                                       FROM modules
-                                      WHERE (link IS NOT NULL AND link <> '')
-                                         OR (link_legacy IS NOT NULL AND link_legacy <> '')
-                                      ORDER BY nom")->fetchAll(PDO::FETCH_ASSOC);
-            } catch (Exception $e) { $arbre = []; }
-            foreach ($arbre as $a) {
-                $cle = basename(strtok((string) ($a['link'] ?: $a['link_legacy']), '?'));
-                if (!in_array($cle, $pagesMig, true)) { continue; }
-                $enf = $db->prepare("SELECT nom FROM modules WHERE parent_id = ?");
-                $enf->execute([(int) $a['id']]);
-                $noms = array_column($enf->fetchAll(PDO::FETCH_ASSOC), 'nom');
-                $aDuContenu = !empty($a['pdf_path']) || !empty($a['video_path'])
-                    || !empty($a['video_src_path']) || !empty($a['contenu_ia']);
-                $multi = (count(famiLegacyMediaMap()[$cle]['pdfs']) + count(famiLegacyMediaMap()[$cle]['videos'])) > 1;
-                $souci = (!$multi && $noms) || (!$aDuContenu && !$noms);
-            ?>
-                <tr<?= $souci ? ' style="background:#fdeaea"' : '' ?>>
-                    <td><?= htmlspecialchars((string) $a['nom']) ?></td>
-                    <td><code><?= htmlspecialchars($cle) ?></code></td>
-                    <td><?= !empty($a['is_container']) ? 'conteneur' : 'élément' ?>
-                        <?= $a['content_kind'] ? '<span class="muted">(' . htmlspecialchars((string) $a['content_kind']) . ')</span>' : '' ?></td>
-                    <td><?= $aDuContenu ? '<span class="tag t-ok">oui</span>' : '<span class="tag t-todo">non</span>' ?></td>
-                    <td><?= $noms
-                            ? '<span class="tag ' . ($multi ? 't-ok' : 't-ko') . '">' . htmlspecialchars(implode(' · ', $noms)) . '</span>'
-                            : '<span class="muted">aucun</span>' ?></td>
+                $tous = $db->query("SELECT id, nom, parent_id, link, link_legacy, is_container,
+                                           content_kind, pdf_path, video_path, video_src_path, contenu_ia
+                                      FROM modules ORDER BY nom")->fetchAll(PDO::FETCH_ASSOC);
+            } catch (Exception $e) { $tous = []; }
+
+            $parIdParent = [];
+            foreach ($tous as $t) { $parIdParent[(int) $t['parent_id']][] = $t; }
+
+            $porteC = function ($r) {
+                foreach (['pdf_path', 'video_path', 'video_src_path', 'contenu_ia'] as $c) {
+                    if (!empty($r[$c])) { return true; }
+                }
+                return false;
+            };
+
+            $ligne = function ($mod, $niveau) use (&$ligne, $parIdParent, $porteC) {
+                $enfants = $parIdParent[(int) $mod['id']] ?? [];
+                $aContenu = $porteC($mod);
+                // Tuile intermediaire : un seul enfant, qui porte le contenu que
+                // le parent ne porte pas. C'est le motif a supprimer.
+                $inutile = (count($enfants) === 1 && !$aContenu && $porteC($enfants[0]));
+                $type = $enfants ? 'module (conteneur)' : ($aContenu ? 'module C' : 'module S / vide');
+                ?>
+                <tr<?= $inutile ? ' style="background:#fdeaea"' : '' ?>>
+                    <td><?= str_repeat('&nbsp;&nbsp;&nbsp;&nbsp;', $niveau) ?><?= $niveau ? '└ ' : '' ?><?= htmlspecialchars((string) $mod['nom']) ?></td>
+                    <td><code><?= htmlspecialchars(basename(strtok((string) ($mod['link'] ?: $mod['link_legacy']), '?'))) ?></code></td>
+                    <td><?= $type ?><?= $mod['content_kind'] ? ' <span class="muted">(' . htmlspecialchars((string) $mod['content_kind']) . ')</span>' : '' ?></td>
+                    <td><?= $aContenu ? '<span class="tag t-ok">oui</span>' : '<span class="muted">non</span>' ?></td>
+                    <td><?= $enfants ? count($enfants) : '<span class="muted">aucun</span>' ?>
+                        <?= $inutile ? '<span class="tag t-ko">tuile intermédiaire</span>' : '' ?></td>
                 </tr>
-            <?php } ?>
+                <?php
+                foreach ($enfants as $e) { $ligne($e, $niveau + 1); }
+            };
+            foreach (($parIdParent[0] ?? []) as $racine) { $ligne($racine, 0); }
+            ?>
             </tbody>
         </table>
         <p class="muted">En rouge : un sous-module là où il ne devrait pas y en avoir, ou un module sans contenu ni enfant.</p>
