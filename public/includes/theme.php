@@ -352,7 +352,14 @@ if (!function_exists('famiInjectPageTheme')) {
                 return $buffer; // réponse non-HTML (PDF, xlsx, JSON...) : on ne touche pas
             }
         }
-        $pos = stripos($buffer, '<body');
+        // On cherche la balise d'ouverture du corps de page APRES </head>. Sans ce
+        // decalage, la recherche tombait sur la premiere mention textuelle de cette
+        // balise — une simple citation dans un commentaire CSS suffisait — et tout etait
+        // injecte au milieu de la feuille de style : le </style> de la fee refermait
+        // l'en-tete trop tot et la page perdait tout son habillage.
+        $searchFrom = stripos($buffer, '</head>');
+        $searchFrom = ($searchFrom === false) ? 0 : $searchFrom;
+        $pos = stripos($buffer, '<body', $searchFrom);
         if ($pos === false) {
             return $buffer;
         }

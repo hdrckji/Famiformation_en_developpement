@@ -74,6 +74,22 @@ $loginBackgroundUrl = resolvePublicAssetUrl(
     $loginBackgroundImage
 );
 
+// Deja connecte : la page de connexion n'a plus rien a demander. On renvoie a l'accueil
+// plutot que d'afficher un formulaire inutile. Se deconnecter reste possible depuis le
+// ruban (logout.php detruit la session avant de revenir ici, donc pas de boucle).
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && !empty($_SESSION['user_id'])) {
+    $roleConnecte = (string) ($_SESSION['role'] ?? '');
+    if ($postLoginRedirect !== '' && in_array($roleConnecte, ['admin', 'teamcoach'], true)) {
+        $cibleConnecte = $postLoginRedirect;
+    } elseif ($roleConnecte === 'agence_interim') {
+        $cibleConnecte = 'interim_horaires.php';
+    } else {
+        $cibleConnecte = 'index.php';
+    }
+    header('Location: ' . $cibleConnecte);
+    exit();
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Validation CSRF
     requireValidCSRF();
@@ -156,11 +172,15 @@ if ($host === 'famiformation.com') {
             font-family: 'Open Sans', sans-serif;
             margin: 0;
         }
-        /* Le centrage se fait dans .login-wrap, JAMAIS sur <body>. Quand une session est
-           encore ouverte dans le navigateur, config.php injecte du contenu juste apres
-           <body> (ruban, fond de theme, fee). Avec un <body> en flex, ce contenu devenait
-           un element de la meme ligne et poussait la boite de connexion hors de l'ecran :
-           d'un profil de navigateur a l'autre, la page ne s'affichait pas pareil. */
+        /* Le centrage se fait dans .login-wrap, jamais sur l'element body lui-meme.
+           Quand une session est encore ouverte dans le navigateur, config.php injecte
+           du contenu en tete de page (ruban, fond de theme, fee) ; si body etait en
+           flex, ce contenu devenait un element de la meme ligne et poussait la boite de
+           connexion hors de l'ecran. D'un profil de navigateur a l'autre, la page ne
+           s'affichait donc pas pareil.
+           NB : ne jamais ecrire la balise body en toutes lettres dans cette page.
+           famiInjectPageTheme() cherche son point d'injection par recherche de texte ;
+           une balise citee dans un commentaire l'enverrait injecter ici, en plein CSS. */
         .login-wrap {
             display: flex;
             justify-content: center;
