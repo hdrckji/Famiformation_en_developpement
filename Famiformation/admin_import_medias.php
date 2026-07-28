@@ -693,39 +693,23 @@ if (($_POST['action'] ?? '') === 'repair_structure') {
                  'content_kind', 'sub_fr_path', 'sub_nl_path', 'sub_src_path', 'sub_status', 'transcript'];
 
     // Périmètre : les modules dont link (ou link_legacy) désigne une page migrée.
-    $pages = array_keys(famiLegacyMediaMap());
+    // TOUT le site, pas seulement le périmètre de migration : le motif « module
+    // devenu simple support d'un unique sous-module porteur » existe aussi sur des
+    // modules créés avant, par l'usage normal. Ce sont eux, les tuiles
+    // intermédiaires inutiles.
+    $apercu = !empty($_POST['apercu']);
     $rows = [];
     try {
-        // Un module du périmètre porte forcément un lien : `link` s'il n'a pas
-        // encore été basculé, `link_legacy` s'il l'a été.
-        $rows = $db->query("SELECT id, nom, link, link_legacy FROM modules
-                             WHERE (link IS NOT NULL AND link <> '')
-                                OR (link_legacy IS NOT NULL AND link_legacy <> '')")
-                   ->fetchAll(PDO::FETCH_ASSOC);
-    } catch (Exception $e) {
-        // link_legacy peut ne pas exister si aucune bascule n'a encore eu lieu.
-        try {
-            $rows = $db->query("SELECT id, nom, link, NULL AS link_legacy FROM modules
-                                 WHERE link IS NOT NULL AND link <> ''")->fetchAll(PDO::FETCH_ASSOC);
-        } catch (Exception $e2) { $rows = []; }
-    }
+        $rows = $db->query("SELECT id, nom FROM modules ORDER BY nom")->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Exception $e) { $rows = []; }
 
     $n = 0;
     foreach ($rows as $m) {
-        $cle = basename(strtok((string) ($m['link'] ?: $m['link_legacy']), '?'));
-        if ($cle === '' || !in_array($cle, $pages, true)) { continue; }
-        // Les pages à contenus multiples gardent légitimement leurs sous-modules.
-        $entry = famiLegacyMediaMap()[$cle];
-        if (count($entry['pdfs']) + count($entry['videos']) > 1) { continue; }
-
         $enfants = $db->prepare("SELECT * FROM modules WHERE parent_id = ?");
         $enfants->execute([(int) $m['id']]);
         $liste = $enfants->fetchAll(PDO::FETCH_ASSOC);
-        if (!$liste) { continue; } // déjà un élément : rien à faire
-        if (count($liste) > 1) {
-            $flash[] = ['skip', (string) $m['nom'], count($liste) . " sous-modules — structure voulue, laissée telle quelle"];
-            continue;
-        }
+        if (!$liste) { continue; }        // déjà un module C : rien à faire
+        if (count($liste) > 1) { continue; } // vrai conteneur : structure voulue
         $e = $liste[0];
 
         // Critère indépendant du NOM de l'enfant : on remonte dès que l'enfant
@@ -744,15 +728,24 @@ if (($_POST['action'] ?? '') === 'repair_structure') {
 
         // Enfant vide : il n'apporte rien, on le supprime sans rien remonter.
         if (!$porte($e)) {
+            $n++;
+            if ($apercu) {
+                $flash[] = ['warn', (string) $m['nom'], "APERÇU — supprimerait le sous-module vide « " . (string) $e['nom'] . " »"];
+                continue;
+            }
             $db->prepare("DELETE FROM modules WHERE id = ?")->execute([(int) $e['id']]);
             $db->prepare("UPDATE modules SET is_container = 0 WHERE id = ?")->execute([(int) $m['id']]);
             $flash[] = ['ok', (string) $m['nom'], "sous-module vide « " . (string) $e['nom'] . " » supprimé"];
-            $n++;
             continue;
         }
         // Contenu des DEUX côtés : le module a été réimporté depuis la correction,
         // son contenu est donc le plus récent. L'enfant est un reliquat.
         if ($porte($self)) {
+            $n++;
+            if ($apercu) {
+                $flash[] = ['warn', (string) $m['nom'], "APERÇU — supprimerait le reliquat « " . (string) $e['nom'] . " » (le module porte déjà le contenu)"];
+                continue;
+            }
             $db->prepare("DELETE FROM modules WHERE id = ?")->execute([(int) $e['id']]);
             $db->prepare("UPDATE modules SET is_container = 0 WHERE id = ?")->execute([(int) $m['id']]);
             $flash[] = ['ok', (string) $m['nom'], "reliquat « " . (string) $e['nom'] . " » supprimé (le module portait déjà le contenu)"];
@@ -767,20 +760,26 @@ if (($_POST['action'] ?? '') === 'repair_structure') {
             if (array_key_exists($c, $e)) { $set[] = "`$c` = ?"; $val[] = $e[$c]; }
         }
         if (!$set) { continue; }
+        $n++;
+        if ($apercu) {
+            $flash[] = ['warn', (string) $m['nom'], "APERÇU — remonterait le contenu de « " . (string) $e['nom'] . " » puis supprimerait ce sous-module"];
+            continue;
+        }
         $val[] = (int) $m['id'];
         try {
             $db->prepare("UPDATE modules SET " . implode(', ', $set) . ", is_container = 0 WHERE id = ?")->execute($val);
             $db->prepare("DELETE FROM modules WHERE id = ?")->execute([(int) $e['id']]);
             $flash[] = ['ok', (string) $m['nom'], "contenu remonté depuis « " . (string) $e['nom'] . " », sous-module supprimé"];
-            $n++;
         } catch (Exception $ex) {
             $flash[] = ['ko', (string) $m['nom'], "remontée impossible : " . $ex->getMessage()];
         }
     }
     if ($n === 0) {
-        $flash[] = ['skip', 'structure', count($rows) . " module(s) porteurs d'un lien examinés — aucun sous-module à remonter"];
+        $flash[] = ['skip', 'structure', count($rows) . " module(s) examinés — aucune tuile intermédiaire à supprimer"];
     } else {
-        $flash[] = ['ok', 'structure', $n . " module(s) remis à plat sur " . count($rows) . " examinés"];
+        $flash[] = [$apercu ? 'warn' : 'ok', 'structure',
+            $apercu ? ($n . " module(s) seraient remis à plat sur " . count($rows) . " — rien n'a été modifié")
+                    : ($n . " module(s) remis à plat sur " . count($rows) . " examinés")];
     }
 }
 
@@ -1135,9 +1134,15 @@ $pageTitle = 'Import des médias legacy';
             l'enfant inutile. Les pages à contenus multiples (livret op/os, vidéos
             Lollyland) gardent leurs sous-modules.
         </p>
-        <form method="post" style="margin:0">
+        <form method="post" style="display:inline">
             <?= csrfField() ?><input type="hidden" name="action" value="repair_structure">
-            <button class="btn btn-go" type="submit">Remonter les contenus et supprimer les sous-modules inutiles</button>
+            <input type="hidden" name="apercu" value="1">
+            <button class="btn btn-sm" type="submit">👁 Aperçu — ne rien modifier</button>
+        </form>
+        <form method="post" style="display:inline; margin-left:6px"
+              onsubmit="return confirm('Remonter les contenus et supprimer les sous-modules intermédiaires ?\n\nCette action supprime des lignes en base et n\'est pas annulable.');">
+            <?= csrfField() ?><input type="hidden" name="action" value="repair_structure">
+            <button class="btn btn-go" type="submit">Remonter les contenus et supprimer les tuiles intermédiaires</button>
         </form>
     </div>
 
