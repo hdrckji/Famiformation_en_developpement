@@ -104,8 +104,8 @@ $userPhoto = $_SESSION['photo_profil'] ?? null;
     <div class="beta-banner">
         <div class="beta-tag">VERSION BETA</div><br>
         <?= t(
-            "Tu utilises une <b>version bêta</b> de Famiformation : tu peux déjà découvrir les <b>formations</b> et faire les <b>quiz</b>. Le <b>29/07</b>, les <b>internes</b> recevront la <b>vraie version</b> avec leur parcours complet.",
-            "Je gebruikt een <b>bètaversie</b> van Famiformation: je kan de <b>opleidingen</b> al ontdekken en de <b>quiz</b> doen. Op <b>29/07</b> krijgen de <b>internen</b> de <b>echte versie</b> met hun volledig traject."
+            "Tu utilises une <b>version bêta</b> de Famiformation : tu peux déjà découvrir les <b>formations</b> et faire les <b>quiz</b>. Le <b>29/07</b>, les <b>employés fixes</b> recevront la <b>vraie version</b> avec leur parcours complet. Les <b>flexi</b> et les <b>étudiants</b> gardent la version bêta jusque <b>mi-août</b>.",
+            "Je gebruikt een <b>bètaversie</b> van Famiformation: je kan de <b>opleidingen</b> al ontdekken en de <b>quiz</b> doen. Op <b>29/07</b> krijgen de <b>vaste medewerkers</b> de <b>echte versie</b> met hun volledig traject. De <b>flexi's</b> en de <b>studenten</b> houden de bètaversie tot <b>midden augustus</b>."
         ) ?>
     </div>
 
