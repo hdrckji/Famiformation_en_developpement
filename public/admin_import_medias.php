@@ -770,7 +770,12 @@ foreach ($map as $page => $entry) {
         $done = $cible && (!empty($cible['video_path']) || !empty($cible['video_src_path']));
         $row['items'][] = ['type' => 'video', 'nom' => $v['file'], 'id' => $v['id'], 'done' => $done,
                            'cible' => $spec['nom'] ?? null,
-                           'manual' => ($manualVid && !$spec), 'statut' => $cible['video_status'] ?? null];
+                           'manual' => ($manualVid && !$spec), 'statut' => $cible['video_status'] ?? null,
+                           // Pistes de sous-titres : la FR se télécharge pour être traduite
+                           // ailleurs, la NL se ré-importe ensuite par l'étape 2 ter.
+                           'sub_fr' => (string) ($cible['sub_fr_path'] ?? ''),
+                           'sub_nl' => (string) ($cible['sub_nl_path'] ?? ''),
+                           'sub_statut' => (string) ($cible['sub_status'] ?? '')];
         $done ? $stat['vidOk']++ : $stat['vidTodo']++;
         if ($manualVid && !$spec) { $stat['manuel']++; }
     }
@@ -983,6 +988,13 @@ $pageTitle = 'Import des médias legacy';
                                 <span class="tag t-ok">sur le volume</span>
                                 <?php if (($it['statut'] ?? '') === 'processing'): ?>
                                     <span class="tag t-todo">transcodage…</span>
+                                <?php elseif (($it['sub_statut'] ?? '') === 'processing'): ?>
+                                    <span class="tag t-todo">transcription…</span>
+                                <?php endif; ?>
+                                <?php if (!empty($it['sub_fr'])): ?>
+                                    <span class="tag t-ok">sous-titres</span>
+                                    <span class="tag <?= !empty($it['sub_nl']) ? 't-ok' : 't-todo' ?>">
+                                        <?= !empty($it['sub_nl']) ? 'NL' : 'NL manquant' ?></span>
                                 <?php endif; ?>
                             <?php else: ?>
                                 <span class="tag t-ok">sur le volume</span>
@@ -993,6 +1005,15 @@ $pageTitle = 'Import des médias legacy';
                             <?php endif; ?>
                         </td>
                         <td>
+                            <?php if ($it['type'] === 'video' && !empty($it['sub_fr'])): ?>
+                                <?php
+                                    // Nom déjà prêt pour le ré-import : il porte le code de la
+                                    // vidéo entre crochets, que l'étape 2 ter utilise pour router.
+                                    $stem = pathinfo((string) $it['nom'], PATHINFO_FILENAME);
+                                ?>
+                                <a class="btn btn-sm" style="text-decoration:none; display:inline-block"
+                                   href="media.php?dl=1&amp;f=<?= rawurlencode((string) $it['sub_fr']) ?>&amp;as=<?= rawurlencode($stem . '.vtt') ?>">⬇ VTT</a>
+                            <?php endif; ?>
                             <?php if ($it['type'] === 'pdf' && !empty($it['done']) && !empty($it['guide_id'])): ?>
                                 <form method="post" style="margin:0">
                                     <?= csrfField() ?>
