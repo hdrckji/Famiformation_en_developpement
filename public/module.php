@@ -259,7 +259,19 @@ $isVideoPage = !$isContainer && empty($module['is_booking']) && $mHasVideoAny &&
     <?php elseif ($isContainer): ?>
         <div class="tiles-container">
             <?php foreach ($children as $child): ?>
-                <?php if (!$isAdmin && function_exists('userCanSeeModule') && !userCanSeeModule($child, currentDisplayRole())) { continue; } ?>
+                <?php
+                    // Visibilité des tuiles : contrôle LITTÉRAL des profils, admin compris.
+                    // userCanSeeModule() renvoie true d'office pour l'admin (super-utilisateur) ;
+                    // ici ce raccourci nuit, car il lui montre les variantes réservées à
+                    // d'autres profils — les deux livrets d'accueil au lieu du sien.
+                    // L'admin garde l'accès complet par Paramètres → Modules, et peut
+                    // toujours ouvrir n'importe quel module par son URL.
+                    $rolesChild = trim((string) ($child['roles'] ?? ''));
+                    if ($rolesChild !== '') {
+                        $permis = array_filter(array_map('trim', explode(',', $rolesChild)));
+                        if (!in_array(currentDisplayRole(), $permis, true)) { continue; }
+                    }
+                ?>
                 <?php
                     $childActive = ((int) $child['is_active'] === 1);
                     $childLink = trim((string) ($child['link'] ?? ''));
