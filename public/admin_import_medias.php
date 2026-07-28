@@ -478,10 +478,22 @@ if (($_POST['action'] ?? '') === 'extract_images') {
     $st = $db->query("SELECT id, nom, pdf_path FROM modules WHERE content_kind = 'ecrit' AND pdf_path IS NOT NULL AND pdf_path <> ''");
     $n = 0;
     foreach (($st ? $st->fetchAll(PDO::FETCH_ASSOC) : []) as $g) {
-        $imgs = aiExtractPdfImages(moduleFileAbsPath($g['pdf_path']), (string) $g['pdf_path']);
+        $diag = null;
+        $imgs = aiExtractPdfImages(moduleFileAbsPath($g['pdf_path']), (string) $g['pdf_path'], $diag);
         $db->prepare("UPDATE modules SET contenu_images = ? WHERE id = ?")
            ->execute([$imgs ? json_encode($imgs) : null, (int) $g['id']]);
-        $flash[] = [$imgs ? 'ok' : 'skip', (string) $g['nom'], $imgs ? (count($imgs) . " image(s) retenue(s)") : "aucune image exploitable"];
+
+        // On dit TOUJOURS ce qui s'est passé : un « aucune image » muet ne permet
+        // pas de distinguer un outil absent d'un document sans photo.
+        $rejets = [];
+        foreach (['rejet_illisible' => 'illisibles', 'rejet_petite' => 'trop petites',
+                  'rejet_bandeau' => 'bandeaux', 'rejet_repetee' => 'répétées (habillage)'] as $k => $lib) {
+            if (!empty($diag[$k])) { $rejets[] = $diag[$k] . ' ' . $lib; }
+        }
+        $detail = $diag['brut'] . " extraite(s), " . $diag['gardees'] . " gardée(s)"
+            . ($rejets ? ' — écartées : ' . implode(', ', $rejets) : '')
+            . (!empty($diag['erreur']) ? ' — ' . $diag['erreur'] : '');
+        $flash[] = [$imgs ? 'ok' : 'warn', (string) $g['nom'], $detail];
         $n++;
     }
     if ($n === 0) {

@@ -319,15 +319,29 @@ if (!function_exists('aiExtractPdfImages')) {
      * Filtre les petites images (déco/logos). Retourne les clés relatives (servies par media.php).
      * @return string[] (vide si l'outil est absent ou pas d'images exploitables)
      */
-    function aiExtractPdfImages($pdfAbsPath, $pdfRelPath)
+    function aiExtractPdfImages($pdfAbsPath, $pdfRelPath, &$diag = null)
     {
-        if (!is_file($pdfAbsPath) || !function_exists('shell_exec')) {
+        // $diag (facultatif) recueille le détail : sans lui, un échec est
+        // indiscernable d'un PDF réellement sans photo — c'est ce qui rendait
+        // les mises au point impossibles.
+        $diag = ['binaire' => '', 'brut' => 0, 'gardees' => 0,
+                 'rejet_illisible' => 0, 'rejet_petite' => 0, 'rejet_bandeau' => 0,
+                 'rejet_repetee' => 0, 'erreur' => ''];
+
+        if (!is_file($pdfAbsPath)) {
+            $diag['erreur'] = 'PDF introuvable sur le volume';
+            return [];
+        }
+        if (!function_exists('shell_exec')) {
+            $diag['erreur'] = 'shell_exec désactivé par la configuration PHP';
             return [];
         }
         $bin = trim((string) @shell_exec('command -v pdfimages 2>/dev/null'));
         if ($bin === '') {
-            return []; // poppler-utils pas encore dispo -> pas d'images (dégradation propre)
+            $diag['erreur'] = 'pdfimages introuvable (paquet poppler-utils absent du conteneur)';
+            return [];
         }
+        $diag['binaire'] = $bin;
         $storeBase = defined('FAMI_STORAGE_BASE') ? FAMI_STORAGE_BASE : (__DIR__ . '/uploads');
         $name = preg_replace('/[^A-Za-z0-9_-]/', '_', pathinfo((string) $pdfRelPath, PATHINFO_FILENAME));
         if ($name === '') {
@@ -340,34 +354,61 @@ if (!function_exists('aiExtractPdfImages')) {
         }
         foreach ((array) glob($absDir . '/*') as $old) { @unlink($old); }
 
-        @shell_exec($bin . ' -all ' . escapeshellarg($pdfAbsPath) . ' ' . escapeshellarg($absDir . '/img') . ' 2>/dev/null');
+        // -png plutôt que -all : force une sortie lisible par getimagesize ET par
+        // les navigateurs. Avec -all, poppler produit aussi du TIFF/CCITT selon
+        // l'encodage d'origine — fichiers qu'on gardait mais qui ne s'affichaient
+        // jamais dans la fiche.
+        @shell_exec($bin . ' -png ' . escapeshellarg($pdfAbsPath) . ' ' . escapeshellarg($absDir . '/img') . ' 2>/dev/null');
 
-        // 1er passage : dimensions + hash de contenu (pour repérer les images répétées = logos/bandeaux).
+        // 1er passage : dimensions + hash de contenu (pour repérer la vraie déco).
         $files = (array) glob($absDir . '/img-*');
+        $diag['brut'] = count($files);
         $meta = [];
         $hashCount = [];
         foreach ($files as $f) {
             $info = @getimagesize($f);
-            if (!$info) { @unlink($f); continue; }
+            if (!$info) { $meta[$f] = ['motif' => 'illisible']; continue; }
             $w = (int) $info[0];
             $h = (int) $info[1];
             $ratio = $h > 0 ? $w / $h : 0;
-            $ok = ($w >= 160 && $h >= 160 && $ratio <= 6 && $ratio >= (1 / 6)); // écarte petites + bandeaux/traits
+            // Seuils assouplis : 160 px écartait des photos de diapositive
+            // parfaitement exploitables, et un ratio 6 rejetait les panoramiques.
+            $motif = '';
+            if ($w < 120 || $h < 120) { $motif = 'petite'; }
+            elseif ($ratio > 8 || $ratio < (1 / 8)) { $motif = 'bandeau'; }
             $hash = @md5_file($f);
-            $meta[$f] = ['ok' => $ok, 'hash' => (string) $hash];
-            if ($ok && $hash) { $hashCount[$hash] = ($hashCount[$hash] ?? 0) + 1; }
+            $meta[$f] = ['motif' => $motif, 'hash' => (string) $hash];
+            if ($motif === '' && $hash) { $hashCount[$hash] = ($hashCount[$hash] ?? 0) + 1; }
         }
-        // 2e passage : on garde les images valides ET UNIQUES (répétées sur plusieurs pages = déco -> écartées).
+        // 2e passage. La répétition ne suffit PLUS à disqualifier : une photo
+        // réutilisée sur deux diapositives est légitime. Seule une image présente
+        // au moins 3 fois est traitée comme de l'habillage (logo, bandeau de page).
         $out = [];
         foreach ($files as $f) {
             $m = $meta[$f] ?? null;
-            if (!$m || !$m['ok'] || (($hashCount[$m['hash']] ?? 0) !== 1)) { @unlink($f); continue; }
+            if (!$m || ($m['motif'] ?? '') !== '') {
+                $cle = 'rejet_' . (($m['motif'] ?? 'illisible') ?: 'illisible');
+                if (isset($diag[$cle])) { $diag[$cle]++; }
+                @unlink($f);
+                continue;
+            }
+            if (($hashCount[$m['hash']] ?? 0) >= 3) {
+                $diag['rejet_repetee']++;
+                @unlink($f);
+                continue;
+            }
             // Image conservée -> on l'allège (pdfimages sort souvent du PNG lourd non compressé).
             if (function_exists('famiCompressImageFile')) { famiCompressImageFile($f, 1600); }
             else { require_once __DIR__ . '/compress.php'; famiCompressImageFile($f, 1600); }
             $out[] = $relDir . '/' . basename($f);
         }
         sort($out); // ordre des pages
+        $diag['gardees'] = count($out);
+        if (!$out && $diag['erreur'] === '') {
+            $diag['erreur'] = $diag['brut'] === 0
+                ? 'pdfimages n\'a extrait aucune image : le document n\'en contient pas (texte ou vectoriel uniquement)'
+                : 'toutes les images extraites ont été écartées par les filtres';
+        }
         return $out;
     }
 }
