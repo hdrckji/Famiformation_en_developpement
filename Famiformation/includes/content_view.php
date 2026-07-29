@@ -247,7 +247,7 @@ if (!function_exists('renderUniformContent')) {
             . '<p class="outro__eyebrow">' . t('Formation terminée', 'Opleiding voltooid') . '</p>'
             . '<h2 class="outro__title">' . t('Bravo, vous avez tout parcouru&nbsp;!', 'Proficiat, je hebt alles doorlopen&nbsp;!') . '</h2>'
             . '<p class="outro__message">' . t('Une question&nbsp;? N\'hésitez pas à demander au personnel.', 'Een vraag&nbsp;? Aarzel niet om het personeel te vragen.') . '</p>'
-            . '<p class="outro__thanks">' . t('Merci pour votre écoute 🌿', 'Bedankt voor je aandacht 🌿') . '</p>'
+            . '<p class="outro__thanks">' . t('Merci pour votre attention 🌿', 'Bedankt voor je aandacht 🌿') . '</p>'
             . $outroCta
             . '</div></section></main>';
         $n = count($pages);
