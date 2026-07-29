@@ -817,6 +817,40 @@ body.mode-borne .home .home-role { margin-top: clamp(8px, 1.2vh, 14px); }
 body.mode-tele { justify-content: flex-start; padding-top: 20px; }
 body.mode-tele .fami-head { margin-bottom: 6px; }
 body.mode-tele #app { flex: 0 0 auto; }
+
+/* 📺 LA TÉLÉ TIENT DANS L'ÉCRAN, SANS DÉFILEMENT.
+   Toutes les tailles ci-dessus sont calées sur la LARGEUR (clamp(…, 26vw, …)).
+   Sur un écran mural — large mais peu haut — le chrono seul prenait la moitié
+   de la hauteur et le classement partait sous le bord bas. Il fallait faire
+   défiler, ce que personne ne fait devant une télé accrochée au mur.
+   On borne donc chaque taille par la HAUTEUR aussi : min(taille, Xvh). L'écran
+   se remplit toujours autant, mais rien ne dépasse plus. */
+body.mode-tele {
+  height: 100vh; height: 100dvh;
+  padding: 14px 18px 18px;
+  overflow: hidden;                 /* ce qui compte se voit d'un seul coup d'œil */
+  box-sizing: border-box;
+}
+body.mode-tele .fami-head { margin-bottom: 2px; }
+body.mode-tele .fami-logo { font-size: min(2.4rem, 5vh); }
+body.mode-tele .fami-magasin { font-size: min(1.4rem, 3vh); }
+body.mode-tele #app { width: 100%; }
+body.mode-tele .tv { padding: 0; }
+
+/* Compte à rebours : c'est lui qui débordait le plus. */
+body.mode-tele .tv-phase  { font-size: min(1.6rem, 3.4vh); padding: min(10px, 1.3vh) 26px; margin-bottom: min(24px, 2.6vh); }
+body.mode-tele .tv-chrono { font-size: min(17rem, 26vw, 44vh); }
+body.mode-tele .tv-tree   { font-size: min(3.6rem, 11vh); margin-top: min(14px, 1.4vh); }
+body.mode-tele .tv-sub    { font-size: min(1.5rem, 3.2vh); margin-top: min(12px, 1.4vh); }
+
+/* Classement + QR côte à côte : on les aligne en haut et on retire la grande
+   marge qui poussait le QR vers le bas. */
+body.mode-tele .tv-cols  { gap: min(30px, 2.5vw); align-items: flex-start; }
+body.mode-tele .tv-row   { font-size: min(1.5rem, 3vh); padding: min(12px, 1.4vh) 20px; margin-bottom: min(10px, 1.1vh); }
+body.mode-tele .tv-qr    { margin-top: 0; width: min(280px, 20vw, 30vh); }
+body.mode-tele .tv-codes { font-size: min(1.5rem, 2.8vh); padding: min(10px, 1.2vh) 14px; margin-bottom: min(16px, 1.8vh); }
+body.mode-tele .tv-scan  { font-size: min(1.6rem, 3vh); margin-top: min(14px, 1.4vh); }
+body.mode-tele .tv-url   { font-size: min(1.05rem, 2.2vh); }
 .tv-cols { display: flex; gap: 30px; align-items: center; justify-content: center; flex-wrap: wrap; }
 .tv-board { flex: 1 1 320px; max-width: 520px; text-align: left; }
 .tv-row { display: flex; justify-content: space-between; gap: 12px; background: var(--craie); border-radius: 14px;
@@ -2014,11 +2048,45 @@ function renderCountdown() {
   }
 }
 
+// 📺 AJUSTEMENT AUTOMATIQUE DE L'ÉCRAN TÉLÉ.
+//
+// Les tailles du CSS sont bornées par la hauteur, mais un téléviseur reste
+// imprévisible : résolution réelle différente de celle annoncée, zoom du
+// navigateur, bords rognés par la dalle (overscan), classement plus ou moins
+// long selon le nombre de joueurs… Plutôt que de deviner, on MESURE le bloc
+// une fois affiché et on le réduit juste ce qu'il faut pour qu'il tienne.
+//
+// C'est ce qui garantit que rien ne sort de l'écran, sur n'importe quelle télé.
+function ajusteTele() {
+  if (!document.body.classList.contains("mode-tele")) return;
+  const bloc = document.querySelector(".tv, .tf-wrap, .tw");
+  if (!bloc) return;
+  bloc.style.transform = "";                 // on repart toujours de la taille naturelle
+  bloc.style.transformOrigin = "top center";
+  const haut = bloc.getBoundingClientRect().top;
+  const dispo = window.innerHeight - haut - 14;   // 14 px d'air en bas
+  const besoin = bloc.scrollHeight;
+  if (besoin > 0 && dispo > 0 && besoin > dispo) {
+    // Plancher à 0,45 : en dessous, ce serait illisible de loin — mieux vaut
+    // alors que ça déborde un peu et que tu le voies, plutôt qu'un écran
+    // minuscule dont personne ne comprend le problème.
+    bloc.style.transform = "scale(" + Math.max(0.45, dispo / besoin) + ")";
+  }
+}
+// Après chaque affichage (le rendu est synchrone, mais les polices et le QR
+// arrivent après) et à chaque changement de taille d'écran.
+function ajusteTeleBientot() {
+  requestAnimationFrame(ajusteTele);
+  setTimeout(ajusteTele, 250);    // une fois les polices et l'image du QR posées
+}
+window.addEventListener("resize", ajusteTele);
+
 // 📺 TÉLÉ — les 10 dernières secondes : uniquement un chiffre géant (10 → 1).
 function teleFinal() {
   document.body.classList.add("mode-tele");
   FEE.stop(); stopHerbes();
   app.innerHTML = `<div class="tf-wrap"><div class="tf-num" id="tf-num">10</div></div>`;
+  ajusteTeleBientot();
   clearInterval(tickTimer); clearTimeout(tickTimer);
   const maj = () => {
     const diff = CONFIG.dateLancement.getTime() - Date.now();
@@ -3703,6 +3771,7 @@ function renderSimTele() {
       <div class="tv-tree" id="tvTree">${arbreCourt(n)}</div>
       <div class="tv-sub">Regarde l'arbre grandir… 🌱</div>
     </div>`;
+    ajusteTeleBientot();
     FEE.start();   // la fée est là aussi dans l'aperçu télé
     const it = setInterval(() => {
       const c = document.getElementById("tvC"), tr = document.getElementById("tvTree");
@@ -3737,6 +3806,7 @@ function renderSimTele() {
         </div>
       </div>
     </div>`;
+    ajusteTeleBientot();
     simTimers.push(setTimeout(phaseChrono, 12000));   // puis on reboucle sur le chrono
   }
 
@@ -3805,6 +3875,7 @@ async function renderTeleBoard() {
       </div>
     </div>
   </div>`;
+  ajusteTeleBientot();
   // Rafraîchissement auto. À la fin, on ALTERNE avec l'écran des 3 vainqueurs.
   clearInterval(tickTimer); clearTimeout(tickTimer);
   tickTimer = setTimeout(() => {
@@ -3837,6 +3908,7 @@ async function renderTeleWinners() {
     </div>
     <div class="tw-merci">Bravo et merci à toutes et tous d'avoir joué 🌱 · Proficiat en bedankt aan iedereen!</div>
   </div>`;
+  ajusteTeleBientot();
   lanceConfettis(7000);
   tickTimer = setTimeout(() => renderTeleBoard(), 13000);
 }
