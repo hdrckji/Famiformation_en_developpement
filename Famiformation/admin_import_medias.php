@@ -678,6 +678,108 @@ if (($_POST['action'] ?? '') === 'import_json') {
 }
 
 // ------------------------------------------------------------------
+//  ACTION 2 quinquies — PLACER LES IMAGES DANS LES FICHES (appel IA court).
+//
+//  On n'envoie PAS le PDF : seulement la fiche déjà rédigée et les images
+//  retenues. Une fiche fait quelques milliers de tokens là où un gros PDF en
+//  fait cent mille — c'est donc environ dix fois moins cher qu'une nouvelle
+//  extraction, pour la seule chose qui manque : savoir OÙ va chaque image.
+// ------------------------------------------------------------------
+if (($_POST['action'] ?? '') === 'place_images') {
+    requireValidCSRF();
+    @set_time_limit(0);
+    require_once 'includes/ia_settings.php';
+    require_once 'includes/ai_uniformise.php';
+    require_once 'includes/ia_usage.php';
+
+    $cle = getenv('ANTHROPIC_API_KEY') ?: ($_SERVER['ANTHROPIC_API_KEY'] ?? '');
+    if (!$cle) {
+        $flash[] = ['ko', 'IA', "clé ANTHROPIC_API_KEY absente"];
+    } else {
+        $modele = function_exists('iaSelectedModel') ? iaSelectedModel($db) : 'claude-sonnet-5';
+        $q = $db->query("SELECT id, nom, contenu_ia, contenu_images FROM modules
+                          WHERE contenu_ia IS NOT NULL AND contenu_ia <> ''
+                            AND contenu_images IS NOT NULL AND contenu_images <> ''");
+        $total = 0.0;
+        foreach (($q ? $q->fetchAll(PDO::FETCH_ASSOC) : []) as $m) {
+            $imgs = (array) json_decode((string) $m['contenu_images'], true);
+            $data = json_decode((string) $m['contenu_ia'], true);
+            $blocs = (is_array($data) && !empty($data['blocks'])) ? $data['blocks'] : null;
+            if (!$imgs || !$blocs) { continue; }
+
+            // Déjà placées : on ne repaie pas.
+            $dejaPlacees = 0;
+            foreach ($blocs as $b) { if (($b['type'] ?? '') === 'image') { $dejaPlacees++; } }
+            if ($dejaPlacees >= count($imgs)) {
+                $flash[] = ['skip', (string) $m['nom'], "images déjà placées"];
+                continue;
+            }
+
+            $contenu = [];
+            foreach ($imgs as $i => $k) {
+                $abs = moduleFileAbsPath((string) $k);
+                $bin = is_file($abs) ? @file_get_contents($abs) : '';
+                if ($bin === '' || $bin === false) { continue; }
+                $mt = function_exists('mime_content_type') ? (@mime_content_type($abs) ?: 'image/png') : 'image/png';
+                $contenu[] = ['type' => 'text', 'text' => 'Image n°' . ($i + 1) . ' :'];
+                $contenu[] = ['type' => 'image', 'source' => ['type' => 'base64', 'media_type' => $mt, 'data' => base64_encode($bin)]];
+            }
+            if (!$contenu) { continue; }
+
+            $contenu[] = ['type' => 'text', 'text' =>
+                "Voici la fiche de formation, en JSON :\n\n" . json_encode($blocs, JSON_UNESCAPED_UNICODE)
+                . "\n\nInsère les " . count($imgs) . " images ci-dessus dans cette fiche, chacune UNE SEULE FOIS, "
+                . "sous la forme {\"type\":\"image\",\"n\":N,\"caption\":\"...\"} où N est le numéro annoncé.\n"
+                . "Place chaque image juste après le passage qu'elle illustre, en te fiant à CE QUE TU VOIS.\n"
+                . "Écris une légende courte et fidèle à l'image.\n"
+                . "Ne modifie AUCUN autre bloc : ni le texte, ni l'ordre, ni les titres.\n"
+                . "Réponds UNIQUEMENT par le tableau JSON complet des blocs, sans texte autour."];
+
+            $res = aiClaudeStreamText($cle, [
+                'model' => $modele,
+                'max_tokens' => 12000,
+                'messages' => [['role' => 'user', 'content' => $contenu]],
+            ]);
+            if (is_array($res) && empty($res['ok'])) {
+                $flash[] = ['ko', (string) $m['nom'], "appel IA échoué : " . (string) ($res['error'] ?? '?')];
+                continue;
+            }
+            $txt = is_array($res) ? (string) ($res['text'] ?? '') : (string) $res;
+            $deb = strpos($txt, '[');
+            $fin = strrpos($txt, ']');
+            $nouveaux = ($deb !== false && $fin !== false) ? json_decode(substr($txt, $deb, $fin - $deb + 1), true) : null;
+            $propres = is_array($nouveaux) ? aiSanitizeBlocks($nouveaux) : [];
+
+            // Garde-fou : si l'IA a perdu du contenu en route, on ne remplace pas.
+            if (count($propres) < count($blocs)) {
+                $flash[] = ['ko', (string) $m['nom'], "réponse incomplète — fiche laissée intacte"];
+                continue;
+            }
+            $lang = (is_array($data) && !empty($data['lang'])) ? $data['lang'] : 'fr';
+            $db->prepare("UPDATE modules SET contenu_ia = ? WHERE id = ?")
+               ->execute([json_encode(['lang' => $lang, 'blocks' => $propres], JSON_UNESCAPED_UNICODE), (int) $m['id']]);
+
+            // aiClaudeStreamText() ne renvoie que les tokens : le coût se calcule ici,
+            // avec la même grille tarifaire que le reste du site.
+            $cout = 0.0;
+            if (is_array($res) && function_exists('aiModelPricing')) {
+                $tarifs = aiModelPricing();
+                $t = $tarifs[$modele] ?? [2.0, 10.0];
+                $cout = (((int) ($res['in'] ?? 0)) * $t[0] + ((int) ($res['out'] ?? 0)) * $t[1]) / 1000000;
+            }
+            $total += $cout;
+            if (is_array($res)) {
+                iaLogUsage($db, (int) ($_SESSION['user_id'] ?? 0), 'placement_images', $modele,
+                    (int) ($res['in'] ?? 0), (int) ($res['out'] ?? 0), $cout, (int) $m['id']);
+            }
+            $flash[] = ['ok', (string) $m['nom'], count($imgs) . " image(s) placée(s)"
+                . ($cout ? " (≈ " . number_format($cout, 3) . " €)" : "")];
+        }
+        if ($total > 0) { $flash[] = ['ok', 'total', "≈ " . number_format($total, 2) . " €"]; }
+    }
+}
+
+// ------------------------------------------------------------------
 //  ACTION 3 bis — RÉPARATION DE STRUCTURE.
 //
 //  Les premiers imports appliquaient la règle « contenu ⇒ créer un sous-module
@@ -1064,6 +1166,16 @@ $pageTitle = 'Import des médias legacy';
                     </div>
                 </div>
             <?php endforeach; ?>
+        <?php endif; ?>
+
+        <?php if ($galerie): ?>
+            <form method="post" style="margin:10px 0 16px"
+                  onsubmit="return confirm('Placer les images dans toutes les fiches ?\n\nUn appel IA court par document (la fiche + ses images, pas le PDF). Compte quelques centimes par document.');">
+                <?= csrfField() ?><input type="hidden" name="action" value="place_images">
+                <button class="btn btn-go" type="submit">⚡ Placer automatiquement les images dans les fiches</button>
+                <span class="muted"> — le plus rapide : n'envoie que la fiche et ses images, jamais le PDF.
+                    Les fiches dont les images sont déjà placées sont ignorées.</span>
+            </form>
         <?php endif; ?>
 
         <?php if ($manifest): ?>
