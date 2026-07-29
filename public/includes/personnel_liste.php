@@ -289,6 +289,9 @@ if (!function_exists('personnelListe')) {
             ['Wybo', 'Christophe', 'FAMIFLOR NV'],
             ['Ysebaert', 'Sarah', 'FAMIFLORA MOUSCRON FAMIZOO NV'],
             ['Zajac', 'Constant', 'FAMIFLORA MOUSCRON DECO NV'],
+            // Ajouts manuels, hors export Excel. À reporter dans l'export lors de
+            // la prochaine mise à jour, sinon ils disparaîtront à la régénération.
+            ['Louv', 'Jean', 'AJOUT MANUEL'],
         ];
     }
 }

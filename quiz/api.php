@@ -114,6 +114,170 @@ function estFavoriParTexte($q) {
   }
   return false;
 }
+
+/**
+ * 🚫 QUESTIONS ÉCARTÉES DU QUIZ.
+ *
+ * Elles restent dans la base Famiformation (elles ont leur place dans les
+ * formations, où l'on a le support sous les yeux), mais elles n'ont rien à faire
+ * dans un quiz joué en magasin : impossible d'y répondre sans avoir la vidéo, le
+ * document ou la fiche produit devant soi, ou sans avoir suivi cette formation-là.
+ *
+ * On les écarte PAR LEUR TEXTE, à la réinstallation des questions : rien n'est
+ * supprimé, il suffit de retirer une ligne d'ici pour qu'une question revienne.
+ */
+$QUESTIONS_EXCLUES = [
+  // Renvoient à un support que le joueur n'a pas.
+  "Quelle est la mission principale de Famiflora présentée dans la vidéo ?",
+  "Où le client doit-il se rendre une fois muni de son article et du document ?",
+  "Le message final du document est :",
+  // Formation Becosoft : incompréhensible sans la fiche article ouverte.
+  "À quoi correspond la valeur \"Vfami\" dans la fiche article ?",
+  "Que signifie l'onglet \"Voorraadlocaties\" dans la fiche article ?",
+  // Parcours de formation numéroté jour par jour : hors sujet pour qui ne l'a pas suivi.
+  "Jour 2 concerne :",
+  "Jour 4 concerne :",
+  "Jour 5 concerne :",
+  "Jour 6 concerne:",
+  "Jour 7 sert à :",
+  "Jour 8 concerne:",
+  // Énoncés tronqués : la question ne se suffit pas à elle-même.
+  "La marraine est :",
+  "Le gerbeur est :",
+  "La Rose de Leary est :",
+  "Les grilles Napoléon sont :",
+  "Bon charbon =",
+  "Le modèle Nestor est :",
+  "Les fixations de couverture sont :",
+  "Les LED sont :",
+  "Le panneau de commande est :",
+  "La bande LED est :",
+  "Le PureSpa Glow est :",
+  "Le design du PureSpa Glow est :",
+  // Saisie accidentelle.
+  "kjjnknk",
+
+  // Role « relais marketing » — 19 questions.
+  "Le relais marketing est un point de :",
+  "Le relais marketing fait le lien entre :",
+  "Le relais marketing aide à :",
+  "Le relais marketing propose :",
+  "Le relais marketing travaille sur :",
+  "Le relais marketing est force de :",
+  "Pourquoi solliciter du relais marketing ?",
+  "L'objectif du relais marketing est :",
+  "Le relais marketing contribue à :",
+  "Le relais marketing participe à :",
+  "Le relais marketing fait vivre :",
+  "Le relais marketing centralise :",
+  "Le relais marketing est disponible pour :",
+  "Le relais marketing accompagne :",
+  "Le relais marketing travaille en lien avec :",
+  "Le relais marketing propose des idées :",
+  "Le relais marketing peut aider pour :",
+  "Le relais marketing suit :",
+  "Le rôle du relais marketing principal est :",
+
+  // Outil « fichier de suivi » — 4 questions.
+  "Le fichier de suivi sert à :",
+  "Le fichier de suivi permet de :",
+  "Dans le fichier de suivi on y note :",
+  "L’objectif du fichier de suivi est :",
+
+  // Programme de marrainage — 8 questions.
+  "La marraine doit :",
+  "La marraine aide à :",
+  "La marraine doit créer :",
+  "La marraine transmet :",
+  "La marraine encourage :",
+  "La marraine doit répondre :",
+  "La marraine fait :",
+  "La marraine observe pour :",
+
+  // Parcours jour par jour — 5 questions.
+  "Jour 1 correspond à :",
+  "Jour 1: On apprend à :",
+  "Jour 1: On découvre :",
+  "Jour 3 est dédié à :",
+  "Jour 7, on vérifie :",
+
+  // Gamme barbecue — 37 questions.
+  "Que possèdent tous les BBQ pour protéger les brûleurs ?",
+  "Que fait la fonte lorsqu’on éteint le BBQ ?",
+  "De quoi est fait le couvercle des BBQ Weber ?",
+  "De quoi est faite la cuve des BBQ Weber ?",
+  "Peut-on fermer le BBQ en cuisant des aliments gras ?",
+  "Pourquoi ne faut-il pas fermer le BBQ avec des aliments gras ?",
+  "Que peut contenir le meuble sous le BBQ ?",
+  "Pourquoi le meuble sous le BBQ est-il ventilé ?",
+  "Quels BBQ peuvent être transformés en plancha ?",
+  "Comment transformer ces BBQ en plancha ?",
+  "Que nécessitent les petits BBQ portatifs ?",
+  "Quel type de cuisson est fréquent avec les BBQ à pellet ?",
+  "Quelle est l’origine de la marque Napoleon ?",
+  "Pourquoi la marque Napoleon s’appelle-t-elle ainsi ?",
+  "En général, Napoleon est moins cher :",
+  "De quelle couleur sont les nouveaux couvercles des BBQ gaz Napoleon ?",
+  "La cuve des BBQ Napoleon est en :",
+  "Garantie de la cuve Napoléon :",
+  "Garantie des brûleurs Napoléon :",
+  "Le « pont » entre les brûleurs Napoléon sert à :",
+  "Le système d’allumage Napoléon s’appelle :",
+  "Pourquoi utiliser une feuille d’aluminium dans le BBQ ?",
+  "Après pyrolyse, il faut :",
+  "Une face des grilles Napoléon sert à :",
+  "La Sizzle Zone permet :",
+  "Température de la Sizzle Zone :",
+  "On peut aussi utiliser la Sizzle Zone pour :",
+  "Le détendeur Napoléon et le tuyau sont :",
+  "On peut transformer un BBQ gaz en :",
+  "Sur BBQ charbon Pro : hauteur de grille :",
+  "BBQ électrique : il faut :",
+  "Les housses sont plus courtes pour :",
+  "Pourquoi vider un BBQ charbon ?",
+  "Dans un brasero, on utilise :",
+  "Les BBQ Barbecook sont en :",
+  "Température idéale grillade :",
+  "Un BBQ fermé permet :",
+
+  // Gamme spa / piscine — 28 questions.
+  "Avec quel produit doit être utilisé Oxy Pool & Spa ?",
+  "Quel est le nouveau coloris du PureSpa Bubble Massage ?",
+  "Le PureSpa Bubble Massage est compatible avec :",
+  "Le PureSpa Glow est conçu pour combien de personnes ?",
+  "Le PureSpa Glow possède :",
+  "Combien de LED possède le PureSpa Glow ?",
+  "Les LED sont alimentées par :",
+  "Le PureSpa Glow dispose de :",
+  "Le spa utilise quel système d’eau ?",
+  "La cartouche du PureSpa Glow est :",
+  "Indice de protection du spa :",
+  "Les lumières LED peuvent être :",
+  "Les LED sont contrôlées via :",
+  "Le spa est décrit comme :",
+  "La connexion LED se fait via :",
+  "L’alimentation LED est :",
+  "Le PureSpa Bubble Massage est considéré comme :",
+  "Le spa Bubble Massage conserve :",
+  "Le système LED permet :",
+  "Le spa est alimenté en LED :",
+  "Le PureSpa Glow est décrit comme :",
+  "Le panneau WiFi est compatible avec :",
+  "Le spa est résistant :",
+  "Le PureSpa Bubble Massage offre :",
+  "Le système de stérilisation est :",
+  "Les LED sont placées :",
+  "Le spa fonctionne avec :",
+  "Le PureSpa Glow appartient à la gamme :",
+];
+function estQuestionExclue($q) {
+  global $QUESTIONS_EXCLUES;
+  $n = normaliseTexteQuestion($q);
+  foreach ($QUESTIONS_EXCLUES as $ref) {
+    if ($n === normaliseTexteQuestion($ref)) { return true; }
+  }
+  return false;
+}
 $CODE_GRAINES = 10;   // graines par code bonus (comptent dans le classement)
 $MAX_CODES    = 2;    // combien de codes une même personne peut cumuler
 
@@ -2351,6 +2515,8 @@ switch ($action) {
           $optsNl[] = trim((string)($r[$col . '_nl'] ?? ''));   // NL aligné (vide → fallback FR)
         }
         if ($q === '' || count($opts) < 2) { continue; }
+        // Injouable sans le support ou la formation : on l'écarte du quiz.
+        if (estQuestionExclue($q)) { continue; }
         // Y a-t-il une VRAIE traduction NL de la question (énoncé ou vraies réponses) ?
         // On regarde AVANT d'ajouter la réponse rigolote, pour ne pas afficher une seule
         // proposition en NL au milieu d'une question restée en FR.

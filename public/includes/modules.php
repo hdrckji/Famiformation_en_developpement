@@ -590,6 +590,44 @@ if (!function_exists('ensureModulesTable')) {
             //     vers le présentiel). On la DÉSACTIVE seulement — surtout pas de
             //     suppression : le module et son historique doivent rester intacts
             //     pour pouvoir le rallumer d'un simple is_active = 1.
+            // 23) PERSONNEL RECONNU → PROFIL MAGASIN, AUTOMATIQUEMENT.
+            //     La page « Tri des profils » demandait une validation à la main.
+            //     Ce n'était pas la demande : tout compte beta dont le nom figure
+            //     dans la liste du personnel doit basculer, sans intervention.
+            //
+            //     Garde-fous : SEULS les comptes « beta » sont touchés (un profil
+            //     choisi à la main n'est jamais écrasé), et seuls les noms
+            //     réellement présents dans la liste. welcome_seen repasse à 0 pour
+            //     que ces personnes soient accueillies comme il se doit : passer en
+            //     employé, c'est leur première visite du vrai site.
+            //
+            //     Le drapeau porte un numéro de version : pour rejouer la bascule
+            //     après un ajout à la liste, passer à _v2, _v3…
+            if (!$hasFlag('bascule_personnel_magasin_v1')) {
+                foreach ([__DIR__ . '/personnel_liste.php'] as $pl) {
+                    if (is_file($pl)) { require_once $pl; }
+                }
+                if (function_exists('personnelTrouve') && function_exists('personnelRoleCible')) {
+                    $betas = $db->query("SELECT id, prenom, nom FROM utilisateurs WHERE role = 'beta'")
+                                ->fetchAll(PDO::FETCH_ASSOC);
+                    $majRole = $db->prepare("UPDATE utilisateurs SET role = ? WHERE id = ? AND role = 'beta'");
+                    $majAcc  = $db->prepare("UPDATE utilisateurs SET welcome_seen = 0 WHERE id = ?");
+                    $bascules = 0;
+                    foreach ($betas as $u) {
+                        if (!personnelTrouve($u['nom'] ?? '', $u['prenom'] ?? '')) { continue; }
+                        $majRole->execute([personnelRoleCible(), (int) $u['id']]);
+                        if ($majRole->rowCount() > 0) {
+                            $bascules++;
+                            try { $majAcc->execute([(int) $u['id']]); } catch (Exception $e) {}
+                        }
+                    }
+                    if ($bascules > 0) {
+                        error_log('[FamiFormation] bascule personnel : ' . $bascules . ' compte(s) beta passes en ' . personnelRoleCible());
+                    }
+                }
+                $setFlag('bascule_personnel_magasin_v1');
+            }
+
             // 22) DESCRIPTIONS DES TUILES : dire à quoi sert chaque module.
             //     Les textes d'origine décrivaient le contenu ; ils ne disaient pas
             //     ce qu'on vient y faire, ni que certaines tuiles se remplissent
