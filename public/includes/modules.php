@@ -135,7 +135,7 @@ if (!function_exists('ensureModulesTable')) {
                 $base = [
                     // [nom, description, icône, rôles (accès), lien]
                     ['Onboarding', 'Bienvenue chez Famiflora — découverte de notre univers.', '🚀', '', 'onboarding.php'],
-                    ['Formation', 'Formations en ligne et en présentiel.', '📅', '', 'formation.php'],
+                    ['Formation', 'Formations en présentiel (sessions planifiées).', '📅', '', 'formation.php'],
                     ['Magasin', 'Procédures de vente et caisses.', '🛒', 'admin,teamcoach,mentor,employe_magasin', 'magasin.php'],
                     ['Management', 'Outils et formations pour managers et mentors.', '🧑‍💼', 'admin,teamcoach,mentor', 'management.php'],
                     ['Becosoft', 'Logiciel de gestion de stock.', '💻', $nonEtu, 'formation_becosoft.php'],
@@ -582,6 +582,30 @@ if (!function_exists('ensureModulesTable')) {
             if (!$hasFlag('fix_root_zero_sort_v1')) {
                 $db->exec("UPDATE modules SET sort_order = 900 + id WHERE parent_id IS NULL AND sort_order = 0");
                 $setFlag('fix_root_zero_sort_v1');
+            }
+
+            // 21) FORMATIONS EN LIGNE : mises de côté pour l'instant. Le module
+            //     « Formation » ne propose plus que le PRÉSENTIEL, donc la tuile
+            //     « En ligne » n'a plus rien à ouvrir (formation.php redirige tout
+            //     vers le présentiel). On la DÉSACTIVE seulement — surtout pas de
+            //     suppression : le module et son historique doivent rester intacts
+            //     pour pouvoir le rallumer d'un simple is_active = 1.
+            if (!$hasFlag('hide_formation_enligne_v1')) {
+                $formationRootId = (int) $db->query("SELECT id FROM modules WHERE nom = 'Formation' AND parent_id IS NULL ORDER BY id ASC LIMIT 1")->fetchColumn();
+                if ($formationRootId > 0) {
+                    $db->prepare("UPDATE modules SET is_active = 0 WHERE nom = 'En ligne' AND parent_id = ?")
+                       ->execute([$formationRootId]);
+                    // La description de la tuile annonçait « en ligne et en présentiel ».
+                    // On ne la corrige QUE si elle est restée telle quelle : une
+                    // description réécrite à la main ne doit pas être écrasée.
+                    $db->prepare("UPDATE modules SET description = ? WHERE id = ? AND description = ?")
+                       ->execute([
+                           'Formations en présentiel (sessions planifiées).',
+                           $formationRootId,
+                           'Formations en ligne et en présentiel.',
+                       ]);
+                }
+                $setFlag('hide_formation_enligne_v1');
             }
         } catch (Exception $e) {
             // migration non critique : on ignore

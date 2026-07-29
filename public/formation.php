@@ -16,11 +16,25 @@ if ($role === 'etudiant') {
 }
 
 
-// Vue courante : landing (2 modules), présentiel, ou en ligne
+// 🚧 FORMATIONS EN LIGNE : DÉSACTIVÉES POUR L'INSTANT.
+// Le module Formation ne propose que le PRÉSENTIEL. On ne montre donc plus
+// l'écran de choix (il n'y a plus de choix à faire) et on va droit aux sessions.
+// L'ancienne vue « en ligne » est redirigée plutôt que supprimée : un lien
+// resté dans un mail, un favori ou une tuile ne doit pas tomber sur du vide.
+// Pour la remettre : repasser $FORMATIONS_EN_LIGNE_ACTIVES à true, et
+// réactiver le module « En ligne » dans includes/modules.php.
+$FORMATIONS_EN_LIGNE_ACTIVES = false;
+
 $vue = $_GET['vue'] ?? '';
 if (!in_array($vue, ['presentiel', 'enligne'], true)) {
     $vue = '';
 }
+if (!$FORMATIONS_EN_LIGNE_ACTIVES) {
+    $vue = 'presentiel';
+}
+// Sans écran de choix, « Retour » doit ramener à l'accueil : renvoyer sur
+// formation.php reviendrait ici même, donc sur un bouton qui ne fait rien.
+$lienRetour = $FORMATIONS_EN_LIGNE_ACTIVES ? 'formation.php' : 'index.php';
 
 // Restriction accès planning pour étudiant sans quizz validés (uniquement en présentiel)
 // Flag pour le pop-up
@@ -301,7 +315,7 @@ $publicLabels = [
         </div>
 
         <?php elseif ($vue === 'enligne'): ?>
-        <a href="formation.php" style="display:inline-block; color:#2d5a37; font-weight:bold; text-decoration:none; margin-bottom:10px;">⬅ Retour</a>
+        <a href="<?= e($lienRetour) ?>" style="display:inline-block; color:#2d5a37; font-weight:bold; text-decoration:none; margin-bottom:10px;">⬅ Retour</a>
         <h1>💻 Formations en ligne</h1>
         <p style="color: #666; margin-bottom: 30px;">Formations à réaliser directement sur le site. Consultez le contenu, vous serez ensuite évalué.</p>
         <?php if (!empty($formationsEnLigne)): ?>
@@ -321,7 +335,7 @@ $publicLabels = [
         <?php endif; ?>
 
         <?php else: ?>
-        <a href="formation.php" style="display:inline-block; color:#2d5a37; font-weight:bold; text-decoration:none; margin-bottom:10px;">⬅ Retour</a>
+        <a href="<?= e($lienRetour) ?>" style="display:inline-block; color:#2d5a37; font-weight:bold; text-decoration:none; margin-bottom:10px;">⬅ Retour</a>
         <?php if ($role === 'admin' || $role === 'employe_magasin' || $role === 'teamcoach' || $role === 'mentor'): ?>
               <?php if (isset($_SESSION['role']) && $_SESSION['role'] !== 'teamcoach') : ?>
                  <a href="admin_formations.php" class="btn-admin-top">⚙️ Gérer les sessions</a>
