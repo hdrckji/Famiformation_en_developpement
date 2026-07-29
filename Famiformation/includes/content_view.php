@@ -376,23 +376,15 @@ if (!function_exists('renderUniformContent')) {
         .fami-doc { scroll-behavior: smooth; }
         .fami-doc .page{ scroll-margin-top: 16px; }
         </style>
-        <script>
-        // uniGoto() était appelée par le sommaire et par « Commencer la formation »
-        // mais n'était définie nulle part : les liens ne faisaient donc rien.
-        // Elle fait simplement défiler jusqu'à la section demandée.
-        function uniGoto(n) {
-            var cible = document.getElementById('uni-p' + n);
-            if (!cible) { return; }
-            cible.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-        </script>
 
         <div class="fami-doc">
             <div class="doc-view doc-read">
                 <?php foreach ($pages as $i => $html): ?>
-                    <div class="doc-page" data-page="<?= (int) $i ?>" <?= $i === 0 ? '' : 'style="display:none;"' ?>><?= $html ?></div>
+                    <?php /* Lecture en continu : toutes les sections sont visibles et
+                             s'enchaînent. Plus de display:none ni de pagination. */ ?>
+                    <div class="doc-page" data-page="<?= (int) $i ?>"><?= $html ?></div>
                 <?php endforeach; ?>
-                <?php if ($n > 1): ?>
+                <?php if (false): ?>
                     <nav class="pagenav" aria-label="<?= t('Navigation entre les pages', 'Paginanavigatie') ?>">
                         <button type="button" class="pagenav__link pagenav__link--prev" id="uniPrev" onclick="uniPage(-1)"><span aria-hidden="true">←</span> <?= t('Précédent', 'Vorige') ?></button>
                         <p class="pagenav__counter"><?= t('Page', 'Pagina') ?> <strong id="uniCur">1</strong> / <?= (int) $n ?></p>
@@ -445,21 +437,37 @@ if (!function_exists('renderUniformContent')) {
                 if (eye) { eye.textContent = showPdf ? '📖' : '👁'; eye.title = showPdf ? <?= json_encode(t('Revenir à la lecture', 'Terug naar het lezen')) ?> : <?= json_encode(t('Voir le PDF original', 'Originele PDF bekijken')) ?>; }
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             };
+            // Lecture en continu : « aller à la page N » = y faire défiler.
             function show(i) {
                 idx = Math.max(0, Math.min(total - 1, i));
-                visited[idx] = true; // page vue (pour le suivi de lecture)
-                document.querySelectorAll('.doc-page').forEach(function (p) {
-                    p.style.display = (parseInt(p.getAttribute('data-page'), 10) === idx) ? '' : 'none';
-                });
-                var c = document.getElementById('uniCur'); if (c) { c.textContent = idx + 1; }
-                var pv = document.getElementById('uniPrev'), nx = document.getElementById('uniNext');
-                if (pv) { pv.disabled = (idx === 0); }
-                if (nx) { nx.disabled = (idx === total - 1); }
-                var d = document.querySelector('.fami-doc');
-                if (d && d.scrollIntoView) { d.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+                var cible = document.querySelector('.doc-page[data-page="' + idx + '"]');
+                if (cible && cible.scrollIntoView) { cible.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
             }
             window.uniPage = function (d) { show(idx + d); };
             window.uniGoto = function (i) { show(i); };
+
+            // Suivi de lecture : une section compte comme vue quand elle a
+            // réellement traversé l'écran. Avec l'ancien système page par page,
+            // c'était le clic sur « Suivant » qui le prouvait ; ici il faut
+            // observer le défilement, sinon tout serait « lu » dès l'ouverture.
+            (function () {
+                var pages = document.querySelectorAll('.doc-page');
+                if (!pages.length) { return; }
+                if (!('IntersectionObserver' in window)) {
+                    // Navigateur sans observateur : on n'empêche pas l'accès au quiz.
+                    pages.forEach(function (p) { visited[parseInt(p.getAttribute('data-page'), 10)] = true; });
+                    return;
+                }
+                var obs = new IntersectionObserver(function (entries) {
+                    entries.forEach(function (en) {
+                        if (en.isIntersecting) {
+                            visited[parseInt(en.target.getAttribute('data-page'), 10)] = true;
+                            obs.unobserve(en.target);
+                        }
+                    });
+                }, { threshold: 0.35 });
+                pages.forEach(function (p) { obs.observe(p); });
+            })();
             show(0);
         })();
         </script>
