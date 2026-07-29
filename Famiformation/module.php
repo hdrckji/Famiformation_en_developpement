@@ -35,6 +35,38 @@ if (!empty($_SESSION['module_flash'])) {
 $isContainer = !empty($module['is_container']);
 $children = $isContainer ? getModules($db, $moduleId, !$isAdmin) : [];
 
+// RÈGLE GÉNÉRALE D'AFFICHAGE — un module est soit CONTENEUR (il regroupe), soit
+// module C (il porte un contenu). Un conteneur dont l'utilisateur ne voit qu'UN
+// SEUL enfant n'est un carrefour pour personne : il affiche une tuile unique,
+// qu'il faut cliquer pour arriver au contenu. C'est le cas du livret d'accueil,
+// où chaque profil ne voit que sa version (op pour l'admin, os pour l'étudiant).
+// On saute donc ce palier : le conteneur se comporte comme le module C qu'il
+// est, de fait, pour cet utilisateur. Vaut pour TOUT le site, pas seulement les
+// modules issus de l'import.
+// ?conteneur=1 force l'affichage du palier : sans cette sortie, un admin ne
+// pourrait plus jamais atteindre le conteneur pour y ajouter un second enfant.
+if ($isContainer && $children && empty($_GET['conteneur'])) {
+    $visibles = [];
+    foreach ($children as $enf) {
+        if ((int) ($enf['is_active'] ?? 1) !== 1) { continue; }
+        $rolesEnf = trim((string) ($enf['roles'] ?? ''));
+        if ($rolesEnf !== '') {
+            $permis = array_filter(array_map('trim', explode(',', $rolesEnf)));
+            if (!in_array(currentDisplayRole(), $permis, true)) { continue; }
+        }
+        $visibles[] = $enf;
+    }
+    // Un seul enfant visible ET lui-même porteur de contenu (pas un conteneur) :
+    // on le sert directement. Un enfant conteneur garderait un sens de palier.
+    if (count($visibles) === 1 && empty($visibles[0]['is_container'])) {
+        $cible = (int) $visibles[0]['id'];
+        if ($cible !== $moduleId) {
+            header('Location: module.php?id=' . $cible, true, 302);
+            exit;
+        }
+    }
+}
+
 // Structure « contenu » : ce module est-il un sous-module écrit/vidéo, ou un conteneur qui en regroupe ?
 // Droits de contribution (non-admin autorisé dans une zone) — voir includes/contrib_settings.php.
 require_once __DIR__ . '/includes/contrib_settings.php';
