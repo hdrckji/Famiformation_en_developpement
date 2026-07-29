@@ -492,8 +492,8 @@ if ($wcThemeOn && !empty($siteTheme) && is_array($siteTheme)) {
         <div>
             <strong><?= t('Ça pousse chez FamiFormation !', 'Het groeit bij FamiFormation!') ?></strong><br>
             <?= t(
-                "De nouvelles formations et du contenu tout frais arrivent au fil du mois d'août. Repasse voir de temps en temps : ici, ça germe vite 🌿",
-                'Nieuwe opleidingen en verse inhoud komen eraan in de loop van augustus. Kom af en toe eens kijken: hier kiemt het snel 🌿'
+                "Des mises à jour et du nouveau contenu arrivent tout au long du mois d'août. Repasse voir de temps en temps : ici, ça germe vite 🌿",
+                'Updates en nieuwe inhoud komen er de hele maand augustus aan. Kom af en toe eens kijken: hier kiemt het snel 🌿'
             ) ?>
         </div>
     </div>
