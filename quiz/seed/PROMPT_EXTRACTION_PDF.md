@@ -92,7 +92,21 @@ paquets et donne-moi un JSON par paquet — je les importerai l'un après l'autr
 MANIFESTE DES IMAGES
 (colle ici le bloc fourni par la page d'import ; s'il est vide ou absent,
 n'émets aucun bloc "image")
+
+Si les images te sont jointes en pièces jointes, elles sont nommées par leur
+numéro (1.png, 2.png…) : appuie-toi sur ce que tu vois pour les légender et les
+placer au bon endroit, pas seulement sur le nombre annoncé.
 ````
+
+## Joindre les images à la conversation (fortement conseillé)
+
+Le manifeste ne transmet qu'un **nombre**. Claude place alors les images à
+l'aveugle, en devinant d'après le texte de la page.
+
+La page d'import affiche les **vignettes numérotées** sous le manifeste. Clique
+dessus pour les télécharger — elles arrivent nommées `1.png`, `2.png`… — et
+joins-les au ZIP dans ta conversation. Claude voit alors exactement les images
+retenues après filtrage, et les place et les légende bien plus justement.
 
 ---
 

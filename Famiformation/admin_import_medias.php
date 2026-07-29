@@ -1030,6 +1030,42 @@ $pageTitle = 'Import des médias legacy';
             <button class="btn btn-sm" type="submit">Extraire les images de tous les PDF</button>
         </form>
 
+        <?php
+        // Vignettes NUMÉROTÉES : sans elles, le manifeste ne transmet qu'un nombre
+        // et la rédaction se fait à l'aveugle. Ici on voit ce qu'est l'image n°3, et
+        // on peut la télécharger pour la joindre à la conversation qui rédige la fiche.
+        $galerie = [];
+        try {
+            $gq = $db->query("SELECT nom, contenu_images FROM modules
+                               WHERE contenu_images IS NOT NULL AND contenu_images <> '' ORDER BY nom");
+            foreach (($gq ? $gq->fetchAll(PDO::FETCH_ASSOC) : []) as $g) {
+                $imgs = (array) json_decode((string) $g['contenu_images'], true);
+                if ($imgs) { $galerie[(string) $g['nom']] = $imgs; }
+            }
+        } catch (Exception $e) { $galerie = []; }
+        ?>
+        <?php if ($galerie): ?>
+            <p style="margin:14px 0 6px"><strong>Images extraites</strong> — le numéro est celui
+                que les blocs <code>image</code> utilisent. Clique pour télécharger et joins-les
+                à ta conversation : Claude placera bien mieux ce qu'il voit.</p>
+            <?php foreach ($galerie as $nomMod => $imgs): ?>
+                <div style="margin-bottom:10px">
+                    <div class="muted"><?= htmlspecialchars($nomMod) ?> — <?= count($imgs) ?> image(s)</div>
+                    <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:4px">
+                        <?php foreach ($imgs as $i => $k): ?>
+                            <a href="media.php?dl=1&amp;f=<?= rawurlencode((string) $k) ?>&amp;as=<?= rawurlencode(($i + 1) . '.' . pathinfo((string) $k, PATHINFO_EXTENSION)) ?>"
+                               title="Image n°<?= $i + 1 ?> — cliquer pour télécharger"
+                               style="display:block; text-align:center; text-decoration:none; color:#65676b; font-size:.72rem">
+                                <img src="media.php?f=<?= rawurlencode((string) $k) ?>" alt=""
+                                     style="width:84px; height:84px; object-fit:cover; border:1px solid #dfe1e5; border-radius:8px; display:block">
+                                n°<?= $i + 1 ?>
+                            </a>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        <?php endif; ?>
+
         <?php if ($manifest): ?>
             <p style="margin-bottom:4px"><strong>Manifeste à coller dans le prompt</strong> —
                 dit à Claude combien d'images il a à placer, et sous quels numéros :</p>
