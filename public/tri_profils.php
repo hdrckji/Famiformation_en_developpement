@@ -95,10 +95,23 @@ if (($_POST['action'] ?? '') === 'appliquer') {
     if (empty($choisis)) {
         $flash = "<div class='flash err'>❌ Aucun compte sélectionné.</div>";
     } else {
+        // 🌿 REJOUER L'ACCUEIL DE BIENVENUE.
+        // L'animation de bienvenue ne se déclenche qu'une fois, quand la colonne
+        // welcome_seen vaut 0 ; elle passe à 1 dès le premier affichage et le
+        // changement de profil n'y touche pas. Quelqu'un qui a déjà ouvert le site
+        // en beta ne la reverrait donc jamais. Or passer en employé, c'est bien sa
+        // première visite du « vrai » site : on remet le compteur à zéro pour qu'il
+        // soit accueilli comme il se doit.
+        $rejouerAccueil = !empty($_POST['rejouer_accueil']);
+
         $upd = $db->prepare("UPDATE utilisateurs SET role = ? WHERE id = ? AND role = 'beta'");
+        $updAccueil = $db->prepare("UPDATE utilisateurs SET welcome_seen = 0 WHERE id = ?");
         foreach ($choisis as $id) {
             if (!isset($autorises[$id])) { $ignores++; continue; }
             $upd->execute([$roleCible, $id]);
+            if ($rejouerAccueil && $upd->rowCount() > 0) {
+                try { $updAccueil->execute([$id]); } catch (Exception $e) { /* colonne absente : sans gravité */ }
+            }
             if ($upd->rowCount() > 0) {
                 $faits[] = $autorises[$id];
                 if (function_exists('famiLogChange')) {
@@ -232,6 +245,16 @@ $nbListe = count(personnelListe());
                         </select>
                     </div>
                 </div>
+
+                <label style="display:flex; align-items:flex-start; gap:9px; background:#f6faf7; border:1px solid #dde9df; border-radius:12px; padding:12px 14px; margin-bottom:16px; cursor:pointer;">
+                    <input type="checkbox" name="rejouer_accueil" value="1" checked style="margin-top:3px;">
+                    <span style="font-size:.92rem; line-height:1.5;">
+                        <strong>Leur rejouer l'accueil de bienvenue</strong><br>
+                        <span class="sub" style="margin:0;">L'animation de bienvenue ne se déclenche qu'une fois et le changement de profil n'y touche pas :
+                        sans cette case, quelqu'un qui a déjà ouvert le site en beta ne la reverrait jamais. Or passer en employé,
+                        c'est sa première visite du vrai site.</span>
+                    </span>
+                </label>
 
                 <p style="margin:0 0 12px;">
                     <button type="button" class="lien-mini" onclick="cocher(true)">Tout cocher</button> ·

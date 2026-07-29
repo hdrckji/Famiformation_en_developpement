@@ -732,9 +732,11 @@ BLAGUES
             $items = [$tt('Bienvenue chez Famiflora 🌿', 'Welkom bij Famiflora 🌿')];
         }
         $phrases = $items;
-        // Message de fête (thème événementiel) : alterne avec les phrases habituelles.
+        // Thème du jour : alterne avec les phrases habituelles. Préfixé « Thème : »
+        // pour qu'on comprenne de quoi il s'agit — seul, le nom du thème passait
+        // pour une phrase de plus et ne voulait rien dire.
         if (is_string($festiveMessage) && trim($festiveMessage) !== '') {
-            array_unshift($phrases, '🎉 ' . trim($festiveMessage));
+            array_unshift($phrases, $tt('Thème', 'Thema') . ' : 🎉 ' . trim($festiveMessage));
         }
         $phrasesAttr = htmlspecialchars(json_encode($phrases, JSON_UNESCAPED_UNICODE), ENT_QUOTES, 'UTF-8');
         // Météo du site (lieu de travail) de l'utilisateur — Open-Meteo, mise en cache

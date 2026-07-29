@@ -177,8 +177,19 @@ if (!empty($_SESSION['module_flash'])) {
             position: sticky;
             top: 0;
             z-index: 300;
-            background: rgba(255,255,255,0.72);
-            box-shadow: 0 2px 12px rgba(0,0,0,0.10);
+            /* Ruban en VERRE plutôt qu'en blanc opaque : il posait une bande
+               laiteuse par-dessus le fond, comme collée. Ici il prend la teinte
+               de ce qui défile dessous et se fond dans la page. */
+            background: linear-gradient(180deg, rgba(255,255,255,.60), rgba(255,255,255,.32));
+            -webkit-backdrop-filter: blur(14px) saturate(150%);
+            backdrop-filter: blur(14px) saturate(150%);
+            border-bottom: 1px solid rgba(255,255,255,.55);
+            box-shadow: 0 6px 24px rgba(14,59,36,.10);
+        }
+        /* Sur un thème sombre, un verre clair jurerait : on le fonce. */
+        body.site-theme .top-nav {
+            background: linear-gradient(180deg, rgba(16,37,26,.55), rgba(16,37,26,.32));
+            border-bottom-color: rgba(255,255,255,.16);
         }
         /* Repère pour le widget, centré sur la page (voir includes/widget.php). */
         .top-nav { position: sticky; }
@@ -253,9 +264,33 @@ if (!empty($_SESSION['module_flash'])) {
         @media (max-width: 520px) { .annonce-pousse { font-size: .9rem; padding: 13px 16px; gap: 11px; } }
         @media (prefers-reduced-motion: reduce) { .annonce-pousse .annonce-ico { animation: none; } }
         .tiles-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 25px; width: 90%; max-width: 1200px; margin-top: 0; padding-bottom: 0; }
-        .tile { background: rgba(255, 255, 255, 0.95); border-radius: 20px; padding: 30px; text-align: center; text-decoration: none; color: #333; box-shadow: 0 10px 25px rgba(0,0,0,0.1); transition: all 0.3s ease; display: flex; flex-direction: column; align-items: center; position: relative; }
-        .tile:hover { transform: translateY(-10px); box-shadow: 0 15px 35px rgba(0,0,0,0.2); }
-        .tile-icon { font-size: 3.5rem; margin-bottom: 15px; }
+        /* TUILES — même logique que le ruban : un fond un peu vitré plutôt qu'un
+           blanc plat, un liseré clair en haut qui accroche la lumière, et une
+           barre verte qui se révèle au survol. Rien de clignotant : la tuile
+           reste calme tant qu'on ne la vise pas. */
+        .tile {
+            background: linear-gradient(160deg, rgba(255,255,255,.97), rgba(246,250,247,.93));
+            border-radius: 22px; padding: 30px; text-align: center; text-decoration: none; color: #333;
+            border: 1px solid rgba(255,255,255,.85);
+            box-shadow: 0 10px 26px rgba(14,59,36,.10), inset 0 1px 0 rgba(255,255,255,.9);
+            transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease;
+            display: flex; flex-direction: column; align-items: center; position: relative;
+            overflow: hidden;
+        }
+        /* Barre d'accent, repliée au repos, qui se déroule au survol. */
+        .tile::after {
+            content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 4px;
+            background: linear-gradient(90deg, #4a7b55, #2d5a37);
+            transform: scaleX(0); transform-origin: left; transition: transform .3s ease;
+        }
+        .tile:hover { transform: translateY(-8px); box-shadow: 0 20px 40px rgba(14,59,36,.20); border-color: rgba(45,90,55,.35); }
+        .tile:hover::after { transform: scaleX(1); }
+        .tile:hover .tile-icon { transform: scale(1.12) rotate(-4deg); }
+        .tile-icon { font-size: 3.5rem; margin-bottom: 15px; transition: transform .3s ease; }
+        @media (prefers-reduced-motion: reduce) {
+            .tile, .tile::after, .tile-icon { transition: none; }
+            .tile:hover { transform: none; }
+        }
         .tile-title { font-size: 1.4rem; font-weight: 700; color: #2d5a37; margin-bottom: 10px; }
         .tile-desc { font-size: 0.95rem; color: #666; line-height: 1.4; }
         .tile-title-stack { display: flex; flex-direction: column; align-items: center; gap: 10px; }
