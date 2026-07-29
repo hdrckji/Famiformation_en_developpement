@@ -713,8 +713,14 @@ if (($_POST['action'] ?? '') === 'place_images') {
         $q = $db->query("SELECT id, nom, contenu_ia, contenu_images FROM modules
                           WHERE contenu_ia IS NOT NULL AND contenu_ia <> ''
                             AND contenu_images IS NOT NULL AND contenu_images <> ''");
+        // UN SEUL document par requête. Enchaîner les 38 appels dans une seule
+        // requête dépassait le délai du proxy — d'où l'« upstream error » : le
+        // travail continuait côté serveur mais la réponse n'arrivait jamais.
         $total = 0.0;
+        $restants = 0;
+        $faitUn = false;
         foreach (($q ? $q->fetchAll(PDO::FETCH_ASSOC) : []) as $m) {
+            if ($faitUn) { $restants++; continue; }
             $imgs = (array) json_decode((string) $m['contenu_images'], true);
             $data = json_decode((string) $m['contenu_ia'], true);
             $blocs = (is_array($data) && !empty($data['blocks'])) ? $data['blocks'] : null;
@@ -787,8 +793,13 @@ if (($_POST['action'] ?? '') === 'place_images') {
             }
             $flash[] = ['ok', (string) $m['nom'], count($imgs) . " image(s) placée(s)"
                 . ($cout ? " (≈ " . number_format($cout, 3) . " €)" : "")];
+            $faitUn = true;
         }
-        if ($total > 0) { $flash[] = ['ok', 'total', "≈ " . number_format($total, 2) . " €"]; }
+        if ($restants > 0) {
+            $flash[] = ['warn', 'reste', $restants . " fiche(s) encore à traiter — reclique sur le bouton"];
+        } elseif (!$faitUn) {
+            $flash[] = ['skip', 'images', "aucune fiche à traiter : toutes ont déjà leurs images"];
+        }
     }
 }
 
@@ -1183,11 +1194,12 @@ $pageTitle = 'Import des médias legacy';
 
         <?php if ($galerie): ?>
             <form method="post" style="margin:10px 0 16px"
-                  onsubmit="return confirm('Placer les images dans toutes les fiches ?\n\nUn appel IA court par document (la fiche + ses images, pas le PDF). Compte quelques centimes par document.');">
+                  onsubmit="return confirm('Placer les images de la prochaine fiche ?\n\nUn appel IA court : la fiche et ses images, jamais le PDF. Quelques centimes.');">
                 <?= csrfField() ?><input type="hidden" name="action" value="place_images">
-                <button class="btn btn-go" type="submit">⚡ Placer automatiquement les images dans les fiches</button>
-                <span class="muted"> — le plus rapide : n'envoie que la fiche et ses images, jamais le PDF.
-                    Les fiches dont les images sont déjà placées sont ignorées.</span>
+                <button class="btn btn-go" type="submit">⚡ Placer les images — fiche suivante</button>
+                <span class="muted"> — <strong>une fiche par clic</strong> : enchaîner les 38 dans une seule
+                    requête dépassait le délai du serveur (« upstream error »). Le compteur indique
+                    combien il en reste. Les fiches déjà illustrées sont ignorées.</span>
             </form>
         <?php endif; ?>
 
