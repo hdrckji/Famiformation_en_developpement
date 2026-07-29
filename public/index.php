@@ -240,7 +240,9 @@ if (!empty($_SESSION['module_flash'])) {
         .logo-main { max-width: 250px; filter: drop-shadow(0 5px 15px rgba(0,0,0,0.2)); }
         /* 🌱 Annonce des nouveautés d'août, sous le logo. */
         .annonce-pousse {
-            max-width: 720px; margin: 14px auto 4px; padding: 15px 20px;
+            /* Collé au logo, et de l'air en dessous : sinon l'annonce se lisait
+               comme la légende de la première tuile au lieu d'un message à part. */
+            max-width: 720px; margin: 2px auto 26px; padding: 15px 20px;
             display: flex; align-items: center; gap: 14px;
             background: linear-gradient(135deg, #2d5a37 0%, #4a7b55 100%);
             color: #fff; border-radius: 18px; line-height: 1.55; font-size: .95rem;
