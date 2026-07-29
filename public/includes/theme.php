@@ -227,6 +227,36 @@ if (!function_exists('welcomeTheme')) {
     }
 }
 
+if (!function_exists('famiPremiereVisite')) {
+    /**
+     * Est-ce la toute première visite de cette personne ?
+     *
+     * La colonne welcome_seen vaut 0 tant qu'elle n'a jamais ouvert l'accueil ;
+     * index.php la passe à 1 au premier affichage. Le thème est calculé AVANT
+     * cette écriture, donc il s'applique bien à cette première page — et à elle
+     * seule.
+     *
+     * Lu une seule fois par requête : cette fonction est appelée depuis
+     * config.php, donc sur chaque page du site.
+     */
+    function famiPremiereVisite(PDO $db)
+    {
+        static $rep = null;
+        if ($rep !== null) { return $rep; }
+        $rep = false;
+        $uid = (int) ($_SESSION['user_id'] ?? 0);
+        if ($uid > 0) {
+            try {
+                $st = $db->prepare("SELECT welcome_seen FROM utilisateurs WHERE id = ? LIMIT 1");
+                $st->execute([$uid]);
+                $v = $st->fetchColumn();
+                $rep = ($v !== false && (int) $v === 0);
+            } catch (Exception $e) { /* colonne absente : pas de thème de bienvenue */ }
+        }
+        return $rep;
+    }
+}
+
 if (!function_exists('activePageTheme')) {
     /**
      * Thème à appliquer GLOBALEMENT (fond du site), sur toutes les pages.
@@ -254,6 +284,16 @@ if (!function_exists('activePageTheme')) {
             && eventEnabled($db, 'anniversaire')
             && (!function_exists('widgetGet') || widgetGet($db, 'theme_anniversaire_on', '1') === '1')) {
             return birthdayTheme();
+        }
+        // Thème « Bienvenue » : la toute PREMIÈRE visite. Il n'était atteignable que
+        // par l'aperçu admin — autrement dit personne ne l'avait jamais vu, alors
+        // que ses réglages existaient déjà. Il se comporte comme les autres thèmes
+        // événementiels : soumis au maître, à la catégorie Thèmes et à son propre
+        // interrupteur theme_bienvenue_on.
+        if (famiPremiereVisite($db)
+            && themesEnabled($db)
+            && (!function_exists('widgetGet') || widgetGet($db, 'theme_bienvenue_on', '1') === '1')) {
+            return welcomeTheme();
         }
         return activeSiteTheme($db, $pays);
     }

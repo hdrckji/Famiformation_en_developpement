@@ -292,7 +292,17 @@ if (!empty($_SESSION['module_flash'])) {
             .tile:hover { transform: none; }
         }
         .tile-title { font-size: 1.4rem; font-weight: 700; color: #2d5a37; margin-bottom: 10px; }
-        .tile-desc { font-size: 0.95rem; color: #666; line-height: 1.4; }
+        /* La description était un petit texte gris qui se lisait à peine et que
+           l'oeil sautait. Elle devient un vrai encadré : on voit tout de suite à
+           quoi sert la tuile, sans avoir à cliquer pour le découvrir. */
+        .tile-desc {
+            font-size: 0.93rem; color: #3d5546; line-height: 1.5;
+            background: #f2f8f4; border: 1px solid #dfeae2;
+            border-radius: 14px; padding: 11px 14px; margin-top: auto;
+            width: 100%; box-sizing: border-box;
+            transition: background .25s ease, border-color .25s ease;
+        }
+        .tile:hover .tile-desc { background: #e9f4ed; border-color: #bcd8c5; }
         .tile-title-stack { display: flex; flex-direction: column; align-items: center; gap: 10px; }
         .tile-badges-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
         .tile-badge { display: inline-flex; align-items: center; justify-content: center; padding: 4px 10px; border-radius: 999px; font-size: 0.72rem; font-weight: 700; line-height: 1.2; }
@@ -545,7 +555,7 @@ if ($wcThemeOn && !empty($siteTheme) && is_array($siteTheme)) {
             <div class="tile-media"><span class="tile-icon">🚀</span></div>
             <div class="tile-title"><?= t('Onboarding', 'Onboarding') ?>
             </div>
-            <div class="tile-desc"><?= t('Bienvenue chez Famiflora ! Découvrez notre univers.', 'Welkom bij Famiflora! Ontdek onze wereld.') ?></div>
+            <div class="tile-desc"><?= t("La présentation de l'entreprise : qui on est, nos valeurs.", 'De voorstelling van het bedrijf: wie we zijn, onze waarden.') ?></div>
         </a>
         <?php endif; ?>
 
@@ -556,14 +566,14 @@ if ($wcThemeOn && !empty($siteTheme) && is_array($siteTheme)) {
             <?php endif; ?>
             <div class="tile-media"><span class="tile-icon">📅</span></div>
             <div class="tile-title"><?= t('Formation', 'Opleiding') ?></div>
-            <div class="tile-desc"><?= t('Formations en ligne et en présentiel.', 'Opleidingen online en ter plaatse.') ?></div>
+            <div class="tile-desc"><?= t("Réserve ton créneau et viens te former pour de vrai. De nouvelles dates arrivent très bientôt 👀", 'Reserveer je moment en kom je echt bijscholen. Nieuwe data komen heel binnenkort 👀') ?></div>
         </a>
 
         <?php if ($role === 'admin' || $role === 'teamcoach' || $role === 'mentor' || $role === 'employe_magasin'): ?>
         <a href="module.php?id=<?= (int) ($rootModuleIds['Magasin'] ?? 0) ?>" class="tile">
             <div class="tile-media"><span class="tile-icon">🛒</span></div>
             <div class="tile-title"><?= t('Magasin', 'Winkel') ?></div>
-            <div class="tile-desc"><?= t('Procédures de vente et caisses.', 'Verkoop- en kassaprocedures.') ?></div>
+            <div class="tile-desc"><?= t("Le savoir-faire de chaque rayon, réuni au même endroit. Du contenu arrive bientôt 🌱", 'De knowhow van elke afdeling, op één plek verzameld. Er komt binnenkort inhoud aan 🌱') ?></div>
         </a>
         <?php if ($role !== 'employe_magasin'): ?>
         <a href="module.php?id=<?= (int) ($rootModuleIds['Management'] ?? 0) ?>" class="tile">
@@ -578,7 +588,7 @@ if ($wcThemeOn && !empty($siteTheme) && is_array($siteTheme)) {
         <a href="module.php?id=<?= (int) ($rootModuleIds['Becosoft'] ?? 0) ?>" class="tile">
             <div class="tile-media-beco"><img src="beco.png" alt="Becosoft" class="logo-beco-tile"></div>
             <div class="tile-title">Becosoft</div>
-            <div class="tile-desc"><?= t('Logiciel de gestion de stock.', 'Software voor voorraadbeheer.') ?></div>
+            <div class="tile-desc"><?= t("Maîtriser notre base de données : la retrouver, la lire et la faire parler.", 'Onze database onder de knie krijgen: terugvinden, lezen en laten spreken.') ?></div>
         </a>
         <?php endif; ?>
 
@@ -625,12 +635,12 @@ if ($wcThemeOn && !empty($siteTheme) && is_array($siteTheme)) {
         <a href="classement.php" class="tile">
             <div class="tile-media"><span class="tile-icon">🏆</span></div>
             <div class="tile-title"><?= t('Classement', 'Klassement') ?></div>
-            <div class="tile-desc"><?= t('Tableau des scores et points.', 'Scorebord en punten.') ?></div>
+            <div class="tile-desc"><?= t("Ta place face aux collègues, points à l'appui. Et ça se prépare dans l'ombre… 👀", 'Jouw plaats tegenover de collega\'s, punten inbegrepen. En er wordt iets voorbereid… 👀') ?></div>
         </a>
         <a href="module.php?id=<?= (int) ($rootModuleIds['Sécurité au travail'] ?? 0) ?>" class="tile">
             <div class="tile-media"><span class="tile-icon">🦺</span></div>
             <div class="tile-title"><?= t('Sécurité au travail', 'Veiligheid op het werk') ?></div>
-            <div class="tile-desc"><?= t('Chaussure de sécurité & secourisme', 'Veiligheidsschoenen & EHBO') ?></div>
+            <div class="tile-desc"><?= t("Tout le nécessaire pour travailler en sécurité. Ici, rien n'est optionnel.", 'Alles wat je nodig hebt om veilig te werken. Hier is niets optioneel.') ?></div>
         </a>
         <?php endif; ?>
 
