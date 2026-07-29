@@ -59,10 +59,44 @@ $CODE_TEST_USED = "FAMI-TEST-USED";
 // telephone, ordi) sans deranger personne. Ils n'apparaissent PAS au classement
 // public ni sur la tele, et ils peuvent refaire le quiz autant de fois qu'ils
 // veulent. Cree-les comme un compte normal avec ce pseudo.
-$COMPTES_TEST = ['testeur', 'admin_'];
+$COMPTES_TEST = ['testeur'];
+// Tout compte dont l'identifiant COMMENCE par « admin_ » est un compte de
+// service : admin_, admin_jimmy, admin_borne… Ce sont des comptes à part, ils
+// ne doivent jamais peser sur le classement. Le test exact d'avant ne prenait
+// que le compte nommé littéralement « admin_ » et laissait passer les autres.
+$PREFIXES_TEST = ['admin_'];
 function estCompteTest($p) {
-  global $COMPTES_TEST;
-  return in_array(mb_strtolower((string)(is_array($p) ? ($p['name'] ?? '') : $p)), $COMPTES_TEST, true);
+  global $COMPTES_TEST, $PREFIXES_TEST;
+  $nom = mb_strtolower((string)(is_array($p) ? ($p['name'] ?? '') : $p));
+  if (in_array($nom, $COMPTES_TEST, true)) { return true; }
+  foreach ($PREFIXES_TEST as $pref) {
+    if (strncmp($nom, $pref, strlen($pref)) === 0) { return true; }
+  }
+  return false;
+}
+
+// ⭐ FAVORITES DES QUESTIONS « ENTREPRISE » VENANT DE LA BASE.
+// Ces questions sont importées de la table quiz_questions, qui n'a pas de
+// colonne « favorite ». On les repère donc par leur texte, à la réinstallation.
+// Comparaison souple (accents, apostrophes et ponctuation ignorés) : le libellé
+// exact varie d'une saisie à l'autre.
+$FAVORIS_TEXTES = [
+  'combien y a t il de valeurs dans l entreprise',
+];
+function normaliseTexteQuestion($t) {
+  $t = mb_strtolower(trim((string) $t));
+  $t = strtr($t, ['à'=>'a','â'=>'a','ä'=>'a','é'=>'e','è'=>'e','ê'=>'e','ë'=>'e',
+                  'î'=>'i','ï'=>'i','ô'=>'o','ö'=>'o','ù'=>'u','û'=>'u','ü'=>'u','ç'=>'c']);
+  $t = preg_replace('/[^a-z0-9]+/', ' ', $t);
+  return trim(preg_replace('/\s+/', ' ', $t));
+}
+function estFavoriParTexte($q) {
+  global $FAVORIS_TEXTES;
+  $n = normaliseTexteQuestion($q);
+  foreach ($FAVORIS_TEXTES as $ref) {
+    if ($n === normaliseTexteQuestion($ref)) { return true; }
+  }
+  return false;
 }
 $CODE_GRAINES = 10;   // graines par code bonus (comptent dans le classement)
 $MAX_CODES    = 2;    // combien de codes une même personne peut cumuler
@@ -2222,6 +2256,11 @@ switch ($action) {
         if ($correct >= count($opts)) { $correct = 0; }
         $opts[] = $RIGOLOTES[$i % count($RIGOLOTES)];   // réponse fausse rigolote à la fin
         $item = ['q' => $q, 'options' => $opts, 'correct' => $correct, 'theme' => 'entreprise'];
+        // ⭐ Favorites choisies PAR TEXTE. Les questions entreprise viennent de la
+        // base Famiformation, qui n'a pas de colonne « favorite » : sans ça, une
+        // étoile mise à la main dans /quiz/admin serait perdue à chaque
+        // réinstallation des questions.
+        if (estFavoriParTexte($q)) { $item['fav'] = true; }
         // On ne passe en bilingue QUE si la question a une vraie trad NL : dans ce cas
         // seulement, on traduit aussi la réponse rigolote (pour rester 100 % cohérent).
         // Sinon la question entreprise reste entièrement en FR.

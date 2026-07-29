@@ -526,12 +526,15 @@ function vueQuestions() {
       intitulé et d'au moins deux réponses ; les cases laissées vides sont ignorées.
       <br><strong>Rien n'est enregistré tant que tu n'as pas cliqué sur « Enregistrer ».</strong></p>
       <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:12px;">
-        <label style="font-weight:800; font-size:.85rem; color:#0E3B24;">🔎 Filtrer par thème</label>
-        <select class="field" id="q-filtre" style="margin:0; max-width:240px;">
+        <label style="font-weight:800; font-size:.85rem; color:#0E3B24;">🔎 Filtrer</label>
+        <select class="field" id="q-filtre" style="margin:0; max-width:260px;">
           <option value="tous">Tous les thèmes</option>
+          <option value="favoris">⭐ Mes favorites (tous thèmes)</option>
           <option value="entreprise">L'entreprise / le magasin</option>
+          <option value="fav_entreprise">⭐ Favorites — entreprise</option>
           <option value="culture">Culture générale (jardinage)</option>
           <option value="fun">Fun / anecdote</option>
+          <option value="fav_fun">⭐ Favorites — fun</option>
         </select>
         <span class="hint" id="q-filtre-info" style="margin:0;"></span>
       </div>
@@ -671,7 +674,11 @@ function dessineListe() {
   const themeDe = (q) => (q.theme === "anecdote" ? "fun" : (q.theme || "entreprise"));
   let affiches = 0;
   liste.innerHTML = brouillon.map((q, i) => {
-    if (filtreTheme !== "tous" && themeDe(q) !== filtreTheme) return "";   // masqué par le filtre
+    // Filtre : thème seul, favorites tous thèmes, ou favorites d'un thème.
+    if (filtreTheme === "favoris") { if (!q.fav) return ""; }
+    else if (filtreTheme === "fav_entreprise") { if (!q.fav || themeDe(q) !== "entreprise") return ""; }
+    else if (filtreTheme === "fav_fun") { if (!q.fav || themeDe(q) !== "fun") return ""; }
+    else if (filtreTheme !== "tous" && themeDe(q) !== filtreTheme) return "";
     affiches++;
     return `
     <div class="qbloc">
@@ -705,8 +712,11 @@ function dessineListe() {
     </div>`;
   }).join("");
   if (!affiches) {
+    const surFav = filtreTheme.startsWith("fav");
     liste.innerHTML = brouillon.length
-      ? `<p class="hint">Aucune question dans ce thème. Change le filtre ou clique sur « Ajouter une question ».</p>`
+      ? (surFav
+          ? `<p class="hint">Aucune question en favorite ici. Clique sur « ☆ Favori » sur une question pour l'ajouter.</p>`
+          : `<p class="hint">Aucune question dans ce thème. Change le filtre ou clique sur « Ajouter une question ».</p>`)
       : `<p class="hint">Aucune question pour l'instant. Clique sur « Ajouter une question ».</p>`;
   }
   const info = $("#q-filtre-info");
@@ -723,7 +733,8 @@ function dessineListe() {
     const fe = favN("entreprise"), fa = favN("fun");
     cpt.innerHTML = `${brouillon.length} question(s) — <b>${e}</b> entreprise · <b>${cg}</b> culture G · <b>${an}</b> fun`
       + ` <span style="opacity:.7;">(chaque joueur en tire 20 : 10 / 5 / 5)</span>`
-      + ((fe || fa) ? `<br>⭐ Favorites : <b>${fe}</b> entreprise (3 tirées/quiz) · <b>${fa}</b> fun (2 tirées/quiz)` : "")
+      + ((fe || fa) ? `<br>⭐ Favorites : <b>${fe}</b> entreprise (5 tirées/quiz) · <b>${fa}</b> fun (2 tirées/quiz)`
+                      + ` <span style="opacity:.7;">— elles alternent avec les normales pendant le quiz</span>` : "")
       + (court ? `<br><span style="color:#E4572E;font-weight:800;">⚠️ Il en faut au moins 10 / 5 / 5. En dessous, on complète avec les autres thèmes.</span>` : "");
   }
 

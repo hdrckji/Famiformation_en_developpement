@@ -1090,8 +1090,16 @@ const affG = (n) => Math.round(Number(n) || 0);
 // 🧪 Compte de test : le pseudo « Testeur » sert à essayer le jeu EN VRAI (borne,
 // téléphone, ordi) sans déranger personne — il n'apparaît pas au classement et
 // rien ne lui est verrouillé (quiz rejouable, jardin toujours ouvert).
-const COMPTES_TEST = ["testeur", "admin_"];
-function estCompteTest() { return !!joueur && COMPTES_TEST.includes((joueur.name || "").toLowerCase()); }
+const COMPTES_TEST = ["testeur"];
+// Tout compte commençant par « admin_ » est un compte de service (admin_,
+// admin_jimmy, admin_borne…) : il ne doit jamais peser sur le classement. Le
+// test exact d'avant ne couvrait que le compte nommé littéralement « admin_ ».
+const PREFIXES_TEST = ["admin_"];
+function estNomTest(n) {
+  const s = (n || "").toLowerCase();
+  return COMPTES_TEST.includes(s) || PREFIXES_TEST.some((p) => s.startsWith(p));
+}
+function estCompteTest() { return !!joueur && estNomTest(joueur.name); }
 const toutOuvert = () => SIMULATION || estCompteTest();
 
 /* ============================================================
@@ -1517,7 +1525,11 @@ const app = $("#app");
 const pad = (n) => String(n).padStart(2, "0");
 const medals = ["🥇", "🥈", "🥉"];
 // Nom AFFICHÉ d'un joueur au classement : son pseudo choisi, sinon son identifiant.
-function nomAff(p) { return (p && (p.pseudo || p.name)) || ""; }
+// Nom AFFICHÉ au classement : le pseudo choisi, sinon le PRÉNOM, et seulement en
+// dernier recours la clé du compte. Sans le prénom, quelqu'un connecté avec son
+// compte Famiformation s'affichait sous son identifiant (« jdupont »), ce qui ne
+// parle à personne sur un classement projeté en magasin.
+function nomAff(p) { return (p && (p.pseudo || p.prenom || p.name)) || ""; }
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 function shuffle(arr) {
@@ -1535,7 +1547,7 @@ const QUIZ_THEMES = { entreprise: 10, culture: 5, fun: 5 };
 // ⭐ FAVORIS : par quiz, on garantit ce nombre de questions FAVORITES par thème
 // (tirées au hasard parmi TOUTES les favorites du thème → rotation naturelle),
 // le reste étant complété par des questions normales. La culture n'a pas de favoris.
-const FAV_PAR_THEME = { entreprise: 3, fun: 2, culture: 0 };
+const FAV_PAR_THEME = { entreprise: 5, fun: 2, culture: 0 };
 const QUIZ_TOTAL = Object.values(QUIZ_THEMES).reduce((a, b) => a + b, 0);
 function prepareQuestions() {
   const parTheme = { entreprise: [], culture: [], fun: [] };
@@ -1558,7 +1570,21 @@ function prepareQuestions() {
   // S'il n'y a pas assez de questions dans un thème, on complète avec les autres
   // (mieux vaut un quiz complet qu'un quiz tronqué).
   if (choix.length < QUIZ_TOTAL) choix = choix.concat(shuffle(restes).slice(0, QUIZ_TOTAL - choix.length));
-  return shuffle(choix).map((item) => ({
+
+  // 🔀 ORDRE DE PASSAGE : on ALTERNE normale → favorite → normale → favorite…
+  // tant qu'il reste des favorites, puis on enchaîne les normales restantes.
+  // Les favorites sont les questions « maison » (chiffres Famiflora, anecdotes
+  // vécues) : les étaler ainsi tient le joueur en haleine, au lieu de les
+  // laisser tomber n'importe où — voire toutes d'affilée — au hasard du tirage.
+  const favTirees = shuffle(choix.filter((q) => q.fav));
+  const autres = shuffle(choix.filter((q) => !q.fav));
+  const ordre = [];
+  while (autres.length || favTirees.length) {
+    if (autres.length) ordre.push(autres.shift());
+    if (favTirees.length) ordre.push(favTirees.shift());
+  }
+
+  return ordre.map((item) => ({
     q: item.q,
     q_nl: item.q_nl || "",                       // 🌍 énoncé NL (vide = pas traduit → on affichera le FR)
     options: shuffle(item.options.map((text, i) => ({
@@ -2331,7 +2357,7 @@ function renderBoard() {
   const titre = `<div class="board-titre">${fini ? t("🏆 Résultats finaux <span>— merci d'avoir joué !</span>", "🏆 Eindresultaten <span>— bedankt voor het spelen!</span>") : t("🏆 Classement en direct", "🏆 Live ranking")}</div>`;
   // On ne montre QUE ceux qui ont joué (un compte réservé mais pas encore joué
   // n'apparaît pas). Le serveur filtre déjà ; ici c'est utile en simulation.
-  const lignes = board.filter((p) => p.quiz_fait !== false && !COMPTES_TEST.includes((p.name || "").toLowerCase()));
+  const lignes = board.filter((p) => p.quiz_fait !== false && !estNomTest(p.name));
   if (!lignes.length) {
     app.innerHTML = `${pillsHtml("board")}<div class="card center">${titre}
       <p class="hint">${fini ? t("Le quiz est terminé.", "De quiz is afgelopen.") : t("Sois le premier ou la première à jouer ! 🌱", "Wees de eerste om te spelen! 🌱")}</p></div>`;
@@ -3220,7 +3246,7 @@ function renderDashboard() {
   // le top 3 du classement final, on l'en félicite et on l'oriente vers les RH.
   let rangFinal = 0;
   if (phase === "termine" && joueur) {
-    const classe = (board || []).filter((p) => p.quiz_fait !== false && !COMPTES_TEST.includes((p.name || "").toLowerCase()))
+    const classe = (board || []).filter((p) => p.quiz_fait !== false && !estNomTest(p.name))
       .slice().sort((a, b) => (b.score - a.score) || ((a.time || 0) - (b.time || 0)));
     const idx = classe.findIndex((p) => (p.name || "").toLowerCase() === (joueur.name || "").toLowerCase());
     if (idx >= 0 && idx < 3) rangFinal = idx + 1;
@@ -3710,7 +3736,7 @@ async function renderTeleBoard() {
   board = await apiGetBoard().catch(() => board);
   const q = await qrQuiz().catch(() => null);
   const cr = await apiCodesRestants().catch(() => null);
-  const top = board.filter((p) => p.quiz_fait !== false && !COMPTES_TEST.includes((p.name || "").toLowerCase())).slice(0, 8);
+  const top = board.filter((p) => p.quiz_fait !== false && !estNomTest(p.name)).slice(0, 8);
   const termine = phaseNow() === "termine";
   app.innerHTML = `<div class="tv">
     <div class="tv-phase">${termine ? "🏆 Classement final · Eindklassement" : "🏆 Classement en direct · Live ranking"}</div>
@@ -3743,7 +3769,7 @@ async function renderTeleWinners() {
   document.body.classList.add("mode-tele");
   FEE.stop(); clearInterval(tickTimer); clearTimeout(tickTimer);
   board = await apiGetBoard().catch(() => board);
-  const top = board.filter((p) => p.quiz_fait !== false && !COMPTES_TEST.includes((p.name || "").toLowerCase())).slice(0, 3);
+  const top = board.filter((p) => p.quiz_fait !== false && !estNomTest(p.name)).slice(0, 3);
   if (!top.length) { renderTeleBoard(); return; }
   const ordre = [1, 0, 2];   // 2e à gauche, 1er au centre, 3e à droite
   app.innerHTML = `<div class="tw">

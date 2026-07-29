@@ -63,7 +63,10 @@ if (!empty($_SESSION['admin_flash'])) {
 // Valeurs réaffichées dans le formulaire de création (en cas d'erreur ou de confirmation)
 $createForm = [
     'new_username' => '', 'new_nom' => '', 'new_prenom' => '',
-    'new_email' => '', 'new_interim' => '', 'new_role' => 'etudiant',
+    // 🧪 RÈGLE : un nouvel arrivant est en BETA par défaut (comme les inscriptions
+    // faites depuis le quiz, qui créent déjà des comptes beta). Il suffit de
+    // choisir un autre profil dans la liste pour que ce choix soit respecté.
+    'new_email' => '', 'new_interim' => '', 'new_role' => 'beta',
 ];
 $showDuplicateModal = false;
 $showNoEmailModal = false;
@@ -139,7 +142,7 @@ if (isset($_POST['creer_user'])) {
     $createForm = [
         'new_username' => $id, 'new_nom' => $nom, 'new_prenom' => $prenom,
         'new_email' => $email, 'new_interim' => $interim,
-        'new_role' => $role !== '' ? $role : 'etudiant',
+        'new_role' => $role !== '' ? $role : 'beta',
     ];
 
     // Obligatoires : nom d'utilisateur, nom, prénom, profil (+ agence pour un étudiant).

@@ -38,7 +38,11 @@ if ($role !== 'admin') {
 ensureUserAccountAccessColumns($db);
 
 $JOURS_DEFAUT = 14;
-$ROLES_DEFAUT = ['beta'];
+// Aucun profil coché et aucun domaine imposé au départ : c'est à l'utilisateur
+// de choisir son périmètre en connaissance de cause. Un pré-cochage ouvrait la
+// page sur une liste de destinataires déjà constituée, ce qui invite à envoyer
+// sans avoir vraiment regardé qui est dedans.
+$ROLES_DEFAUT = [];
 
 // Libellés lisibles des profils. La liste réellement proposée vient de la BASE
 // (voir plus bas) : si un profil apparaît un jour sans passer par ici, il reste
@@ -79,16 +83,15 @@ $dispo = $db->query(
 
 $rolesConnus = array_column($dispo, 'role');
 
-// Profils cochés. Au premier affichage : beta (le besoin d'origine).
+// Profils cochés : aucun au premier affichage. On respecte donc un décochage
+// total — sans ça, décocher tout aurait silencieusement remis la sélection par
+// défaut, et on aurait cru viser personne en visant tout un profil.
 $rolesChoisis = (array) ($_REQUEST['roles'] ?? $ROLES_DEFAUT);
 $rolesChoisis = array_values(array_intersect(array_map('strval', $rolesChoisis), $rolesConnus));
-if (empty($rolesChoisis)) {
-    $rolesChoisis = array_values(array_intersect($ROLES_DEFAUT, $rolesConnus));
-}
 
 // Domaine : FACULTATIF (vide = toutes les adresses). On n'accepte qu'un domaine
 // plausible, jamais un motif SQL bricolé depuis l'URL.
-$domaine = trim((string) ($_REQUEST['domaine'] ?? '@famiflora.be'));
+$domaine = trim((string) ($_REQUEST['domaine'] ?? ''));
 if ($domaine !== '') {
     if (!preg_match('/^@?[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$/', $domaine)) {
         $domaine = '';
@@ -439,8 +442,9 @@ if (($_POST['action'] ?? '') === 'envoyer') {
             <div class="reglages">
                 <div>
                     <label for="email_test">Adresse de test</label>
+                    <?php // Champ volontairement VIDE : l'adresse de test se saisit à chaque fois. ?>
                     <input type="email" id="email_test" name="email_test" size="34"
-                           value="<?= e(famiGetEnv('MAIL_ADMIN', 'jimmy.hendrickx@famiflora.be')) ?>">
+                           placeholder="adresse@exemple.be" value="">
                 </div>
                 <div><button type="submit" class="btn gold">Envoyer un test</button></div>
             </div>
