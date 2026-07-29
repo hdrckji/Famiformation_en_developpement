@@ -66,16 +66,29 @@ const FAMI_IMPORT_IGNORES = ['engrais.pdf', 'zoobase.pdf'];
  */
 function famiImportModulesByPage(PDO $db)
 {
+    // ATTENTION : la bascule d'affichage met `link` à NULL et range la page dans
+    // `link_legacy`. N'indexer que sur `link` rendait donc INTROUVABLE tout module
+    // déjà basculé — et tout import répondait « aucun module ne pointe vers X ».
+    // On lit donc les deux colonnes, `link` en priorité.
     $out = [];
+    $rows = [];
     try {
-        $rows = $db->query("SELECT id, nom, link, roles, parent_id FROM modules WHERE link IS NOT NULL AND link <> ''")
+        $rows = $db->query("SELECT id, nom, link, link_legacy, roles, parent_id FROM modules
+                             WHERE (link IS NOT NULL AND link <> '')
+                                OR (link_legacy IS NOT NULL AND link_legacy <> '')")
                    ->fetchAll(PDO::FETCH_ASSOC);
     } catch (Exception $e) {
-        return $out;
+        // link_legacy absente : aucune bascule n'a encore eu lieu.
+        try {
+            $rows = $db->query("SELECT id, nom, link, NULL AS link_legacy, roles, parent_id FROM modules
+                                 WHERE link IS NOT NULL AND link <> ''")->fetchAll(PDO::FETCH_ASSOC);
+        } catch (Exception $e2) {
+            return $out;
+        }
     }
     foreach ($rows as $r) {
-        $page = strtok((string) $r['link'], '?');
-        $page = basename((string) $page);
+        $brut = trim((string) $r['link']) !== '' ? (string) $r['link'] : (string) ($r['link_legacy'] ?? '');
+        $page = basename((string) strtok($brut, '?'));
         if ($page === '') { continue; }
         $out[$page][] = $r;
     }
