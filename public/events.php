@@ -29,8 +29,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ? "🗑️ " . $n . " notification" . ($n > 1 ? 's' : '') . " supprimée" . ($n > 1 ? 's' : '') . "."
             : "❌ Aucune notification sélectionnée.";
     } elseif ($act === 'delete_all_events') {
+        // Nettoyage GLOBAL : on supprime le fil ET on remet la pastille de la
+        // cloche à zéro pour tous les comptes, sinon la boîte se dirait vide
+        // alors que la pastille resterait allumée chez certains.
         $n = eventsDeleteAll($db);
-        $_SESSION['module_flash'] = "🗑️ Fil vidé (" . $n . " notification" . ($n > 1 ? 's' : '') . ").";
+        $c = eventsMarkAllSeen($db);
+        $_SESSION['module_flash'] = "🧹 Notifications vidées pour tout le monde : "
+            . $n . " notification" . ($n > 1 ? 's' : '') . " supprimée" . ($n > 1 ? 's' : '')
+            . ", cloche remise à zéro sur " . $c . " compte" . ($c > 1 ? 's' : '') . ".";
     }
     header('Location: events.php');
     exit();
@@ -231,6 +237,29 @@ $evIcon = function ($t) {
             </div>
         </div>
         <?php require_once __DIR__ . '/includes/bulkselect.php'; echo bulkAssets(); ?>
+
+        <?php // 🧹 NETTOYAGE GLOBAL — admin uniquement. Action volontairement isolée
+              // en bas de page, hors des onglets : elle ne porte pas sur ce qui est
+              // affiché mais sur le site entier, pour tous les comptes. ?>
+        <?php if ($isAdmin): ?>
+        <div class="card" style="border:1px solid #f3c2c2; background:#fff8f8; margin-top:18px;">
+            <h3 style="margin:0 0 8px; color:#a12; font-size:1.05rem;">🧹 <?= t('Nettoyer pour tout le monde', 'Opruimen voor iedereen') ?></h3>
+            <p class="muted" style="margin:0 0 14px;">
+                <?= t(
+                    "Supprime <b>toutes</b> les notifications du site et remet la pastille de la cloche à zéro sur <b>chaque compte</b> — pas seulement le tien. Les contenus « à contrôler » ne sont pas touchés.",
+                    'Verwijdert <b>alle</b> meldingen van de site en zet het belletje op <b>elke account</b> weer op nul — niet alleen bij jou. De inhoud « te controleren » blijft onaangeroerd.'
+                ) ?>
+                <br><?= t('Cette action est définitive.', 'Deze actie is definitief.') ?>
+            </p>
+            <form method="POST" action="events.php" style="display:inline;"
+                  <?php // Pas d'apostrophe dans ce texte : il vit dans une chaine JS entre quotes simples. ?>
+                  onsubmit="return confirm('<?= t('Vider les notifications de TOUT LE MONDE ?\n\nToutes les notifications du site seront supprimees et la cloche repassera a zero sur tous les comptes.\n\nAction definitive.', 'Meldingen van IEDEREEN wissen?\n\nAlle meldingen van de site worden verwijderd en het belletje gaat op alle accounts terug naar nul.\n\nDeze actie is definitief.') ?>');">
+                <?= csrfField() ?>
+                <input type="hidden" name="action" value="delete_all_events">
+                <button type="submit" class="btn btn-rej">🗑️ <?= t('Vider les notifications de tout le monde', 'Meldingen van iedereen wissen') ?></button>
+            </form>
+        </div>
+        <?php endif; ?>
 
         <style>
         .evtabs { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }

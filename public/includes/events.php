@@ -293,6 +293,28 @@ if (!function_exists('eventsDelete')) {
     }
 }
 
+if (!function_exists('eventsMarkAllSeen')) {
+    /**
+     * Marque le fil « déjà vu » pour TOUS les comptes → pastille de la cloche à
+     * zéro partout, y compris pour ceux qui ne se sont pas connectés depuis des
+     * semaines.
+     *
+     * Vider le fil ne suffit pas à lui seul : la pastille compare la date des
+     * événements à events_seen_at, donc le tout premier événement créé après le
+     * vidage la rallumerait chez ceux qui n'avaient jamais ouvert la cloche.
+     * Remettre la pendule de chacun à l'heure garantit une boîte réellement vide.
+     */
+    function eventsMarkAllSeen($db)
+    {
+        eventsEnsureUserSeen($db);
+        try {
+            $st = $db->prepare("UPDATE utilisateurs SET events_seen_at = ?");
+            $st->execute([date('Y-m-d H:i:s')]);
+            return $st->rowCount();
+        } catch (Exception $e) { return 0; }
+    }
+}
+
 if (!function_exists('eventsRecent')) {
     function eventsRecent($db, $limit = 60)
     {
