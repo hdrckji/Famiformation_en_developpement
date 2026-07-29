@@ -236,8 +236,20 @@ if (!empty($_SESSION['module_flash'])) {
             box-shadow: 0 6px 15px rgba(0,0,0,0.15);
         }
 
-        .header { text-align: center; padding: 0px 20px 2px; } 
+        .header { text-align: center; padding: 0px 20px 2px; }
         .logo-main { max-width: 250px; filter: drop-shadow(0 5px 15px rgba(0,0,0,0.2)); }
+        /* 🌱 Annonce des nouveautés d'août, sous le logo. */
+        .annonce-pousse {
+            max-width: 720px; margin: 14px auto 4px; padding: 15px 20px;
+            display: flex; align-items: center; gap: 14px;
+            background: linear-gradient(135deg, #2d5a37 0%, #4a7b55 100%);
+            color: #fff; border-radius: 18px; line-height: 1.55; font-size: .95rem;
+            box-shadow: 0 8px 22px rgba(27, 54, 36, .22);
+        }
+        .annonce-pousse .annonce-ico { font-size: 1.9rem; flex: none; animation: pousse 2.8s ease-in-out infinite; }
+        @keyframes pousse { 0%, 100% { transform: translateY(0) rotate(-4deg); } 50% { transform: translateY(-5px) rotate(4deg); } }
+        @media (max-width: 520px) { .annonce-pousse { font-size: .9rem; padding: 13px 16px; gap: 11px; } }
+        @media (prefers-reduced-motion: reduce) { .annonce-pousse .annonce-ico { animation: none; } }
         .tiles-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 25px; width: 90%; max-width: 1200px; margin-top: 0; padding-bottom: 0; }
         .tile { background: rgba(255, 255, 255, 0.95); border-radius: 20px; padding: 30px; text-align: center; text-decoration: none; color: #333; box-shadow: 0 10px 25px rgba(0,0,0,0.1); transition: all 0.3s ease; display: flex; flex-direction: column; align-items: center; position: relative; }
         .tile:hover { transform: translateY(-10px); box-shadow: 0 15px 35px rgba(0,0,0,0.2); }
@@ -472,6 +484,18 @@ if ($wcThemeOn && !empty($siteTheme) && is_array($siteTheme)) {
 
     <div class="header">
         <img src="logo.png" alt="Famiflora" class="logo-main">
+    </div>
+
+    <?php // 🌱 Annonce des nouveautés d'août. Pour la retirer : supprimer ce bloc. ?>
+    <div class="annonce-pousse">
+        <span class="annonce-ico">🌱</span>
+        <div>
+            <strong><?= t('Ça pousse chez FamiFormation !', 'Het groeit bij FamiFormation!') ?></strong><br>
+            <?= t(
+                "De nouvelles formations et du contenu tout frais arrivent au fil du mois d'août. Repasse voir de temps en temps : ici, ça germe vite 🌿",
+                'Nieuwe opleidingen en verse inhoud komen eraan in de loop van augustus. Kom af en toe eens kijken: hier kiemt het snel 🌿'
+            ) ?>
+        </div>
     </div>
 
     <?php if (!empty($moduleFlash)): ?>
