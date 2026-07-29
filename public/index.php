@@ -264,45 +264,17 @@ if (!empty($_SESSION['module_flash'])) {
         @media (max-width: 520px) { .annonce-pousse { font-size: .9rem; padding: 13px 16px; gap: 11px; } }
         @media (prefers-reduced-motion: reduce) { .annonce-pousse .annonce-ico { animation: none; } }
         .tiles-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 25px; width: 90%; max-width: 1200px; margin-top: 0; padding-bottom: 0; }
-        /* TUILES — même logique que le ruban : un fond un peu vitré plutôt qu'un
-           blanc plat, un liseré clair en haut qui accroche la lumière, et une
-           barre verte qui se révèle au survol. Rien de clignotant : la tuile
-           reste calme tant qu'on ne la vise pas. */
-        .tile {
-            background: linear-gradient(160deg, rgba(255,255,255,.97), rgba(246,250,247,.93));
-            border-radius: 22px; padding: 30px; text-align: center; text-decoration: none; color: #333;
-            border: 1px solid rgba(255,255,255,.85);
-            box-shadow: 0 10px 26px rgba(14,59,36,.10), inset 0 1px 0 rgba(255,255,255,.9);
-            transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease;
-            display: flex; flex-direction: column; align-items: center; position: relative;
-            overflow: hidden;
-        }
-        /* Barre d'accent, repliée au repos, qui se déroule au survol. */
-        .tile::after {
-            content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 4px;
-            background: linear-gradient(90deg, #4a7b55, #2d5a37);
-            transform: scaleX(0); transform-origin: left; transition: transform .3s ease;
-        }
-        .tile:hover { transform: translateY(-8px); box-shadow: 0 20px 40px rgba(14,59,36,.20); border-color: rgba(45,90,55,.35); }
-        .tile:hover::after { transform: scaleX(1); }
-        .tile:hover .tile-icon { transform: scale(1.12) rotate(-4deg); }
-        .tile-icon { font-size: 3.5rem; margin-bottom: 15px; transition: transform .3s ease; }
-        @media (prefers-reduced-motion: reduce) {
-            .tile, .tile::after, .tile-icon { transition: none; }
-            .tile:hover { transform: none; }
-        }
+        /* TUILES : rendu d'origine — carte blanche, ombre douce, elle se soulève au
+           survol. J'avais tenté un fond vitré avec barre d'accent : ça alourdissait
+           l'accueil pour rien, on est revenu à ce qui marchait. Ne pas re-styler
+           sans demande explicite. */
+        .tile { background: rgba(255, 255, 255, 0.95); border-radius: 20px; padding: 30px; text-align: center; text-decoration: none; color: #333; box-shadow: 0 10px 25px rgba(0,0,0,0.1); transition: all 0.3s ease; display: flex; flex-direction: column; align-items: center; position: relative; }
+        .tile:hover { transform: translateY(-10px); box-shadow: 0 15px 35px rgba(0,0,0,0.2); }
+        .tile-icon { font-size: 3.5rem; margin-bottom: 15px; }
         .tile-title { font-size: 1.4rem; font-weight: 700; color: #2d5a37; margin-bottom: 10px; }
-        /* La description était un petit texte gris qui se lisait à peine et que
-           l'oeil sautait. Elle devient un vrai encadré : on voit tout de suite à
-           quoi sert la tuile, sans avoir à cliquer pour le découvrir. */
-        .tile-desc {
-            font-size: 0.93rem; color: #3d5546; line-height: 1.5;
-            background: #f2f8f4; border: 1px solid #dfeae2;
-            border-radius: 14px; padding: 11px 14px; margin-top: auto;
-            width: 100%; box-sizing: border-box;
-            transition: background .25s ease, border-color .25s ease;
-        }
-        .tile:hover .tile-desc { background: #e9f4ed; border-color: #bcd8c5; }
+        /* Description : simple texte gris sous le titre. L'explication complète du
+           module vit DANS le module (includes/module_intro.php), pas ici. */
+        .tile-desc { font-size: 0.95rem; color: #666; line-height: 1.4; }
         .tile-title-stack { display: flex; flex-direction: column; align-items: center; gap: 10px; }
         .tile-badges-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
         .tile-badge { display: inline-flex; align-items: center; justify-content: center; padding: 4px 10px; border-radius: 999px; font-size: 0.72rem; font-weight: 700; line-height: 1.2; }
@@ -555,7 +527,7 @@ if ($wcThemeOn && !empty($siteTheme) && is_array($siteTheme)) {
             <div class="tile-media"><span class="tile-icon">🚀</span></div>
             <div class="tile-title"><?= t('Onboarding', 'Onboarding') ?>
             </div>
-            <div class="tile-desc"><?= t('Découvre notre univers.', 'Ontdek onze wereld.') ?></div>
+            <div class="tile-desc"><?= t('Bienvenue chez Famiflora ! Découvrez notre univers.', 'Welkom bij Famiflora! Ontdek onze wereld.') ?></div>
         </a>
         <?php endif; ?>
 
@@ -566,14 +538,14 @@ if ($wcThemeOn && !empty($siteTheme) && is_array($siteTheme)) {
             <?php endif; ?>
             <div class="tile-media"><span class="tile-icon">📅</span></div>
             <div class="tile-title"><?= t('Formation', 'Opleiding') ?></div>
-            <div class="tile-desc"><?= t('Réserve ton créneau de formation.', 'Reserveer je opleidingsmoment.') ?></div>
+            <div class="tile-desc"><?= t('Formations en ligne et en présentiel.', 'Opleidingen online en ter plaatse.') ?></div>
         </a>
 
         <?php if ($role === 'admin' || $role === 'teamcoach' || $role === 'mentor' || $role === 'employe_magasin'): ?>
         <a href="module.php?id=<?= (int) ($rootModuleIds['Magasin'] ?? 0) ?>" class="tile">
             <div class="tile-media"><span class="tile-icon">🛒</span></div>
             <div class="tile-title"><?= t('Magasin', 'Winkel') ?></div>
-            <div class="tile-desc"><?= t('Le savoir-faire de chaque rayon.', 'De knowhow van elke afdeling.') ?></div>
+            <div class="tile-desc"><?= t('Procédures de vente et caisses.', 'Verkoop- en kassaprocedures.') ?></div>
         </a>
         <?php if ($role !== 'employe_magasin'): ?>
         <a href="module.php?id=<?= (int) ($rootModuleIds['Management'] ?? 0) ?>" class="tile">
@@ -588,7 +560,7 @@ if ($wcThemeOn && !empty($siteTheme) && is_array($siteTheme)) {
         <a href="module.php?id=<?= (int) ($rootModuleIds['Becosoft'] ?? 0) ?>" class="tile">
             <div class="tile-media-beco"><img src="beco.png" alt="Becosoft" class="logo-beco-tile"></div>
             <div class="tile-title">Becosoft</div>
-            <div class="tile-desc"><?= t('Maîtriser notre base de données.', 'Onze database onder de knie krijgen.') ?></div>
+            <div class="tile-desc"><?= t('Logiciel de gestion de stock.', 'Software voor voorraadbeheer.') ?></div>
         </a>
         <?php endif; ?>
 
@@ -635,12 +607,12 @@ if ($wcThemeOn && !empty($siteTheme) && is_array($siteTheme)) {
         <a href="classement.php" class="tile">
             <div class="tile-media"><span class="tile-icon">🏆</span></div>
             <div class="tile-title"><?= t('Classement', 'Klassement') ?></div>
-            <div class="tile-desc"><?= t('Ta place face aux collègues.', 'Jouw plaats tegenover de collega\'s.') ?></div>
+            <div class="tile-desc"><?= t('Tableau des scores et points.', 'Scorebord en punten.') ?></div>
         </a>
         <a href="module.php?id=<?= (int) ($rootModuleIds['Sécurité au travail'] ?? 0) ?>" class="tile">
             <div class="tile-media"><span class="tile-icon">🦺</span></div>
             <div class="tile-title"><?= t('Sécurité au travail', 'Veiligheid op het werk') ?></div>
-            <div class="tile-desc"><?= t('Tout pour travailler en sécurité.', 'Alles om veilig te werken.') ?></div>
+            <div class="tile-desc"><?= t('Chaussure de sécurité & secourisme', 'Veiligheidsschoenen & EHBO') ?></div>
         </a>
         <?php endif; ?>
 
