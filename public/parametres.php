@@ -19,10 +19,26 @@ if (!$isAdmin) {
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['toggle_widget'])) {
         requireValidCSRF();
         $k = (string) ($_POST['widget_key'] ?? '');
-        if (in_array($k, widgetUserKeys(), true)) {
+        if (in_array($k, widgetUserKeys(), true) && !in_array($k, widgetUserKeysTexte(), true)) {
             widgetUserSet($db, $moiId, $k, widgetUserOn($db, $moiId, $k) ? '0' : '1');
         }
         header('Location: parametres.php');
+        exit();
+    }
+
+    // Choix du thème : il s'applique immédiatement à l'espace de la personne.
+    // Seules des clés connues sont acceptées — jamais une valeur libre de l'URL.
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['choisir_theme'])) {
+        requireValidCSRF();
+        $tk = (string) ($_POST['theme_cle'] ?? '');
+        $valides = ['', 'aucun', 'bienvenue', 'anniversaire'];
+        if (function_exists('siteThemeCatalog')) {
+            $valides = array_merge($valides, array_keys(siteThemeCatalog()));
+        }
+        if (in_array($tk, $valides, true)) {
+            widgetUserSet($db, $moiId, 'theme_choisi', $tk);
+        }
+        header('Location: parametres.php#themes');
         exit();
     }
 
@@ -95,6 +111,22 @@ if (!$isAdmin) {
             .bascule.on span { left: 25px; }
             .bascule:disabled { cursor: not-allowed; }
             @media (max-width: 420px) { .ligne { gap: 10px; } }
+
+            /* Choix du thème : des cartes, pas une liste d'interrupteurs — on
+               choisit UN décor, et le clic l'applique sur-le-champ. */
+            .grille-themes { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 11px; }
+            .carte-theme {
+                width: 100%; height: 100%; cursor: pointer; font-family: inherit; text-align: left;
+                display: flex; flex-direction: column; gap: 4px; position: relative;
+                padding: 14px 15px; border: 2px solid #e3eae5; border-radius: 14px;
+                background: #fbfdfc; color: #244230; transition: .15s;
+            }
+            .carte-theme:hover { border-color: #9ec4a8; }
+            .carte-theme.on { border-color: #2d5a37; background: #eef6f0; }
+            .carte-theme .ic { font-size: 1.5rem; line-height: 1; }
+            .carte-theme .nom { font-weight: 700; font-size: .95rem; }
+            .carte-theme .det { color: #7a8a80; font-size: .8rem; line-height: 1.4; }
+            .carte-theme .coche { position: absolute; top: 10px; right: 12px; color: #2d5a37; font-weight: 800; }
         </style>
     </head>
     <body>
@@ -181,58 +213,44 @@ if (!$isAdmin) {
                   // interrupteurs sans effet n'aurait aucun sens. ?>
             <?php if (($_SESSION['role'] ?? '') !== 'beta' && persoFeatureOn($db, 'themes_enabled')): ?>
             <?php
-                $mesThemes = widgetUserOn($db, $moiId, 'themes_on');
-                // Catalogue + les deux thèmes qui n'y sont pas (ils ne dépendent pas
-                // d'une date du calendrier mais de la personne).
-                $catalogue = [
-                    'bienvenue'    => ['🌿', 'Bienvenue', 'Welkom', 'À ta toute première visite du site.', 'Bij je allereerste bezoek aan de site.'],
-                    'anniversaire' => ['🎂', 'Anniversaire', 'Verjaardag', 'Le jour de ton anniversaire.', 'Op je verjaardag.'],
+                $choisi = famiThemeChoisi($db);
+                // Deux entrées de service, puis les thèmes eux-mêmes.
+                $choix = [
+                    ''      => ['🔄', 'Automatique', 'Automatisch', 'Le décor suit la saison et les événements.', 'Het decor volgt het seizoen en de gebeurtenissen.'],
+                    'aucun' => ['⬜', 'Aucun décor', 'Geen decor', 'Le site reste tel quel toute l\'année.', 'De site blijft het hele jaar ongewijzigd.'],
+                    'bienvenue'    => ['🌿', 'Bienvenue', 'Welkom', '', ''],
+                    'anniversaire' => ['🎂', 'Anniversaire', 'Verjaardag', '', ''],
                 ];
                 if (function_exists('siteThemeCatalog')) {
                     foreach (siteThemeCatalog() as $tk => $tv) {
                         $nomFr = is_array($tv['nom'] ?? null) ? $tv['nom'][0] : (string) ($tv['nom'] ?? $tk);
                         $nomNl = is_array($tv['nom'] ?? null) ? ($tv['nom'][1] ?? $nomFr) : $nomFr;
-                        $catalogue[$tk] = ['🎉', $nomFr, $nomNl, '', ''];
+                        $choix[$tk] = ['🎉', $nomFr, $nomNl, '', ''];
                     }
                 }
             ?>
-            <div class="card">
-                <h2><?= t('Thèmes', "Thema's") ?></h2>
+            <div class="card" id="themes">
+                <h2><?= t('Thème', 'Thema') ?></h2>
                 <p class="muted">
-                    <?= t("Aux grandes occasions, le site change de décor. Choisis ceux que tu veux voir : ça ne change rien pour les autres.",
-                          "Bij speciale gelegenheden verandert de site van decor. Kies welke je wil zien: dit verandert niets voor anderen.") ?>
+                    <?= t("Choisis le décor de ton espace. Il s'applique tout de suite, même hors saison, et ne change rien pour les autres.",
+                          'Kies het decor van jouw ruimte. Het wordt meteen toegepast, ook buiten het seizoen, en verandert niets voor anderen.') ?>
                 </p>
 
-                <form method="POST" action="parametres.php" class="ligne">
-                    <?= csrfField() ?>
-                    <input type="hidden" name="toggle_widget" value="1">
-                    <input type="hidden" name="widget_key" value="themes_on">
-                    <div class="txt">
-                        <strong><?= t('Afficher les thèmes', "Thema's tonen") ?></strong>
-                        <span class="muted"><?= t('Décoche pour garder le site tel quel toute l\'année.', 'Vink uit om de site het hele jaar ongewijzigd te houden.') ?></span>
-                    </div>
-                    <button type="submit" class="bascule <?= $mesThemes ? 'on' : '' ?>"><span></span></button>
-                </form>
-
-                <?php foreach ($catalogue as $tk => $info): $actif = widgetUserOn($db, $moiId, 'theme_' . $tk); ?>
-                <form method="POST" action="parametres.php" class="ligne<?= $mesThemes ? '' : ' grise' ?>">
-                    <?= csrfField() ?>
-                    <input type="hidden" name="toggle_widget" value="1">
-                    <input type="hidden" name="widget_key" value="theme_<?= htmlspecialchars($tk) ?>">
-                    <div class="txt">
-                        <strong><?= $info[0] ?> <?= htmlspecialchars(t($info[1], $info[2])) ?></strong>
-                        <?php if ($info[3] !== ''): ?><span class="muted"><?= t($info[3], $info[4]) ?></span><?php endif; ?>
-                    </div>
-                    <button type="submit" class="bascule <?= $actif ? 'on' : '' ?>"<?= $mesThemes ? '' : ' disabled' ?>><span></span></button>
-                </form>
-                <?php endforeach; ?>
-
-                <?php if (!$mesThemes): ?>
-                    <p class="muted" style="margin:14px 0 0;">
-                        💡 <?= t('Les thèmes sont coupés : réactive-les ci-dessus pour choisir lesquels tu veux.',
-                                 "De thema's staan uit: zet ze hierboven weer aan om te kiezen welke je wil.") ?>
-                    </p>
-                <?php endif; ?>
+                <div class="grille-themes">
+                    <?php foreach ($choix as $tk => $info): $actif = ((string) $tk === (string) $choisi); ?>
+                    <form method="POST" action="parametres.php" style="margin:0;">
+                        <?= csrfField() ?>
+                        <input type="hidden" name="choisir_theme" value="1">
+                        <input type="hidden" name="theme_cle" value="<?= htmlspecialchars((string) $tk) ?>">
+                        <button type="submit" class="carte-theme<?= $actif ? ' on' : '' ?>">
+                            <span class="ic"><?= $info[0] ?></span>
+                            <span class="nom"><?= htmlspecialchars(t($info[1], $info[2])) ?></span>
+                            <?php if ($info[3] !== ''): ?><span class="det"><?= t($info[3], $info[4]) ?></span><?php endif; ?>
+                            <?php if ($actif): ?><span class="coche">✓</span><?php endif; ?>
+                        </button>
+                    </form>
+                    <?php endforeach; ?>
+                </div>
             </div>
             <?php endif; ?>
         </div>

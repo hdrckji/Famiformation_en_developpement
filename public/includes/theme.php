@@ -147,25 +147,10 @@ if (!function_exists('themesEnabled')) {
         if (($_SESSION['role'] ?? '') === 'beta') {
             return false;
         }
-        // Réglage du SITE, décidé par l'admin…
-        if (!persoFeatureOn($db, 'themes_enabled')) {
-            return false;
-        }
-        // …puis choix PERSONNEL : chacun peut couper les thèmes pour lui seul.
-        // Le site l'emporte toujours : on peut en retirer, jamais en rajouter.
-        if (function_exists('widgetUserOn')) {
-            return widgetUserOn($db, (int) ($_SESSION['user_id'] ?? 0), 'themes_on');
-        }
-        return true;
-    }
-}
-
-if (!function_exists('themeAutoriseParUtilisateur')) {
-    /** Cet utilisateur veut-il CE thème précis ? (défaut : oui) */
-    function themeAutoriseParUtilisateur(PDO $db, $key)
-    {
-        if (!function_exists('widgetUserOn')) { return true; }
-        return widgetUserOn($db, (int) ($_SESSION['user_id'] ?? 0), 'theme_' . $key);
+        // Réglage du SITE, décidé par l'admin. Le choix personnel se fait
+        // ailleurs, par le thème retenu dans les préférences (famiThemeChoisi) :
+        // « aucun » y coupe le décor pour soi seul.
+        return persoFeatureOn($db, 'themes_enabled');
     }
 }
 
@@ -214,10 +199,6 @@ if (!function_exists('activeSiteTheme')) {
                     continue;
                 }
                 if (function_exists('widgetGet') && widgetGet($db, 'theme_' . $key . '_on', '1') !== '1') {
-                    continue;
-                }
-                // Choix personnel : ce thème-là ne l'intéresse pas.
-                if (!themeAutoriseParUtilisateur($db, $key)) {
                     continue;
                 }
                 return ['key' => $key] + $t;
@@ -272,6 +253,11 @@ if (!function_exists('famiPremiereVisite')) {
     {
         static $rep = null;
         if ($rep !== null) { return $rep; }
+        // Une fois l'accueil vu, il ne se rejoue plus de toute la session : on le
+        // retient plutôt que de relire la base à chaque page. C'est le cas de
+        // l'immense majorité des visites — donc l'immense majorité des requêtes
+        // economisees.
+        if (!empty($_SESSION['fami_welcome_vu'])) { $rep = false; return $rep; }
         $rep = false;
         $uid = (int) ($_SESSION['user_id'] ?? 0);
         if ($uid > 0) {
@@ -282,7 +268,31 @@ if (!function_exists('famiPremiereVisite')) {
                 $rep = ($v !== false && (int) $v === 0);
             } catch (Exception $e) { /* colonne absente : pas de thème de bienvenue */ }
         }
+        if (!$rep) { $_SESSION['fami_welcome_vu'] = 1; }
         return $rep;
+    }
+}
+
+if (!function_exists('famiThemeChoisi')) {
+    /**
+     * Thème choisi par l'utilisateur dans ses préférences.
+     * '' = automatique (saison / anniversaire / bienvenue), 'aucun' = aucun décor,
+     * sinon la clé d'un thème qui s'applique IMMÉDIATEMENT, hors de sa saison.
+     */
+    function famiThemeChoisi(PDO $db)
+    {
+        if (!function_exists('widgetUserGet')) { return ''; }
+        return (string) widgetUserGet($db, (int) ($_SESSION['user_id'] ?? 0), 'theme_choisi', '');
+    }
+
+    /** Le thème correspondant à une clé, ou null si la clé est inconnue. */
+    function famiThemeParCle($cle)
+    {
+        $cle = (string) $cle;
+        if ($cle === 'bienvenue' && function_exists('welcomeTheme')) { return welcomeTheme(); }
+        if ($cle === 'anniversaire' && function_exists('birthdayTheme')) { return birthdayTheme(); }
+        $cat = function_exists('siteThemeCatalog') ? siteThemeCatalog() : [];
+        return isset($cat[$cle]) ? (['key' => $cle] + $cat[$cle]) : null;
     }
 }
 
@@ -306,12 +316,28 @@ if (!function_exists('activePageTheme')) {
                 return ['key' => $pv] + $catalog[$pv];
             }
         }
+        // 🎨 CHOIX PERSONNEL. Si la personne a choisi un thème dans ses préférences,
+        // il s'applique TOUT DE SUITE et passe avant tout le reste : c'est son
+        // espace, elle décide de son décor sans attendre la bonne saison.
+        // '' = laisser faire l'automatique, 'aucun' = pas de décor du tout.
+        if (themesEnabled($db)) {
+            $__choisi = famiThemeChoisi($db);
+            if ($__choisi === 'aucun') {
+                return null;
+            }
+            if ($__choisi !== '') {
+                $__th = famiThemeParCle($__choisi);
+                if ($__th !== null) {
+                    return $__th;
+                }
+            }
+        }
+
         // L'anniversaire est un thème événementiel comme les autres : soumis au maître,
         // à la catégorie Thèmes, et à son interrupteur individuel theme_anniversaire_on.
         if (($_SESSION['is_birthday_today'] ?? '') === '1'
             && themesEnabled($db)
             && eventEnabled($db, 'anniversaire')
-            && themeAutoriseParUtilisateur($db, 'anniversaire')
             && (!function_exists('widgetGet') || widgetGet($db, 'theme_anniversaire_on', '1') === '1')) {
             return birthdayTheme();
         }
@@ -322,7 +348,6 @@ if (!function_exists('activePageTheme')) {
         // interrupteur theme_bienvenue_on.
         if (famiPremiereVisite($db)
             && themesEnabled($db)
-            && themeAutoriseParUtilisateur($db, 'bienvenue')
             && (!function_exists('widgetGet') || widgetGet($db, 'theme_bienvenue_on', '1') === '1')) {
             return welcomeTheme();
         }
