@@ -460,7 +460,7 @@ if ($wcThemeOn && !empty($siteTheme) && is_array($siteTheme)) {
             <span><?= htmlspecialchars($userNom ?: ($_SESSION['username'] ?? '')) ?></span>
         </a>
 
-        <?php if (userSeesWidget($db, $role)): ?>
+        <?php if (userSeesWidget($db, $role, (int) ($_SESSION['user_id'] ?? 0))): ?>
             <?= renderWidget($db, $isBirthday ? $birthdayName : null, $festiveMsg) ?>
         <?php endif; ?>
 

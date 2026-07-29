@@ -536,6 +536,77 @@ BLAGUES
         return widgetGet($db, 'enabled', '1') === '1';
     }
 
+    /**
+     * ─── PRÉFÉRENCES PERSONNELLES DU WIDGET ──────────────────────────────────
+     * Les réglages ci-dessus (enabled, show_meteo…) sont ceux du SITE, décidés
+     * par l'admin. Ceux-là appartiennent à CHAQUE utilisateur : il peut couper
+     * le widget ou l'un de ses blocs pour lui seul, sans rien changer chez les
+     * autres.
+     *
+     * Règle : le réglage du site l'emporte toujours. Si l'admin coupe la météo
+     * pour tout le monde, la préférence personnelle ne peut pas la rallumer —
+     * elle ne peut que retirer davantage, jamais ajouter.
+     */
+    function widgetUserEnsure(PDO $db)
+    {
+        static $ok = false;
+        if ($ok) { return; }
+        try {
+            $db->exec(
+                "CREATE TABLE IF NOT EXISTS widget_user_settings (
+                    user_id INT NOT NULL,
+                    skey VARCHAR(60) NOT NULL,
+                    sval VARCHAR(20) NOT NULL,
+                    PRIMARY KEY (user_id, skey)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+            );
+            $ok = true;
+        } catch (Exception $e) { /* base indisponible : on retombera sur les défauts */ }
+    }
+
+    /** Clés que l'utilisateur a le droit de régler (liste blanche). */
+    function widgetUserKeys()
+    {
+        return ['user_enabled', 'user_meteo', 'user_phrases', 'user_date'];
+    }
+
+    function widgetUserGet(PDO $db, $userId, $key, $default = '1')
+    {
+        $userId = (int) $userId;
+        if ($userId <= 0 || !in_array($key, widgetUserKeys(), true)) { return $default; }
+        widgetUserEnsure($db);
+        // Un seul aller-retour par page : toutes les préférences d'un coup.
+        static $cache = [];
+        if (!array_key_exists($userId, $cache)) {
+            $cache[$userId] = [];
+            try {
+                $st = $db->prepare("SELECT skey, sval FROM widget_user_settings WHERE user_id = ?");
+                $st->execute([$userId]);
+                foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) { $cache[$userId][$r['skey']] = $r['sval']; }
+            } catch (Exception $e) {}
+        }
+        return array_key_exists($key, $cache[$userId]) ? $cache[$userId][$key] : $default;
+    }
+
+    function widgetUserSet(PDO $db, $userId, $key, $val)
+    {
+        $userId = (int) $userId;
+        if ($userId <= 0 || !in_array($key, widgetUserKeys(), true)) { return false; }
+        widgetUserEnsure($db);
+        try {
+            $db->prepare("INSERT INTO widget_user_settings (user_id, skey, sval) VALUES (?, ?, ?)
+                          ON DUPLICATE KEY UPDATE sval = VALUES(sval)")
+               ->execute([$userId, $key, $val === '1' ? '1' : '0']);
+            return true;
+        } catch (Exception $e) { return false; }
+    }
+
+    /** L'utilisateur a-t-il activé ce bloc ? (défaut : oui) */
+    function widgetUserOn(PDO $db, $userId, $key)
+    {
+        return widgetUserGet($db, $userId, $key, '1') === '1';
+    }
+
     function widgetRoles(PDO $db)
     {
         $r = (string) widgetGet($db, 'roles', 'admin');
@@ -545,9 +616,13 @@ BLAGUES
     /**
      * Le widget doit-il être affiché pour ce rôle ? (activé ET rôle autorisé ; liste vide = tous)
      */
-    function userSeesWidget(PDO $db, $role)
+    function userSeesWidget(PDO $db, $role, $userId = null)
     {
         if (!widgetEnabled($db)) {
+            return false;
+        }
+        // Choix personnel : chacun peut masquer le widget pour lui seul.
+        if ($userId !== null && !widgetUserOn($db, $userId, 'user_enabled')) {
             return false;
         }
         $roles = widgetRoles($db);
@@ -681,10 +756,14 @@ BLAGUES
         }
         ?>
         <?php
-            // Composants activables individuellement (Paramètres → Widget).
-            $showMeteo = widgetGet($db, 'show_meteo', '1') === '1';
-            $showPhrases = widgetGet($db, 'show_phrases', '1') === '1';
-            $showDate = widgetGet($db, 'show_date', '1') === '1';
+            // Composants activables individuellement (Paramètres → Widget), puis
+            // filtrés par le choix PERSONNEL de l'utilisateur. Le réglage du site
+            // l'emporte : une préférence personnelle peut retirer un bloc, jamais
+            // en rallumer un que l'admin a coupé pour tout le monde.
+            $wUid = (int) ($_SESSION['user_id'] ?? 0);
+            $showMeteo   = widgetGet($db, 'show_meteo', '1') === '1'   && widgetUserOn($db, $wUid, 'user_meteo');
+            $showPhrases = widgetGet($db, 'show_phrases', '1') === '1' && widgetUserOn($db, $wUid, 'user_phrases');
+            $showDate    = widgetGet($db, 'show_date', '1') === '1'    && widgetUserOn($db, $wUid, 'user_date');
 
             // 🍦 TICKET GLACE : collé dans le COIN du widget qui porte sa raison —
             //    en bas à GAUCHE pour la chaleur (côté météo), en bas à DROITE pour le
