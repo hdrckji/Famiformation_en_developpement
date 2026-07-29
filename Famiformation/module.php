@@ -147,10 +147,10 @@ $isVideoPage = !$isContainer && empty($module['is_booking']) && $mHasVideoAny &&
         .badge-eval { display:inline-block; background:#2d5a37; color:#fff; font-size:0.78rem; font-weight:700; padding:4px 12px; border-radius:20px; margin-top:8px; }
         .tile .badge-eval { position:absolute; top:12px; right:12px; margin:0; }
         /* Actions du guide : au-dessus de la fiche, alignées à DROITE. */
-        /* Alignés sur la COLONNE DE TEXTE (800px, comme .page), pas sur toute la
-           largeur : au-delà, les boutons partaient loin à droite, détachés du
-           contenu. La marge négative les faisait en plus remonter sur le titre. */
-        .guide-actions { width:100%; max-width:800px; margin:18px auto 10px; padding:0 24px; box-sizing:border-box; display:flex; justify-content:flex-end; gap:10px; flex-wrap:wrap; }
+        /* Collés à droite, sur toute la largeur utile. La marge négative d'origine
+           (-6px) les faisait remonter sur le titre : elle est remplacée par un
+           espacement normal, sans changer leur alignement. */
+        .guide-actions { width:92%; max-width:1040px; margin:18px auto 10px; display:flex; justify-content:flex-end; gap:10px; flex-wrap:wrap; }
         .guide-actions .uni-ico { display:inline-flex; align-items:center; justify-content:center; gap:6px; width:auto; min-width:46px; padding:0 14px; }
         @media print { .guide-actions { display:none !important; } }
         .content-card { background: rgba(255,255,255,0.96); border-radius: 18px; padding: 32px; width: 90%; max-width: 900px; margin: 30px 0; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
