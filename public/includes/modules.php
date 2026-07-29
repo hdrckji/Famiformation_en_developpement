@@ -590,6 +590,52 @@ if (!function_exists('ensureModulesTable')) {
             //     vers le présentiel). On la DÉSACTIVE seulement — surtout pas de
             //     suppression : le module et son historique doivent rester intacts
             //     pour pouvoir le rallumer d'un simple is_active = 1.
+            // 24) FORMATIONS OUVERTES AU PROFIL MAGASIN : caisse et gerbeur.
+            //     « Formation Caisse » était réservée aux étudiants, et « Gerbeur »
+            //     n'existait qu'en sous-module de Logistique — donc hors de portée
+            //     d'un employé magasin, qui en a pourtant besoin au quotidien.
+            // try/catch PROPRE à cette migration : sans lui, une erreur ici
+            // (colonne manquante, table verrouillée…) ferait sauter TOUTES les
+            // migrations suivantes — dont la bascule du personnel en profil
+            // magasin, qui est autrement plus importante qu'une tuile.
+            try {
+            if (!$hasFlag('magasin_caisse_gerbeur_v1')) {
+                // Caisse : on AJOUTE le profil aux rôles existants, on ne remplace
+                // rien — les étudiants doivent la garder.
+                $fc = $db->query("SELECT id, roles FROM modules WHERE nom = 'Formation Caisse' AND parent_id IS NULL LIMIT 1")
+                         ->fetch(PDO::FETCH_ASSOC);
+                if ($fc) {
+                    $roles = array_values(array_filter(array_map('trim', explode(',', (string) $fc['roles']))));
+                    // Une liste VIDE veut dire « tout le monde » : dans ce cas on n'y
+                    // touche surtout pas, sinon on RESTREINDRAIT l'accès.
+                    if (!empty($roles) && !in_array('employe_magasin', $roles, true)) {
+                        $roles[] = 'employe_magasin';
+                        $db->prepare("UPDATE modules SET roles = ? WHERE id = ?")
+                           ->execute([implode(',', $roles), (int) $fc['id']]);
+                    }
+                }
+
+                // Gerbeur : tuile d'accueil dédiée, pour y accéder sans passer par
+                // Logistique. Le sous-module existant n'est pas touché.
+                $dejaG = (int) $db->query("SELECT COUNT(*) FROM modules WHERE nom = 'Gerbeur' AND parent_id IS NULL")->fetchColumn();
+                if ($dejaG === 0) {
+                    $db->prepare("INSERT INTO modules (nom, nom_nl, description, description_nl, is_container, parent_id, icon, roles, is_active, is_locked, link)
+                                  VALUES (?, ?, ?, ?, 0, NULL, ?, ?, 1, 0, ?)")
+                       ->execute([
+                           'Gerbeur', 'Stapelaar',
+                           'Conduite et sécurité du gerbeur : ce qu\'il faut savoir avant de l\'utiliser.',
+                           'Rijden met en veiligheid van de stapelaar: wat je moet weten voor je hem gebruikt.',
+                           '🏗️',
+                           'admin,employe_magasin,employe_logistique,teamcoach,mentor',
+                           'gerbeur.php',
+                       ]);
+                }
+                $setFlag('magasin_caisse_gerbeur_v1');
+            }
+            } catch (Exception $e) {
+                error_log('[FamiFormation] tuiles caisse/gerbeur : ' . $e->getMessage());
+            }
+
             // 23) PERSONNEL RECONNU → PROFIL MAGASIN, AUTOMATIQUEMENT.
             //     La page « Tri des profils » demandait une validation à la main.
             //     Ce n'était pas la demande : tout compte beta dont le nom figure

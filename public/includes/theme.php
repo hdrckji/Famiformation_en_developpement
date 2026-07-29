@@ -256,6 +256,16 @@ if (!function_exists('famiPremiereVisite')) {
 
         $aujourdhui = date('Y-m-d');
 
+        // 👁 APERÇU ADMIN. ?welcome=preview ne rejouait que l'animation : le thème,
+        // lui, restait éteint, et il était donc IMPOSSIBLE de le voir depuis un
+        // compte déjà accueilli — c'est-à-dire depuis tous les comptes admin.
+        // L'aperçu montre maintenant l'ensemble : décor + animation, exactement ce
+        // que découvre un nouvel arrivant.
+        if ((($_SESSION['role'] ?? '') === 'admin') && (($_GET['welcome'] ?? '') === 'preview')) {
+            $rep = true;
+            return $rep;
+        }
+
         // Retenu en session pour ne pas relire la base à chaque page. On mémorise
         // le JOUR et non un simple oui/non : le thème doit tenir toute la journée,
         // donc la réponse change au passage à minuit.
