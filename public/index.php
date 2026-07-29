@@ -642,6 +642,11 @@ if ($wcThemeOn && !empty($siteTheme) && is_array($siteTheme)) {
             <div class="tile-title"><?= t('Espace Beta', 'Beta-ruimte') ?></div>
             <div class="tile-desc"><?= t('Ton espace pour déposer le contenu de la version beta (PDF + vidéos).', 'Jouw ruimte om de inhoud van de betaversie te uploaden (PDF + video\'s).') ?></div>
         </a>
+        <a href="tri_profils.php" class="tile tile-admin">
+            <div class="tile-media"><span class="tile-icon">👥</span></div>
+            <div class="tile-title"><?= t('Tri des profils', 'Profielen sorteren') ?></div>
+            <div class="tile-desc"><?= t('Passer en profil employé les comptes beta qui figurent dans la liste du personnel.', 'Betagebruikers die in de personeelslijst staan naar het werknemersprofiel overzetten.') ?></div>
+        </a>
         <a href="relance_mdp.php" class="tile tile-admin">
             <div class="tile-media"><span class="tile-icon">🔑</span></div>
             <div class="tile-title"><?= t('Relance mot de passe', 'Herinnering wachtwoord') ?></div>

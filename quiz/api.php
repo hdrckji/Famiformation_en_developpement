@@ -83,6 +83,22 @@ function estCompteTest($p) {
 $FAVORIS_TEXTES = [
   'combien y a t il de valeurs dans l entreprise',
 ];
+
+/**
+ * 👤 PROFIL D'UN NOUVEAU COMPTE créé depuis le quiz.
+ *
+ * Par défaut « beta ». Mais quelqu'un qui figure dans la liste du personnel
+ * n'est pas un visiteur : il entre directement avec le profil employé, sans
+ * passer par la case beta ni attendre un tri manuel.
+ *
+ * La règle ne vaut qu'à partir du 29/07/2026 12h30 (voir personnel_liste.php) :
+ * avant cette heure, tout le monde reste en beta comme prévu.
+ */
+function roleInscription($prenom, $nom) {
+  if (!function_exists('personnelTrouve') || !function_exists('personnelRegleActive')) { return 'beta'; }
+  if (!personnelRegleActive()) { return 'beta'; }
+  return personnelTrouve($nom, $prenom) ? personnelRoleCible() : 'beta';
+}
 function normaliseTexteQuestion($t) {
   $t = mb_strtolower(trim((string) $t));
   $t = strtr($t, ['à'=>'a','â'=>'a','ä'=>'a','é'=>'e','è'=>'e','ê'=>'e','ë'=>'e',
@@ -482,6 +498,11 @@ function famiDb() {
   // erreur incompréhensible. On avale tout ce qui pourrait sortir.
   ob_start();
   require_once $lib;
+  // Liste du personnel : sert à donner d'emblée le bon profil à quelqu'un qui
+  // s'inscrit et qui travaille déjà chez Famiflora (voir roleInscription()).
+  foreach ([__DIR__ . '/../includes/personnel_liste.php', __DIR__ . '/../public/includes/personnel_liste.php'] as $pl) {
+    if (is_file($pl)) { require_once $pl; break; }
+  }
   ob_end_clean();
   try {
     // QUIZ_DB_DSN sert aux essais hors ligne (SQLite) ; en production, ce sont
@@ -815,7 +836,7 @@ function traiteInscritGroupe(PDO $db, array $p, $siteId, $heures, $parNom = fals
     $ins = $db->prepare('INSERT INTO utilisateurs (identifiant, nom, prenom, email, mot_de_passe, role, account_activation_pending, site_id, statut_date)
                          VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)');
     $ins->execute([$identifiant, $nom, $prenom, $email,
-      password_hash(bin2hex(random_bytes(16)), PASSWORD_DEFAULT), 'beta', $siteId, date('Y-m-d H:i:s')]);
+      password_hash(bin2hex(random_bytes(16)), PASSWORD_DEFAULT), roleInscription($prenom, $nom), $siteId, date('Y-m-d H:i:s')]);
     $uid = (int) $db->lastInsertId();
     if (envoiFunActivation($db, $uid, $heures)) { return 'cree'; }
     try { $db->prepare('DELETE FROM utilisateurs WHERE id = ?')->execute([$uid]); } catch (Throwable $e) {}
@@ -1316,7 +1337,7 @@ switch ($action) {
       $ins = $db->prepare('INSERT INTO utilisateurs (identifiant, nom, prenom, email, mot_de_passe, role, account_activation_pending, site_id, statut_date)
                            VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)');
       $ins->execute([$identifiant, $nom, $prenom, $email,
-        password_hash(bin2hex(random_bytes(16)), PASSWORD_DEFAULT), 'beta', $siteId, date('Y-m-d H:i:s')]);
+        password_hash(bin2hex(random_bytes(16)), PASSWORD_DEFAULT), roleInscription($prenom, $nom), $siteId, date('Y-m-d H:i:s')]);
       $uid = (int) $db->lastInsertId();
     } catch (Throwable $e) {
       http_response_code(500); echo json_encode(['ok' => false, 'reason' => 'creation_impossible']); break;

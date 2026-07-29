@@ -4,3 +4,8 @@
 
 public/volontaire/.env
 public/emails/.env
+
+# Exports du personnel (nom, prénom, coordonnées) : ces fichiers ne sont PAS
+# versionnés. Ce qui part en production, c'est includes/personnel_liste.php,
+# régénéré depuis l'export et limité aux seuls nom / prénom / dossier.
+*.xlsx
