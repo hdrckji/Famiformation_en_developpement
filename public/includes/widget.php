@@ -585,7 +585,12 @@ BLAGUES
     {
         $userId = (int) $userId;
         if ($userId <= 0 || !in_array($key, widgetUserKeys(), true)) { return $default; }
-        widgetUserEnsure($db);
+        // Volontairement PAS de widgetUserEnsure() ici : la lecture a lieu sur
+        // CHAQUE page du site (themesEnabled), et y placer un CREATE TABLE
+        // revenait à envoyer une requête de structure à chaque affichage. Si la
+        // table n'existe pas encore, le SELECT échoue sans bruit et tout le monde
+        // garde les valeurs par défaut — c'est exactement le comportement voulu.
+        // La table est créée au premier enregistrement (widgetUserSet).
         // Un seul aller-retour par page : toutes les préférences d'un coup.
         static $cache = [];
         if (!array_key_exists($userId, $cache)) {

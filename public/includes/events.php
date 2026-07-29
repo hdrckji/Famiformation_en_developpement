@@ -308,6 +308,10 @@ if (!function_exists('eventsMarkAllSeen')) {
     {
         eventsEnsureUserSeen($db);
         try {
+            // UPDATE volontairement SANS clause WHERE : c'est bien TOUS les comptes
+            // qu'on remet à zéro, c'est l'objet même de la fonction. Ne pas y voir
+            // un oubli — l'action n'est declenchable que par un admin, depuis un
+            // bouton qui demande confirmation.
             $st = $db->prepare("UPDATE utilisateurs SET events_seen_at = ?");
             $st->execute([date('Y-m-d H:i:s')]);
             return $st->rowCount();

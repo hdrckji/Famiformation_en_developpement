@@ -22,6 +22,7 @@ require_once 'config.php';
 verifierConnexion($db);
 require_once 'includes/csrf.php';
 require_once 'includes/personnel_liste.php';
+require_once 'includes/events.php';   // logEvent() : trace des changements de profil
 
 $role = function_exists('getCurrentRole') ? getCurrentRole() : ($_SESSION['role'] ?? '');
 if ($role !== 'admin') {
@@ -114,8 +115,11 @@ if (($_POST['action'] ?? '') === 'appliquer') {
             }
             if ($upd->rowCount() > 0) {
                 $faits[] = $autorises[$id];
-                if (function_exists('famiLogChange')) {
-                    @famiLogChange($db, 'user_updated', 0,
+                // Trace : un changement de profil doit rester retrouvable.
+                // (Ne PAS utiliser famiLogChange : il est défini dans module_save.php,
+                // que cette page ne charge pas — l'appel ne partait jamais.)
+                if (function_exists('logEvent')) {
+                    @logEvent($db, 'user_updated', (int) ($_SESSION['user_id'] ?? 0), 0,
                         '👤 Profil passé en ' . ($LIBELLES_ROLES[$roleCible] ?? $roleCible)
                         . ' (personnel reconnu) : ' . trim(($autorises[$id]['prenom'] ?? '') . ' ' . ($autorises[$id]['nom'] ?? '')));
                 }
