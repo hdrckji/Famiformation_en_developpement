@@ -96,7 +96,15 @@ if (!function_exists('skinBase')) {
         return '
         .skin-fx{ position:fixed; inset:0; top:0; left:0; right:0; bottom:0; pointer-events:none; overflow:hidden; z-index:0; }
         .skin-fx > span{ position:absolute; will-change:transform; }
-        body > *:not(.skin-fx){ position:relative; z-index:1; }
+        /* Le contenu de la page passe AU-DESSUS des particules. On force donc
+           position:relative sur les enfants directs de body, SAUF sur les
+           surcouches, qui sont en position:fixed et doivent le rester.
+           Sans ces exclusions, la fee (.fee-back), un fixed inset:0 qui couvre
+           tout, retombait dans le flux normal et sortait comme un simple
+           rectangle au milieu de la page des qu un theme etait actif. La regle
+           gagnait meme sans etre la derniere : "body > *:not(.x)" est plus
+           specifique qu une simple classe. */
+        body > *:not(.skin-fx):not(.fee-back):not(.fami-tb-mask):not(.site-theme-fx){ position:relative; z-index:1; }
 
         .skin-fx .sk-mote{ border-radius:50%; top:auto; bottom:-6%; filter:blur(.3px);
             animation-name:skRise; animation-timing-function:linear; animation-iteration-count:infinite; }
