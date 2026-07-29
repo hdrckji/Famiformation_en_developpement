@@ -564,10 +564,21 @@ BLAGUES
         } catch (Exception $e) { /* base indisponible : on retombera sur les défauts */ }
     }
 
-    /** Clés que l'utilisateur a le droit de régler (liste blanche). */
+    /**
+     * Clés que l'utilisateur a le droit de régler (liste blanche).
+     * S'y ajoutent les thèmes : « theme_<clé> » pour chaque thème du catalogue,
+     * plus « themes_on » (l'interrupteur général de SES thèmes).
+     */
     function widgetUserKeys()
     {
-        return ['user_enabled', 'user_meteo', 'user_phrases', 'user_date'];
+        $keys = ['user_enabled', 'user_meteo', 'user_phrases', 'user_date', 'themes_on'];
+        if (function_exists('siteThemeCatalog')) {
+            foreach (array_keys(siteThemeCatalog()) as $k) { $keys[] = 'theme_' . $k; }
+        }
+        // Thèmes hors catalogue mais bien réels.
+        $keys[] = 'theme_bienvenue';
+        $keys[] = 'theme_anniversaire';
+        return $keys;
     }
 
     function widgetUserGet(PDO $db, $userId, $key, $default = '1')
@@ -732,11 +743,20 @@ BLAGUES
             $items = [$tt('Bienvenue chez Famiflora 🌿', 'Welkom bij Famiflora 🌿')];
         }
         $phrases = $items;
-        // Thème du jour : alterne avec les phrases habituelles. Préfixé « Thème : »
-        // pour qu'on comprenne de quoi il s'agit — seul, le nom du thème passait
-        // pour une phrase de plus et ne voulait rien dire.
+        // Thème du jour. Il était simplement placé EN TÊTE de la liste : il passait
+        // une fois au début puis disparaissait pour tout le reste du cycle, alors
+        // qu'on voulait le voir revenir régulièrement. On l'intercale donc vraiment
+        // entre chaque phrase : thème, phrase, thème, phrase…
+        // Préfixé « Thème : » car seul, le nom passait pour une phrase de plus.
         if (is_string($festiveMessage) && trim($festiveMessage) !== '') {
-            array_unshift($phrases, $tt('Thème', 'Thema') . ' : 🎉 ' . trim($festiveMessage));
+            $ligneTheme = $tt('Thème', 'Thema') . ' : 🎉 ' . trim($festiveMessage);
+            $alterne = [];
+            foreach ($phrases as $p) {
+                $alterne[] = $ligneTheme;
+                $alterne[] = $p;
+            }
+            // Aucune phrase à alterner : on affiche au moins le thème.
+            $phrases = $alterne ?: [$ligneTheme];
         }
         $phrasesAttr = htmlspecialchars(json_encode($phrases, JSON_UNESCAPED_UNICODE), ENT_QUOTES, 'UTF-8');
         // Météo du site (lieu de travail) de l'utilisateur — Open-Meteo, mise en cache

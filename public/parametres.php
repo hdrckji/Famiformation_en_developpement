@@ -174,6 +174,65 @@ if (!$isAdmin) {
                 <?php endif; ?>
             </div>
             <?php endif; ?>
+
+            <?php // 🎨 THÈMES — chacun choisit ceux qu'il veut voir. Masqué si l'admin
+                  // a coupé les thèmes pour tout le site. ?>
+            <?php if (persoFeatureOn($db, 'themes_enabled')): ?>
+            <?php
+                $mesThemes = widgetUserOn($db, $moiId, 'themes_on');
+                // Catalogue + les deux thèmes qui n'y sont pas (ils ne dépendent pas
+                // d'une date du calendrier mais de la personne).
+                $catalogue = [
+                    'bienvenue'    => ['🌿', 'Bienvenue', 'Welkom', 'À ta toute première visite du site.', 'Bij je allereerste bezoek aan de site.'],
+                    'anniversaire' => ['🎂', 'Anniversaire', 'Verjaardag', 'Le jour de ton anniversaire.', 'Op je verjaardag.'],
+                ];
+                if (function_exists('siteThemeCatalog')) {
+                    foreach (siteThemeCatalog() as $tk => $tv) {
+                        $nomFr = is_array($tv['nom'] ?? null) ? $tv['nom'][0] : (string) ($tv['nom'] ?? $tk);
+                        $nomNl = is_array($tv['nom'] ?? null) ? ($tv['nom'][1] ?? $nomFr) : $nomFr;
+                        $catalogue[$tk] = ['🎉', $nomFr, $nomNl, '', ''];
+                    }
+                }
+            ?>
+            <div class="card">
+                <h2><?= t('Thèmes', "Thema's") ?></h2>
+                <p class="muted">
+                    <?= t("Aux grandes occasions, le site change de décor. Choisis ceux que tu veux voir : ça ne change rien pour les autres.",
+                          "Bij speciale gelegenheden verandert de site van decor. Kies welke je wil zien: dit verandert niets voor anderen.") ?>
+                </p>
+
+                <form method="POST" action="parametres.php" class="ligne">
+                    <?= csrfField() ?>
+                    <input type="hidden" name="toggle_widget" value="1">
+                    <input type="hidden" name="widget_key" value="themes_on">
+                    <div class="txt">
+                        <strong><?= t('Afficher les thèmes', "Thema's tonen") ?></strong>
+                        <span class="muted"><?= t('Décoche pour garder le site tel quel toute l\'année.', 'Vink uit om de site het hele jaar ongewijzigd te houden.') ?></span>
+                    </div>
+                    <button type="submit" class="bascule <?= $mesThemes ? 'on' : '' ?>"><span></span></button>
+                </form>
+
+                <?php foreach ($catalogue as $tk => $info): $actif = widgetUserOn($db, $moiId, 'theme_' . $tk); ?>
+                <form method="POST" action="parametres.php" class="ligne<?= $mesThemes ? '' : ' grise' ?>">
+                    <?= csrfField() ?>
+                    <input type="hidden" name="toggle_widget" value="1">
+                    <input type="hidden" name="widget_key" value="theme_<?= htmlspecialchars($tk) ?>">
+                    <div class="txt">
+                        <strong><?= $info[0] ?> <?= htmlspecialchars(t($info[1], $info[2])) ?></strong>
+                        <?php if ($info[3] !== ''): ?><span class="muted"><?= t($info[3], $info[4]) ?></span><?php endif; ?>
+                    </div>
+                    <button type="submit" class="bascule <?= $actif ? 'on' : '' ?>"<?= $mesThemes ? '' : ' disabled' ?>><span></span></button>
+                </form>
+                <?php endforeach; ?>
+
+                <?php if (!$mesThemes): ?>
+                    <p class="muted" style="margin:14px 0 0;">
+                        💡 <?= t('Les thèmes sont coupés : réactive-les ci-dessus pour choisir lesquels tu veux.',
+                                 "De thema's staan uit: zet ze hierboven weer aan om te kiezen welke je wil.") ?>
+                    </p>
+                <?php endif; ?>
+            </div>
+            <?php endif; ?>
         </div>
     </body>
     </html>

@@ -140,7 +140,25 @@ if (!function_exists('persoFeatureOn')) {
 if (!function_exists('themesEnabled')) {
     function themesEnabled(PDO $db)
     {
-        return persoFeatureOn($db, 'themes_enabled');
+        // Réglage du SITE, décidé par l'admin…
+        if (!persoFeatureOn($db, 'themes_enabled')) {
+            return false;
+        }
+        // …puis choix PERSONNEL : chacun peut couper les thèmes pour lui seul.
+        // Le site l'emporte toujours : on peut en retirer, jamais en rajouter.
+        if (function_exists('widgetUserOn')) {
+            return widgetUserOn($db, (int) ($_SESSION['user_id'] ?? 0), 'themes_on');
+        }
+        return true;
+    }
+}
+
+if (!function_exists('themeAutoriseParUtilisateur')) {
+    /** Cet utilisateur veut-il CE thème précis ? (défaut : oui) */
+    function themeAutoriseParUtilisateur(PDO $db, $key)
+    {
+        if (!function_exists('widgetUserOn')) { return true; }
+        return widgetUserOn($db, (int) ($_SESSION['user_id'] ?? 0), 'theme_' . $key);
     }
 }
 
@@ -189,6 +207,10 @@ if (!function_exists('activeSiteTheme')) {
                     continue;
                 }
                 if (function_exists('widgetGet') && widgetGet($db, 'theme_' . $key . '_on', '1') !== '1') {
+                    continue;
+                }
+                // Choix personnel : ce thème-là ne l'intéresse pas.
+                if (!themeAutoriseParUtilisateur($db, $key)) {
                     continue;
                 }
                 return ['key' => $key] + $t;
@@ -282,6 +304,7 @@ if (!function_exists('activePageTheme')) {
         if (($_SESSION['is_birthday_today'] ?? '') === '1'
             && themesEnabled($db)
             && eventEnabled($db, 'anniversaire')
+            && themeAutoriseParUtilisateur($db, 'anniversaire')
             && (!function_exists('widgetGet') || widgetGet($db, 'theme_anniversaire_on', '1') === '1')) {
             return birthdayTheme();
         }
@@ -292,6 +315,7 @@ if (!function_exists('activePageTheme')) {
         // interrupteur theme_bienvenue_on.
         if (famiPremiereVisite($db)
             && themesEnabled($db)
+            && themeAutoriseParUtilisateur($db, 'bienvenue')
             && (!function_exists('widgetGet') || widgetGet($db, 'theme_bienvenue_on', '1') === '1')) {
             return welcomeTheme();
         }
