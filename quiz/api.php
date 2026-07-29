@@ -397,16 +397,101 @@ function exigeRh($input) {
  * LECTURE SEULE (verrou partagé : plusieurs lecteurs en même temps, c'est permis).
  * À n'utiliser que quand on ne compte PAS réécrire derrière.
  */
+/**
+ * Lit un fichier JSON. Renvoie null si le fichier est absent, vide ou illisible
+ * — on distingue « pas de contenu » de « contenu invalide », c'est ce qui permet
+ * de basculer sur la sauvegarde plutôt que de repartir de zéro.
+ */
+function famiLitJsonBrut($file) {
+  if (!is_file($file)) return null;
+  $c = @file_get_contents($file);
+  if ($c === false || trim($c) === '') return null;
+  $d = json_decode($c, true);
+  return is_array($d) ? $d : null;
+}
+
 function readJson($file) {
-  if (!file_exists($file)) return [];
-  $fp = @fopen($file, 'r');
-  if (!$fp) return [];
-  flock($fp, LOCK_SH);
-  $content = stream_get_contents($fp);
-  flock($fp, LOCK_UN);
+  $d = famiLitJsonBrut($file);
+  if ($d !== null) return $d;
+  // ⛑️ FILET DE SÉCURITÉ. Le fichier principal est illisible (coupure en pleine
+  // écriture, disque plein…) : on repart de la dernière version saine plutôt que
+  // de rendre un classement VIDE. Rendre vide serait le pire : la page l'afficherait
+  // comme la vérité, puis le prochain enregistrement l'écrirait par-dessus la
+  // sauvegarde. Une donnée qu'on ne peut pas reconstituer serait perdue pour de bon.
+  $secours = famiLitJsonBrut($file . '.bak');
+  if ($secours !== null) {
+    error_log('[quiz] ' . basename($file) . ' illisible : reprise sur la sauvegarde .bak');
+    return $secours;
+  }
+  return [];
+}
+
+/**
+ * ÉCRITURE ATOMIQUE — le cœur de la protection du classement.
+ *
+ * L'ancienne façon de faire (ftruncate puis fwrite sur le fichier lui-même)
+ * laissait le fichier VIDE entre les deux opérations. Un conteneur remplacé, un
+ * plantage ou un manque de mémoire pile à cet instant, et tout le classement du
+ * magasin disparaissait.
+ *
+ * Ici on écrit à côté, on force sur le disque, puis on renomme. rename() est
+ * atomique sur le système de fichiers : à tout instant, le fichier final est
+ * soit l'ancien complet, soit le nouveau complet. Jamais un entre-deux.
+ *
+ * @return bool false si RIEN n'a été écrit (l'ancien fichier reste intact).
+ */
+function famiEcritJsonAtomique($file, $data) {
+  $json = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+  if ($json === false) {
+    error_log('[quiz] encodage JSON impossible pour ' . basename($file) . ' : rien touché');
+    return false;   // on ne détruit surtout pas ce qui existe
+  }
+
+  $tmp = $file . '.tmp';
+  $fp = @fopen($tmp, 'wb');
+  if (!$fp) return false;
+  $ecrit = @fwrite($fp, $json);
+  $ok = ($ecrit !== false && $ecrit === strlen($json));
+  if ($ok) {
+    fflush($fp);
+    // fsync : les octets sont sur le DISQUE, pas seulement dans un cache que
+    // l'arrêt du conteneur emporterait.
+    if (function_exists('fsync')) { @fsync($fp); }
+  }
   fclose($fp);
-  $d = json_decode($content, true);
-  return is_array($d) ? $d : [];
+  if (!$ok) { @unlink($tmp); return false; }
+
+  if (!@rename($tmp, $file)) { @unlink($tmp); return false; }
+
+  // Sauvegarde APRÈS le remplacement, pas avant : elle reflète ainsi le dernier
+  // état RÉUSSI, et non l'avant-dernier. Si le fichier principal devient un jour
+  // illisible, on repart du classement complet au lieu d'en perdre la dernière
+  // écriture. Sans danger : rename() étant atomique, le fichier qu'on copie ici
+  // est forcément entier.
+  @copy($file, $file . '.bak');
+  return true;
+}
+
+/**
+ * Verrou d'écriture, porté par un fichier DÉDIÉ (.lock) et non par le fichier
+ * de données.
+ *
+ * C'est indispensable depuis l'écriture atomique : rename() remplace le fichier
+ * de données, donc un verrou posé dessus resterait accroché à l'ancien fichier,
+ * désormais invisible. Deux requêtes simultanées se croiraient alors seules et
+ * la seconde écraserait le travail de la première.
+ *
+ * @return resource|false
+ */
+function famiPrendVerrou($file) {
+  $fp = @fopen($file . '.lock', 'c');
+  if (!$fp) return false;
+  flock($fp, LOCK_EX);            // ⬅ attente ici si quelqu'un d'autre écrit
+  return $fp;
+}
+
+function famiRendVerrou($fp) {
+  if ($fp) { flock($fp, LOCK_UN); fclose($fp); }
 }
 
 /**
@@ -420,44 +505,42 @@ function readJson($file) {
  * pour que le fichier soit réécrit. Ce que $fn retourne est renvoyé tel quel.
  */
 function withLock($file, callable $fn) {
-  $fp = @fopen($file, 'c+');            // 'c+' : crée si absent, ne tronque pas
-  if (!$fp) {
-    http_response_code(500);
-    return ['error' => 'Fichier de données verrouillé'];
+  $verrou = famiPrendVerrou($file);
+  if (!$verrou) {
+    http_response_code(503);
+    return ['error' => 'Fichier de données verrouillé', 'reessayer' => true];
   }
-  flock($fp, LOCK_EX);                  // ⬅ attente ici si quelqu'un d'autre écrit
 
-  rewind($fp);
-  $content = stream_get_contents($fp);
-  $data = json_decode($content, true);
-  if (!is_array($data)) { $data = []; }
+  // Lecture sous verrou : personne ne peut écrire entre notre lecture et notre
+  // écriture. readJson() bascule au besoin sur la sauvegarde .bak.
+  $data = readJson($file);
 
   $write = false;
   $reponse = $fn($data, $write);
 
-  if ($write) {
-    rewind($fp);
-    ftruncate($fp, 0);
-    fwrite($fp, json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
-    fflush($fp);
+  if ($write && !famiEcritJsonAtomique($file, $data)) {
+    // L'enregistrement a ÉCHOUÉ. On le dit franchement au lieu de renvoyer un
+    // succès : le joueur croirait son score enregistré alors qu'il est perdu.
+    // « reessayer » indique au navigateur que la tentative vaut la peine
+    // d'être refaite — le serveur est idempotent, un score renvoyé deux fois
+    // ne compte pas double.
+    famiRendVerrou($verrou);
+    error_log('[quiz] ECHEC d\'enregistrement sur ' . basename($file));
+    http_response_code(503);
+    return ['error' => 'Enregistrement impossible', 'reessayer' => true];
   }
-  flock($fp, LOCK_UN);
-  fclose($fp);
+
+  famiRendVerrou($verrou);
   return $reponse;
 }
 
 /** Écriture simple (sans lecture préalable) : uniquement pour la remise à zéro. */
 function writeJson($file, $data) {
-  $fp = @fopen($file, 'c');
-  if (!$fp) return false;
-  flock($fp, LOCK_EX);
-  ftruncate($fp, 0);
-  rewind($fp);
-  fwrite($fp, json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
-  fflush($fp);
-  flock($fp, LOCK_UN);
-  fclose($fp);
-  return true;
+  $verrou = famiPrendVerrou($file);
+  if (!$verrou) return false;
+  $ok = famiEcritJsonAtomique($file, $data);
+  famiRendVerrou($verrou);
+  return $ok;
 }
 
 function sortBoard(&$board) {

@@ -1302,13 +1302,35 @@ async function apiSubmit(entry) {
     board.sort((a, b) => b.score - a.score || a.time - b.time);
     return true;
   }
-  const r = await fetch(`${CONFIG.api}?site=${SITE}&action=submit`, {
-    method: "POST", headers: { "Content-Type": "application/json" },
-    // Le jeton prouve que c'est bien MON compte (les comptes Famiformation n'ont
-    // pas de code jardinier : sans jeton, le serveur refuse d'écrire sous ce nom).
-    body: JSON.stringify({ ...entry, jeton: (joueur && joueur.jeton) || "" }),
-  });
-  return r.status !== 409;
+  // 🛡️ ON NE PERD PAS UN SCORE.
+  // Le réseau d'un magasin décroche, le serveur est redéployé, une écriture
+  // échoue : sans insistance, la récolte du joueur disparaissait sans un mot.
+  // On réessaie donc plusieurs fois, en espaçant les tentatives.
+  //
+  // C'est sans danger : le serveur est IDEMPOTENT. Si le score était en fait
+  // déjà enregistré et que seule la réponse s'est perdue, la tentative suivante
+  // retombe sur « quiz déjà fait » et renvoie un succès — jamais un doublon,
+  // jamais un score compté deux fois.
+  const attentes = [0, 900, 2000, 4000];   // ~7 s au total : de quoi traverser un redéploiement
+  let derniere = null;
+  for (let essai = 0; essai < attentes.length; essai++) {
+    if (attentes[essai]) { await new Promise((r) => setTimeout(r, attentes[essai])); }
+    try {
+      const r = await fetch(`${CONFIG.api}?site=${SITE}&action=submit`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        // Le jeton prouve que c'est bien MON compte (les comptes Famiformation n'ont
+        // pas de code jardinier : sans jeton, le serveur refuse d'écrire sous ce nom).
+        body: JSON.stringify({ ...entry, jeton: (joueur && joueur.jeton) || "" }),
+      });
+      if (r.status === 409) return false;   // nom pris : réessayer n'y changera rien
+      if (r.ok) return true;                // enregistré (ou déjà enregistré)
+      derniere = "http " + r.status;        // 5xx : le serveur redémarre ou n'a pas pu écrire
+    } catch (e) {
+      derniere = "reseau";                  // coupure : on retente
+    }
+  }
+  console.warn("[quiz] score non enregistré après " + attentes.length + " tentatives :", derniere);
+  return null;                              // null = ÉCHEC, à distinguer de false (nom pris)
 }
 // 🔑 SE CONNECTER avec son compte Famiformation (identifiant OU email + mot de
 // passe). Renvoie un jeton de session + l'état de jeu du joueur.
@@ -2072,7 +2094,11 @@ async function avanceQuiz() {
   const time = Math.round((Date.now() - quiz.start) / 1000);
   quiz.tempsTotal = time;          // pour l'afficher sur l'écran de fin
   quiz.score = arr1(quiz.score);   // score final à virgule (les décimales départagent)
-  await apiSubmit({ name: quiz.pseudo, pseudo: (joueur && joueur.pseudo) || "", code: quiz.code, nom: quiz.nom, score: quiz.score, correct: quiz.correct, time }).catch(() => {});
+  // null = l'enregistrement a échoué malgré les tentatives. On le DIT au joueur :
+  // le laisser croire que sa récolte est enregistrée alors qu'elle est perdue,
+  // c'est la seule chose qu'on ne peut pas rattraper après coup.
+  const envoi = await apiSubmit({ name: quiz.pseudo, pseudo: (joueur && joueur.pseudo) || "", code: quiz.code, nom: quiz.nom, score: quiz.score, correct: quiz.correct, time }).catch(() => null);
+  quiz.envoiRate = (envoi === null);
   sauveMoi(quiz.pseudo, quiz.code);                    // l'appareil perso se souvient
   if (!joueur) joueur = { name: quiz.pseudo, code: quiz.code, nbCodes: 0 };
   joueur.recoltees = quiz.score;
@@ -2248,6 +2274,12 @@ function renderQuiz() {
     <div style="font-size:4.2rem; line-height:1.1;">${stadeFinal.emoji}</div>
     <h2 class="q-text" style="margin-bottom:6px;">${t("Bravo " + esc((joueur && joueur.pseudo) || quiz.pseudo) + ", te voilà « " + stadeFinal.nom + " » !", "Bravo " + esc((joueur && joueur.pseudo) || quiz.pseudo) + ", je bent nu « " + stadeFinal.nom + " »!")}</h2>
     <div class="score-big">${affG(joueur.recoltees)} 🌰</div>
+    ${quiz.envoiRate ? `<div class="alert" style="margin:14px 0; text-align:left;">
+      ⚠️ <b>${t("Ta récolte n'a pas pu être enregistrée.", "Jouw oogst kon niet worden opgeslagen.")}</b><br>
+      ${t("La connexion n'a pas tenu. Reste sur cette page et appuie sur « Réessayer » : ton score est toujours là.",
+          "De verbinding hield het niet. Blijf op deze pagina en druk op « Opnieuw proberen »: je score staat er nog.")}
+      <br><button class="btn" id="q-retry" style="margin-top:10px;">${t("↻ Réessayer l'enregistrement", "↻ Opnieuw proberen")}</button>
+    </div>` : ""}
     <p class="hint" style="margin-top:14px;">
       <b>${quiz.correct} ${t("bonne" + (quiz.correct > 1 ? "s" : "") + " réponse" + (quiz.correct > 1 ? "s" : "") + " sur " + quiz.questions.length, "juist" + (quiz.correct > 1 ? "e" : "") + " antwoord" + (quiz.correct > 1 ? "en" : "") + " op " + quiz.questions.length)}</b>
       · ⏱ ${t((quiz.tempsTotal ?? 0) + " s au total (soit " + ((quiz.tempsTotal ?? 0) / quiz.questions.length).toFixed(1).replace(".", ",") + " s par question).", (quiz.tempsTotal ?? 0) + " s in totaal (dus " + ((quiz.tempsTotal ?? 0) / quiz.questions.length).toFixed(1).replace(".", ",") + " s per vraag).")}
@@ -2261,6 +2293,22 @@ function renderQuiz() {
     <p class="center" style="margin-top:12px;"><button class="lien-explik" id="q-explik">${t("✨ Comment ça marche ? Découvre tout ce que tu peux faire", "✨ Hoe werkt het? Ontdek alles wat je kan doen")}</button></p>
   </div>`;
   $("#q-explik").addEventListener("click", ouvreExplication);
+  // Nouvelle tentative d'enregistrement, à la demande. Les données du quiz sont
+  // toujours en mémoire : tant que la page n'est pas fermée, rien n'est perdu.
+  const btnRetry = $("#q-retry");
+  if (btnRetry) {
+    btnRetry.addEventListener("click", async () => {
+      btnRetry.disabled = true;
+      btnRetry.textContent = t("Envoi en cours…", "Bezig met verzenden…");
+      const envoi = await apiSubmit({
+        name: quiz.pseudo, pseudo: (joueur && joueur.pseudo) || "", code: quiz.code,
+        nom: quiz.nom, score: quiz.score, correct: quiz.correct, time: quiz.tempsTotal || 0,
+      }).catch(() => null);
+      quiz.envoiRate = (envoi === null);
+      if (!quiz.envoiRate) { board = await apiGetBoard().catch(() => board); }
+      renderQuiz();
+    });
+  }
   $("#q-jardin").addEventListener("click", async () => {
     jardin = await apiJardin();
     userView = "jardin";
@@ -3576,7 +3624,11 @@ function chargeQR() {
   if (qrCharge) return qrCharge;
   qrCharge = new Promise((res, rej) => {
     const s = document.createElement("script");
-    s.src = "qrcode.js"; s.onload = res; s.onerror = rej;
+    // Chemin ABSOLU, comme pour api.php : la télé tourne sur /quiz/<site>/tele,
+    // donc un « qrcode.js » relatif partait chercher /quiz/mouscron/qrcode.js
+    // → 404 → chargement en échec → aucun QR à l'écran. La librairie vit à la
+    // racine du quiz, quelle que soit la profondeur de l'URL affichée.
+    s.src = QUIZ_RACINE + "qrcode.js"; s.onload = res; s.onerror = rej;
     document.head.appendChild(s);
   });
   return qrCharge;
