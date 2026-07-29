@@ -177,7 +177,9 @@ if (!$isAdmin) {
 
             <?php // 🎨 THÈMES — chacun choisit ceux qu'il veut voir. Masqué si l'admin
                   // a coupé les thèmes pour tout le site. ?>
-            <?php if (persoFeatureOn($db, 'themes_enabled')): ?>
+            <?php // La beta est hors thèmes (voir themesEnabled) : lui proposer des
+                  // interrupteurs sans effet n'aurait aucun sens. ?>
+            <?php if (($_SESSION['role'] ?? '') !== 'beta' && persoFeatureOn($db, 'themes_enabled')): ?>
             <?php
                 $mesThemes = widgetUserOn($db, $moiId, 'themes_on');
                 // Catalogue + les deux thèmes qui n'y sont pas (ils ne dépendent pas

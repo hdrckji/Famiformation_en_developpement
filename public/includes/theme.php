@@ -140,6 +140,13 @@ if (!function_exists('persoFeatureOn')) {
 if (!function_exists('themesEnabled')) {
     function themesEnabled(PDO $db)
     {
+        // 🧪 LE PROFIL BETA RESTE À L'ÉCART. C'est un espace séparé, avec sa
+        // propre identité et son propre rythme : AUCUN thème du site ne s'y
+        // applique — ni bienvenue, ni anniversaire, ni thème saisonnier.
+        // Ne pas retirer : la beta ne doit jamais hériter du décor du site.
+        if (($_SESSION['role'] ?? '') === 'beta') {
+            return false;
+        }
         // Réglage du SITE, décidé par l'admin…
         if (!persoFeatureOn($db, 'themes_enabled')) {
             return false;
