@@ -297,6 +297,7 @@ $publicLabels = [
     require_once __DIR__ . '/includes/topbar.php';
     famiTopbar($db, ['back' => 'index.php', 'title' => '🎓 ' . t('Formation', 'Opleiding')]);
 ?>
+    <?php require_once __DIR__ . '/includes/module_intro.php'; echo moduleIntroDe('formation'); ?>
     <div class="container">
         <?php if ($vue === ''): ?>
         <h1>🎓 Formation</h1>

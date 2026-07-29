@@ -115,6 +115,8 @@
         <h1>Thème : Magasin</h1>
     </div>
 
+    <?php require_once __DIR__ . '/includes/module_intro.php'; echo moduleIntroDe('magasin'); ?>
+
     <div class="tiles-container">
         <a href="formation-caisse.php" class="tile">
             <span class="tile-icon">🛒</span>

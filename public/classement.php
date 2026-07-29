@@ -178,6 +178,8 @@ $MEDAILLES = [1 => '🥇', 2 => '🥈', 3 => '🥉'];
     require_once __DIR__ . '/includes/topbar.php';
     famiTopbar($db, ['back' => 'index.php', 'title' => '🏆 ' . t('Classement', 'Klassement')]);
 ?>
+    <?php require_once __DIR__ . '/includes/module_intro.php'; echo moduleIntroDe('classement'); ?>
+
     <div class="container">
         <h1>🏆 <?= t('Classement FamiFlora', 'FamiFlora-klassement') ?></h1>
         <p class="subtitle">

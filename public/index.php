@@ -555,7 +555,7 @@ if ($wcThemeOn && !empty($siteTheme) && is_array($siteTheme)) {
             <div class="tile-media"><span class="tile-icon">🚀</span></div>
             <div class="tile-title"><?= t('Onboarding', 'Onboarding') ?>
             </div>
-            <div class="tile-desc"><?= t("La présentation de l'entreprise : qui on est, nos valeurs.", 'De voorstelling van het bedrijf: wie we zijn, onze waarden.') ?></div>
+            <div class="tile-desc"><?= t('Découvre notre univers.', 'Ontdek onze wereld.') ?></div>
         </a>
         <?php endif; ?>
 
@@ -566,14 +566,14 @@ if ($wcThemeOn && !empty($siteTheme) && is_array($siteTheme)) {
             <?php endif; ?>
             <div class="tile-media"><span class="tile-icon">📅</span></div>
             <div class="tile-title"><?= t('Formation', 'Opleiding') ?></div>
-            <div class="tile-desc"><?= t("Réserve ton créneau et viens te former pour de vrai. De nouvelles dates arrivent très bientôt 👀", 'Reserveer je moment en kom je echt bijscholen. Nieuwe data komen heel binnenkort 👀') ?></div>
+            <div class="tile-desc"><?= t('Réserve ton créneau de formation.', 'Reserveer je opleidingsmoment.') ?></div>
         </a>
 
         <?php if ($role === 'admin' || $role === 'teamcoach' || $role === 'mentor' || $role === 'employe_magasin'): ?>
         <a href="module.php?id=<?= (int) ($rootModuleIds['Magasin'] ?? 0) ?>" class="tile">
             <div class="tile-media"><span class="tile-icon">🛒</span></div>
             <div class="tile-title"><?= t('Magasin', 'Winkel') ?></div>
-            <div class="tile-desc"><?= t("Le savoir-faire de chaque rayon, réuni au même endroit. Du contenu arrive bientôt 🌱", 'De knowhow van elke afdeling, op één plek verzameld. Er komt binnenkort inhoud aan 🌱') ?></div>
+            <div class="tile-desc"><?= t('Le savoir-faire de chaque rayon.', 'De knowhow van elke afdeling.') ?></div>
         </a>
         <?php if ($role !== 'employe_magasin'): ?>
         <a href="module.php?id=<?= (int) ($rootModuleIds['Management'] ?? 0) ?>" class="tile">
@@ -588,7 +588,7 @@ if ($wcThemeOn && !empty($siteTheme) && is_array($siteTheme)) {
         <a href="module.php?id=<?= (int) ($rootModuleIds['Becosoft'] ?? 0) ?>" class="tile">
             <div class="tile-media-beco"><img src="beco.png" alt="Becosoft" class="logo-beco-tile"></div>
             <div class="tile-title">Becosoft</div>
-            <div class="tile-desc"><?= t("Maîtriser notre base de données : la retrouver, la lire et la faire parler.", 'Onze database onder de knie krijgen: terugvinden, lezen en laten spreken.') ?></div>
+            <div class="tile-desc"><?= t('Maîtriser notre base de données.', 'Onze database onder de knie krijgen.') ?></div>
         </a>
         <?php endif; ?>
 
@@ -635,12 +635,12 @@ if ($wcThemeOn && !empty($siteTheme) && is_array($siteTheme)) {
         <a href="classement.php" class="tile">
             <div class="tile-media"><span class="tile-icon">🏆</span></div>
             <div class="tile-title"><?= t('Classement', 'Klassement') ?></div>
-            <div class="tile-desc"><?= t("Ta place face aux collègues, points à l'appui. Et ça se prépare dans l'ombre… 👀", 'Jouw plaats tegenover de collega\'s, punten inbegrepen. En er wordt iets voorbereid… 👀') ?></div>
+            <div class="tile-desc"><?= t('Ta place face aux collègues.', 'Jouw plaats tegenover de collega\'s.') ?></div>
         </a>
         <a href="module.php?id=<?= (int) ($rootModuleIds['Sécurité au travail'] ?? 0) ?>" class="tile">
             <div class="tile-media"><span class="tile-icon">🦺</span></div>
             <div class="tile-title"><?= t('Sécurité au travail', 'Veiligheid op het werk') ?></div>
-            <div class="tile-desc"><?= t("Tout le nécessaire pour travailler en sécurité. Ici, rien n'est optionnel.", 'Alles wat je nodig hebt om veilig te werken. Hier is niets optioneel.') ?></div>
+            <div class="tile-desc"><?= t('Tout pour travailler en sécurité.', 'Alles om veilig te werken.') ?></div>
         </a>
         <?php endif; ?>
 

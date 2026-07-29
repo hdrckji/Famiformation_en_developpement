@@ -98,6 +98,8 @@ $role = isset($_SESSION['role']) ? $_SESSION['role'] : 'etudiant';
         <h1>Modules Becosoft</h1>
     </div>
 
+    <?php require_once __DIR__ . '/includes/module_intro.php'; echo moduleIntroDe('becosoft'); ?>
+
     <div class="tiles-grid">
         <a href="becosoft.php" class="tile">
             <div class="tile-media"><span class="tile-icon">🔍</span></div>

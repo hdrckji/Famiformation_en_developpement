@@ -28,6 +28,7 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] === 'etudiant') {
     <div class="container">
         <a href="/index.php" style="display:inline-block;margin-bottom:18px;padding:8px 18px;background:#2d5a37;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;box-shadow:0 2px 8px rgba(44,90,55,0.08);transition:background 0.2s;">&larr; Retour accueil</a>
         <h2>Sécurité au travail</h2>
+        <?php require_once __DIR__ . '/includes/module_intro.php'; echo moduleIntroDe('securite'); ?>
         <div class="tiles">
             <a href="chaussure_securite_pdf.php" class="tile">
                 <span class="tile-icon">👟</span>
