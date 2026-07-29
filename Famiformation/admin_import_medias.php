@@ -354,9 +354,15 @@ if (($_POST['action'] ?? '') === 'upload') {
                 continue;
             }
             if (!empty($cible['pdf_path'])) { volumeUnlink((string) $cible['pdf_path']); }
+            // Les images extraites du PRÉCÉDENT PDF n'ont plus rien à voir avec le
+            // nouveau : sans ce nettoyage elles resteraient sur le volume, orphelines
+            // et facturées, et leur numérotation ne correspondrait plus au document.
+            foreach ((array) json_decode((string) ($cible['contenu_images'] ?? ''), true) as $vieilleImg) {
+                volumeUnlink((string) $vieilleImg);
+            }
             $db->prepare("UPDATE modules SET pdf_path = ?, content_kind = 'ecrit', is_container = 0,
                             uniformized = 0, contenu_ia = NULL, contenu_ia_nl = NULL,
-                            quiz_json_nl = NULL, nl_hash = NULL WHERE id = ?")
+                            contenu_images = NULL, quiz_json_nl = NULL, nl_hash = NULL WHERE id = ?")
                ->execute([$key, (int) $cible['id']]);
             // Un parent ne devient conteneur QUE s'il a réellement un enfant.
             if ($dedie) { $db->prepare("UPDATE modules SET is_container = 1 WHERE id = ?")->execute([$parentId]); }

@@ -147,8 +147,11 @@ $isVideoPage = !$isContainer && empty($module['is_booking']) && $mHasVideoAny &&
         .badge-eval { display:inline-block; background:#2d5a37; color:#fff; font-size:0.78rem; font-weight:700; padding:4px 12px; border-radius:20px; margin-top:8px; }
         .tile .badge-eval { position:absolute; top:12px; right:12px; margin:0; }
         /* Actions du guide : au-dessus de la fiche, alignées à DROITE. */
-        .guide-actions { width:92%; max-width:1040px; margin:14px auto -6px; display:flex; justify-content:flex-end; gap:8px; flex-wrap:wrap; }
-        .guide-actions .uni-ico { display:inline-flex; align-items:center; gap:6px; }
+        /* Alignés sur la COLONNE DE TEXTE (800px, comme .page), pas sur toute la
+           largeur : au-delà, les boutons partaient loin à droite, détachés du
+           contenu. La marge négative les faisait en plus remonter sur le titre. */
+        .guide-actions { width:100%; max-width:800px; margin:18px auto 10px; padding:0 24px; box-sizing:border-box; display:flex; justify-content:flex-end; gap:10px; flex-wrap:wrap; }
+        .guide-actions .uni-ico { display:inline-flex; align-items:center; justify-content:center; gap:6px; width:auto; min-width:46px; padding:0 14px; }
         @media print { .guide-actions { display:none !important; } }
         .content-card { background: rgba(255,255,255,0.96); border-radius: 18px; padding: 32px; width: 90%; max-width: 900px; margin: 30px 0; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
         /* Module vierge : le bloc « Ajout de contenu » remonte tout en haut (après le titre). */
@@ -469,7 +472,7 @@ $isVideoPage = !$isContainer && empty($module['is_booking']) && $mHasVideoAny &&
                 <?php if ($canViewPdf || $canDlPdf || $canDlVideo): ?>
                 <div class="guide-actions">
                     <?php if ($canViewPdf): ?><button type="button" id="uniEye" class="uni-ico" title="<?= t('Voir le PDF original', 'Originele PDF bekijken') ?>" onclick="window.uniTogglePdf && window.uniTogglePdf()">👁</button><?php endif; ?>
-                    <?php if ($canDlPdf): ?><button type="button" class="uni-ico" title="<?= t('Télécharger le guide (PDF, mise en page du site)', 'De gids downloaden (PDF, opmaak van de site)') ?>" onclick="window.print()">⤓ <span><?= t('Guide PDF', 'Gids PDF') ?></span></button><?php endif; ?>
+                    <?php if ($canDlPdf): ?><button type="button" class="uni-ico" title="<?= t('Télécharger le guide (PDF, mise en page du site)', 'De gids downloaden (PDF, opmaak van de site)') ?>" onclick="window.print()">⤓</button><?php endif; ?>
                     <?php if ($canDlVideo): ?><button type="button" class="uni-ico" data-vid="<?= (int) $module['id'] ?>" onclick="famiVideoDownload(this)" title="<?= t('Télécharger la vidéo (intro + vidéo + fin)', 'De video downloaden (intro + video + slot)') ?>">🎬 <span><?= t('Vidéo', 'Video') ?></span></button><?php endif; ?>
                 </div>
                 <?php endif; ?>

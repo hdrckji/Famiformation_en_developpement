@@ -366,9 +366,16 @@ if (!function_exists('renderUniformContent')) {
             .fami-doc, .fami-doc * { visibility:visible; }
             .fami-doc { position:absolute; left:0; top:0; width:100%;
                         -webkit-print-color-adjust:exact; print-color-adjust:exact; }
-            .fami-doc .doc-page { display:block !important; page-break-after:always; }
-            .fami-doc .doc-page:last-child { page-break-after:auto; }
-            .fami-doc .page { max-width:none; }
+            /* Les sections s'enchaînent, comme à l'écran. Un page-break-after sur
+               chacune laissait de grandes zones blanches dès qu'une section était
+               courte. Seule la couverture garde son saut de page. */
+            .fami-doc .doc-page { display:block !important; page-break-after:auto; }
+            .fami-doc .doc-page[data-page="0"] { page-break-after:always; }
+            .fami-doc .page { max-width:none; padding-bottom:0; }
+            /* On évite seulement de couper un bloc en deux au milieu d'une page. */
+            .fami-doc .callout, .fami-doc .keyfigures, .fami-doc figure,
+            .fami-doc .list li { page-break-inside:avoid; break-inside:avoid; }
+            .fami-doc h2, .fami-doc h3 { page-break-after:avoid; break-after:avoid; }
             .fami-doc .doc-pdf, .fami-doc .pagenav, .fami-doc #famiDoneModal { display:none !important; }
         }
         /* Lecture en continu : les sections s'enchaînent, on descend en scrollant.
