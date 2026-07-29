@@ -291,7 +291,11 @@ if (!function_exists('personnelListe')) {
             ['Zajac', 'Constant', 'FAMIFLORA MOUSCRON DECO NV'],
             // Ajouts manuels, hors export Excel. À reporter dans l'export lors de
             // la prochaine mise à jour, sinon ils disparaîtront à la régénération.
+            // Orthographe donnée deux fois différemment (« Louv » puis « Louvi ») :
+            // on inscrit les deux, un doublon ne coûte rien alors qu'un nom raté
+            // laisse quelqu'un bloqué en profil beta.
             ['Louv', 'Jean', 'AJOUT MANUEL'],
+            ['Louvi', 'Jean', 'AJOUT MANUEL'],
         ];
     }
 }
