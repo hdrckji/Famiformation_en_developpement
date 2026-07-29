@@ -253,22 +253,34 @@ if (!function_exists('famiPremiereVisite')) {
     {
         static $rep = null;
         if ($rep !== null) { return $rep; }
-        // Une fois l'accueil vu, il ne se rejoue plus de toute la session : on le
-        // retient plutôt que de relire la base à chaque page. C'est le cas de
-        // l'immense majorité des visites — donc l'immense majorité des requêtes
-        // economisees.
-        if (!empty($_SESSION['fami_welcome_vu'])) { $rep = false; return $rep; }
+
+        $aujourdhui = date('Y-m-d');
+
+        // Retenu en session pour ne pas relire la base à chaque page. On mémorise
+        // le JOUR et non un simple oui/non : le thème doit tenir toute la journée,
+        // donc la réponse change au passage à minuit.
+        if (isset($_SESSION['fami_welcome_jour'])) {
+            $rep = ((string) $_SESSION['fami_welcome_jour'] === $aujourdhui);
+            return $rep;
+        }
+
         $rep = false;
         $uid = (int) ($_SESSION['user_id'] ?? 0);
         if ($uid > 0) {
             try {
-                $st = $db->prepare("SELECT welcome_seen FROM utilisateurs WHERE id = ? LIMIT 1");
+                $st = $db->prepare("SELECT welcome_seen, welcome_day FROM utilisateurs WHERE id = ? LIMIT 1");
                 $st->execute([$uid]);
-                $v = $st->fetchColumn();
-                $rep = ($v !== false && (int) $v === 0);
+                $u = $st->fetch(PDO::FETCH_ASSOC);
+                if ($u) {
+                    // Pas encore accueilli : l'animation va se déclencher, le thème
+                    // l'accompagne. Déjà accueilli AUJOURD'HUI : on garde le décor
+                    // toute la journée, sur toutes les pages.
+                    $jour = (string) ($u['welcome_day'] ?? '');
+                    $rep = ((int) $u['welcome_seen'] === 0) || ($jour !== '' && $jour === $aujourdhui);
+                    if ($jour !== '') { $_SESSION['fami_welcome_jour'] = $jour; }
+                }
             } catch (Exception $e) { /* colonne absente : pas de thème de bienvenue */ }
         }
-        if (!$rep) { $_SESSION['fami_welcome_vu'] = 1; }
         return $rep;
     }
 }

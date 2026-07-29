@@ -127,6 +127,13 @@ if (!function_exists('ensureUserProfileColumns')) {
                 // Les comptes déjà existants ne sont pas de « nouveaux » : on les marque comme accueillis.
                 $db->exec("UPDATE utilisateurs SET welcome_seen = 1");
             }
+            // JOUR de l'accueil. Le thème de bienvenue doit habiller TOUTE LA
+            // JOURNÉE de la première connexion, pas seulement la page où
+            // l'animation est passée. Il faut donc retenir la date, et pas
+            // seulement « déjà accueilli oui/non ».
+            if (!isset($cols['welcome_day'])) {
+                $db->exec("ALTER TABLE utilisateurs ADD COLUMN welcome_day DATE NULL AFTER welcome_seen");
+            }
         } catch (Exception $e) {
             // migration non critique
         }

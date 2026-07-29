@@ -104,7 +104,14 @@ if (!function_exists('skinBase')) {
            rectangle au milieu de la page des qu un theme etait actif. La regle
            gagnait meme sans etre la derniere : "body > *:not(.x)" est plus
            specifique qu une simple classe. */
-        body > *:not(.skin-fx):not(.fee-back):not(.fami-tb-mask):not(.site-theme-fx){ position:relative; z-index:1; }
+        body > *:not(.skin-fx):not(.fee-back):not(.fami-tb-mask):not(.site-theme-fx):not(.wc-overlay):not(.bd-overlay):not(.mm-modal-backdrop):not(.module-manager):not(.quick-create-btn):not([data-fami-fixe]){ position:relative; z-index:1; }
+        /* ⚠️ TOUT CALQUE EN position:fixed ENFANT DIRECT DE <body> DOIT FIGURER
+           CI-DESSUS, sinon la regle le fait retomber dans le flux de la page et
+           il sort comme un bloc au milieu du contenu au lieu de couvrir tout
+           l ecran. Ca s est produit deux fois : la fee, puis l animation de
+           bienvenue, qui ne se voyait que les jours ou un theme est actif.
+           Pour un nouveau calque : ajouter :not(.sa-classe), ou plus simple,
+           lui poser l attribut data-fami-fixe. */
 
         .skin-fx .sk-mote{ border-radius:50%; top:auto; bottom:-6%; filter:blur(.3px);
             animation-name:skRise; animation-timing-function:linear; animation-iteration-count:infinite; }

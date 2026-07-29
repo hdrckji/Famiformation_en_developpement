@@ -101,10 +101,15 @@ if ($welcomePreview) {
 } elseif ($welcomeEnabled && isset($user_data['welcome_seen']) && (int) $user_data['welcome_seen'] === 0) {
     $showWelcome = true;
     try {
-        $db->prepare("UPDATE utilisateurs SET welcome_seen = 1 WHERE id = ?")->execute([$user_id]);
+        // On note le JOUR de l'accueil : le thème de bienvenue habille toute
+        // cette journée-là, pas seulement la page où l'animation est passée.
+        $db->prepare("UPDATE utilisateurs SET welcome_seen = 1, welcome_day = CURDATE() WHERE id = ?")->execute([$user_id]);
     } catch (Exception $e) {
         // pas critique
     }
+    // La session doit refléter tout de suite ce qu'on vient d'écrire, sinon le
+    // thème ne s'appliquerait qu'à partir de la page SUIVANTE.
+    $_SESSION['fami_welcome_jour'] = date('Y-m-d');
 }
 $welcomeName = ucfirst(strtolower((string) ($user_data['prenom'] ?? '')));
 require_once __DIR__ . '/includes/event_intro.php';
