@@ -34,6 +34,19 @@ function quizAccesDataDir()
     return __DIR__ . '/quiz/data';
 }
 
+/**
+ * Reconnaît le magasin dans un texte libre (nom du site, ville du profil).
+ * Rend 'mouscron', 'lapanne' ou '' si on ne reconnaît rien. Les deux seules
+ * valeurs acceptées par le quiz sont celles de son tableau $SITES.
+ */
+function quizAccesSite($texte)
+{
+    $t = mb_strtolower((string) $texte);
+    if (strpos($t, 'mouscron') !== false || strpos($t, 'moeskroen') !== false) { return 'mouscron'; }
+    if (strpos($t, 'panne') !== false) { return 'lapanne'; }   // La Panne / De Panne
+    return '';
+}
+
 /** Clé secrète du quiz, ou '' si elle n'existe pas encore. */
 function quizAccesSecret()
 {
@@ -68,25 +81,44 @@ if ($identifiant === '') {
     if ($identifiant !== '') { $erreurs[] = 'identifiant repris de la session'; }
 }
 
-// 🏬 Magasin : on essaie de deviner celui de la personne pour l'emmener sur le
-// bon classement. En cas de doute, on n'impose rien — le quiz appliquera son
-// magasin par défaut plutôt que de se tromper. Requête séparée et sans
-// conséquence : si la colonne ou la table manque, on continue sans magasin.
+// 🏬 LE MAGASIN EST OBLIGATOIRE DANS L'URL, ce n'est pas un confort.
+//
+// Le quiz commence par ceci (quiz/index.html, render()) :
+//     if (!SITE && !SIMULATION && ECRAN !== "code") { renderChoixSite(); return; }
+// Sans magasin dans l'adresse, il affiche l'écran « Mouscron ou La Panne ? » et
+// s'arrête là : « ?espace=1 » et le jeton sont ignorés purement et simplement.
+// C'est pour ça qu'un « /quiz/ » nu n'emmenait pas au tableau de bord. On ne
+// redirige donc JAMAIS sans magasin — d'où le repli sur Mouscron en dernier
+// ressort, qui est aussi le magasin par défaut du quiz ($SITE_DEFAUT).
 $site = '';
+
+// 1) Le lieu de travail affilié (renseigné dans l'admin) : la source la plus sûre.
 try {
     $sq = $db->prepare('SELECT s.nom, s.ville FROM utilisateurs u
                         JOIN widget_sites s ON s.id = u.site_id
                         WHERE u.id = ? LIMIT 1');
     $sq->execute([$uid]);
     $s = $sq->fetch(PDO::FETCH_ASSOC);
-    if ($s) {
-        $texte = mb_strtolower(($s['ville'] ?? '') . ' ' . ($s['nom'] ?? ''));
-        if (strpos($texte, 'mouscron') !== false || strpos($texte, 'moeskroen') !== false) { $site = 'mouscron'; }
-        elseif (strpos($texte, 'panne') !== false) { $site = 'lapanne'; }
-    }
+    if ($s) { $site = quizAccesSite(($s['ville'] ?? '') . ' ' . ($s['nom'] ?? '')); }
 } catch (Throwable $e) {
-    $erreurs[] = 'magasin : ' . $e->getMessage();
+    $erreurs[] = 'magasin (site affilié) : ' . $e->getMessage();
 }
+
+// 2) À défaut, la ville du profil : ça rattrape les comptes sans site affilié.
+if ($site === '') {
+    try {
+        $vq = $db->prepare('SELECT ville FROM utilisateurs WHERE id = ? LIMIT 1');
+        $vq->execute([$uid]);
+        $site = quizAccesSite((string) ($vq->fetchColumn() ?: ''));
+    } catch (Throwable $e) {
+        $erreurs[] = 'magasin (ville du profil) : ' . $e->getMessage();
+    }
+}
+
+// 3) Dernier ressort : Mouscron. Se tromper de magasin est gênant ; arriver sur
+// l'écran de choix des magasins empêche purement et simplement d'entrer.
+$siteDevine = ($site === '');
+if ($siteDevine) { $site = 'mouscron'; }
 
 // Construction du jeton, à l'identique de faitJeton().
 $secret = quizAccesSecret();
@@ -97,7 +129,10 @@ if ($secret !== '' && $identifiant !== '') {
     $params['jeton'] = $corps . '|' . hash_hmac('sha256', $corps, $secret);
 }
 
-$base = '/quiz/' . ($site !== '' ? $site : '');
+// ⚠️ TOUJOURS un magasin dans l'adresse (voir le bloc « LE MAGASIN EST
+// OBLIGATOIRE » plus haut) : sans lui le quiz affiche l'écran de choix des
+// magasins et ignore tout le reste.
+$base = '/quiz/' . ($site !== '' ? $site : 'mouscron');
 $cible = $base . '?' . http_build_query($params);
 
 // ============================================================
@@ -140,8 +175,10 @@ if (isset($_GET['diag'])) {
             . ($existe ? ' (' . strlen(trim((string) @file_get_contents($chemin))) . ' caracteres)' : '') . "\n";
     }
     echo "  clef lue par cette page : " . ($secret !== '' ? strlen($secret) . " caracteres ✅" : "(AUCUNE) ❌  <- aucun jeton") . "\n\n";
-    echo "MAGASIN (confort seulement)\n";
-    echo "  detecte                 : " . ($site !== '' ? $site : '(aucun, le quiz mettra son magasin par defaut)') . "\n\n";
+    echo "MAGASIN (OBLIGATOIRE dans l'adresse)\n";
+    echo "  retenu                  : {$site}" . ($siteDevine ? "  ⚠️ non trouve, repli sur Mouscron" : "  ✅ trouve dans le profil") . "\n";
+    echo "  (sans magasin, le quiz afficherait l'ecran « Mouscron ou La Panne ? »\n";
+    echo "   et ignorerait espace=1 et le jeton)\n\n";
     echo "RESULTAT\n";
     echo "  jeton fabrique          : " . (isset($params['jeton']) ? '✅ oui' : '❌ NON — le quiz redemandera les identifiants') . "\n";
     echo "  redirection vers        : " . $base . '?espace=1' . (isset($params['jeton']) ? '&jeton=…' : '') . "\n";
