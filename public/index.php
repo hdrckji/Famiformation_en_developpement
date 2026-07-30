@@ -546,6 +546,16 @@ if ($wcThemeOn && !empty($siteTheme) && is_array($siteTheme)) {
             <div class="tile-desc"><?= t('Formations en ligne et en présentiel.', 'Opleidingen online en ter plaatse.') ?></div>
         </a>
 
+        <?php // 🌱 QUIZ & JARDIN — volontairement HORS de toute garde de profil :
+              // le jeu est ouvert à tout le monde. On passe par quiz_acces.php, qui
+              // fabrique le jeton de session du quiz : la personne est déjà
+              // connectée ici, hors de question de lui redemander son mot de passe. ?>
+        <a href="quiz_acces.php" class="tile">
+            <div class="tile-media"><span class="tile-icon">🌱</span></div>
+            <div class="tile-title"><?= t('Quiz & mon espace jardin', 'Quiz & mijn tuin') ?></div>
+            <div class="tile-desc"><?= t('Réponds au quiz, récolte tes graines et fais pousser ton jardin.', 'Doe de quiz, oogst je zaadjes en laat je tuin groeien.') ?></div>
+        </a>
+
         <?php if ($role === 'admin' || $role === 'teamcoach' || $role === 'mentor' || $role === 'employe_magasin'): ?>
         <a href="module.php?id=<?= (int) ($rootModuleIds['Magasin'] ?? 0) ?>" class="tile">
             <div class="tile-media"><span class="tile-icon">🛒</span></div>

@@ -1570,7 +1570,50 @@ switch ($action) {
         exit;
       }
     }
-    echo json_encode(['ok' => false, 'reason' => 'inconnu']);
+    // 🌱 PREMIÈRE ARRIVÉE DEPUIS FAMIFORMATION (tuile « Quiz & mon espace jardin »).
+    // Aucune fiche de joueur n'existe encore. On répondait « inconnu », et la page
+    // redemandait alors identifiant + mot de passe — à quelqu'un qui vient
+    // justement d'un espace où il est DÉJÀ connecté. Le jeton est signé par notre
+    // serveur : l'uid et l'identifiant qu'il porte sont sûrs. On ouvre donc sa
+    // fiche ici, exactement comme login_fami le fait à la première connexion.
+    //
+    // Si la base est indisponible on répond « inconnu » comme avant : on ne casse
+    // rien, la personne peut encore passer par la connexion classique.
+    $dbMoi = famiDb();
+    if (!$dbMoi) { echo json_encode(['ok' => false, 'reason' => 'inconnu']); break; }
+    try {
+      $stMoi = $dbMoi->prepare('SELECT id, identifiant, prenom, nom FROM utilisateurs WHERE id = ? LIMIT 1');
+      $stMoi->execute([(int) $j['uid']]);
+      $uMoi = $stMoi->fetch();
+    } catch (Throwable $eMoi) {
+      error_log('[quiz] moi : erreur base — ' . $eMoi->getMessage());
+      echo json_encode(['ok' => false, 'reason' => 'inconnu']);
+      break;
+    }
+    // Le compte doit exister ET porter l'identifiant du jeton : un jeton vit 60
+    // jours, le compte a pu être renommé ou supprimé entre-temps.
+    if (!$uMoi || mb_strtolower((string) $uMoi['identifiant']) !== mb_strtolower($j['identifiant'])) {
+      echo json_encode(['ok' => false, 'reason' => 'inconnu']);
+      break;
+    }
+    $ficheMoi = withLock($scoresFile, function (&$board, &$write) use ($uMoi) {
+      // Relecture sous verrou : deux onglets ouverts en même temps ne doivent pas
+      // créer deux fiches pour la même personne.
+      foreach ($board as &$p) {
+        if (mb_strtolower((string) ($p['name'] ?? '')) === mb_strtolower((string) $uMoi['identifiant'])) {
+          return ['quiz_fait' => ($p['quiz_fait'] ?? true), 'recoltees' => round(floatval($p['score'] ?? 0), 1),
+                  'solde' => soldeDe($p), 'nbCodes' => intval($p['codes'] ?? 0), 'pseudo' => ($p['pseudo'] ?? '')];
+        }
+      }
+      unset($p);
+      $board[] = ['name' => $uMoi['identifiant'], 'uid' => (int) $uMoi['id'], 'nom' => $uMoi['nom'], 'prenom' => $uMoi['prenom'],
+        'score' => 0, 'bonus' => 0, 'depensees' => 0, 'correct' => 0, 'codes' => 0, 'codes_pris' => [],
+        'time' => 0, 'quiz_fait' => false, 'date' => date('c')];
+      $write = true;
+      return ['quiz_fait' => false, 'recoltees' => 0, 'solde' => 0, 'nbCodes' => 0, 'pseudo' => ''];
+    });
+    echo json_encode(['ok' => true, 'joueur' => ['name' => $uMoi['identifiant'], 'uid' => (int) $uMoi['id'],
+      'prenom' => $uMoi['prenom'], 'nom' => $uMoi['nom']] + $ficheMoi], JSON_UNESCAPED_UNICODE);
     break;
   }
 

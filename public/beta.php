@@ -125,6 +125,16 @@ $userPhoto = $_SESSION['photo_profil'] ?? null;
             <div class="tile-title"><?= t('Magasin', 'Winkel') ?></div>
             <div class="tile-desc"><?= t("Les rayons du magasin — commence par la Caisse.", "De afdelingen van de winkel — begin bij de kassa.") ?></div>
         </a>
+
+        <?php // 🌱 Le jeu est ouvert à TOUT LE MONDE, profil beta compris : les
+              // beta ne passent jamais par index.php, la tuile doit donc être ici
+              // aussi. quiz_acces.php fabrique le jeton : aucun mot de passe à
+              // resaisir, on est déjà connecté. ?>
+        <a href="quiz_acces.php" class="tile">
+            <span class="tile-icon">🌱</span>
+            <div class="tile-title"><?= t('Quiz & mon espace jardin', 'Quiz & mijn tuin') ?></div>
+            <div class="tile-desc"><?= t("Réponds au quiz, récolte tes graines et fais pousser ton jardin.", "Doe de quiz, oogst je zaadjes en laat je tuin groeien.") ?></div>
+        </a>
     </div>
 </body>
 </html>

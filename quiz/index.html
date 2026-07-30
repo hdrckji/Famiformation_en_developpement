@@ -5062,7 +5062,28 @@ function retourNav() {
   // 🔐 Session Famiformation : si ce téléphone a un jeton mémorisé, on reprend la
   // session sans redemander le mot de passe. Sur une borne, jamais (chargeJeton
   // renvoie "" sur borne). Un jeton périmé/invalide est simplement ignoré.
-  const jetonMemo = chargeJeton();
+  // 🔗 ARRIVÉE DEPUIS FAMIFORMATION (?jeton=…). La personne vient de cliquer sur
+  // la tuile « Quiz & mon espace jardin » : elle est déjà authentifiée là-bas, on
+  // ne lui redemande rien. Le jeton est signé par le serveur — un jeton bricolé
+  // est rejeté par l'API, il n'y a donc rien à vérifier ici.
+  //
+  // On le retire ensuite de la barre d'adresse : un jeton laissé dans l'URL se
+  // retrouverait dans l'historique, dans un lien partagé ou dans une capture
+  // d'écran, et donnerait accès au compte.
+  const jetonUrl = SIM_PARAMS.get("jeton");
+  if (jetonUrl) {
+    sauveJeton(jetonUrl);
+    try {
+      const propre = new URL(location.href);
+      propre.searchParams.delete("jeton");
+      history.replaceState(null, "", propre.pathname + (propre.search || "") + propre.hash);
+    } catch (e) { /* navigateur ancien : le jeton reste visible, sans gravite */ }
+  }
+
+  // Sur une borne, chargeJeton() renvoie "" (appareil partagé) : on prend alors
+  // le jeton de l'URL directement, sinon arriver depuis FamiFormation sur une
+  // borne ne connecterait personne.
+  const jetonMemo = chargeJeton() || jetonUrl || "";
   if (jetonMemo && !joueur) {
     const r = await apiMoi(jetonMemo).catch(() => null);
     if (r && r.ok && r.joueur) {
