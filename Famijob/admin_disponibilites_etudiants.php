@@ -13,7 +13,7 @@ if (!function_exists('fjaT')) {
 
 $currentRole = getCurrentRole();
 if (!in_array($currentRole, ['admin'], true)) {
-    header('Location: ../index.php');
+    header('Location: ' . famijobSiteUrl('index.php'));
     exit();
 }
 

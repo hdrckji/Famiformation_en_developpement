@@ -13,7 +13,7 @@ if (!function_exists('fjdT')) {
 
 // Contrôle d'accès FamiJob : admin et teamcoach uniquement
 if (!in_array($_SESSION['role'] ?? '', ['admin', 'teamcoach'], true)) {
-    header('Location: ../index.php');
+    header('Location: ' . famijobSiteUrl('index.php'));
     exit();
 }
 

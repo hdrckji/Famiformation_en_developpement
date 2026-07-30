@@ -6,7 +6,7 @@ verifierConnexion($db);
 // Contrôle d'accès : uniquement admin et teamcoach
 $role = isset($_SESSION['role']) ? $_SESSION['role'] : '';
 if (!in_array($role, ['admin', 'teamcoach'], true)) {
-    header('Location: ../index.php');
+    header('Location: ' . famijobSiteUrl('index.php'));
     exit();
 }
 

@@ -13,7 +13,7 @@ if (!function_exists('fjvT')) {
 
 $role = (string) ($_SESSION['role'] ?? '');
 if (!in_array($role, ['admin'], true)) {
-    header('Location: ../index.php');
+    header('Location: ' . famijobSiteUrl('index.php'));
     exit();
 }
 

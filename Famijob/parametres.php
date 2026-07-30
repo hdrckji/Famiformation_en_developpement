@@ -4,7 +4,7 @@ verifierConnexion($db);
 
 $role = (string) ($_SESSION['role'] ?? '');
 if ($role !== 'admin') {
-    header('Location: ../index.php');
+    header('Location: ' . famijobSiteUrl('index.php'));
     exit();
 }
 

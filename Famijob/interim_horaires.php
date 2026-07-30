@@ -13,7 +13,7 @@ if (!function_exists('fjhT')) {
 
 $role = getCurrentRole();
 if (!in_array($role, ['admin', 'teamcoach'], true)) {
-    header('Location: ../index.php');
+    header('Location: ' . famijobSiteUrl('index.php'));
     exit();
 }
 
