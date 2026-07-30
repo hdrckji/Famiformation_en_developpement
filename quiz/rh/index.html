@@ -123,9 +123,6 @@ function ligneHtml(p, type, rangClass) {
   // 📧 L'adresse, cliquable pour ecrire directement. Sans adresse, on le DIT :
   // cette personne ne peut pas recevoir le mail « viens chercher ta recompense »,
   // il faut donc la prevenir autrement.
-  const mail = p.email
-    ? `<a class="rh-mail" href="mailto:${esc(p.email)}">${esc(p.email)}</a>`
-    : `<span class="rh-mail rh-sansmail">aucune adresse — a prevenir de vive voix</span>`;
   // 📨 Compteur d'envois, par modele. Il remplace l'ancien verrou « une seule
   // fois » : on peut renvoyer autant qu'on veut, et on sait ce qui est deja parti.
   const cpt = [];
@@ -135,12 +132,12 @@ function ligneHtml(p, type, rangClass) {
     ? `<span class="rh-envois" title="⏳ « on prépare » · 🎁 « c'est prêt »${p.dernier ? " — dernier envoi : " + esc(p.dernier.slice(0, 16).replace("T", " ")) : ""}">${cpt.join(" · ")}</span>`
     : `<span class="rh-envois rh-jamais">aucun mail envoyé</span>`;
   return `<div class="rh-row ${remis ? "remis" : ""}" data-name="${esc(p.name)}" data-type="${type}">
-    <label class="rh-pick"><input type="checkbox" class="rh-cb" value="${esc(String(p.name).toLowerCase())}" ${p.email ? "" : "disabled"}></label>
+    <label class="rh-pick"><input type="checkbox" class="rh-cb" value="${esc(String(p.name || "").toLowerCase())}" disabled></label>
     ${rang}
     <div class="rh-info">
       <div class="rh-nom">${esc(nomAffiche(p))}</div>
       <div class="rh-meta">${meta.join(" · ")}</div>
-      <div class="rh-mail-ligne">${mail} ${envois}</div>
+      <div class="rh-mail-ligne"><span class="rh-mail-zone"><span class="rh-mail rh-jamais">adresse…</span></span> ${envois}</div>
     </div>
     <label class="rh-check ${remis ? "on" : ""}">
       <input type="checkbox" ${remis ? "checked" : ""}>
@@ -228,7 +225,12 @@ function rendre() {
   $("#mail-attente").addEventListener("click", () => envoyer("attente", "#mail-attente", "« on prépare »"));
   $("#mail-prete").addEventListener("click", () => envoyer("prete", "#mail-prete", "« c'est prêt »"));
 
-  document.querySelectorAll(".rh-row input").forEach((inp) => inp.addEventListener("change", async (e) => {
+  chargeAdresses();   // les adresses arrivent après : la page est déjà utilisable
+
+  // ⚠️ Cibler .rh-check ET NON « .rh-row input » : depuis l'ajout des cases de
+  // sélection, « .rh-row input » attrapait AUSSI celles-ci. Cocher quelqu'un pour
+  // lui écrire enregistrait donc sa récompense comme déjà remise.
+  document.querySelectorAll(".rh-check input").forEach((inp) => inp.addEventListener("change", async (e) => {
     const row = e.target.closest(".rh-row");
     const name = row.dataset.name, type = row.dataset.type, remis = e.target.checked;
     e.target.disabled = true;
@@ -241,6 +243,32 @@ function rendre() {
     const item = liste.find((p) => p.name === name); if (item) item.remis = remis;
     rendre();
   }));
+}
+
+// 📧 Les adresses arrivent APRÈS l'affichage, par une requête à part. La page
+// reste donc utilisable même si la base est injoignable : on ne perd que les
+// adresses, jamais l'accès. On les injecte ensuite dans les lignes déjà là.
+let adresses = {};
+async function chargeAdresses() {
+  const ids = [...(data.podium || []), ...(data.jardin || [])]
+    .map((p) => String(p.name || "").toLowerCase()).filter(Boolean);
+  if (!ids.length) return;
+  const r = await post("rh_adresses", { ids }).catch(() => null);
+  if (!r || !r.ok || !r.data || !r.data.ok) return;   // silencieux : rien de vital
+  adresses = r.data.adresses || {};
+  document.querySelectorAll(".rh-row").forEach((row) => {
+    const cle = String(row.dataset.name || "").toLowerCase();
+    const mail = adresses[cle] || "";
+    const zone = row.querySelector(".rh-mail-zone");
+    if (zone) {
+      zone.innerHTML = mail
+        ? `<a class="rh-mail" href="mailto:${esc(mail)}">${esc(mail)}</a>`
+        : `<span class="rh-mail rh-sansmail">aucune adresse — à prévenir de vive voix</span>`;
+    }
+    // Sans adresse, cocher la personne ne servirait a rien.
+    const cb = row.querySelector(".rh-cb");
+    if (cb) { cb.disabled = !mail; }
+  });
 }
 
 async function charger() {

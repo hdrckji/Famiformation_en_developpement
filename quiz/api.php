@@ -1785,42 +1785,22 @@ switch ($action) {
     // Les RH en ont besoin pour recontacter un gagnant qui ne se présente pas, et
     // pour voir d'un coup d'œil qui n'a pas d'adresse — donc qui ne recevra jamais
     // le mail « viens chercher ta récompense ».
-    // ⚠️ TOUT est dans le try, y compris famiDb() : cette page sert AUSSI à se
-    // connecter (le formulaire appelle rh_liste). Le moindre incident ici
-    // empêcherait donc les RH d'entrer — l'affichage d'une adresse ne vaut pas
-    // ce risque. En cas de pépin, on affiche la liste sans les adresses.
-    $mailsParId = [];
-    try {
-      $ids = array_values(array_filter(array_keys($parNom), function ($x) { return $x !== ''; }));
-      // Requête bornée : au-delà, on renonce aux adresses plutôt que d'envoyer
-      // une requête à mille paramètres.
-      if (!empty($ids) && count($ids) <= 400) {
-        $dbMails = famiDb();
-        if ($dbMails) {
-          $trous = implode(',', array_fill(0, count($ids), '?'));
-          $qm = $dbMails->prepare("SELECT LOWER(identifiant) AS ident, email FROM utilisateurs WHERE LOWER(identifiant) IN ($trous)");
-          $qm->execute($ids);
-          foreach ($qm->fetchAll(PDO::FETCH_ASSOC) as $lig) {
-            $mailsParId[(string) $lig['ident']] = trim((string) ($lig['email'] ?? ''));
-          }
-        }
-      }
-    } catch (Throwable $eMails) {
-      $mailsParId = [];
-      error_log('[quiz] adresses RH indisponibles : ' . $eMails->getMessage());
-    }
-
-    // Compteurs d'envoi, par personne et par modèle de mail.
+    // ⚠️ AUCUN ACCÈS À LA BASE ICI. Cette action sert AUSSI à se connecter : le
+    // formulaire RH l'appelle pour valider le mot de passe. Tout ce qui peut
+    // échouer ici empêche donc les RH d'ENTRER, pas seulement d'afficher une
+    // colonne. Les adresses sont récupérées à part, par l'action rh_adresses,
+    // dont l'échec ne prive que d'une information secondaire.
+    //
+    // Les compteurs d'envoi, eux, viennent du fichier RH déjà lu : aucun risque.
     $compteurs = (is_array($remises) && isset($remises['mails']) && is_array($remises['mails'])) ? $remises['mails'] : [];
 
-    $ligne = function ($p, $cle) use ($mailsParId, $compteurs) {
+    $ligne = function ($p, $cle) use ($compteurs) {
       $c = is_array($compteurs[$cle] ?? null) ? $compteurs[$cle] : [];
       return [
         'name'   => (string) ($p['name'] ?? $cle),
         'pseudo' => (string) ($p['pseudo'] ?? ''),
         'prenom' => (string) ($p['prenom'] ?? ''),
         'nom'    => (string) ($p['nom'] ?? ''),
-        'email'  => (string) ($mailsParId[$cle] ?? ''),
         'score'  => round(floatval($p['score'] ?? 0), 1),
         'nb_attente' => (int) ($c['attente'] ?? 0),
         'nb_prete'   => (int) ($c['prete'] ?? 0),
@@ -1896,6 +1876,36 @@ switch ($action) {
   // ✉️ Prévenir par MAIL les vainqueurs (podium) + jardins terminés : message
   // simple « viens récupérer ta récompense auprès des RH ». On ne renvoie qu'une
   // fois par personne (suivi dans rh-<site>.json['prevenu']).
+  // 📧 ADRESSES DES GAGNANTS — action SÉPARÉE, appelée après l'affichage.
+  // Volontairement hors de rh_liste : celle-ci sert à se connecter, et une base
+  // injoignable ne doit pas fermer la porte des RH. Ici, un échec ne coûte que
+  // l'affichage des adresses.
+  case 'rh_adresses': {
+    exigeRh($input);
+    $ids = array_values(array_filter(array_map(
+      function ($x) { return mb_strtolower(trim((string) $x)); },
+      (array) ($input['ids'] ?? [])
+    )));
+    $sortie = [];
+    try {
+      if (!empty($ids) && count($ids) <= 400) {
+        $dbA = famiDb();
+        if ($dbA) {
+          $trous = implode(',', array_fill(0, count($ids), '?'));
+          $qa = $dbA->prepare("SELECT LOWER(identifiant) AS ident, email FROM utilisateurs WHERE LOWER(identifiant) IN ($trous)");
+          $qa->execute($ids);
+          foreach ($qa->fetchAll(PDO::FETCH_ASSOC) as $lig) {
+            $sortie[(string) $lig['ident']] = trim((string) ($lig['email'] ?? ''));
+          }
+        }
+      }
+    } catch (Throwable $eA) {
+      error_log('[quiz] rh_adresses : ' . $eA->getMessage());
+    }
+    echo json_encode(['ok' => true, 'adresses' => $sortie], JSON_UNESCAPED_UNICODE);
+    break;
+  }
+
   case 'rh_mail': {
     exigeRh($input);
     $db = famiDb();
