@@ -295,6 +295,50 @@ if (!empty($_SESSION['module_flash'])) {
         @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
 
         .tile-inactive { opacity: 0.45; }
+
+        /* 🌱 MISE EN AVANT DE LA TUILE « Quiz & mon espace jardin ».
+           TOUT est dans des classes DÉDIÉES (.tile-jardin, .badge-jardin) et des
+           animations préfixées « jd » : aucune autre tuile n'est touchée, et le
+           jour où la mise en avant n'a plus lieu d'être il suffit de retirer la
+           classe dans le lien. On n'ANIME PAS de pseudo-élément en z-index
+           négatif : c'est le halo en box-shadow qui fait tout le travail, sans
+           risque de passer derrière la tuile ou d'avaler les clics. */
+        .tile.tile-jardin {
+            position: relative;                     /* pour le badge */
+            border: 2px solid #7bc47f;
+            background: linear-gradient(180deg, rgba(255,255,255,0.96) 55%, rgba(232,245,233,0.96));
+            animation: jdRespire 2.8s ease-in-out infinite;
+        }
+        /* Anneau vert qui s'écarte doucement : on remarque la tuile sans que rien
+           ne bouge de place (aucun décalage de la grille). */
+        @keyframes jdRespire {
+            0%, 100% { box-shadow: 0 10px 25px rgba(0,0,0,0.10), 0 0 0 0 rgba(123,196,127,0.55); }
+            50%      { box-shadow: 0 14px 30px rgba(0,0,0,0.14), 0 0 0 12px rgba(123,196,127,0); }
+        }
+        .tile.tile-jardin:hover { border-color: #2d5a37; animation-play-state: paused; }
+        .tile.tile-jardin .tile-icon { animation: jdPousse 3.2s ease-in-out infinite; }
+        @keyframes jdPousse {
+            0%, 100% { transform: translateY(0) rotate(-5deg); }
+            50%      { transform: translateY(-6px) rotate(5deg); }
+        }
+        .badge-jardin {
+            position: absolute; top: -11px; right: -11px; z-index: 10;
+            display: inline-flex; align-items: center; gap: 5px;
+            background: linear-gradient(135deg, #2d5a37, #7bc47f);
+            color: #fff; font-size: 0.74rem; font-weight: 800; letter-spacing: 0.04em;
+            padding: 6px 13px; border-radius: 999px;
+            box-shadow: 0 4px 12px rgba(45,90,55,0.45);
+            animation: jdBadge 2.8s ease-in-out infinite;
+        }
+        @keyframes jdBadge { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+        /* ♿ Certaines personnes désactivent les animations (mal des transports,
+           troubles vestibulaires) : on respecte ce réglage, la tuile reste
+           parfaitement mise en avant par sa bordure, son fond et son badge. */
+        @media (prefers-reduced-motion: reduce) {
+            .tile.tile-jardin, .tile.tile-jardin .tile-icon, .badge-jardin { animation: none; }
+            .tile.tile-jardin { box-shadow: 0 10px 25px rgba(0,0,0,0.10), 0 0 0 4px rgba(123,196,127,0.45); }
+        }
+
         .btn-param { background: rgba(255,255,255,0.9); color: #2d5a37; text-decoration: none; padding: 12px 18px; border-radius: 30px; font-weight: bold; font-size: 0.9rem; box-shadow: 0 4px 10px rgba(0,0,0,0.1); transition: all 0.3s ease; }
         .btn-param:hover { background: #fff; transform: scale(1.05); }
         .lang-switch { display: flex; gap: 6px; }
@@ -550,7 +594,8 @@ if ($wcThemeOn && !empty($siteTheme) && is_array($siteTheme)) {
               // le jeu est ouvert à tout le monde. On passe par quiz_acces.php, qui
               // fabrique le jeton de session du quiz : la personne est déjà
               // connectée ici, hors de question de lui redemander son mot de passe. ?>
-        <a href="quiz_acces.php" class="tile">
+        <a href="quiz_acces.php" class="tile tile-jardin">
+            <span class="badge-jardin">🎁 <?= t('NOUVEAU', 'NIEUW') ?></span>
             <div class="tile-media"><span class="tile-icon">🌱</span></div>
             <div class="tile-title"><?= t('Quiz & mon espace jardin', 'Quiz & mijn tuin') ?></div>
             <div class="tile-desc"><?= t('Réponds au quiz, récolte tes graines et fais pousser ton jardin.', 'Doe de quiz, oogst je zaadjes en laat je tuin groeien.') ?></div>
