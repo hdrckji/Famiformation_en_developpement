@@ -3011,7 +3011,22 @@ function ouvreConnexionFami() {
       const raison = r && r.reason;
       if (raison === "a_activer") { erreur(t("Ton compte n'est pas encore activé : clique sur le lien reçu par e-mail pour choisir ton mot de passe.", "Je account is nog niet geactiveerd: klik op de link in je e-mail om een wachtwoord te kiezen.")); return; }
       if (raison === "base_indisponible") { erreur(t("Le service est momentanément indisponible. Réessaie dans un instant.", "De dienst is even niet beschikbaar. Probeer straks opnieuw.")); return; }
-      erreur(t("Identifiant ou mot de passe incorrect.", "Gebruikersnaam of wachtwoord onjuist.")); return;
+      // ⚠️ « Identifiant OU mot de passe incorrect » melangeait deux problemes
+      // tres differents alors que le serveur les distingue depuis toujours
+      // (raisons « inconnu » et « mauvais_mdp »). Impossible de savoir s'il
+      // fallait corriger son identifiant ou son mot de passe. On le dit.
+      if (raison === "inconnu") {
+        erreur(t("Aucun compte trouvé avec « " + esc(id) + " ». Essaie avec ton <b>adresse e-mail</b> à la place.",
+                 "Geen account gevonden met « " + esc(id) + " ». Probeer met je <b>e-mailadres</b>."));
+        return;
+      }
+      if (raison === "mauvais_mdp") {
+        erreur(t("Mot de passe incorrect. C'est bien celui du site Famiformation.",
+                 "Wachtwoord onjuist. Het is dat van de Famiformation-site."));
+        return;
+      }
+      if (raison === "reseau") { erreur(t("Connexion interrompue. Réessaie.", "Verbinding onderbroken. Probeer opnieuw.")); return; }
+      erreur(t("Connexion impossible. Réessaie dans un instant.", "Aanmelden lukt niet. Probeer straks opnieuw.")); return;
     }
     // Connecté : on ouvre sa session de jeu et on garde le jeton (téléphone perso).
     const j = r.joueur || {};
