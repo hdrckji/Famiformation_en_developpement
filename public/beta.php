@@ -62,7 +62,13 @@ $userPhoto = $_SESSION['photo_profil'] ?? null;
         .header { text-align: center; padding: 6px 20px 2px; }
         .logo-main { max-width: 220px; filter: drop-shadow(0 5px 15px rgba(0,0,0,0.2)); }
 
-        .tiles-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 25px; width: 90%; max-width: 760px; margin-top: 6px; padding: 10px 0 40px; }
+        /* 🧩 Les 3 modules alignés sur UNE SEULE LIGNE. C'était le max-width qui
+           décidait : à 760px, trois colonnes de 280px minimum ne rentraient pas
+           et la 3e tuile passait à la ligne. On fixe donc 3 colonnes et on
+           élargit le conteneur.
+           minmax(0, 1fr) et non 1fr : sans le 0, une tuile dont le texte est long
+           refuse de se réduire et déborde de la grille. */
+        .tiles-container { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 25px; width: 90%; max-width: 1080px; margin-top: 6px; padding: 10px 0 40px; }
         .tile { background: rgba(255,255,255,0.96); border-radius: 20px; padding: 44px 30px; text-align: center; text-decoration: none; color: #333; box-shadow: 0 10px 25px rgba(0,0,0,0.1); transition: all .3s ease; display: flex; flex-direction: column; align-items: center; }
         .tile:hover { transform: translateY(-8px); box-shadow: 0 15px 35px rgba(0,0,0,0.2); }
         .tile-icon { font-size: 3.4rem; margin-bottom: 14px; }
@@ -105,6 +111,13 @@ $userPhoto = $_SESSION['photo_profil'] ?? null;
             .tile.tile-jardin { box-shadow: 0 10px 25px rgba(0,0,0,0.10), 0 0 0 4px rgba(123,196,127,0.45); }
         }
 
+        /* 💻 Tablette ou fenêtre réduite : à cette largeur, 3 colonnes rendraient
+           les titres illisibles (« Quiz & mon espace jardin » se couperait en
+           quatre lignes). On repasse à 2, puis à 1 sur téléphone juste en dessous.
+           Ce bloc doit rester AVANT celui des 560px, qui doit gagner sur lui. */
+        @media (max-width: 900px) {
+            .tiles-container { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 760px; }
+        }
         @media (max-width: 560px) {
             .tiles-container { grid-template-columns: 1fr; gap: 16px; }
             .tile { padding: 30px 22px; }
