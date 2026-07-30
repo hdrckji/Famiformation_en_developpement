@@ -28,24 +28,23 @@
 		@quizdata path /quiz/data/*
 		respond @quizdata 403
 
-		# 🎓 FAMIJOB A SON PROPRE SOUS-DOMAINE : student.famiformation.com.
-		# Railway envoie les requetes de TOUS les domaines au meme conteneur ; on
-		# distingue donc par le nom d'hote. Sur ce sous-domaine, la racine mene
-		# directement a FamiJob ; le reste du site continue d'etre servi.
+		# 🎓 ANCIEN SOUS-DOMAINE FAMIJOB : student.famiformation.com.
+		# Il servait FamiJob depuis IONOS, a la RACINE du sous-domaine. Depuis le
+		# passage sur Railway, FamiJob vit sur le domaine principal, sous /famijob/.
+		# Ce sous-domaine ne sert donc plus qu'a rediriger vers la bonne adresse :
+		# une seule application FamiJob, une seule URL.
 		#
-		# On REDIRIGE (le segment /famijob/ reste visible dans l'URL) plutot que de
-		# reecrire en le masquant. C'est volontaire : FamiJob renvoie ses visiteurs
-		# non autorises vers « ../index.php » (Famijob/index.php et 8 autres pages).
-		# Si le segment etait masque, ce « ../ » retomberait sur FamiJob lui-meme et
-		# ferait une boucle de redirection infinie.
+		# On garde le chemin ({uri}) au lieu de tout renvoyer sur la racine : comme
+		# FamiJob etait a la racine du sous-domaine, un ancien favori du type
+		# student.famiformation.com/interim_horaires.php retombe exactement sur
+		# www.famiformation.com/famijob/interim_horaires.php. Une racine « / »
+		# donne simplement /famijob/.
 		#
-		# La regle ne vise QUE la racine « / » : /index.php doit rester le site
-		# principal, sinon le retour « ../index.php » de FamiJob boucle lui aussi.
-		@famijobRacine {
-			host student.famiformation.com
-			path /
-		}
-		redir @famijobRacine /famijob/ 302
+		# 302 et non 301 : une redirection permanente est mise en cache par les
+		# navigateurs et devient tres penible a corriger. A passer en 301 une fois
+		# la bascule confirmee stable.
+		@famijobSousDomaine host student.famiformation.com
+		redir @famijobSousDomaine https://www.famiformation.com/famijob{uri} 302
 
 		# Le quiz est un site STATIQUE : son index est index.html. Or php_server ne
 		# reconnait que index.php comme index de dossier : /quiz/ ne trouvait donc
