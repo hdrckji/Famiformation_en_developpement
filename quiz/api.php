@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /* ============================================================
    ⚙️ API DU QUIZ — côté serveur (IONOS ou Railway)
    Stocke les scores et les codes bonus dans des fichiers JSON.
