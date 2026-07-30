@@ -1129,7 +1129,7 @@ function marquePrevenu($cle) {
 }
 // ✉️ Envoie le mail « viens voir les RH » à une personne (par identifiant
 // minuscule). $info = ['type'=>'podium'|'jardin','rang'=>?]. true si parti.
-function mailRecompense(PDO $db, $cle, $info) {
+function mailRecompense(PDO $db, $cle, $info, $modele = 'attente') {
   try {
     $q = $db->prepare('SELECT email, prenom, nom FROM utilisateurs WHERE LOWER(identifiant) = ? LIMIT 1');
     $q->execute([$cle]);
@@ -1139,27 +1139,44 @@ function mailRecompense(PDO $db, $cle, $info) {
   if (!filter_var($email, FILTER_VALIDATE_EMAIL)) { return false; }
   $prenom = trim((string) ($u['prenom'] ?? ''));
   $bonjour = $prenom !== '' ? $prenom : 'à toi';
-  if (($info['type'] ?? '') === 'podium') {
-    $rang = (int) ($info['rang'] ?? 0);
-    $sujet = '🏆 Bravo — ta récompense t\'attend chez Famiflora !';
-    $intro = 'Félicitations, tu termines <b>' . ($rang === 1 ? '1er' : $rang . 'e') . '</b> du grand quiz Famiformation&nbsp;! 🎉';
-    $quand = ' (à partir du <b>01/09</b>)';   // podium : remise à partir du 01/09
+  $modele = ($modele === 'prete') ? 'prete' : 'attente';
+
+  // Le MOTIF de la récompense : podium avec son rang, ou jardin terminé.
+  $estPodium = (($info['type'] ?? '') === 'podium');
+  $rang = (int) ($info['rang'] ?? 0);
+  $place = ($rang === 1) ? '1re place' : $rang . 'e place';
+
+  if ($modele === 'attente') {
+    // 1️⃣ ON PRÉPARE. Envoyé dès que la personne devient gagnante : on félicite,
+    // on annonce qu'un second mail suivra. Sans ça, quelqu'un qui gagne le
+    // 20/08 n'entendait plus parler de rien jusqu'au 01/09.
+    $sujet = $estPodium
+      ? '🏆 Bravo — on prépare ta récompense !'
+      : '🌼 Bravo — on prépare ta récompense !';
+    $felicite = $estPodium
+      ? 'L\'équipe Famiformation te félicite pour ta <b>' . $place . '</b> au grand quiz&nbsp;! 🏆'
+      : 'L\'équipe Famiformation te félicite pour avoir <b>terminé ton jardin</b>&nbsp;! 🌼';
+    $suite = 'On <b>prépare ta récompense</b>. Nous t\'enverrons un mail dès que tu pourras venir la récupérer.';
   } else {
-    $sujet = '🎁 Bravo — ta récompense t\'attend chez Famiflora !';
-    $intro = 'Bravo, tu as <b>terminé ton jardin</b> — tu fais partie des gagnants&nbsp;! 🌼';
-    $quand = '';                              // jardin : récompense dispo dès maintenant (pas d\'attente)
+    // 2️⃣ C'EST PRÊT. Envoyé par les RH le jour où la récompense est disponible.
+    // Plus de rappel du classement ici : à ce stade la seule information utile,
+    // c'est qu'elle est prête et où la chercher.
+    $sujet = '🎁 Ta récompense est prête !';
+    $felicite = 'Bonne nouvelle : <b>ta récompense est prête</b>&nbsp;! 🎁';
+    $suite = 'Pour la récupérer, présente-toi <b>auprès des RH</b> du magasin.';
   }
+
   $body = '<div style="font-family:Arial,sans-serif;color:#244230;max-width:560px;margin:0 auto;padding:24px;">'
     . '<p style="font-size:16px;">Bonjour ' . htmlspecialchars($bonjour, ENT_QUOTES, 'UTF-8') . ',</p>'
-    . '<p style="font-size:16px;line-height:1.6;">' . $intro . '</p>'
-    . '<p style="font-size:16px;line-height:1.6;">Pour <b>récupérer ta récompense</b>, présente-toi <b>auprès des RH</b> du magasin' . $quand . '. '
+    . '<p style="font-size:16px;line-height:1.6;">' . $felicite . '</p>'
+    . '<p style="font-size:16px;line-height:1.6;">' . $suite . ' '
     . 'Une question&nbsp;? Écris à <a href="mailto:admin@famiformation.com">admin@famiformation.com</a>.</p>'
     . '<p style="font-size:15px;color:#617268;">Merci d\'avoir joué, et à bientôt&nbsp;! 🌱<br>L\'équipe Famiflora · Famiformation</p></div>';
   $ok = function_exists('sendMail') ? sendMail($email, $sujet, $body, true) : false;
-  // ✅ La personne a bien été prévenue → on prévient AUSSI l'admin (RH) pour qu'il
-  // prépare la récompense. Une seule fois par personne (les appelants gardent le
-  // drapeau dejaPrevenu après un envoi réussi).
-  if ($ok) { mailAdminRecompense($cle, $u, $info); }
+  // On prévient l'admin (RH) uniquement au PREMIER mail (« on prépare ») : c'est
+  // là qu'il y a quelque chose à préparer. Le second part de sa main, inutile de
+  // le lui annoncer.
+  if ($ok && $modele === 'attente') { mailAdminRecompense($cle, $u, $info); }
   return $ok;
 }
 
@@ -1768,21 +1785,36 @@ switch ($action) {
     // Les RH en ont besoin pour recontacter un gagnant qui ne se présente pas, et
     // pour voir d'un coup d'œil qui n'a pas d'adresse — donc qui ne recevra jamais
     // le mail « viens chercher ta récompense ».
+    // ⚠️ TOUT est dans le try, y compris famiDb() : cette page sert AUSSI à se
+    // connecter (le formulaire appelle rh_liste). Le moindre incident ici
+    // empêcherait donc les RH d'entrer — l'affichage d'une adresse ne vaut pas
+    // ce risque. En cas de pépin, on affiche la liste sans les adresses.
     $mailsParId = [];
-    $dbMails = famiDb();
-    if ($dbMails && !empty($parNom)) {
-      try {
-        $ids = array_keys($parNom);
-        $trous = implode(',', array_fill(0, count($ids), '?'));
-        $qm = $dbMails->prepare("SELECT LOWER(identifiant) AS id, email FROM utilisateurs WHERE LOWER(identifiant) IN ($trous)");
-        $qm->execute($ids);
-        foreach ($qm->fetchAll(PDO::FETCH_ASSOC) as $r) {
-          $mailsParId[(string) $r['id']] = trim((string) ($r['email'] ?? ''));
+    try {
+      $ids = array_values(array_filter(array_keys($parNom), function ($x) { return $x !== ''; }));
+      // Requête bornée : au-delà, on renonce aux adresses plutôt que d'envoyer
+      // une requête à mille paramètres.
+      if (!empty($ids) && count($ids) <= 400) {
+        $dbMails = famiDb();
+        if ($dbMails) {
+          $trous = implode(',', array_fill(0, count($ids), '?'));
+          $qm = $dbMails->prepare("SELECT LOWER(identifiant) AS ident, email FROM utilisateurs WHERE LOWER(identifiant) IN ($trous)");
+          $qm->execute($ids);
+          foreach ($qm->fetchAll(PDO::FETCH_ASSOC) as $lig) {
+            $mailsParId[(string) $lig['ident']] = trim((string) ($lig['email'] ?? ''));
+          }
         }
-      } catch (Throwable $e) { /* base indisponible : on affichera sans adresse */ }
+      }
+    } catch (Throwable $eMails) {
+      $mailsParId = [];
+      error_log('[quiz] adresses RH indisponibles : ' . $eMails->getMessage());
     }
 
-    $ligne = function ($p, $cle) use ($mailsParId) {
+    // Compteurs d'envoi, par personne et par modèle de mail.
+    $compteurs = (is_array($remises) && isset($remises['mails']) && is_array($remises['mails'])) ? $remises['mails'] : [];
+
+    $ligne = function ($p, $cle) use ($mailsParId, $compteurs) {
+      $c = is_array($compteurs[$cle] ?? null) ? $compteurs[$cle] : [];
       return [
         'name'   => (string) ($p['name'] ?? $cle),
         'pseudo' => (string) ($p['pseudo'] ?? ''),
@@ -1790,6 +1822,9 @@ switch ($action) {
         'nom'    => (string) ($p['nom'] ?? ''),
         'email'  => (string) ($mailsParId[$cle] ?? ''),
         'score'  => round(floatval($p['score'] ?? 0), 1),
+        'nb_attente' => (int) ($c['attente'] ?? 0),
+        'nb_prete'   => (int) ($c['prete'] ?? 0),
+        'dernier'    => (string) ($c['dernier'] ?? ''),
       ];
     };
 
@@ -1895,44 +1930,59 @@ switch ($action) {
       }
     }
 
-    $deja = readJson($rhFile);
-    $prevenus = (is_array($deja) && isset($deja['prevenu']) && is_array($deja['prevenu'])) ? $deja['prevenu'] : [];
-    $res = ['envoye' => 0, 'deja' => 0, 'sans_mail' => 0, 'echec' => 0];
+    // 🎯 QUI, ET QUEL MAIL. Les RH choisissent les personnes (cases à cocher) et
+    // le modèle. Rien n'est plus envoyé « à tout le monde d'un coup ».
+    //
+    // Et on n'interdit PLUS le renvoi : un mail perdu dans les indésirables, une
+    // adresse corrigée, une relance avant la fermeture — il faut pouvoir renvoyer.
+    // On COMPTE les envois au lieu de les bloquer, ce qui informe sans empêcher.
+    $modele = (($input['modele'] ?? '') === 'prete') ? 'prete' : 'attente';
+    $demandes = array_values(array_filter(array_map(
+      function ($x) { return mb_strtolower(trim((string) $x)); },
+      (array) ($input['ids'] ?? [])
+    )));
+    // Sans liste explicite, on garde l'ancien comportement : tous les gagnants.
+    if (!empty($demandes)) {
+      $cibles = array_intersect_key($cibles, array_flip($demandes));
+    }
+
+    $res = ['envoye' => 0, 'deja' => 0, 'sans_mail' => 0, 'echec' => 0, 'modele' => $modele];
     $faits = [];
     foreach ($cibles as $cle => $info) {
-      if (!empty($prevenus[$cle])) { $res['deja']++; continue; }
-      try {
-        $q = $db->prepare('SELECT email, prenom FROM utilisateurs WHERE LOWER(identifiant) = ? LIMIT 1');
-        $q->execute([$cle]);
-        $u = $q->fetch(PDO::FETCH_ASSOC);
-      } catch (Throwable $e) { $u = null; }
-      $email = $u ? trim((string) ($u['email'] ?? '')) : '';
-      if (!filter_var($email, FILTER_VALIDATE_EMAIL)) { $res['sans_mail']++; continue; }
-      $prenom = trim((string) ($u['prenom'] ?? ''));
-      $bonjour = $prenom !== '' ? $prenom : 'à toi';
-      if ($info['type'] === 'podium') {
-        $sujet = '🏆 Bravo — ta récompense t\'attend chez Famiflora !';
-        $intro = 'Félicitations, tu termines <b>' . ($info['rang'] == 1 ? '1er' : $info['rang'] . 'e') . '</b> du grand quiz Famiformation&nbsp;! 🎉';
-        $quand = ' (à partir du <b>01/09</b>)';   // podium : remise à partir du 01/09
+      // Un seul endroit construit ces mails : mailRecompense(). L'ancien code
+      // recopiait le texte ici, si bien qu'une correction devait être faite deux
+      // fois — et ne l'était jamais.
+      $ok = mailRecompense($db, $cle, $info, $modele);
+      if ($ok) {
+        $res['envoye']++;
+        $faits[] = $cle;
       } else {
-        $sujet = '🎁 Bravo — ta récompense t\'attend chez Famiflora !';
-        $intro = 'Bravo, tu as <b>terminé ton jardin</b> — tu fais partie des gagnants&nbsp;! 🌼';
-        $quand = '';                              // jardin : récompense dispo dès maintenant
+        // mailRecompense renvoie false aussi bien pour une adresse absente que
+        // pour un envoi rate : on distingue les deux, les RH n'ont pas le meme
+        // geste a faire.
+        $sansMail = true;
+        try {
+          $q = $db->prepare('SELECT email FROM utilisateurs WHERE LOWER(identifiant) = ? LIMIT 1');
+          $q->execute([$cle]);
+          $sansMail = !filter_var(trim((string) $q->fetchColumn()), FILTER_VALIDATE_EMAIL);
+        } catch (Throwable $e) {}
+        if ($sansMail) { $res['sans_mail']++; } else { $res['echec']++; }
       }
-      $body = '<div style="font-family:Arial,sans-serif;color:#244230;max-width:560px;margin:0 auto;padding:24px;">'
-        . '<p style="font-size:16px;">Bonjour ' . htmlspecialchars($bonjour, ENT_QUOTES, 'UTF-8') . ',</p>'
-        . '<p style="font-size:16px;line-height:1.6;">' . $intro . '</p>'
-        . '<p style="font-size:16px;line-height:1.6;">Pour <b>récupérer ta récompense</b>, présente-toi <b>auprès des RH</b> du magasin' . $quand . '. '
-        . 'Une question&nbsp;? Écris à <a href="mailto:admin@famiformation.com">admin@famiformation.com</a>.</p>'
-        . '<p style="font-size:15px;color:#617268;">Merci d\'avoir joué, et à bientôt&nbsp;! 🌱<br>L\'équipe Famiflora · Famiformation</p></div>';
-      $ok = function_exists('sendMail') ? sendMail($email, $sujet, $body, true) : false;
-      if ($ok) { $res['envoye']++; $faits[] = $cle; } else { $res['echec']++; }
     }
     if ($faits) {
-      withLock($rhFile, function (&$data, &$write) use ($faits) {
+      withLock($rhFile, function (&$data, &$write) use ($faits, $modele) {
         if (!is_array($data)) { $data = []; }
         if (!isset($data['prevenu']) || !is_array($data['prevenu'])) { $data['prevenu'] = []; }
-        foreach ($faits as $c) { $data['prevenu'][$c] = 1; }
+        // Compteur par personne ET par modèle : « combien de fois ai-je écrit à
+        // cette personne, et pour lui dire quoi ». C'est ce qui remplace le
+        // verrou d'envoi unique.
+        if (!isset($data['mails']) || !is_array($data['mails'])) { $data['mails'] = []; }
+        foreach ($faits as $c) {
+          $data['prevenu'][$c] = 1;   // conservé : sert à l'envoi automatique
+          if (!isset($data['mails'][$c]) || !is_array($data['mails'][$c])) { $data['mails'][$c] = []; }
+          $data['mails'][$c][$modele] = (int) ($data['mails'][$c][$modele] ?? 0) + 1;
+          $data['mails'][$c]['dernier'] = date('c');
+        }
         $write = true;
       });
     }

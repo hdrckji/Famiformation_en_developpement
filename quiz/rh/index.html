@@ -39,7 +39,15 @@
   .rh-info { flex:1; min-width:0; }
   .rh-nom { font-weight:700; }
   .rh-meta { font-size:.85rem; color:#7a8a80; }
-  .rh-mail-ligne { margin-top:3px; font-size:.85rem; }
+  .rh-mail-ligne { margin-top:3px; font-size:.85rem; display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  .rh-pick { flex:none; display:flex; align-items:center; padding-right:4px; }
+  .rh-pick input { width:18px; height:18px; cursor:pointer; }
+  .rh-pick input:disabled { cursor:not-allowed; opacity:.4; }
+  .rh-envois { font-size:.8rem; font-weight:700; color:#1E7A46; background:#e7f6ea; border-radius:999px; padding:2px 9px; white-space:nowrap; }
+  .rh-envois.rh-jamais { color:#8a968f; background:#f2f4f3; font-weight:600; }
+  .rh-barre { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:0 0 12px; font-size:.86rem; }
+  .rh-lien { background:none; border:none; padding:0; font:inherit; color:#2d5a37; font-weight:700; text-decoration:underline; cursor:pointer; }
+  .rh-compteur { margin-left:auto; color:#7a8a80; }
   .rh-mail { color:#2d5a37; font-weight:600; text-decoration:none; word-break:break-all; }
   .rh-mail:hover { text-decoration:underline; }
   .rh-sansmail { color:#a12; font-weight:600; }
@@ -118,12 +126,21 @@ function ligneHtml(p, type, rangClass) {
   const mail = p.email
     ? `<a class="rh-mail" href="mailto:${esc(p.email)}">${esc(p.email)}</a>`
     : `<span class="rh-mail rh-sansmail">aucune adresse — a prevenir de vive voix</span>`;
+  // 📨 Compteur d'envois, par modele. Il remplace l'ancien verrou « une seule
+  // fois » : on peut renvoyer autant qu'on veut, et on sait ce qui est deja parti.
+  const cpt = [];
+  if (p.nb_attente) cpt.push(`⏳ ${p.nb_attente}`);
+  if (p.nb_prete) cpt.push(`🎁 ${p.nb_prete}`);
+  const envois = cpt.length
+    ? `<span class="rh-envois" title="⏳ « on prépare » · 🎁 « c'est prêt »${p.dernier ? " — dernier envoi : " + esc(p.dernier.slice(0, 16).replace("T", " ")) : ""}">${cpt.join(" · ")}</span>`
+    : `<span class="rh-envois rh-jamais">aucun mail envoyé</span>`;
   return `<div class="rh-row ${remis ? "remis" : ""}" data-name="${esc(p.name)}" data-type="${type}">
+    <label class="rh-pick"><input type="checkbox" class="rh-cb" value="${esc(String(p.name).toLowerCase())}" ${p.email ? "" : "disabled"}></label>
     ${rang}
     <div class="rh-info">
       <div class="rh-nom">${esc(nomAffiche(p))}</div>
       <div class="rh-meta">${meta.join(" · ")}</div>
-      <div class="rh-mail-ligne">${mail}</div>
+      <div class="rh-mail-ligne">${mail} ${envois}</div>
     </div>
     <label class="rh-check ${remis ? "on" : ""}">
       <input type="checkbox" ${remis ? "checked" : ""}>
@@ -156,9 +173,15 @@ function rendre() {
     </div>
     <div class="top">
       <button class="btn ghost" id="rafraichir">🔄 Rafraîchir</button>
-      <button class="btn" id="mailer">✉️ Prévenir par mail</button>
+      <button class="btn" id="mail-attente">⏳ « On prépare ta récompense »</button>
+      <button class="btn" id="mail-prete" style="background:#d6a21a;">🎁 « Ta récompense est prête »</button>
       <span class="spacer"></span>
       <button class="btn ghost" id="deco">Se déconnecter</button>
+    </div>
+    <div class="rh-barre">
+      <button type="button" class="rh-lien" id="pick-tous">Tout cocher</button> ·
+      <button type="button" class="rh-lien" id="pick-rien">Tout décocher</button>
+      <span class="rh-compteur" id="pick-nb"></span>
     </div>
     <div id="msg"></div>
     ${sectionHtml("Jardin terminé", "🌼", data.jardin || [], "jardin")}
@@ -172,21 +195,38 @@ function rendre() {
   }));
   $("#rafraichir").addEventListener("click", charger);
   $("#deco").addEventListener("click", () => { auth = null; localStorage.removeItem("fj_rh_auth"); vueLogin(); });
-  $("#mailer").addEventListener("click", async () => {
-    const n = (data.podium || []).length + (data.jardin || []).length;
-    if (!n) { $("#msg").innerHTML = `<div class="msg">Personne à prévenir pour l'instant.</div>`; return; }
-    if (!confirm(`Envoyer un e-mail « viens voir les RH pour ta récompense » aux vainqueurs et jardins terminés du magasin ${SITES[site]} ?\n\nChaque personne n'est prévenue qu'une seule fois.`)) return;
-    const b = $("#mailer"); b.disabled = true; b.textContent = "Envoi…";
-    const r = await post("rh_mail");
-    b.disabled = false; b.textContent = "✉️ Prévenir par mail";
+  // Sélection des destinataires. Les personnes sans adresse ont leur case
+  // désactivée : les cocher ne servirait à rien, autant que ça se voie.
+  const cases = () => Array.from(document.querySelectorAll(".rh-cb:not([disabled])"));
+  function majNb() {
+    const n = cases().filter((c) => c.checked).length;
+    $("#pick-nb").textContent = n ? `${n} personne(s) sélectionnée(s)` : "aucune sélection";
+  }
+  $("#pick-tous").addEventListener("click", () => { cases().forEach((c) => (c.checked = true)); majNb(); });
+  $("#pick-rien").addEventListener("click", () => { cases().forEach((c) => (c.checked = false)); majNb(); });
+  document.querySelectorAll(".rh-cb").forEach((c) => c.addEventListener("change", majNb));
+  majNb();
+
+  // Un seul envoi possible : celui des personnes COCHÉES, avec le modèle choisi.
+  async function envoyer(modele, bouton, libelle) {
+    const ids = cases().filter((c) => c.checked).map((c) => c.value);
+    if (!ids.length) { $("#msg").innerHTML = `<div class="msg err">Coche d'abord les personnes à prévenir.</div>`; return; }
+    const quoi = modele === "prete" ? "« ta récompense est prête »" : "« on prépare ta récompense »";
+    if (!confirm(`Envoyer le mail ${quoi} à ${ids.length} personne(s) ?\n\nTu peux le renvoyer autant de fois que nécessaire.`)) return;
+    const b = $(bouton); const texte = b.textContent;
+    b.disabled = true; b.textContent = "Envoi…";
+    const r = await post("rh_mail", { ids, modele });
+    b.disabled = false; b.textContent = texte;
     if (r.status === 401) { auth = null; localStorage.removeItem("fj_rh_auth"); vueLogin("Session expirée, reconnecte-toi."); return; }
     if (!r.ok || !r.data || !r.data.ok) { $("#msg").innerHTML = `<div class="msg err">${(r.data && r.data.reason === "base_indisponible") ? "Base injoignable, réessaie plus tard." : "Envoi impossible, réessaie."}</div>`; return; }
     const d = r.data;
-    $("#msg").innerHTML = `<div class="msg ok">✅ ${d.envoye} mail(s) envoyé(s)`
-      + (d.deja ? ` · ${d.deja} déjà prévenu(s)` : "")
+    $("#msg").innerHTML = `<div class="msg ok">✅ ${d.envoye} mail(s) ${libelle} envoyé(s)`
       + (d.sans_mail ? ` · ${d.sans_mail} sans e-mail` : "")
       + (d.echec ? ` · ⚠️ ${d.echec} échec(s)` : "") + `.</div>`;
-  });
+    await charger();   // les compteurs doivent refléter l'envoi tout de suite
+  }
+  $("#mail-attente").addEventListener("click", () => envoyer("attente", "#mail-attente", "« on prépare »"));
+  $("#mail-prete").addEventListener("click", () => envoyer("prete", "#mail-prete", "« c'est prêt »"));
 
   document.querySelectorAll(".rh-row input").forEach((inp) => inp.addEventListener("change", async (e) => {
     const row = e.target.closest(".rh-row");
