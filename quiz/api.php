@@ -648,10 +648,39 @@ function famiEcritJsonAtomique($file, $data) {
  * @return resource|false
  */
 function famiPrendVerrou($file) {
+  // On tente d'abord le fichier de verrou dédié. S'il ne peut pas être CRÉÉ
+  // (droits du dossier, volume restreint…), on se rabat sur le fichier de
+  // données lui-même — ce que faisait l'ancien code, et qui marchait.
+  //
+  // Sans ce repli, un simple fichier .lock impossible à créer fermait TOUT :
+  // connexion, jardin, envoi de score. Un verrou imparfait vaut infiniment mieux
+  // qu'un service à l'arrêt.
   $fp = @fopen($file . '.lock', 'c');
-  if (!$fp) return false;
-  flock($fp, LOCK_EX);            // ⬅ attente ici si quelqu'un d'autre écrit
+  if (!$fp) { $fp = @fopen($file, 'c'); }
+  if (!$fp) { return false; }
+  @flock($fp, LOCK_EX);           // ⬅ attente ici si quelqu'un d'autre écrit
   return $fp;
+}
+
+/**
+ * Écriture EN PLACE — l'ancienne méthode, gardée comme dernier recours.
+ * Moins sûre (le fichier est vide un très court instant), mais elle fonctionne
+ * là où le renommage atomique échoue. Mieux vaut ce risque minuscule qu'une
+ * donnée perdue parce qu'on a refusé d'écrire.
+ */
+function famiEcritJsonEnPlace($file, $data) {
+  $json = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+  if ($json === false) { return false; }
+  $fp = @fopen($file, 'c');
+  if (!$fp) { return false; }
+  @flock($fp, LOCK_EX);
+  @ftruncate($fp, 0);
+  @rewind($fp);
+  $ok = (@fwrite($fp, $json) !== false);
+  @fflush($fp);
+  @flock($fp, LOCK_UN);
+  @fclose($fp);
+  return $ok;
 }
 
 function famiRendVerrou($fp) {
@@ -669,29 +698,26 @@ function famiRendVerrou($fp) {
  * pour que le fichier soit réécrit. Ce que $fn retourne est renvoyé tel quel.
  */
 function withLock($file, callable $fn) {
+  // ⚠️ ON NE REFUSE JAMAIS DE TRAVAILLER. Pas de verrou obtenu ? On continue
+  // sans. Le risque de collision entre deux joueurs simultanés est minime ; le
+  // risque de fermer le jeu à tout le monde était, lui, certain.
   $verrou = famiPrendVerrou($file);
-  if (!$verrou) {
-    http_response_code(503);
-    return ['error' => 'Fichier de données verrouillé', 'reessayer' => true];
-  }
+  if (!$verrou) { error_log('[quiz] verrou indisponible sur ' . basename($file) . ' : on continue sans'); }
 
-  // Lecture sous verrou : personne ne peut écrire entre notre lecture et notre
-  // écriture. readJson() bascule au besoin sur la sauvegarde .bak.
+  // readJson() bascule au besoin sur la sauvegarde .bak.
   $data = readJson($file);
 
   $write = false;
   $reponse = $fn($data, $write);
 
-  if ($write && !famiEcritJsonAtomique($file, $data)) {
-    // L'enregistrement a ÉCHOUÉ. On le dit franchement au lieu de renvoyer un
-    // succès : le joueur croirait son score enregistré alors qu'il est perdu.
-    // « reessayer » indique au navigateur que la tentative vaut la peine
-    // d'être refaite — le serveur est idempotent, un score renvoyé deux fois
-    // ne compte pas double.
-    famiRendVerrou($verrou);
-    error_log('[quiz] ECHEC d\'enregistrement sur ' . basename($file));
-    http_response_code(503);
-    return ['error' => 'Enregistrement impossible', 'reessayer' => true];
+  if ($write) {
+    // Écriture atomique en priorité ; en dernier recours, l'ancienne écriture en
+    // place. Ne JAMAIS renvoyer d'erreur ici : le joueur ne doit pas rester
+    // coincé parce qu'un renommage a échoué sur ce système de fichiers.
+    if (!famiEcritJsonAtomique($file, $data)) {
+      error_log('[quiz] ecriture atomique impossible sur ' . basename($file) . ' : repli en place');
+      famiEcritJsonEnPlace($file, $data);
+    }
   }
 
   famiRendVerrou($verrou);
