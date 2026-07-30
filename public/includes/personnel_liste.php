@@ -289,13 +289,9 @@ if (!function_exists('personnelListe')) {
             ['Wybo', 'Christophe', 'FAMIFLOR NV'],
             ['Ysebaert', 'Sarah', 'FAMIFLORA MOUSCRON FAMIZOO NV'],
             ['Zajac', 'Constant', 'FAMIFLORA MOUSCRON DECO NV'],
-            // Ajouts manuels, hors export Excel. À reporter dans l'export lors de
-            // la prochaine mise à jour, sinon ils disparaîtront à la régénération.
-            // Orthographe donnée deux fois différemment (« Louv » puis « Louvi ») :
-            // on inscrit les deux, un doublon ne coûte rien alors qu'un nom raté
-            // laisse quelqu'un bloqué en profil beta.
-            ['Louv', 'Jean', 'AJOUT MANUEL'],
-            ['Louvi', 'Jean', 'AJOUT MANUEL'],
+            // Les ajouts manuels se placent ICI, sous ce commentaire. Penser à les
+            // reporter dans l'export Excel : une régénération de la liste les
+            // effacerait sinon.
         ];
     }
 }

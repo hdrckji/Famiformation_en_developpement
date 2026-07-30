@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 /* ============================================================
    ⚙️ API DU QUIZ — côté serveur (IONOS ou Railway)
    Stocke les scores et les codes bonus dans des fichiers JSON.
@@ -1214,7 +1214,7 @@ function verifieVainqueursAuto() {
   $joueurs = [];
   foreach ((is_array(readJson($scoresFile)) ? readJson($scoresFile) : []) as $p) {
     if (!is_array($p) || ($p['quiz_fait'] ?? true) === false) { continue; }
-    if (in_array(mb_strtolower((string) ($p['name'] ?? '')), $COMPTES_TEST, true)) { continue; }
+    if (estCompteTest($p)) { continue; }
     $joueurs[] = $p;
   }
   usort($joueurs, function ($a, $b) {
@@ -1763,12 +1763,32 @@ switch ($action) {
     foreach ((is_array($board) ? $board : []) as $p) {
       if (is_array($p)) { $parNom[mb_strtolower((string) ($p['name'] ?? ''))] = $p; }
     }
-    $ligne = function ($p, $cle) {
+    // 📧 Les adresses ne sont PAS dans le fichier des scores : on va les chercher
+    // dans les comptes Famiformation, en UNE seule requête pour tout le monde.
+    // Les RH en ont besoin pour recontacter un gagnant qui ne se présente pas, et
+    // pour voir d'un coup d'œil qui n'a pas d'adresse — donc qui ne recevra jamais
+    // le mail « viens chercher ta récompense ».
+    $mailsParId = [];
+    $dbMails = famiDb();
+    if ($dbMails && !empty($parNom)) {
+      try {
+        $ids = array_keys($parNom);
+        $trous = implode(',', array_fill(0, count($ids), '?'));
+        $qm = $dbMails->prepare("SELECT LOWER(identifiant) AS id, email FROM utilisateurs WHERE LOWER(identifiant) IN ($trous)");
+        $qm->execute($ids);
+        foreach ($qm->fetchAll(PDO::FETCH_ASSOC) as $r) {
+          $mailsParId[(string) $r['id']] = trim((string) ($r['email'] ?? ''));
+        }
+      } catch (Throwable $e) { /* base indisponible : on affichera sans adresse */ }
+    }
+
+    $ligne = function ($p, $cle) use ($mailsParId) {
       return [
         'name'   => (string) ($p['name'] ?? $cle),
         'pseudo' => (string) ($p['pseudo'] ?? ''),
         'prenom' => (string) ($p['prenom'] ?? ''),
         'nom'    => (string) ($p['nom'] ?? ''),
+        'email'  => (string) ($mailsParId[$cle] ?? ''),
         'score'  => round(floatval($p['score'] ?? 0), 1),
       ];
     };
@@ -1778,7 +1798,7 @@ switch ($action) {
     foreach ((is_array($board) ? $board : []) as $p) {
       if (!is_array($p)) { continue; }
       if (($p['quiz_fait'] ?? true) === false) { continue; }
-      if (in_array(mb_strtolower((string) ($p['name'] ?? '')), $COMPTES_TEST, true)) { continue; }
+      if (estCompteTest($p)) { continue; }
       $joueurs[] = $p;
     }
     usort($joueurs, function ($a, $b) {
@@ -1854,7 +1874,7 @@ switch ($action) {
     foreach ((is_array($board) ? $board : []) as $p) {
       if (!is_array($p)) { continue; }
       if (($p['quiz_fait'] ?? true) === false) { continue; }
-      if (in_array(mb_strtolower((string) ($p['name'] ?? '')), $COMPTES_TEST, true)) { continue; }
+      if (estCompteTest($p)) { continue; }
       $joueurs[] = $p;
     }
     usort($joueurs, function ($a, $b) {

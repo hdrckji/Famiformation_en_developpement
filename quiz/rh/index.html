@@ -39,6 +39,10 @@
   .rh-info { flex:1; min-width:0; }
   .rh-nom { font-weight:700; }
   .rh-meta { font-size:.85rem; color:#7a8a80; }
+  .rh-mail-ligne { margin-top:3px; font-size:.85rem; }
+  .rh-mail { color:#2d5a37; font-weight:600; text-decoration:none; word-break:break-all; }
+  .rh-mail:hover { text-decoration:underline; }
+  .rh-sansmail { color:#a12; font-weight:600; }
   .rh-check { flex:0 0 auto; display:flex; align-items:center; gap:8px; cursor:pointer; user-select:none;
     font-weight:700; color:#5a6b60; font-size:.9rem; }
   .rh-check input { width:26px; height:26px; accent-color:var(--pousse); cursor:pointer; }
@@ -108,11 +112,18 @@ function ligneHtml(p, type, rangClass) {
   if (p.pseudo && p.pseudo !== nomAffiche(p)) meta.push("pseudo : " + esc(p.pseudo));
   meta.push(esc(String(p.score)) + " 🌰");
   if (p.name) meta.push("id : " + esc(p.name));
+  // 📧 L'adresse, cliquable pour ecrire directement. Sans adresse, on le DIT :
+  // cette personne ne peut pas recevoir le mail « viens chercher ta recompense »,
+  // il faut donc la prevenir autrement.
+  const mail = p.email
+    ? `<a class="rh-mail" href="mailto:${esc(p.email)}">${esc(p.email)}</a>`
+    : `<span class="rh-mail rh-sansmail">aucune adresse — a prevenir de vive voix</span>`;
   return `<div class="rh-row ${remis ? "remis" : ""}" data-name="${esc(p.name)}" data-type="${type}">
     ${rang}
     <div class="rh-info">
       <div class="rh-nom">${esc(nomAffiche(p))}</div>
       <div class="rh-meta">${meta.join(" · ")}</div>
+      <div class="rh-mail-ligne">${mail}</div>
     </div>
     <label class="rh-check ${remis ? "on" : ""}">
       <input type="checkbox" ${remis ? "checked" : ""}>
