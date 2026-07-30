@@ -42,31 +42,51 @@ function quizAccesSecret()
     return trim((string) @file_get_contents($f));
 }
 
-// Identifiant du compte : c'est la clé du joueur dans le quiz.
+// Identifiant du compte : c'est la clé du joueur dans le quiz, et donc la seule
+// chose vraiment indispensable ici.
+//
+// ⚠️ REQUÊTE VOLONTAIREMENT SEULE. Elle demandait aussi `site_id` — une colonne
+// ajoutée à part par ensureWidgetTables() et qui n'existe donc pas partout. Si
+// elle manque, MySQL rejette toute la requête : on perdait l'identifiant avec
+// elle, aucun jeton n'était fabriqué, et la personne se retrouvait devant un
+// écran qui lui redemandait ses identifiants — exactement ce que cette page est
+// censée éviter. Le magasin, lui, n'est qu'un confort : il se cherche plus bas,
+// séparément, et son échec ne coûte rien.
 $identifiant = '';
+$erreurs = [];
 try {
-    $st = $db->prepare('SELECT identifiant, site_id FROM utilisateurs WHERE id = ? LIMIT 1');
+    $st = $db->prepare('SELECT identifiant FROM utilisateurs WHERE id = ? LIMIT 1');
     $st->execute([$uid]);
-    $u = $st->fetch(PDO::FETCH_ASSOC);
-    $identifiant = trim((string) ($u['identifiant'] ?? ''));
-} catch (Exception $e) {
-    $u = null;
+    $identifiant = trim((string) ($st->fetchColumn() ?: ''));
+} catch (Throwable $e) {
+    $erreurs[] = 'identifiant : ' . $e->getMessage();
+}
+// Dernier recours : l'identifiant est déjà en session (posé à la connexion).
+// Mieux vaut s'en servir que de renvoyer la personne vers un formulaire.
+if ($identifiant === '') {
+    $identifiant = trim((string) ($_SESSION['username'] ?? ''));
+    if ($identifiant !== '') { $erreurs[] = 'identifiant repris de la session'; }
 }
 
 // 🏬 Magasin : on essaie de deviner celui de la personne pour l'emmener sur le
 // bon classement. En cas de doute, on n'impose rien — le quiz appliquera son
-// magasin par défaut plutôt que de se tromper.
+// magasin par défaut plutôt que de se tromper. Requête séparée et sans
+// conséquence : si la colonne ou la table manque, on continue sans magasin.
 $site = '';
 try {
-    if (!empty($u['site_id'])) {
-        $sq = $db->prepare('SELECT nom, ville FROM widget_sites WHERE id = ? LIMIT 1');
-        $sq->execute([(int) $u['site_id']]);
-        $s = $sq->fetch(PDO::FETCH_ASSOC);
-        $texte = strtolower(($s['ville'] ?? '') . ' ' . ($s['nom'] ?? ''));
+    $sq = $db->prepare('SELECT s.nom, s.ville FROM utilisateurs u
+                        JOIN widget_sites s ON s.id = u.site_id
+                        WHERE u.id = ? LIMIT 1');
+    $sq->execute([$uid]);
+    $s = $sq->fetch(PDO::FETCH_ASSOC);
+    if ($s) {
+        $texte = mb_strtolower(($s['ville'] ?? '') . ' ' . ($s['nom'] ?? ''));
         if (strpos($texte, 'mouscron') !== false || strpos($texte, 'moeskroen') !== false) { $site = 'mouscron'; }
         elseif (strpos($texte, 'panne') !== false) { $site = 'lapanne'; }
     }
-} catch (Exception $e) { /* table absente : pas de magasin impose */ }
+} catch (Throwable $e) {
+    $erreurs[] = 'magasin : ' . $e->getMessage();
+}
 
 // Construction du jeton, à l'identique de faitJeton().
 $secret = quizAccesSecret();
@@ -78,5 +98,64 @@ if ($secret !== '' && $identifiant !== '') {
 }
 
 $base = '/quiz/' . ($site !== '' ? $site : '');
-header('Location: ' . $base . '?' . http_build_query($params));
+$cible = $base . '?' . http_build_query($params);
+
+// ============================================================
+// 🔍 DIAGNOSTIC — /quiz_acces.php?diag=1, RÉSERVÉ AUX ADMINS.
+//
+// Quand la tuile n'emmène pas au bon endroit, il n'y a que quatre maillons
+// possibles : la session, l'identifiant, la clé secrète, le magasin. Deviner
+// lequel fait perdre un temps fou ; cette page le DIT. Elle n'affiche jamais la
+// clé ni le jeton en entier, seulement de quoi savoir s'ils existent.
+// ============================================================
+if (isset($_GET['diag'])) {
+    $role = function_exists('getCurrentRole') ? getCurrentRole() : ($_SESSION['role'] ?? '');
+    if ($role !== 'admin') {
+        header('Location: ' . $cible);
+        exit();
+    }
+    $dir = quizAccesDataDir();
+    $vol = getenv('RAILWAY_VOLUME_MOUNT_PATH') ?: ($_SERVER['RAILWAY_VOLUME_MOUNT_PATH'] ?? '');
+    // Les deux emplacements possibles de la clé, pour vérifier que cette page et
+    // quiz/api.php regardent bien le MÊME fichier.
+    $pistes = [
+        'volume  ' => ($vol !== '' ? rtrim($vol, "/\\") . '/quiz/secret.txt' : '(RAILWAY_VOLUME_MOUNT_PATH non defini)'),
+        'dans app' => __DIR__ . '/quiz/data/secret.txt',
+    ];
+    $ok = static fn($b) => $b ? '✅' : '❌';
+    header('Content-Type: text/plain; charset=utf-8');
+    echo "DIAGNOSTIC — acces au quiz depuis FamiFormation\n";
+    echo str_repeat('=', 58) . "\n\n";
+    echo "SESSION\n";
+    echo "  user_id                 : {$uid} " . $ok($uid > 0) . "\n";
+    echo "  role                    : " . ($role ?: '(vide)') . "\n";
+    echo "  username en session     : " . (($_SESSION['username'] ?? '') ?: '(vide)') . "\n\n";
+    echo "IDENTIFIANT (cle du joueur dans le quiz)\n";
+    echo "  trouve                  : " . ($identifiant !== '' ? $identifiant . ' ✅' : '(VIDE) ❌  <- sans lui, aucun jeton') . "\n\n";
+    echo "CLE SECRETE (doit etre le MEME fichier que pour quiz/api.php)\n";
+    echo "  dossier de donnees      : {$dir}\n";
+    foreach ($pistes as $nom => $chemin) {
+        $existe = @is_file($chemin);
+        echo "  {$nom}              : " . $ok($existe) . " {$chemin}"
+            . ($existe ? ' (' . strlen(trim((string) @file_get_contents($chemin))) . ' caracteres)' : '') . "\n";
+    }
+    echo "  clef lue par cette page : " . ($secret !== '' ? strlen($secret) . " caracteres ✅" : "(AUCUNE) ❌  <- aucun jeton") . "\n\n";
+    echo "MAGASIN (confort seulement)\n";
+    echo "  detecte                 : " . ($site !== '' ? $site : '(aucun, le quiz mettra son magasin par defaut)') . "\n\n";
+    echo "RESULTAT\n";
+    echo "  jeton fabrique          : " . (isset($params['jeton']) ? '✅ oui' : '❌ NON — le quiz redemandera les identifiants') . "\n";
+    echo "  redirection vers        : " . $base . '?espace=1' . (isset($params['jeton']) ? '&jeton=…' : '') . "\n";
+    if ($erreurs) {
+        echo "\nINCIDENTS RENCONTRES\n";
+        foreach ($erreurs as $x) { echo "  - {$x}\n"; }
+    }
+    echo "\n" . (isset($params['jeton'])
+        ? "Tout est en place ici. Si l'espace redemande quand meme les identifiants,\n"
+        . "c'est que quiz/api.php lit une AUTRE cle que celle ci-dessus : comparer\n"
+        . "les deux chemins « volume » et « dans app », un seul doit exister.\n"
+        : "C'est la ligne marquee ❌ ci-dessus qui bloque.\n");
+    exit();
+}
+
+header('Location: ' . $cible);
 exit();
