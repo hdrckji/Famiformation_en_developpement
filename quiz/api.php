@@ -1494,10 +1494,29 @@ switch ($action) {
     if ($ident === '' || $mdp === '') { echo json_encode(['ok' => false, 'reason' => 'vide']); break; }
     $db = famiDb();
     if (!$db) { http_response_code(503); echo json_encode(['ok' => false, 'reason' => 'base_indisponible']); break; }
-    $stmt = $db->prepare('SELECT id, identifiant, prenom, nom, email, mot_de_passe, account_activation_pending
-                          FROM utilisateurs WHERE identifiant = ? OR email = ? LIMIT 1');
-    $stmt->execute([$ident, mb_strtolower($ident)]);
-    $u = $stmt->fetch();
+    // ⚠️ REQUÊTE PROTÉGÉE. PDO est en mode exception : sans ce try, la moindre
+    // erreur SQL (colonne absente, table verrouillée, connexion coupée en cours)
+    // faisait planter la réponse. Le navigateur recevait alors du HTML d'erreur
+    // au lieu du JSON attendu, n'y comprenait rien, et affichait
+    // « Identifiant ou mot de passe incorrect » — un diagnostic entièrement faux,
+    // qui envoyait le joueur vérifier un mot de passe parfaitement valide.
+    //
+    // La recherche accepte aussi l'identifiant écrit avec une autre casse, et
+    // l'adresse e-mail dans n'importe quelle casse : personne ne doit rester
+    // dehors pour une majuscule.
+    try {
+      $stmt = $db->prepare('SELECT id, identifiant, prenom, nom, email, mot_de_passe, account_activation_pending
+                            FROM utilisateurs
+                            WHERE LOWER(identifiant) = ? OR LOWER(email) = ? LIMIT 1');
+      $stmt->execute([mb_strtolower($ident), mb_strtolower($ident)]);
+      $u = $stmt->fetch();
+    } catch (Throwable $eLog) {
+      // On le DIT au lieu d'accuser le mot de passe.
+      error_log('[quiz] login_fami : erreur base — ' . $eLog->getMessage());
+      http_response_code(503);
+      echo json_encode(['ok' => false, 'reason' => 'base_indisponible']);
+      break;
+    }
     if (!$u) { echo json_encode(['ok' => false, 'reason' => 'inconnu']); break; }
     // Compte créé mais jamais activé : inutile de parler de mot de passe, il n'en
     // a pas encore — on le renvoie vers son mail.

@@ -101,4 +101,84 @@ echo '<br><b>' . ($tout
 ?>
 </div>
 
+<h2>🔑 Connexion « identifiants Famiformation »</h2>
+<div class="enc">
+<?php
+// Le quiz n'utilise PAS la connexion du site : il a sa propre fonction famiDb().
+// Si elle pointe ailleurs, ou si une variable QUIZ_DB_* traine, les identifiants
+// du site ne sont evidemment pas reconnus — sans que rien ne l'explique.
+$dsnQuiz = getenv('QUIZ_DB_DSN') ?: ($_SERVER['QUIZ_DB_DSN'] ?? '');
+echo '<b>QUIZ_DB_DSN :</b> ' . ($dsnQuiz
+    ? '<span class="ko">DÉFINIE — le quiz interroge une AUTRE base que le site !</span> <code>' . htmlspecialchars($dsnQuiz) . '</code>'
+    : '<span class="ok">non définie</span> (le quiz utilise la même base que le site)') . '<br>';
+
+$h = getenv('DB_HOST') ?: ($_SERVER['DB_HOST'] ?? '');
+$n = getenv('DB_NAME') ?: ($_SERVER['DB_NAME'] ?? '');
+echo '<b>DB_HOST :</b> <code>' . htmlspecialchars($h ?: '(vide)') . '</code> · ';
+echo '<b>DB_NAME :</b> <code>' . htmlspecialchars($n ?: '(vide)') . '</code><br>';
+
+// Connexion reelle, exactement comme famiDb().
+$pdo = null;
+$err = '';
+try {
+    if ($dsnQuiz !== '') {
+        $pdo = new PDO($dsnQuiz, (string) (getenv('QUIZ_DB_USER') ?: ''), (string) (getenv('QUIZ_DB_PASS') ?: ''));
+    } else {
+        $pdo = new PDO('mysql:host=' . $h . ';dbname=' . $n . ';charset=utf8mb4',
+            (string) (getenv('DB_USER') ?: ($_SERVER['DB_USER'] ?? '')),
+            (string) (getenv('DB_PASSWORD') ?: ($_SERVER['DB_PASSWORD'] ?? '')));
+    }
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+} catch (Throwable $e) { $err = $e->getMessage(); }
+
+echo '<b>Connexion :</b> ' . ($pdo ? '<span class="ok">réussie</span>'
+    : '<span class="ko">ÉCHEC</span> — <code>' . htmlspecialchars($err) . '</code>') . '<br>';
+
+if ($pdo) {
+    // Les colonnes exigees par login_fami. Une seule manquante fait planter la
+    // requete (PDO en mode exception) et le joueur lit « identifiant incorrect ».
+    try {
+        $cols = [];
+        foreach ($pdo->query("SHOW COLUMNS FROM utilisateurs")->fetchAll(PDO::FETCH_ASSOC) as $c) {
+            $cols[strtolower($c['Field'])] = true;
+        }
+        echo '<b>Table utilisateurs :</b> <span class="ok">présente</span> (' . count($cols) . ' colonnes)<br>';
+        $besoin = ['id', 'identifiant', 'prenom', 'nom', 'email', 'mot_de_passe', 'account_activation_pending'];
+        $manque = array_values(array_filter($besoin, function ($c) use ($cols) { return !isset($cols[$c]); }));
+        echo '<b>Colonnes utiles à la connexion :</b> ' . (empty($manque)
+            ? '<span class="ok">toutes présentes</span>'
+            : '<span class="ko">MANQUE : ' . htmlspecialchars(implode(', ', $manque)) . '</span>') . '<br>';
+        echo '<b>Comptes au total :</b> ' . (int) $pdo->query("SELECT COUNT(*) FROM utilisateurs")->fetchColumn() . '<br>';
+
+        // Recherche d'un identifiant precis : ?id=EnylsonL
+        $cherche = trim((string) ($_GET['id'] ?? ''));
+        if ($cherche !== '') {
+            $q = $pdo->prepare('SELECT identifiant, email, role, account_activation_pending,
+                                       (mot_de_passe IS NULL OR mot_de_passe = "") AS sans_mdp
+                                FROM utilisateurs WHERE identifiant = ? OR LOWER(email) = ? LIMIT 1');
+            $q->execute([$cherche, strtolower($cherche)]);
+            $u = $q->fetch(PDO::FETCH_ASSOC);
+            echo '<hr style="border:none;border-top:1px solid #eef2ef;margin:12px 0;">';
+            echo '<b>Recherche de « ' . htmlspecialchars($cherche) . ' » :</b><br>';
+            if (!$u) {
+                echo '<span class="ko">AUCUN compte avec cet identifiant ni cette adresse</span> → le quiz répondra « identifiant incorrect ».';
+            } else {
+                echo '<span class="ok">trouvé</span> · identifiant <code>' . htmlspecialchars($u['identifiant']) . '</code>'
+                   . ' · profil <code>' . htmlspecialchars((string) $u['role']) . '</code><br>';
+                echo '<b>Mot de passe défini :</b> ' . ($u['sans_mdp'] ? '<span class="ko">NON</span>' : '<span class="ok">oui</span>') . ' · ';
+                echo '<b>En attente d\'activation :</b> ' . (!empty($u['account_activation_pending'])
+                    ? '<span class="ko">OUI — la connexion est refusée tant que ce drapeau est levé</span>'
+                    : '<span class="ok">non</span>');
+            }
+        } else {
+            echo '<hr style="border:none;border-top:1px solid #eef2ef;margin:12px 0;">';
+            echo '<span style="opacity:.7;">Ajoute <code>&amp;id=EnylsonL</code> à l\'adresse pour tester un identifiant précis.</span>';
+        }
+    } catch (Throwable $e) {
+        echo '<span class="ko">Erreur en interrogeant la table : ' . htmlspecialchars($e->getMessage()) . '</span>';
+    }
+}
+?>
+</div>
+
 <p style="font-size:.85rem;color:#6a7d72;">PHP <?= PHP_VERSION ?> · fsync <?= function_exists('fsync') ? 'disponible' : 'ABSENT' ?> · <?= date('d/m/Y H:i') ?></p>
