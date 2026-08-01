@@ -28,6 +28,14 @@
 		@quizdata path /quiz/data/*
 		respond @quizdata 403
 
+		# Bloque /quiz/seed/* : ces fichiers contiennent les questions du quiz AVEC
+		# leurs bonnes reponses (culture.json, fun.json), plus les scripts de
+		# reinstallation. Ils etaient librement telechargeables : il suffisait de
+		# connaitre l'adresse pour avoir le corrige avant de jouer. api.php les lit
+		# depuis le disque, pas par HTTP : les bloquer ne casse donc rien.
+		@quizseed path /quiz/seed/*
+		respond @quizseed 403
+
 		# 🎓 SOUS-DOMAINE FAMIJOB : student.famiformation.com.
 		# Meme principe que « root * /app/public » plus haut, qui rend le dossier
 		# public/ invisible dans l'URL du site principal : ici on rend le dossier
