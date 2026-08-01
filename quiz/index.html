@@ -477,6 +477,26 @@ body.mode-tele .fami-bulle { display: none; }   /* pas sur la télé */
 .lang-switch button.on { background: var(--pousse); color: #fff; }
 .lang-switch button:not(.on):hover { background: var(--brume); }
 body.mode-tele .lang-switch { display: none; }   /* pas sur la télé */
+/* 🔙 RETOUR VERS FAMIFORMATION.
+   Le quiz est un site STATIQUE : le ruban commun de FamiFormation
+   (public/includes/topbar.php, posé automatiquement sur les pages PHP) ne peut
+   pas s'y injecter. Sans ce lien, entrer dans le quiz depuis la tuile enferme
+   la personne dans /quiz, sans aucun chemin de retour.
+   Il est dans le FLUX de l'en-tête, et non en position fixe : les deux coins du
+   haut sont déjà pris par le sélecteur FR/NL (à gauche) et « se déconnecter »
+   (à droite). */
+.fami-retour { display: inline-flex; align-items: center; gap: 6px; margin-top: 12px;
+  border: 2px solid var(--pousse); background: #fff; color: var(--foret); text-decoration: none;
+  font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: .9rem; line-height: 1;
+  padding: 8px 14px; border-radius: 999px; box-shadow: 0 4px 14px rgba(0,0,0,.10);
+  transition: background .15s, transform .15s; }
+.fami-retour:hover, .fami-retour:active { background: var(--brume); transform: translateY(-1px); }
+/* Jamais sur la télé ni sur la borne : ce sont des écrans publics en libre
+   service, on ne doit pas pouvoir en sortir vers le site interne. Le lien y est
+   aussi RETIRÉ en JavaScript (voir plus bas) ; cette règle évite juste qu'il
+   apparaisse une fraction de seconde avant que le mode soit posé sur le body. */
+body.mode-tele .fami-retour, body.mode-borne .fami-retour { display: none; }
+
 /* 🚪 Bouton « se déconnecter » (haut à droite), présent dans l'espace connecté
    (tableau de bord, jardin, classement…) sur téléphone/ordi. */
 .btn-deco { position: fixed; top: 16px; right: 16px; z-index: 100002; display: inline-flex; align-items: center;
@@ -1066,6 +1086,7 @@ body.mode-tele .tv-url   { font-size: min(1.05rem, 2.2vh); }
   <div class="fami-logo">Famiformation <span>●</span></div>
   <div class="fami-tag" id="fami-tag">Le grand quiz de lancement</div>
   <div class="fami-magasin" id="fami-magasin"></div>
+  <a class="fami-retour" id="fami-retour" href="#">⬅ <span>Retour à FamiFormation</span></a>
 </header>
 
 <main id="app" style="width:100%; display:flex; flex-direction:column; align-items:center;"></main>
@@ -1214,6 +1235,21 @@ function quizBase() {
   const racine = location.origin + (i >= 0 ? location.pathname.slice(0, i) : "") + "/quiz/";
   return SITE ? racine + SITE + "/" : racine;
 }
+// 🔙 LIEN « Retour à FamiFormation » de l'en-tête.
+// La cible se DÉDUIT de l'adresse courante, comme quizBase() : c'est tout ce qui
+// précède « /quiz ». Écrire « /index.php » en dur casserait le lien le jour où
+// le site serait servi sous un sous-chemin.
+// Sur la télé et sur la borne, le lien est retiré du document : ce sont des
+// écrans publics posés en magasin, sortir vers le site interne n'a aucun sens et
+// laisserait un client s'y promener.
+(function () {
+  const a = document.getElementById("fami-retour");
+  if (!a) return;
+  if (ECRAN === "tele" || ECRAN === "borne") { a.remove(); return; }
+  const i = location.pathname.indexOf("/quiz");
+  a.href = location.origin + (i >= 0 ? location.pathname.slice(0, i) : "") + "/index.php";
+})();
+
 let simPret = { board: false, jardin: false };   // 1er chargement réel, ensuite local
 let simTimers = [];
 function stopSim() { simTimers.forEach((t) => { clearTimeout(t); clearInterval(t); }); simTimers = []; }
@@ -1753,6 +1789,9 @@ function majLangSwitch() {
   // Le tag sous le logo (en-tête fixe) suit aussi la langue — y compris sur la télé.
   const tag = document.getElementById("fami-tag");
   if (tag) tag.textContent = t("Le grand quiz de lancement", "De grote lanceringsquiz");
+  // Le retour vers FamiFormation suit la langue comme le reste de l'en-tête.
+  const ret = document.querySelector("#fami-retour span");
+  if (ret) ret.textContent = t("Retour à FamiFormation", "Terug naar FamiFormation");
 }
 
 // 🔒 Module « Quiz & mon espace jardin » de l'accueil : VERROUILLÉ pour tout le
