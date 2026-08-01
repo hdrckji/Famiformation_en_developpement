@@ -9,3 +9,10 @@ public/emails/.env
 # versionnés. Ce qui part en production, c'est includes/personnel_liste.php,
 # régénéré depuis l'export et limité aux seuls nom / prénom / dossier.
 *.xlsx
+
+# Sauvegardes et exports de base de données déposés à la racine. Ils
+# contiennent des noms, des e-mails et les empreintes des mots de passe : ils
+# ne doivent jamais partir sur GitHub. La règle ne vise QUE la racine, pour ne
+# pas exclure les jeux de données du quiz (quiz/seed/*.sql), qui eux sont du
+# contenu de projet sans donnée personnelle.
+/*.sql
