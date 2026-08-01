@@ -81,6 +81,7 @@ $famijobBackgroundUrl = resolvePublicAssetUrl(
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= e(famiT('index.title')) ?> - <?= e(famiT('tile.matching.title')) ?></title>
+    <link rel="shortcut icon" type="image/x-icon" href="favicon.ico">
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
