@@ -582,6 +582,16 @@ $QUESTIONS_EXCLUES = [
   "Une bonne attitude c’est :",
   "À quelle condition une réduction peut-elle aller jusqu'à 50% ?",
   "À quoi servent les carrés végétaux ?",
+  // ============================================================
+  // 3e VAGUE — repérées en relisant les questions gardées.
+  // ============================================================
+  // Doublons quasi mot pour mot d'une autre question déjà présente : les voir
+  // toutes les deux dans le même quiz donne l'impression d'un bug.
+  "Quel est le rôle du chlore dans la piscine ?",       // = « Quel est le rôle principal du chlore ? »
+  "Quel est l’objectif principal du travail Mix ?",     // = « Quel est le rôle principal du secteur Mix ? »
+  // Réponse liée à une opération commerciale passée (les soldes de Pâques) :
+  // indevinable, et fausse dès l'année suivante.
+  "Pourquoi une remise de 20 % est-elle appliquée ?",
 ];
 function estQuestionExclue($q) {
   global $QUESTIONS_EXCLUES;
@@ -590,6 +600,214 @@ function estQuestionExclue($q) {
     if ($n === normaliseTexteQuestion($ref)) { return true; }
   }
   return false;
+}
+
+/**
+ * 🧭 QUESTIONS REFORMULÉES — leur donner le contexte qui leur manque.
+ *
+ * Dans la base Famiformation, ces questions suivaient un titre de chapitre :
+ * « Quelle huile utiliser ? » venait après « La plancha ». Sorties de là et
+ * tirées au hasard dans un quiz, elles deviennent indevinables — on ne sait
+ * même pas de quoi on parle. D'autres sont des fragments de phrase
+ * (« Les pots et les plantes sont vendus : ») ou contiennent un « cela » qui
+ * ne renvoie à rien.
+ *
+ * On ne touche PAS à la base : on remplace juste l'énoncé au moment de la
+ * réinstallation. Clé = le texte d'origine, valeur = [FR reformulé, NL].
+ * La reformulation ne change jamais le SENS ni la bonne réponse — elle ajoute
+ * seulement ce qu'un titre de chapitre disait à la place.
+ *
+ * ⚠️ La reformulation s'applique APRÈS les tests d'exclusion et de favorite,
+ * qui portent donc toujours sur le texte d'origine.
+ */
+$QUESTIONS_RECONTEXTUALISEES = [
+  // — Barbecue et plancha : on disait « la plancha », plus haut dans la page.
+  "Il faut vider le récupérateur de graisse :"
+    => ["Sur un barbecue, à quelle fréquence faut-il vider le récupérateur de graisse ?",
+        "Hoe vaak moet je de vetopvangbak van een barbecue leegmaken?"],
+  "Risque si on ne vide pas les graisses :"
+    => ["Que risque-t-on si on ne vide jamais le bac à graisse d'un barbecue ?",
+        "Wat riskeer je als je de vetbak van een barbecue nooit leegmaakt?"],
+  "Quelle huile utiliser ?"
+    => ["Quelle huile convient le mieux pour cuisiner sur une plancha ?",
+        "Welke olie gebruik je het best om op een plancha te koken?"],
+  "Quel bois éviter ?"
+    => ["Quel bois faut-il éviter de brûler dans un barbecue ou un brasero ?",
+        "Welk hout verbrand je beter niet in een barbecue of vuurkorf?"],
+  "Quel goût cela donne-t-il à la nourriture ?"
+    => ["Sur un barbecue, la graisse qui retombe sur les protecteurs de brûleurs donne quel goût aux aliments ?",
+        "Welke smaak geeft het vet dat op de branderbeschermers valt aan het eten?"],
+  "Quand verse-t-on le Coca Zero pour nettoyer ?"
+    => ["Pour nettoyer une plancha au Coca Zero, à quel moment le verse-t-on ?",
+        "Wanneer giet je de Coca Zero om een plancha schoon te maken?"],
+  "Pourquoi ne pas mettre les grilles au lave-vaisselle ?"
+    => ["Pourquoi ne faut-il pas mettre les grilles d'un barbecue au lave-vaisselle ?",
+        "Waarom mogen barbecueroosters niet in de vaatwasser?"],
+  "Quel matériau est plus résistant que l’acier pour les plaques ?"
+    => ["Pour les plaques de cuisson d'un barbecue, quel matériau est plus résistant que l'acier ?",
+        "Welk materiaal is voor bakplaten van een barbecue sterker dan staal?"],
+
+  // — Caisse : toutes ces questions parlaient de la caisse, jamais dit.
+  "Que faire face à un client qui à plusieurs sac de course fermé posé sur le Chariot ?"
+    => ["En caisse, un client a plusieurs sacs de courses fermés posés sur son chariot. Que faire ?",
+        "Aan de kassa heeft een klant meerdere gesloten boodschappentassen op zijn kar. Wat doe je?"],
+  "Que faire si un article passe sans bip du scanner ?"
+    => ["En caisse, que faire si un article passe sans que le scanner bipe ?",
+        "Wat doe je aan de kassa als een artikel passeert zonder piep van de scanner?"],
+  "Pourquoi regarder à la fois le tapis et le caddie ?"
+    => ["En caisse, pourquoi faut-il regarder à la fois le tapis et le caddie ?",
+        "Waarom kijk je aan de kassa zowel naar de band als naar de winkelkar?"],
+  "Un petit article est coincé dans un gros. Que faire ?"
+    => ["En caisse, un petit article est coincé dans un plus gros. Que faire ?",
+        "Aan de kassa zit een klein artikel vastgeklemd in een groter. Wat doe je?"],
+  "Pourquoi manipuler certains produits avant scan ?"
+    => ["En caisse, pourquoi faut-il manipuler certains produits avant de les scanner ?",
+        "Waarom neem je aan de kassa sommige producten eerst vast voor je ze scant?"],
+  "Que faire si le TPE est lent ?"
+    => ["En caisse, que faire si le terminal de paiement (TPE) est lent ?",
+        "Wat doe je aan de kassa als de betaalterminal traag is?"],
+  "Quel comportement peut évoquer une tentative de fraude ?"
+    => ["En caisse, quel comportement d'un client peut évoquer une tentative de fraude ?",
+        "Welk gedrag van een klant kan aan de kassa op fraude wijzen?"],
+  "Le ticket ne s’imprime pas, que faire ?"
+    => ["En caisse, le ticket ne s'imprime pas : que faut-il vérifier en premier ?",
+        "Het kasticket print niet: wat controleer je eerst?"],
+  "Dans quel ordre  faut-il scanner les articles ?"
+    => ["En caisse, dans quel ordre faut-il scanner les articles ?",
+        "In welke volgorde scan je de artikelen aan de kassa?"],
+  "Les pots et les plantes sont vendus :"
+    => ["En caisse, comment les pots et les plantes sont-ils vendus ?",
+        "Hoe worden potten en planten aan de kassa verkocht?"],
+  "Via l'application , le client peut :"
+    => ["Avec l'application Famiflora, que peut faire le client en magasin ?",
+        "Wat kan de klant in de winkel doen met de Famiflora-app?"],
+  "Comment faut-il procéder pour les articles lourds restés dans le caddie ?"
+    => ["En caisse, comment procéder avec les articles lourds restés dans le caddie ?",
+        "Hoe ga je aan de kassa om met zware artikelen die in de kar blijven?"],
+  "Que faut-il faire en cas d'article empilé ?"
+    => ["En caisse, que faire quand des articles identiques sont empilés les uns dans les autres ?",
+        "Wat doe je aan de kassa als identieke artikelen in elkaar gestapeld zitten?"],
+  "Que faut-il vérifier pour un bac de bières ?"
+    => ["En caisse, que faut-il vérifier avant de scanner un bac de bières ?",
+        "Wat controleer je aan de kassa voor je een bak bier scant?"],
+
+  // — Piscine : le chapitre s'appelait « L'entretien de l'eau ».
+  "Quel problème peut poser l’eau de puits ?"
+    => ["Pour remplir une piscine, quel problème peut poser l'eau de puits ?",
+        "Welk probleem kan putwater geven bij het vullen van een zwembad?"],
+  "Combien de temps faut-il attendre après avoir ajouté un produit avant de refaire une correction ?"
+    => ["Dans une piscine, combien de temps attendre après avoir ajouté un produit avant de corriger à nouveau ?",
+        "Hoe lang wacht je in een zwembad na een product voor je opnieuw bijstuurt?"],
+  "Quel est le rôle principal du chlore ?"
+    => ["Dans une piscine, quel est le rôle principal du chlore ?",
+        "Wat is de hoofdrol van chloor in een zwembad?"],
+  "Quels paramètres doivent être corrects avant d’utiliser certains produits ?"
+    => ["Dans une piscine, quels paramètres doivent être corrects avant d'utiliser les autres produits ?",
+        "Welke waarden moeten in een zwembad juist staan voor je andere producten gebruikt?"],
+  "Quel est le rôle du floculant ?"
+    => ["Dans une piscine, quel est le rôle du floculant ?",
+        "Wat doet een vlokmiddel in een zwembad?"],
+  "Pourquoi régler les paramètres avant d’ajouter certains produits ?"
+    => ["Dans une piscine, pourquoi régler le pH et l'alcalinité avant d'ajouter d'autres produits ?",
+        "Waarom stel je in een zwembad eerst pH en alkaliteit juist voor je andere producten toevoegt?"],
+
+  // — Animalerie : le support parlait des rongeurs, la question ne le dit plus.
+  "Quels sont les animaux ayant besoin de foin dans leur alimentation ?"
+    => ["Au rayon animalerie, quels animaux ont besoin de foin dans leur alimentation ?",
+        "Welke dieren in de dierenafdeling hebben hooi nodig in hun voeding?"],
+  "Qui a besoin de terre a bain (sable) ?"
+    => ["Au rayon animalerie, quels rongeurs ont besoin d'une terre à bain (sable) ?",
+        "Welke knaagdieren hebben badzand nodig?"],
+  "A quoi sert l'intestinet ? A qui peut-on en donner ?"
+    => ["Au rayon animalerie, à quoi sert l'Intestinet et à qui peut-on en donner ?",
+        "Waarvoor dient Intestinet en aan wie mag je het geven?"],
+  "S'il n'y a pas de foin, que risque l'animal ?"
+    => ["Chez un lapin ou un cochon d'Inde, que risque l'animal s'il n'a pas de foin ?",
+        "Wat riskeert een konijn of cavia zonder hooi?"],
+
+  // — Règlement et vie au travail.
+  "Quelle est la bonne attitude à avoir ?"
+    => ["Chez Famiflora, quelle attitude générale attend-on de chaque collaborateur ?",
+        "Welke houding verwacht Famiflora van elke medewerker?"],
+  "Quel est le bon code vestimentaire à avoir ?"
+    => ["Quelle est la tenue de travail attendue chez Famiflora ?",
+        "Welke werkkledij wordt bij Famiflora verwacht?"],
+  "Combien y a t-il de valeurs dans l'entreprise ?"
+    => ["Combien de valeurs Famiflora défend-elle ?",
+        "Hoeveel waarden verdedigt Famiflora?"],
+  "Ou dois je me présenter quand je commence mon service"
+    => ["Chez Famiflora, où dois-je me présenter quand je commence mon service ?",
+        "Waar moet ik me bij Famiflora aanmelden als mijn dienst begint?"],
+  "Que faut-il faire en cas d’évacuation ?"
+    => ["Que faut-il faire en cas d'évacuation du magasin ?",
+        "Wat moet je doen bij een evacuatie van de winkel?"],
+  "Comment doit être ton attitude en équipe ?"
+    => ["Quelle attitude attend-on de chacun au sein de l'équipe ?",
+        "Welke houding verwacht men van iedereen binnen het team?"],
+  "Que faire avant de quitter ton poste à la fin de ta tâche ?"
+    => ["Que faut-il faire avant de quitter son poste, une fois sa tâche terminée ?",
+        "Wat doe je voor je je post verlaat als je taak klaar is?"],
+  "Que faire en priorité lorsqu’on voit un produit mal placé ?"
+    => ["En magasin, que faire en priorité quand on voit un produit rangé au mauvais endroit ?",
+        "Wat doe je in de winkel eerst als een product op de verkeerde plaats staat?"],
+  "Quel est le rôle principal du secteur Mix ?"
+    => ["Chez Famiflora, quel est le rôle principal du secteur Mix ?",
+        "Wat is bij Famiflora de hoofdtaak van de afdeling Mix?"],
+
+  // — Piscine (suite) : l'alcalinité de QUOI ? Le mot « piscine » manquait.
+  "Que se passe-t-il si l’alcalinité est trop haute ?"
+    => ["Dans l'eau d'une piscine, que se passe-t-il si l'alcalinité est trop haute ?",
+        "Wat gebeurt er als de alkaliteit van het zwembadwater te hoog is?"],
+  "Que faut-il faire si l’alcalinité est trop basse ?"
+    => ["Dans l'eau d'une piscine, que faire si l'alcalinité est trop basse ?",
+        "Wat doe je als de alkaliteit van het zwembadwater te laag is?"],
+
+  // — Animalerie (suite) : fautes de français de la base, corrigées au passage.
+  // « Quel est la taille » → « Quelle est la taille ».
+  "Quel est la taille minimum de cage pour les hamsters ?"
+    => ["Quelle est la taille minimum de cage pour un hamster ?",
+        "Wat is de minimale kooigrootte voor een hamster?"],
+  "Quel est la taille minimum de cage pour les gerbilles ?"
+    => ["Quelle est la taille minimum de cage pour des gerbilles ?",
+        "Wat is de minimale kooigrootte voor gerbils?"],
+  "Quel est la taille minimum de cage pour les lapins ?"
+    => ["Quelle est la taille minimum de cage pour un lapin ?",
+        "Wat is de minimale kooigrootte voor een konijn?"],
+  "Quel est la taille minimum de cage pour chinchillas ?"
+    => ["Quelle est la taille minimum de cage pour un chinchilla ?",
+        "Wat is de minimale kooigrootte voor een chinchilla?"],
+  "Quels fruits ou legumes frais sont bons pour les chinchillas ?"
+    => ["Quels fruits ou légumes frais peut-on donner à un chinchilla ?",
+        "Welke verse groenten of fruit mag een chinchilla krijgen?"],
+  "Quelle vitamine faut-il pour les cochons d'inde ? Quels sont les risques s'ils n'en ont pas ?"
+    => ["Quelle vitamine est indispensable au cochon d'Inde, et que risque-t-il sans elle ?",
+        "Welke vitamine heeft een cavia absoluut nodig, en wat riskeert hij zonder?"],
+  "Quelle règle faut-il retenir pour les hamsters ?"
+    => ["Au rayon animalerie, quelle règle faut-il retenir pour loger les hamsters ?",
+        "Welke regel geldt in de dierenafdeling voor het huisvesten van hamsters?"],
+  "Les gerbilles ont besoin de hauteur ou de profondeur ?"
+    => ["Pour leur cage, les gerbilles ont-elles besoin de hauteur ou de profondeur ?",
+        "Hebben gerbils in hun kooi hoogte of diepte nodig?"],
+
+  // — Jardin.
+  "Comment reconnaître une attaque de cochenilles farineuses ?"
+    => ["Sur une plante d'intérieur, comment reconnaître une attaque de cochenilles farineuses ?",
+        "Hoe herken je wolluis op een kamerplant?"],
+  "Quel outil permet de retirer le surplus d'herbe sans se baisser ?"
+    => ["Au jardin, quel outil permet de retirer les herbes indésirables sans se baisser ?",
+        "Welk tuingereedschap haalt onkruid weg zonder te bukken?"],
+];
+/** Reformulation d'une question, ou null si elle n'en a pas. */
+function questionRecontextualisee($q) {
+  global $QUESTIONS_RECONTEXTUALISEES;
+  static $index = null;
+  if ($index === null) {
+    $index = [];
+    foreach ($QUESTIONS_RECONTEXTUALISEES as $avant => $apres) {
+      $index[normaliseTexteQuestion($avant)] = $apres;
+    }
+  }
+  return $index[normaliseTexteQuestion($q)] ?? null;
 }
 $CODE_GRAINES = 10;   // graines par code bonus (comptent dans le classement)
 $MAX_CODES    = 2;    // combien de codes une même personne peut cumuler
@@ -3027,6 +3245,17 @@ switch ($action) {
         // étoile mise à la main dans /quiz/admin serait perdue à chaque
         // réinstallation des questions.
         if (estFavoriParTexte($q)) { $item['fav'] = true; }
+        // 🧭 Contexte manquant : on remplace l'énoncé (voir
+        // $QUESTIONS_RECONTEXTUALISEES). C'est fait ICI, après les tests
+        // d'exclusion et de favorite : ceux-ci portent donc toujours sur le
+        // texte d'origine tel qu'il est dans la base Famiformation.
+        $recontexte = questionRecontextualisee($q);
+        if ($recontexte !== null) {
+          $item['q'] = $recontexte[0];
+          // Le NL reformulé ne sert que si la question était déjà bilingue :
+          // sinon on afficherait une question NL avec des réponses FR.
+          if ($aDuNlReel && ($recontexte[1] ?? '') !== '') { $qNl = $recontexte[1]; }
+        }
         // On ne passe en bilingue QUE si la question a une vraie trad NL : dans ce cas
         // seulement, on traduit aussi la réponse rigolote (pour rester 100 % cohérent).
         // Sinon la question entreprise reste entièrement en FR.
