@@ -120,18 +120,9 @@ if ($site === '') {
 $siteDevine = ($site === '');
 if ($siteDevine) { $site = 'mouscron'; }
 
-// 🎟️ ?vers=code — arrivée par le lien « J'ai un code » de l'accueil. On emmène
-// droit sur l'écran de saisie du quiz (/quiz/<magasin>/code), JAMAIS sur son
-// accueil. Le quiz reconnaît cet écran à la fin du chemin (ECRAN === "code") et
-// ouvre directement la saisie ; « espace=1 » n'aurait alors aucun sens et
-// entrerait en concurrence avec lui, on ne l'ajoute donc pas.
-// Le jeton, lui, part dans les deux cas : sans lui le code serait réclamé sans
-// compte, et la personne devrait s'identifier une seconde fois.
-$versCode = (($_GET['vers'] ?? '') === 'code');
-
 // Construction du jeton, à l'identique de faitJeton().
 $secret = quizAccesSecret();
-$params = $versCode ? [] : ['espace' => '1'];   // sinon : DIRECT dans l'espace jardin
+$params = ['espace' => '1'];   // on entre DIRECTEMENT dans l'espace jardin
 if ($secret !== '' && $identifiant !== '') {
     $exp = time() + 60 * 86400;
     $corps = $uid . '|' . $exp . '|' . rawurlencode($identifiant);
@@ -141,8 +132,8 @@ if ($secret !== '' && $identifiant !== '') {
 // ⚠️ TOUJOURS un magasin dans l'adresse (voir le bloc « LE MAGASIN EST
 // OBLIGATOIRE » plus haut) : sans lui le quiz affiche l'écran de choix des
 // magasins et ignore tout le reste.
-$base = '/quiz/' . ($site !== '' ? $site : 'mouscron') . ($versCode ? '/code' : '');
-$cible = $base . ($params ? '?' . http_build_query($params) : '');
+$base = '/quiz/' . ($site !== '' ? $site : 'mouscron');
+$cible = $base . '?' . http_build_query($params);
 
 // ============================================================
 // 🔍 DIAGNOSTIC — /quiz_acces.php?diag=1, RÉSERVÉ AUX ADMINS.
@@ -190,7 +181,7 @@ if (isset($_GET['diag'])) {
     echo "   et ignorerait espace=1 et le jeton)\n\n";
     echo "RESULTAT\n";
     echo "  jeton fabrique          : " . (isset($params['jeton']) ? '✅ oui' : '❌ NON — le quiz redemandera les identifiants') . "\n";
-    echo "  redirection vers        : " . preg_replace('/jeton=[^&]*/', 'jeton=…', $cible) . "\n";
+    echo "  redirection vers        : " . $base . '?espace=1' . (isset($params['jeton']) ? '&jeton=…' : '') . "\n";
     if ($erreurs) {
         echo "\nINCIDENTS RENCONTRES\n";
         foreach ($erreurs as $x) { echo "  - {$x}\n"; }
