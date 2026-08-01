@@ -797,6 +797,97 @@ $QUESTIONS_RECONTEXTUALISEES = [
     => ["Au jardin, quel outil permet de retirer les herbes indésirables sans se baisser ?",
         "Welk tuingereedschap haalt onkruid weg zonder te bukken?"],
 ];
+/**
+ * ✍️ CORRECTION ORTHOGRAPHIQUE au moment de la réinstallation.
+ *
+ * Une partie des questions de la base Famiformation a été saisie SANS AUCUN
+ * ACCENT — surtout le bloc animalerie : « necessaire », « deja », « male »,
+ * « poussiereux », « a plusieurs ». Ça se voit tout de suite dans un quiz
+ * affiché sur grand écran, et ça ne se corrige pas avec la reformulation, qui
+ * ne remplace que l'énoncé : le plus gros des fautes est dans les RÉPONSES.
+ *
+ * Deux niveaux, volontairement prudents :
+ *   • des MOTS dont la forme non accentuée n'existe pas en français (« deja »,
+ *     « male », « age »…) : remplaçables sans risque de contresens ;
+ *   • des EXPRESSIONS, pour tout ce qui est ambigu. « a » peut être le verbe
+ *     avoir (« un client a plusieurs sacs ») ou la préposition à (« vivre a
+ *     plusieurs ») : remplacer le mot seul casserait des phrases correctes,
+ *     alors on ne corrige que des tournures entières.
+ */
+$MOTS_ACCENTUES = [
+  'necessaire' => 'nécessaire', 'deja' => 'déjà', 'developpe' => 'développe',
+  'poussiereux' => 'poussiéreux', 'diarrhee' => 'diarrhée', 'arret' => 'arrêt',
+  'metre' => 'mètre', 'metres' => 'mètres', 'centimetres' => 'centimètres',
+  'probleme' => 'problème', 'maturite' => 'maturité', 'considere' => 'considéré',
+  'crepusculaire' => 'crépusculaire', 'ete' => 'été', 'meme' => 'même',
+  'facon' => 'façon', 'precaution' => 'précaution', 'sucrees' => 'sucrées',
+  'diabetique' => 'diabétique', 'quantite' => 'quantité', 'voliere' => 'volière',
+  'amenagee' => 'aménagée', 'etage' => 'étage', 'male' => 'mâle', 'males' => 'mâles',
+  'sterilise' => 'stérilisé', 'age' => 'âge', 'controler' => 'contrôler',
+  'controle' => 'contrôle', 'separemment' => 'séparément', 'legume' => 'légume',
+  'legumes' => 'légumes', 'securite' => 'sécurité', 'proprete' => 'propreté',
+];
+/**
+ * ⚠️ Les clés sont écrites SANS ACCENT, telles qu'elles sortent de la base :
+ * les expressions sont traitées AVANT la table des mots. Écrire « arrive a
+ * maturité » ici ne correspondrait à rien, puisque « maturite » n'est pas
+ * encore accentué à ce moment-là.
+ */
+$EXPRESSIONS_CORRIGEES = [
+  // « a » préposition. Le mot seul est ambigu — c'est aussi le verbe avoir
+  // (« un client a plusieurs sacs ») — donc on ne corrige que des tournures.
+  'vivre a plusieurs'      => 'vivre à plusieurs',
+  "j'ai a la maison"       => "j'ai à la maison",
+  'deja a la maison'       => 'déjà à la maison',
+  'a partir de'            => 'à partir de',
+  'arrive a maturite'      => 'arrive à maturité',
+  '3 a 5 mois'             => '3 à 5 mois',
+  'a personne, trop'       => 'à personne, trop',
+  'a quel animal'          => 'à quel animal',
+  'a combien'              => 'à combien',
+  'donner a tout le monde' => 'donner à tout le monde',
+  'sert a faire dormir'    => 'sert à faire dormir',
+  'convient a tous'        => 'convient à tous',
+  'convient a des'         => 'convient à des',
+  'sucrees a mon'          => 'sucrées à mon',
+  'terre a bain'           => 'terre à bain',
+  "a l'unite"              => "à l'unité",
+  // Orthographe et accords.
+  "cochon d'inde"          => "cochon d'Inde",
+  "cochons d'inde"         => "cochons d'Inde",
+  'aux cochon'             => 'aux cochons',
+];
+/**
+ * Corrige un texte français (énoncé ou proposition).
+ *
+ * Trois précautions apprises en le testant sur les 2 000 textes du réservoir :
+ *   • les espaces doubles sont supprimés EN PREMIER, sinon « A  l'unité »
+ *     n'est reconnu par aucune règle ;
+ *   • les remplacements se font avec des LIMITES DE MOT. Sans elles,
+ *     « aux cochon » → « aux cochons » se rappliquait à son propre résultat
+ *     et produisait « aux cochonss » ;
+ *   • la majuscule initiale est conservée, sinon « A partir de » en début de
+ *     phrase devenait « à partir de ».
+ */
+function corrigeOrthographe($t) {
+  global $MOTS_ACCENTUES, $EXPRESSIONS_CORRIGEES;
+  $t = preg_replace('/ {2,}/', ' ', (string) $t);
+  // Remplacement qui garde la majuscule du texte d'origine.
+  $remplace = static function ($avant, $apres, $texte) {
+    return preg_replace_callback('/\b' . preg_quote($avant, '/') . '\b/iu',
+      static function ($m) use ($apres) {
+        $premiere = mb_substr($m[0], 0, 1);
+        return (mb_strtoupper($premiere) === $premiere && mb_strtolower($premiere) !== $premiere)
+          ? mb_strtoupper(mb_substr($apres, 0, 1)) . mb_substr($apres, 1)
+          : $apres;
+      }, $texte);
+  };
+  // Les expressions d'abord (elles portent sur des mots encore non accentués).
+  foreach ($EXPRESSIONS_CORRIGEES as $avant => $apres) { $t = $remplace($avant, $apres, $t); }
+  foreach ($MOTS_ACCENTUES as $avant => $apres)        { $t = $remplace($avant, $apres, $t); }
+  return $t;
+}
+
 /** Reformulation d'une question, ou null si elle n'en a pas. */
 function questionRecontextualisee($q) {
   global $QUESTIONS_RECONTEXTUALISEES;
@@ -3281,6 +3372,19 @@ switch ($action) {
         $tout[] = $item;
       }
     }
+
+    // ✍️ Correction orthographique — UN SEUL endroit, juste avant la validation :
+    // ça couvre d'un coup les questions de la base Famiformation ET celles des
+    // fichiers. On ne touche QUE le français (`q` et `options`) : passer le
+    // néerlandais dans une table d'accents français n'aurait aucun sens.
+    foreach ($tout as &$brut) {
+      if (isset($brut['q'])) { $brut['q'] = corrigeOrthographe($brut['q']); }
+      if (!empty($brut['options']) && is_array($brut['options'])) {
+        foreach ($brut['options'] as &$opt) { $opt = corrigeOrthographe($opt); }
+        unset($opt);
+      }
+    }
+    unset($brut);
 
     // Nettoyage/validation avec les mêmes règles que l'enregistrement manuel.
     $propres = [];
