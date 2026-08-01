@@ -33,6 +33,17 @@ function resolvePublicAssetUrl(array $absoluteCandidates, string $fallbackUrl): 
 
         $version = @filemtime($realPath) ?: time();
 
+        // L'asset est dans le dossier FamiJob, à côté de cette page : on renvoie
+        // une URL RELATIVE, valable sur les deux domaines. Une URL absolue
+        // /famijob/... serait fausse sur student.famiformation.com, où famijob/
+        // est déjà la racine : la règle rewrite du Caddyfile la préfixerait une
+        // seconde fois (/famijob/famijob/...) et le fond ne s'afficherait pas.
+        $famijobDir = str_replace('\\', '/', (string) realpath(__DIR__));
+        $normalizedRealPath = str_replace('\\', '/', $realPath);
+        if ($famijobDir !== '' && strpos($normalizedRealPath, $famijobDir . '/') === 0) {
+            return substr($normalizedRealPath, strlen($famijobDir) + 1) . '?v=' . $version;
+        }
+
         if ($docRoot !== false) {
             $normalizedDocRoot = str_replace('\\', '/', $docRoot);
             $normalizedRealPath = str_replace('\\', '/', $realPath);
