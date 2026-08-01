@@ -542,9 +542,9 @@ function vueQuestions() {
       <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:6px;">
         <button class="btn ghost" id="q-ajouter">+ Ajouter une question</button>
         <button class="btn ghost" id="q-importer">📥 Importer (JSON)</button>
-        <button class="btn" id="q-seed" title="Charge automatiquement les ~613 questions entreprise (base Famiformation) + 50 culture + 15 fun, pour ce magasin">🌱 Charger toutes les questions</button>
+        <button class="btn" id="q-seed" title="Recharge la liste du magasin depuis la base Famiformation + les fichiers culture et fun. Les questions injouables sans avoir suivi la formation sont écartées au passage.">🌱 Recharger toutes les questions</button>
       </div>
-      <p class="hint" style="margin:6px 0 0;">« Charger toutes les questions » remplit ce magasin d'un coup : les <b>~613 questions entreprise</b> (base Famiformation, avec une réponse fausse rigolote), <b>50 culture</b> (jardinage) et <b>25 fun</b> — culture et fun sont <b>déjà traduites en NL</b>. À relancer pour chaque magasin.</p>
+      <p class="hint" style="margin:6px 0 0;">« Recharger toutes les questions » remet ce magasin à neuf : les <b>questions entreprise</b> de la base Famiformation (avec une 4ᵉ réponse fausse rigolote), <b>118 culture</b> (jardinage) et <b>63 fun</b> — culture et fun sont <b>déjà traduites en NL</b>. Les questions <b>injouables sans avoir suivi la formation</b> (menus de logiciel, fiches fournisseur, chiffres lus dans une vidéo) sont <b>écartées automatiquement</b> : environ <b>230 sont gardées sur 618</b>. Les scores ne sont pas touchés. <b>À relancer pour chaque magasin</b> (bouton Mouscron / La Panne en haut).</p>
       <div id="q-import-zone" style="display:none; margin-top:12px;">
         <p class="hint">Colle un tableau JSON de questions, puis « Ajouter à la liste ». Format de chaque
         question : <code>{"q":"…","options":["…","…"],"correct":0,"theme":"culture"}</code>
@@ -580,16 +580,21 @@ function vueQuestions() {
     dessineListe();
   });
 
-  // 🌱 Charge d'un coup toutes les questions (base 613 + culture + fun) pour ce magasin.
+  // 🌱 Recharge d'un coup toutes les questions du magasin : base Famiformation
+  // (moins les questions injouables sans la formation) + culture + fun.
   $("#q-seed").addEventListener("click", () => {
     modaleConfirm({
-      titre: "Charger toutes les questions ?",
-      texte: `Ça remplace la liste actuelle du magasin ${SITES[siteAdmin]} par : ~613 questions entreprise (base Famiformation) + 50 culture + 15 fun. C'est enregistré directement.`,
-      ok: "Charger",
+      titre: `Recharger les questions de ${SITES[siteAdmin]} ?`,
+      texte: `Ça remplace la liste actuelle du magasin ${SITES[siteAdmin]} par une liste toute fraîche :
+• les questions entreprise de la base Famiformation, EN ÉCARTANT celles auxquelles on ne peut pas répondre sans avoir suivi la formation (menus de logiciel, fiches fournisseur, chiffres lus dans une vidéo) — environ 230 sont conservées sur 618 ;
+• 118 questions de culture jardin ;
+• 63 questions fun.
+Les scores et le classement ne sont PAS touchés. À refaire pour chaque magasin.`,
+      ok: "Recharger",
     }, async () => {
       const btn = $("#q-seed"); if (btn) { btn.disabled = true; btn.textContent = "⏳ Chargement…"; }
       const r = await post("questions_seed");
-      if (btn) { btn.disabled = false; btn.textContent = "🌱 Charger toutes les questions"; }
+      if (btn) { btn.disabled = false; btn.textContent = "🌱 Recharger toutes les questions"; }
       if (r.status === 401) { auth = null; vueConnexion("Session expirée, reconnecte-toi."); return; }
       if (!r.ok) { message = { ok: false, texte: (r.data && r.data.error) || "Chargement impossible." }; rendre(); return; }
       const d = r.data;
