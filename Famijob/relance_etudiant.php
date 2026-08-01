@@ -196,7 +196,7 @@ $previewCount = buildRecipients($db, $selRayons, $selSansRayon, $selDepartements
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title><?php echo e(fjrT('Relance étudiant - FamiJob', 'Studentenherinnering - FamiJob')); ?></title>
-<link rel="shortcut icon" type="image/x-icon" href="favicon.ico">
+<link rel="shortcut icon" type="image/x-icon" href="famijob_.ico">
 <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#f4f7f5;--card:#fff;--line:#dbe5de;--text:#21362a;--muted:#627268;--accent:#2d5a37;--soft:#edf5ef;--shadow:0 12px 32px rgba(22,49,33,.10);--red:#9e4036;--red-bg:#fae4e1}

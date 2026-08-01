@@ -215,7 +215,7 @@ $pendingRequests = $pendingStmt->fetchAll(PDO::FETCH_ASSOC);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo e(fjvT('Validation demandes horaires - FamiJob', 'Validatie uurroosteraanvragen - FamiJob')); ?></title>
-    <link rel="shortcut icon" type="image/x-icon" href="favicon.ico">
+    <link rel="shortcut icon" type="image/x-icon" href="famijob_.ico">
     <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         :root { --bg:#f4f7f6; --card:#fff; --line:#dde6df; --text:#21362a; --muted:#64756a; --accent:#2d5a37; --warn:#a13e35; --shadow:0 14px 34px rgba(22,49,33,.1); }
