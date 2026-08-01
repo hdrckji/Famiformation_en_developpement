@@ -169,10 +169,17 @@ if (isset($_POST['suggest_formation'])) {
     }
 }
 
+// 🏷️ Remet d'aplomb les anciennes étiquettes de public visé (« magasin » →
+// « employe_magasin », etc.) AVANT de lire le catalogue : sans ça, le filtre
+// ci-dessous ne reconnaît pas ces rôles et masque les formations concernées.
+// Passe une seule fois, puis ne coûte plus qu'une lecture de drapeau.
+require_once 'includes/formations.php';
+famiFixFormationPublics($db);
+
 // Filtrage par profil (public_vise) - supporte plusieurs valeurs séparées par virgule
-$stmt = $db->prepare("SELECT * FROM formations_sessions 
-    WHERE public_vise = 'tous' 
-       OR FIND_IN_SET(?, public_vise) 
+$stmt = $db->prepare("SELECT * FROM formations_sessions
+    WHERE public_vise = 'tous'
+       OR FIND_IN_SET(?, public_vise)
     ORDER BY id DESC");
 $stmt->execute([$role]);
 $formations = $stmt->fetchAll();

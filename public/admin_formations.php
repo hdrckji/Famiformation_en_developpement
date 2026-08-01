@@ -5,6 +5,14 @@ error_reporting(E_ALL);
 require_once 'config.php';
 requireAdminOrTeamcoach();
 
+// 🏷️ Même rattrapage que sur formation.php : les anciennes étiquettes de public
+// visé (« magasin », « logistique ») sont renommées vers les rôles actuels. Ici
+// aussi, sinon un admin qui n'ouvre que cette page verrait encore les anciennes
+// valeurs dans les listes déroulantes — lesquelles ne les proposent plus, et
+// afficheraient donc un public visé vide à l'édition.
+require_once 'includes/formations.php';
+famiFixFormationPublics($db);
+
 $message = "";
 
 // 1. SUPPRESSION
