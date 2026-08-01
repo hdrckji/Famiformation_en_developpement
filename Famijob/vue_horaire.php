@@ -12,7 +12,7 @@ if (!function_exists('fjvhT')) {
 
 $role = isset($_SESSION['role']) ? $_SESSION['role'] : '';
 if (!in_array($role, ['admin'], true)) {
-    header('Location: ../index.php');
+    header('Location: ' . famijobSiteUrl('index.php'));
     exit();
 }
 
@@ -174,6 +174,7 @@ foreach ($byDeptDay as $departmentName => $byDay) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo e(fjvhT('Vue horaire - FamiJob', 'Uurroosterweergave - FamiJob')); ?></title>
+    <link rel="shortcut icon" type="image/x-icon" href="famijob_.ico">
     <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         :root {

@@ -54,6 +54,15 @@ function resolveInterimBgUrl(): string
             continue;
         }
         $v = @filemtime($real) ?: time();
+        // L'image est dans le dossier FamiJob, à côté de cette page : URL RELATIVE,
+        // valable sur les deux domaines. Une URL absolue /famijob/... serait fausse
+        // sur student.famiformation.com, où famijob/ est déjà la racine : la règle
+        // rewrite du Caddyfile la préfixerait une seconde fois (/famijob/famijob/...).
+        $fjDir = str_replace('\\', '/', (string) realpath(__DIR__));
+        $rpRel = str_replace('\\', '/', $real);
+        if ($fjDir !== '' && strpos($rpRel, $fjDir . '/') === 0) {
+            return substr($rpRel, strlen($fjDir) + 1) . '?v=' . $v;
+        }
         if ($docRoot) {
             $dr = str_replace('\\', '/', $docRoot);
             $rp = str_replace('\\', '/', $real);
@@ -237,6 +246,7 @@ $csrfField = csrfField();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= e(famiT('interim_fixes.page_title')) ?> - FamiJob</title>
+    <link rel="shortcut icon" type="image/x-icon" href="famijob_.ico">
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {

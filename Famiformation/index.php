@@ -101,10 +101,15 @@ if ($welcomePreview) {
 } elseif ($welcomeEnabled && isset($user_data['welcome_seen']) && (int) $user_data['welcome_seen'] === 0) {
     $showWelcome = true;
     try {
-        $db->prepare("UPDATE utilisateurs SET welcome_seen = 1 WHERE id = ?")->execute([$user_id]);
+        // On note le JOUR de l'accueil : le thème de bienvenue habille toute
+        // cette journée-là, pas seulement la page où l'animation est passée.
+        $db->prepare("UPDATE utilisateurs SET welcome_seen = 1, welcome_day = CURDATE() WHERE id = ?")->execute([$user_id]);
     } catch (Exception $e) {
         // pas critique
     }
+    // La session doit refléter tout de suite ce qu'on vient d'écrire, sinon le
+    // thème ne s'appliquerait qu'à partir de la page SUIVANTE.
+    $_SESSION['fami_welcome_jour'] = date('Y-m-d');
 }
 $welcomeName = ucfirst(strtolower((string) ($user_data['prenom'] ?? '')));
 require_once __DIR__ . '/includes/event_intro.php';
@@ -177,8 +182,19 @@ if (!empty($_SESSION['module_flash'])) {
             position: sticky;
             top: 0;
             z-index: 300;
-            background: rgba(255,255,255,0.72);
-            box-shadow: 0 2px 12px rgba(0,0,0,0.10);
+            /* Ruban en VERRE plutôt qu'en blanc opaque : il posait une bande
+               laiteuse par-dessus le fond, comme collée. Ici il prend la teinte
+               de ce qui défile dessous et se fond dans la page. */
+            background: linear-gradient(180deg, rgba(255,255,255,.60), rgba(255,255,255,.32));
+            -webkit-backdrop-filter: blur(14px) saturate(150%);
+            backdrop-filter: blur(14px) saturate(150%);
+            border-bottom: 1px solid rgba(255,255,255,.55);
+            box-shadow: 0 6px 24px rgba(14,59,36,.10);
+        }
+        /* Sur un thème sombre, un verre clair jurerait : on le fonce. */
+        body.site-theme .top-nav {
+            background: linear-gradient(180deg, rgba(16,37,26,.55), rgba(16,37,26,.32));
+            border-bottom-color: rgba(255,255,255,.16);
         }
         /* Repère pour le widget, centré sur la page (voir includes/widget.php). */
         .top-nav { position: sticky; }
@@ -236,13 +252,33 @@ if (!empty($_SESSION['module_flash'])) {
             box-shadow: 0 6px 15px rgba(0,0,0,0.15);
         }
 
-        .header { text-align: center; padding: 0px 20px 2px; } 
+        .header { text-align: center; padding: 0px 20px 2px; }
         .logo-main { max-width: 250px; filter: drop-shadow(0 5px 15px rgba(0,0,0,0.2)); }
+        /* 🌱 Annonce des nouveautés d'août, sous le logo. */
+        .annonce-pousse {
+            /* Collé au logo, et de l'air en dessous : sinon l'annonce se lisait
+               comme la légende de la première tuile au lieu d'un message à part. */
+            max-width: 720px; margin: 2px auto 26px; padding: 15px 20px;
+            display: flex; align-items: center; gap: 14px;
+            background: linear-gradient(135deg, #2d5a37 0%, #4a7b55 100%);
+            color: #fff; border-radius: 18px; line-height: 1.55; font-size: .95rem;
+            box-shadow: 0 8px 22px rgba(27, 54, 36, .22);
+        }
+        .annonce-pousse .annonce-ico { font-size: 1.9rem; flex: none; animation: pousse 2.8s ease-in-out infinite; }
+        @keyframes pousse { 0%, 100% { transform: translateY(0) rotate(-4deg); } 50% { transform: translateY(-5px) rotate(4deg); } }
+        @media (max-width: 520px) { .annonce-pousse { font-size: .9rem; padding: 13px 16px; gap: 11px; } }
+        @media (prefers-reduced-motion: reduce) { .annonce-pousse .annonce-ico { animation: none; } }
         .tiles-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 25px; width: 90%; max-width: 1200px; margin-top: 0; padding-bottom: 0; }
+        /* TUILES : rendu d'origine — carte blanche, ombre douce, elle se soulève au
+           survol. J'avais tenté un fond vitré avec barre d'accent : ça alourdissait
+           l'accueil pour rien, on est revenu à ce qui marchait. Ne pas re-styler
+           sans demande explicite. */
         .tile { background: rgba(255, 255, 255, 0.95); border-radius: 20px; padding: 30px; text-align: center; text-decoration: none; color: #333; box-shadow: 0 10px 25px rgba(0,0,0,0.1); transition: all 0.3s ease; display: flex; flex-direction: column; align-items: center; position: relative; }
         .tile:hover { transform: translateY(-10px); box-shadow: 0 15px 35px rgba(0,0,0,0.2); }
         .tile-icon { font-size: 3.5rem; margin-bottom: 15px; }
         .tile-title { font-size: 1.4rem; font-weight: 700; color: #2d5a37; margin-bottom: 10px; }
+        /* Description : simple texte gris sous le titre. L'explication complète du
+           module vit DANS le module (includes/module_intro.php), pas ici. */
         .tile-desc { font-size: 0.95rem; color: #666; line-height: 1.4; }
         .tile-title-stack { display: flex; flex-direction: column; align-items: center; gap: 10px; }
         .tile-badges-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
@@ -259,6 +295,68 @@ if (!empty($_SESSION['module_flash'])) {
         @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
 
         .tile-inactive { opacity: 0.45; }
+
+        /* 🌱 MISE EN AVANT DE LA TUILE « Quiz & mon espace jardin ».
+           TOUT est dans des classes DÉDIÉES (.tile-jardin, .badge-jardin) et des
+           animations préfixées « jd » : aucune autre tuile n'est touchée, et le
+           jour où la mise en avant n'a plus lieu d'être il suffit de retirer la
+           classe dans le lien. On n'ANIME PAS de pseudo-élément en z-index
+           négatif : c'est le halo en box-shadow qui fait tout le travail, sans
+           risque de passer derrière la tuile ou d'avaler les clics. */
+        .tile.tile-jardin {
+            position: relative;                     /* pour le badge */
+            border: 2px solid #7bc47f;
+            background: linear-gradient(180deg, rgba(255,255,255,0.96) 55%, rgba(232,245,233,0.96));
+            animation: jdRespire 2.8s ease-in-out infinite;
+        }
+        /* Anneau vert qui s'écarte doucement : on remarque la tuile sans que rien
+           ne bouge de place (aucun décalage de la grille). */
+        @keyframes jdRespire {
+            0%, 100% { box-shadow: 0 10px 25px rgba(0,0,0,0.10), 0 0 0 0 rgba(123,196,127,0.55); }
+            50%      { box-shadow: 0 14px 30px rgba(0,0,0,0.14), 0 0 0 12px rgba(123,196,127,0); }
+        }
+        .tile.tile-jardin:hover { border-color: #2d5a37; animation-play-state: paused; }
+        .tile.tile-jardin .tile-icon { animation: jdPousse 3.2s ease-in-out infinite; }
+        @keyframes jdPousse {
+            0%, 100% { transform: translateY(0) rotate(-5deg); }
+            50%      { transform: translateY(-6px) rotate(5deg); }
+        }
+        .badge-jardin {
+            position: absolute; top: -11px; right: -11px; z-index: 10;
+            display: inline-flex; align-items: center; gap: 5px;
+            background: linear-gradient(135deg, #2d5a37, #7bc47f);
+            color: #fff; font-size: 0.74rem; font-weight: 800; letter-spacing: 0.04em;
+            padding: 6px 13px; border-radius: 999px;
+            box-shadow: 0 4px 12px rgba(45,90,55,0.45);
+            animation: jdBadge 2.8s ease-in-out infinite;
+        }
+        @keyframes jdBadge { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+        /* ♿ Certaines personnes désactivent les animations (mal des transports,
+           troubles vestibulaires) : on respecte ce réglage, la tuile reste
+           parfaitement mise en avant par sa bordure, son fond et son badge. */
+        @media (prefers-reduced-motion: reduce) {
+            .tile.tile-jardin, .tile.tile-jardin .tile-icon, .badge-jardin { animation: none; }
+            .tile.tile-jardin { box-shadow: 0 10px 25px rgba(0,0,0,0.10), 0 0 0 4px rgba(123,196,127,0.45); }
+        }
+
+        /* 🎟️ « J'AI UN CODE » — second accès, sous la tuile jardin.
+           .jardin-cell est la CASE de grille : elle remplace la tuile comme
+           enfant direct de .tiles-container et empile la tuile puis le lien. Sans
+           elle, le lien deviendrait une case à lui tout seul et décalerait toutes
+           les tuiles suivantes. La tuile, elle, n'est pas touchée : le « flex: 1 »
+           lui rend juste la hauteur qu'elle avait quand elle était la case. */
+        .jardin-cell { display: flex; flex-direction: column; }
+        .jardin-cell > .tile { flex: 1; }
+        .lien-code {
+            align-self: center; margin-top: 14px;
+            display: inline-flex; align-items: center; gap: 7px;
+            background: rgba(255,255,255,0.92); color: #2d5a37; text-decoration: none;
+            font-weight: 700; font-size: 0.9rem; padding: 9px 17px; border-radius: 999px;
+            border: 2px solid #7bc47f; box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            transition: background 0.2s ease, transform 0.2s ease;
+        }
+        .lien-code:hover { background: #fff; transform: translateY(-2px); }
+
         .btn-param { background: rgba(255,255,255,0.9); color: #2d5a37; text-decoration: none; padding: 12px 18px; border-radius: 30px; font-weight: bold; font-size: 0.9rem; box-shadow: 0 4px 10px rgba(0,0,0,0.1); transition: all 0.3s ease; }
         .btn-param:hover { background: #fff; transform: scale(1.05); }
         .lang-switch { display: flex; gap: 6px; }
@@ -446,7 +544,7 @@ if ($wcThemeOn && !empty($siteTheme) && is_array($siteTheme)) {
             <span><?= htmlspecialchars($userNom ?: ($_SESSION['username'] ?? '')) ?></span>
         </a>
 
-        <?php if (userSeesWidget($db, $role)): ?>
+        <?php if (userSeesWidget($db, $role, (int) ($_SESSION['user_id'] ?? 0))): ?>
             <?= renderWidget($db, $isBirthday ? $birthdayName : null, $festiveMsg) ?>
         <?php endif; ?>
 
@@ -474,6 +572,18 @@ if ($wcThemeOn && !empty($siteTheme) && is_array($siteTheme)) {
         <img src="logo.png" alt="Famiflora" class="logo-main">
     </div>
 
+    <?php // 🌱 Annonce des nouveautés d'août. Pour la retirer : supprimer ce bloc. ?>
+    <div class="annonce-pousse">
+        <span class="annonce-ico">🌱</span>
+        <div>
+            <strong><?= t('Ça pousse chez FamiFormation !', 'Het groeit bij FamiFormation!') ?></strong><br>
+            <?= t(
+                "Des mises à jour et du nouveau contenu arrivent tout au long du mois d'août. Repasse voir de temps en temps : ici, ça germe vite 🌿",
+                'Updates en nieuwe inhoud komen er de hele maand augustus aan. Kom af en toe eens kijken: hier kiemt het snel 🌿'
+            ) ?>
+        </div>
+    </div>
+
     <?php if (!empty($moduleFlash)): ?>
         <div class="module-flash"><?= htmlspecialchars($moduleFlash) ?></div>
     <?php endif; ?>
@@ -497,6 +607,31 @@ if ($wcThemeOn && !empty($siteTheme) && is_array($siteTheme)) {
             <div class="tile-title"><?= t('Formation', 'Opleiding') ?></div>
             <div class="tile-desc"><?= t('Formations en ligne et en présentiel.', 'Opleidingen online en ter plaatse.') ?></div>
         </a>
+
+        <?php // 🌱 QUIZ & JARDIN — volontairement HORS de toute garde de profil :
+              // le jeu est ouvert à tout le monde. On passe par quiz_acces.php, qui
+              // fabrique le jeton de session du quiz : la personne est déjà
+              // connectée ici, hors de question de lui redemander son mot de passe.
+              //
+              // 🎟️ La tuile elle-même n'est PAS modifiée (voir le commentaire de
+              // .tile : « ne pas re-styler sans demande explicite »). On l'enveloppe
+              // seulement, pour poser « J'ai un code » dessous DANS LA MÊME case de
+              // la grille — en frère direct, le lien occuperait une case à lui tout
+              // seul et décalerait toutes les tuiles suivantes. ?>
+        <div class="jardin-cell">
+        <a href="quiz_acces.php" class="tile tile-jardin">
+            <span class="badge-jardin">🎁 <?= t('NOUVEAU', 'NIEUW') ?></span>
+            <div class="tile-media"><span class="tile-icon">🌱</span></div>
+            <div class="tile-title"><?= t('Quiz & mon espace jardin', 'Quiz & mijn tuin') ?></div>
+            <div class="tile-desc"><?= t('Réponds au quiz, récolte tes graines et fais pousser ton jardin.', 'Doe de quiz, oogst je zaadjes en laat je tuin groeien.') ?></div>
+        </a>
+        <?php // Second accès seulement : l'écran de saisie du quiz reste en place
+              // (/quiz/<magasin>/code, et le QR scanné en magasin). « vers=code »
+              // emmène droit sur cet écran, jamais sur l'accueil du quiz, et le
+              // jeton part avec : le code est réclamé sous le bon compte sans
+              // redemander quoi que ce soit. ?>
+        <a href="quiz_acces.php?vers=code" class="lien-code">🎟️ <?= t("J'ai un code", 'Ik heb een code') ?></a>
+        </div>
 
         <?php if ($role === 'admin' || $role === 'teamcoach' || $role === 'mentor' || $role === 'employe_magasin'): ?>
         <a href="module.php?id=<?= (int) ($rootModuleIds['Magasin'] ?? 0) ?>" class="tile">
@@ -615,6 +750,11 @@ if ($wcThemeOn && !empty($siteTheme) && is_array($siteTheme)) {
             <div class="tile-media"><span class="tile-icon">🧪</span></div>
             <div class="tile-title"><?= t('Espace Beta', 'Beta-ruimte') ?></div>
             <div class="tile-desc"><?= t('Ton espace pour déposer le contenu de la version beta (PDF + vidéos).', 'Jouw ruimte om de inhoud van de betaversie te uploaden (PDF + video\'s).') ?></div>
+        </a>
+        <a href="tri_profils.php" class="tile tile-admin">
+            <div class="tile-media"><span class="tile-icon">👥</span></div>
+            <div class="tile-title"><?= t('Tri des profils', 'Profielen sorteren') ?></div>
+            <div class="tile-desc"><?= t('Passer en profil employé les comptes beta qui figurent dans la liste du personnel.', 'Betagebruikers die in de personeelslijst staan naar het werknemersprofiel overzetten.') ?></div>
         </a>
         <a href="relance_mdp.php" class="tile tile-admin">
             <div class="tile-media"><span class="tile-icon">🔑</span></div>

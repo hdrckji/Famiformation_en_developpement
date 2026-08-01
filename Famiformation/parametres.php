@@ -11,6 +11,44 @@ $isAdmin = (($_SESSION['role'] ?? '') === 'admin');
 
 if (!$isAdmin) {
     $lang = currentLang();
+    $moiId = (int) ($_SESSION['user_id'] ?? 0);
+    require_once __DIR__ . '/includes/csrf.php';
+
+    // Bascule d'une préférence personnelle du widget. Liste blanche des clés
+    // dans widgetUserKeys() : rien d'autre ne peut être écrit depuis ce formulaire.
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['toggle_widget'])) {
+        requireValidCSRF();
+        $k = (string) ($_POST['widget_key'] ?? '');
+        if (in_array($k, widgetUserKeys(), true) && !in_array($k, widgetUserKeysTexte(), true)) {
+            widgetUserSet($db, $moiId, $k, widgetUserOn($db, $moiId, $k) ? '0' : '1');
+        }
+        header('Location: parametres.php');
+        exit();
+    }
+
+    // Choix du thème : il s'applique immédiatement à l'espace de la personne.
+    // Seules des clés connues sont acceptées — jamais une valeur libre de l'URL.
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['choisir_theme'])) {
+        requireValidCSRF();
+        $tk = (string) ($_POST['theme_cle'] ?? '');
+        $valides = ['', 'aucun', 'bienvenue', 'anniversaire'];
+        if (function_exists('siteThemeCatalog')) {
+            $valides = array_merge($valides, array_keys(siteThemeCatalog()));
+        }
+        if (in_array($tk, $valides, true)) {
+            widgetUserSet($db, $moiId, 'theme_choisi', $tk);
+        }
+        header('Location: parametres.php#themes');
+        exit();
+    }
+
+    // Ce que l'ADMIN a décidé pour tout le site : un bloc coupé globalement ne
+    // doit pas être proposé ici, sinon on offrirait un interrupteur sans effet.
+    $siteWidget  = widgetEnabled($db);
+    $siteMeteo   = widgetGet($db, 'show_meteo', '1') === '1';
+    $sitePhrases = widgetGet($db, 'show_phrases', '1') === '1';
+    $siteDate    = widgetGet($db, 'show_date', '1') === '1';
+    $monWidget   = widgetUserOn($db, $moiId, 'user_enabled');
     ?>
     <!DOCTYPE html>
     <html lang="<?= htmlspecialchars($lang) ?>">
@@ -30,6 +68,65 @@ if (!$isAdmin) {
             .btn-primary { background: #2d5a37; color: #fff; }
             .btn-light { background: #e9ecef; color: #333; }
             .muted { color: #7a8a80; }
+            .card { margin-bottom: 16px; }
+            .card h2 { margin: 0 0 6px; color: #2d5a37; font-size: 1.15rem; }
+            .card > .muted { margin: 0 0 16px; line-height: 1.55; font-size: .92rem; }
+
+            /* Langue : deux vraies cartes cliquables. Deux boutons côte à côte ne
+               disaient pas lequel était actif au premier coup d'oeil. */
+            .choix-langue { display: flex; gap: 12px; flex-wrap: wrap; }
+            .choix-langue .opt {
+                flex: 1 1 160px; display: flex; align-items: center; gap: 10px;
+                padding: 14px 16px; border: 2px solid #e3eae5; border-radius: 14px;
+                text-decoration: none; color: #244230; background: #fbfdfc; transition: .15s;
+            }
+            .choix-langue .opt:hover { border-color: #9ec4a8; }
+            .choix-langue .opt.on { border-color: #2d5a37; background: #eef6f0; }
+            .choix-langue .drapeau { font-size: 1.5rem; line-height: 1; }
+            .choix-langue .nom { font-weight: 700; flex: 1; }
+            .choix-langue .coche { color: #2d5a37; font-weight: 800; }
+
+            /* Une ligne = un réglage + son interrupteur. */
+            .ligne {
+                display: flex; align-items: center; gap: 16px;
+                padding: 13px 0; border-bottom: 1px solid #eef2ef; margin: 0;
+            }
+            .ligne:last-of-type { border-bottom: none; }
+            .ligne .txt { flex: 1; line-height: 1.45; }
+            .ligne .txt strong { display: block; }
+            .ligne .txt .muted { font-size: .86rem; }
+            .ligne.grise { opacity: .45; }
+
+            /* Interrupteur : un bouton, pas une case à cocher — l'état se lit de loin. */
+            .bascule {
+                flex: none; width: 50px; height: 28px; border-radius: 999px; border: none;
+                background: #cfd8d2; position: relative; cursor: pointer; transition: background .18s;
+            }
+            .bascule span {
+                position: absolute; top: 3px; left: 3px; width: 22px; height: 22px;
+                border-radius: 50%; background: #fff; transition: left .18s;
+                box-shadow: 0 1px 3px rgba(0,0,0,.25);
+            }
+            .bascule.on { background: #2d5a37; }
+            .bascule.on span { left: 25px; }
+            .bascule:disabled { cursor: not-allowed; }
+            @media (max-width: 420px) { .ligne { gap: 10px; } }
+
+            /* Choix du thème : des cartes, pas une liste d'interrupteurs — on
+               choisit UN décor, et le clic l'applique sur-le-champ. */
+            .grille-themes { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 11px; }
+            .carte-theme {
+                width: 100%; height: 100%; cursor: pointer; font-family: inherit; text-align: left;
+                display: flex; flex-direction: column; gap: 4px; position: relative;
+                padding: 14px 15px; border: 2px solid #e3eae5; border-radius: 14px;
+                background: #fbfdfc; color: #244230; transition: .15s;
+            }
+            .carte-theme:hover { border-color: #9ec4a8; }
+            .carte-theme.on { border-color: #2d5a37; background: #eef6f0; }
+            .carte-theme .ic { font-size: 1.5rem; line-height: 1; }
+            .carte-theme .nom { font-weight: 700; font-size: .95rem; }
+            .carte-theme .det { color: #7a8a80; font-size: .8rem; line-height: 1.4; }
+            .carte-theme .coche { position: absolute; top: 10px; right: 12px; color: #2d5a37; font-weight: 800; }
         </style>
     </head>
     <body>
@@ -43,14 +140,119 @@ if (!$isAdmin) {
                 <a href="index.php" data-fee>← <?= t('Retour à l\'accueil', 'Terug naar start') ?></a>
             </div>
             <div class="card">
-                <h2 style="margin-top:0; color:#2d5a37;"><?= t('Paramètres utilisateur', 'Gebruikersinstellingen') ?></h2>
-                <p class="muted"><?= t('Réglages personnels.', 'Persoonlijke instellingen.') ?></p>
-                <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
-                    <span style="font-weight:700;"><?= t('Langue', 'Taal') ?> :</span>
-                    <a href="?lang=fr" class="btn <?= $lang === 'fr' ? 'btn-primary' : 'btn-light' ?>">🇫🇷 Français</a>
-                    <a href="?lang=nl" class="btn <?= $lang === 'nl' ? 'btn-primary' : 'btn-light' ?>">🇳🇱 Nederlands</a>
+                <h2><?= t('Langue', 'Taal') ?></h2>
+                <p class="muted"><?= t("La langue de tout le site : menus, formations et quiz.", 'De taal van de hele site: menu\'s, opleidingen en quizzen.') ?></p>
+                <div class="choix-langue">
+                    <a href="?lang=fr" class="opt <?= $lang === 'fr' ? 'on' : '' ?>">
+                        <span class="drapeau">🇫🇷</span>
+                        <span class="nom">Français</span>
+                        <?php if ($lang === 'fr'): ?><span class="coche">✓</span><?php endif; ?>
+                    </a>
+                    <a href="?lang=nl" class="opt <?= $lang === 'nl' ? 'on' : '' ?>">
+                        <span class="drapeau">🇳🇱</span>
+                        <span class="nom">Nederlands</span>
+                        <?php if ($lang === 'nl'): ?><span class="coche">✓</span><?php endif; ?>
+                    </a>
                 </div>
             </div>
+
+            <?php // 🧩 WIDGET D'ACCUEIL — réglages PERSONNELS. Masqué si l'admin a
+                  // coupé le widget pour tout le site : proposer un interrupteur
+                  // sans effet serait pire que de ne rien proposer. ?>
+            <?php if ($siteWidget): ?>
+            <div class="card">
+                <h2><?= t("Widget d'accueil", 'Startscherm-widget') ?></h2>
+                <p class="muted">
+                    <?= t("L'encadré en haut de l'accueil. Ces réglages ne valent que pour toi : ils ne changent rien pour les autres.",
+                          'Het kader bovenaan de startpagina. Deze instellingen gelden enkel voor jou en veranderen niets voor anderen.') ?>
+                </p>
+
+                <?php
+                // [clé, libellé FR, libellé NL, description FR, description NL, proposée ?]
+                $opts = [
+                    ['user_enabled', 'Afficher le widget', 'Widget tonen',
+                     "Décoche pour un accueil épuré, sans l'encadré.", 'Vink uit voor een strakke startpagina zonder kader.', true],
+                    ['user_meteo', 'Météo', 'Weer',
+                     'La température et le temps du jour.', 'De temperatuur en het weer van vandaag.', $siteMeteo],
+                    ['user_phrases', 'Petites phrases', 'Korte zinnen',
+                     'Les messages qui défilent dans le widget.', 'De berichten die door de widget lopen.', $sitePhrases],
+                    ['user_date', 'Date du jour', 'Datum van vandaag',
+                     'La date affichée dans le widget.', 'De datum in de widget.', $siteDate],
+                ];
+                foreach ($opts as [$k, $lFr, $lNl, $dFr, $dNl, $propose]):
+                    if (!$propose) { continue; }
+                    $actif = widgetUserOn($db, $moiId, $k);
+                    // Les blocs internes n'ont plus de sens si le widget est masqué.
+                    $grise = ($k !== 'user_enabled' && !$monWidget);
+                ?>
+                <form method="POST" action="parametres.php" class="ligne<?= $grise ? ' grise' : '' ?>">
+                    <?= csrfField() ?>
+                    <input type="hidden" name="toggle_widget" value="1">
+                    <input type="hidden" name="widget_key" value="<?= htmlspecialchars($k) ?>">
+                    <div class="txt">
+                        <strong><?= t($lFr, $lNl) ?></strong>
+                        <span class="muted"><?= t($dFr, $dNl) ?></span>
+                    </div>
+                    <button type="submit" class="bascule <?= $actif ? 'on' : '' ?>"
+                            aria-label="<?= t($lFr, $lNl) ?>"<?= $grise ? ' disabled' : '' ?>><span></span></button>
+                </form>
+                <?php endforeach; ?>
+
+                <?php if (!$monWidget): ?>
+                    <p class="muted" style="margin:14px 0 0;">
+                        💡 <?= t('Le widget est masqué : réactive-le ci-dessus pour régler son contenu.',
+                                 'De widget is verborgen: zet hem hierboven weer aan om de inhoud te regelen.') ?>
+                    </p>
+                <?php endif; ?>
+            </div>
+            <?php endif; ?>
+
+            <?php // 🎨 THÈMES — chacun choisit ceux qu'il veut voir. Masqué si l'admin
+                  // a coupé les thèmes pour tout le site. ?>
+            <?php // La beta est hors thèmes (voir themesEnabled) : lui proposer des
+                  // interrupteurs sans effet n'aurait aucun sens. ?>
+            <?php if (($_SESSION['role'] ?? '') !== 'beta' && persoFeatureOn($db, 'themes_enabled')): ?>
+            <?php
+                $choisi = famiThemeChoisi($db);
+                // Deux entrées de service, puis les thèmes eux-mêmes.
+                $choix = [
+                    ''      => ['🔄', 'Automatique', 'Automatisch', 'Le décor suit la saison et les événements.', 'Het decor volgt het seizoen en de gebeurtenissen.'],
+                    'aucun' => ['⬜', 'Aucun décor', 'Geen decor', 'Le site reste tel quel toute l\'année.', 'De site blijft het hele jaar ongewijzigd.'],
+                    'bienvenue'    => ['🌿', 'Bienvenue', 'Welkom', '', ''],
+                    'anniversaire' => ['🎂', 'Anniversaire', 'Verjaardag', '', ''],
+                ];
+                if (function_exists('siteThemeCatalog')) {
+                    foreach (siteThemeCatalog() as $tk => $tv) {
+                        $nomFr = is_array($tv['nom'] ?? null) ? $tv['nom'][0] : (string) ($tv['nom'] ?? $tk);
+                        $nomNl = is_array($tv['nom'] ?? null) ? ($tv['nom'][1] ?? $nomFr) : $nomFr;
+                        $choix[$tk] = ['🎉', $nomFr, $nomNl, '', ''];
+                    }
+                }
+            ?>
+            <div class="card" id="themes">
+                <h2><?= t('Thème', 'Thema') ?></h2>
+                <p class="muted">
+                    <?= t("Choisis le décor de ton espace. Il s'applique tout de suite, même hors saison, et ne change rien pour les autres.",
+                          'Kies het decor van jouw ruimte. Het wordt meteen toegepast, ook buiten het seizoen, en verandert niets voor anderen.') ?>
+                </p>
+
+                <div class="grille-themes">
+                    <?php foreach ($choix as $tk => $info): $actif = ((string) $tk === (string) $choisi); ?>
+                    <form method="POST" action="parametres.php" style="margin:0;">
+                        <?= csrfField() ?>
+                        <input type="hidden" name="choisir_theme" value="1">
+                        <input type="hidden" name="theme_cle" value="<?= htmlspecialchars((string) $tk) ?>">
+                        <button type="submit" class="carte-theme<?= $actif ? ' on' : '' ?>">
+                            <span class="ic"><?= $info[0] ?></span>
+                            <span class="nom"><?= htmlspecialchars(t($info[1], $info[2])) ?></span>
+                            <?php if ($info[3] !== ''): ?><span class="det"><?= t($info[3], $info[4]) ?></span><?php endif; ?>
+                            <?php if ($actif): ?><span class="coche">✓</span><?php endif; ?>
+                        </button>
+                    </form>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+            <?php endif; ?>
         </div>
     </body>
     </html>

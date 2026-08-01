@@ -127,6 +127,13 @@ if (!function_exists('ensureUserProfileColumns')) {
                 // Les comptes déjà existants ne sont pas de « nouveaux » : on les marque comme accueillis.
                 $db->exec("UPDATE utilisateurs SET welcome_seen = 1");
             }
+            // JOUR de l'accueil. Le thème de bienvenue doit habiller TOUTE LA
+            // JOURNÉE de la première connexion, pas seulement la page où
+            // l'animation est passée. Il faut donc retenir la date, et pas
+            // seulement « déjà accueilli oui/non ».
+            if (!isset($cols['welcome_day'])) {
+                $db->exec("ALTER TABLE utilisateurs ADD COLUMN welcome_day DATE NULL AFTER welcome_seen");
+            }
         } catch (Exception $e) {
             // migration non critique
         }
@@ -1761,10 +1768,10 @@ if (!function_exists('famiPasswordReminderBody')) {
         // passe pour rien et s'inquiètent.
         $avertissement = '<div style="margin:0 0 26px;padding:20px 22px;border-radius:18px;background:#fff7e8;border:1px solid #f0dbac;color:#7a5a11;">'
             . '<div style="font-size:16px;line-height:1.7;"><strong>Tu as déjà créé ton mot de passe et tu arrives à te connecter ?</strong><br>'
-            . 'Ce message ne te concerne pas, tu peux simplement l\'ignorer. Il s\'adresse uniquement aux personnes qui n\'ont pas réussi à afficher le message précédent.</div>'
+            . 'Ce message ne te concerne pas, tu peux simplement l\'ignorer. Il s\'adresse uniquement aux personnes dont le compte n\'est pas encore activé.</div>'
             . '<div style="margin-top:14px;padding-top:14px;border-top:1px solid #f0dbac;font-size:16px;line-height:1.7;">'
             . '<strong>Heb je jouw wachtwoord al aangemaakt en kan je inloggen?</strong><br>'
-            . 'Dan is dit bericht niet voor jou bestemd en mag je het negeren. Het is enkel bedoeld voor wie het vorige bericht niet kon openen.</div>'
+            . 'Dan is dit bericht niet voor jou bestemd en mag je het negeren. Het is enkel bedoeld voor wie zijn account nog niet geactiveerd heeft.</div>'
             . '</div>';
 
         // Lien en clair sous le bouton : c'est le filet de sécurité. Le problème
@@ -1790,16 +1797,14 @@ if (!function_exists('famiPasswordReminderBody')) {
             . '<p style="margin:0 0 22px;font-size:16px;line-height:1.7;">Bonjour ' . e($greeting) . ',</p>'
             . $avertissement
             . '<p style="margin:0 0 18px;font-size:16px;line-height:1.7;"><strong>🇫🇷 En français</strong><br>'
-            . 'Le message qui contenait ton lien de création de mot de passe ne s\'est pas affiché correctement chez tout le monde. '
-            . 'Voici donc un nouveau lien, personnel, qui te permet de définir ton mot de passe et d\'accéder ' . $ouFR . '.</p>'
+            . 'Voici un nouveau lien personnel pour créer ton mot de passe et activer ton accès ' . $ouFR . '.</p>'
             . '<p style="margin:0 0 22px;font-size:16px;line-height:1.7;">Ton identifiant de connexion : <strong>' . e($identifiant) . '</strong></p>'
             . '<p style="margin:0 0 18px;font-size:16px;line-height:1.7;"><strong>🇳🇱 In het Nederlands</strong><br>'
-            . 'Het bericht met jouw link om een wachtwoord aan te maken werd niet bij iedereen correct weergegeven. '
-            . 'Hierbij een nieuwe, persoonlijke link waarmee je jouw wachtwoord kan instellen en toegang krijgt ' . $ouNL . '.</p>'
+            . 'Hierbij een nieuwe persoonlijke link om jouw wachtwoord aan te maken en jouw toegang ' . $ouNL . ' te activeren.</p>'
             . '<p style="margin:0 0 22px;font-size:16px;line-height:1.7;">Jouw gebruikersnaam: <strong>' . e($identifiant) . '</strong></p>'
             . $bloclien
-            . '<p style="margin:0 0 8px;font-size:15px;line-height:1.7;color:#7a5a11;"><strong>⚠️ Ce lien remplace le précédent :</strong> l\'ancien lien ne fonctionne plus. Celui-ci est valable ' . $jours . ' jours.</p>'
-            . '<p style="margin:0 0 22px;font-size:15px;line-height:1.7;color:#7a5a11;"><strong>⚠️ Deze link vervangt de vorige:</strong> de oude link werkt niet meer. Deze blijft ' . $jours . ' dagen geldig.</p>'
+            . '<p style="margin:0 0 8px;font-size:15px;line-height:1.7;color:#7a5a11;"><strong>⚠️ Utilise uniquement ce lien :</strong> ceux reçus dans les messages précédents ont expiré et ne fonctionnent plus. Celui-ci est valable ' . $jours . ' jours.</p>'
+            . '<p style="margin:0 0 22px;font-size:15px;line-height:1.7;color:#7a5a11;"><strong>⚠️ Gebruik enkel deze link:</strong> de links uit eerdere berichten zijn vervallen en werken niet meer. Deze blijft ' . $jours . ' dagen geldig.</p>'
             . '<p style="margin:0;font-size:15px;line-height:1.7;color:#617268;">Un souci pour te connecter ? Réponds simplement à ce message.<br>'
             . 'Lukt het inloggen niet? Antwoord gerust op dit bericht.</p>'
             . '</div>'

@@ -4,7 +4,7 @@ verifierConnexion($db);
 
 $role = (string) ($_SESSION['role'] ?? '');
 if ($role !== 'admin') {
-    header('Location: ../index.php');
+    header('Location: ' . famijobSiteUrl('index.php'));
     exit();
 }
 
@@ -108,6 +108,7 @@ $inactiveDepartments = $db->query(
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Paramètres - FamiJob</title>
+    <link rel="shortcut icon" type="image/x-icon" href="famijob_.ico">
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root { --bg:#eef3f0; --card:#fff; --line:#dde6df; --text:#1b2c25; --muted:#5c6f67; --accent:#2d5a37; --shadow:0 14px 34px rgba(22,49,33,.1); }

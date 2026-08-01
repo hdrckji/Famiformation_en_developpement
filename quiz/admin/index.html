@@ -526,12 +526,15 @@ function vueQuestions() {
       intitulé et d'au moins deux réponses ; les cases laissées vides sont ignorées.
       <br><strong>Rien n'est enregistré tant que tu n'as pas cliqué sur « Enregistrer ».</strong></p>
       <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:12px;">
-        <label style="font-weight:800; font-size:.85rem; color:#0E3B24;">🔎 Filtrer par thème</label>
-        <select class="field" id="q-filtre" style="margin:0; max-width:240px;">
+        <label style="font-weight:800; font-size:.85rem; color:#0E3B24;">🔎 Filtrer</label>
+        <select class="field" id="q-filtre" style="margin:0; max-width:260px;">
           <option value="tous">Tous les thèmes</option>
+          <option value="favoris">⭐ Mes favorites (tous thèmes)</option>
           <option value="entreprise">L'entreprise / le magasin</option>
+          <option value="fav_entreprise">⭐ Favorites — entreprise</option>
           <option value="culture">Culture générale (jardinage)</option>
           <option value="fun">Fun / anecdote</option>
+          <option value="fav_fun">⭐ Favorites — fun</option>
         </select>
         <span class="hint" id="q-filtre-info" style="margin:0;"></span>
       </div>
@@ -539,9 +542,9 @@ function vueQuestions() {
       <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:6px;">
         <button class="btn ghost" id="q-ajouter">+ Ajouter une question</button>
         <button class="btn ghost" id="q-importer">📥 Importer (JSON)</button>
-        <button class="btn" id="q-seed" title="Charge automatiquement les ~613 questions entreprise (base Famiformation) + 50 culture + 15 fun, pour ce magasin">🌱 Charger toutes les questions</button>
+        <button class="btn" id="q-seed" title="Recharge la liste du magasin depuis la base Famiformation + les fichiers culture et fun. Les questions injouables sans avoir suivi la formation sont écartées au passage.">🌱 Recharger toutes les questions</button>
       </div>
-      <p class="hint" style="margin:6px 0 0;">« Charger toutes les questions » remplit ce magasin d'un coup : les <b>~613 questions entreprise</b> (base Famiformation, avec une réponse fausse rigolote), <b>50 culture</b> (jardinage) et <b>25 fun</b> — culture et fun sont <b>déjà traduites en NL</b>. À relancer pour chaque magasin.</p>
+      <p class="hint" style="margin:6px 0 0;">« Recharger toutes les questions » remet ce magasin à neuf : les <b>questions entreprise</b> de la base Famiformation (avec une 4ᵉ réponse fausse rigolote), <b>118 culture</b> (jardinage) et <b>63 fun</b> — culture et fun sont <b>déjà traduites en NL</b>. Les questions <b>injouables sans avoir suivi la formation</b> (menus de logiciel, fiches fournisseur, chiffres lus dans une vidéo) sont <b>écartées automatiquement</b> : environ <b>230 sont gardées sur 618</b>. Les scores ne sont pas touchés. <b>À relancer pour chaque magasin</b> (bouton Mouscron / La Panne en haut).</p>
       <div id="q-import-zone" style="display:none; margin-top:12px;">
         <p class="hint">Colle un tableau JSON de questions, puis « Ajouter à la liste ». Format de chaque
         question : <code>{"q":"…","options":["…","…"],"correct":0,"theme":"culture"}</code>
@@ -577,16 +580,21 @@ function vueQuestions() {
     dessineListe();
   });
 
-  // 🌱 Charge d'un coup toutes les questions (base 613 + culture + fun) pour ce magasin.
+  // 🌱 Recharge d'un coup toutes les questions du magasin : base Famiformation
+  // (moins les questions injouables sans la formation) + culture + fun.
   $("#q-seed").addEventListener("click", () => {
     modaleConfirm({
-      titre: "Charger toutes les questions ?",
-      texte: `Ça remplace la liste actuelle du magasin ${SITES[siteAdmin]} par : ~613 questions entreprise (base Famiformation) + 50 culture + 15 fun. C'est enregistré directement.`,
-      ok: "Charger",
+      titre: `Recharger les questions de ${SITES[siteAdmin]} ?`,
+      texte: `Ça remplace la liste actuelle du magasin ${SITES[siteAdmin]} par une liste toute fraîche :
+• les questions entreprise de la base Famiformation, EN ÉCARTANT celles auxquelles on ne peut pas répondre sans avoir suivi la formation (menus de logiciel, fiches fournisseur, chiffres lus dans une vidéo) — environ 230 sont conservées sur 618 ;
+• 118 questions de culture jardin ;
+• 63 questions fun.
+Les scores et le classement ne sont PAS touchés. À refaire pour chaque magasin.`,
+      ok: "Recharger",
     }, async () => {
       const btn = $("#q-seed"); if (btn) { btn.disabled = true; btn.textContent = "⏳ Chargement…"; }
       const r = await post("questions_seed");
-      if (btn) { btn.disabled = false; btn.textContent = "🌱 Charger toutes les questions"; }
+      if (btn) { btn.disabled = false; btn.textContent = "🌱 Recharger toutes les questions"; }
       if (r.status === 401) { auth = null; vueConnexion("Session expirée, reconnecte-toi."); return; }
       if (!r.ok) { message = { ok: false, texte: (r.data && r.data.error) || "Chargement impossible." }; rendre(); return; }
       const d = r.data;
@@ -671,7 +679,11 @@ function dessineListe() {
   const themeDe = (q) => (q.theme === "anecdote" ? "fun" : (q.theme || "entreprise"));
   let affiches = 0;
   liste.innerHTML = brouillon.map((q, i) => {
-    if (filtreTheme !== "tous" && themeDe(q) !== filtreTheme) return "";   // masqué par le filtre
+    // Filtre : thème seul, favorites tous thèmes, ou favorites d'un thème.
+    if (filtreTheme === "favoris") { if (!q.fav) return ""; }
+    else if (filtreTheme === "fav_entreprise") { if (!q.fav || themeDe(q) !== "entreprise") return ""; }
+    else if (filtreTheme === "fav_fun") { if (!q.fav || themeDe(q) !== "fun") return ""; }
+    else if (filtreTheme !== "tous" && themeDe(q) !== filtreTheme) return "";
     affiches++;
     return `
     <div class="qbloc">
@@ -705,8 +717,11 @@ function dessineListe() {
     </div>`;
   }).join("");
   if (!affiches) {
+    const surFav = filtreTheme.startsWith("fav");
     liste.innerHTML = brouillon.length
-      ? `<p class="hint">Aucune question dans ce thème. Change le filtre ou clique sur « Ajouter une question ».</p>`
+      ? (surFav
+          ? `<p class="hint">Aucune question en favorite ici. Clique sur « ☆ Favori » sur une question pour l'ajouter.</p>`
+          : `<p class="hint">Aucune question dans ce thème. Change le filtre ou clique sur « Ajouter une question ».</p>`)
       : `<p class="hint">Aucune question pour l'instant. Clique sur « Ajouter une question ».</p>`;
   }
   const info = $("#q-filtre-info");
@@ -723,7 +738,8 @@ function dessineListe() {
     const fe = favN("entreprise"), fa = favN("fun");
     cpt.innerHTML = `${brouillon.length} question(s) — <b>${e}</b> entreprise · <b>${cg}</b> culture G · <b>${an}</b> fun`
       + ` <span style="opacity:.7;">(chaque joueur en tire 20 : 10 / 5 / 5)</span>`
-      + ((fe || fa) ? `<br>⭐ Favorites : <b>${fe}</b> entreprise (3 tirées/quiz) · <b>${fa}</b> fun (2 tirées/quiz)` : "")
+      + ((fe || fa) ? `<br>⭐ Favorites : <b>${fe}</b> entreprise (5 tirées/quiz) · <b>${fa}</b> fun (2 tirées/quiz)`
+                      + ` <span style="opacity:.7;">— elles alternent avec les normales pendant le quiz</span>` : "")
       + (court ? `<br><span style="color:#E4572E;font-weight:800;">⚠️ Il en faut au moins 10 / 5 / 5. En dessous, on complète avec les autres thèmes.</span>` : "");
   }
 
@@ -788,22 +804,48 @@ function dessineListe() {
 
 /* ---------------------- ONGLET CLASSEMENT ---------------------- */
 
+// Comptes de service : « testeur » et tout ce qui commence par « admin_ ».
+// Ils sont exclus du classement public (borne, télé, page joueur) — cette liste
+// doit rester identique à celle de quiz/index.html et de api.php.
+function estNomTest(n) {
+  const s = (n || "").toLowerCase();
+  return s === "testeur" || s.startsWith("admin_");
+}
+
 function vueClassement() {
   const c = $("#contenu");
   const b = data.board;
+
+  // RANG PUBLIC = celui réellement affiché aux joueurs. Les comptes de service
+  // et ceux qui n'ont pas encore joué n'en ont pas : les numéroter comme les
+  // autres laissait croire qu'« admin_ » occupait la première place.
+  let rangPublic = 0;
+  const rangs = b.map((p) => {
+    if (estNomTest(p.name) || p.quiz_fait === false) return null;
+    return ++rangPublic;
+  });
+  const nbService = b.filter((p) => estNomTest(p.name)).length;
   c.innerHTML = `
     <div class="card">
       <h2>Tous les comptes — ${b.length} inscrit(s)</h2>
       <p class="hint">Les <strong>décimales</strong> du score viennent du bonus de rapidité : elles ne sont
       pas montrées aux joueurs (ils voient un entier) mais c'est ce qui <strong>départage</strong> deux
       personnes à égalité. Le mot de passe sert au joueur pour se reconnecter (avec son pseudo ou son nom).</p>
+      <p class="hint">La colonne <strong>#</strong> est le rang <strong>réellement affiché aux joueurs</strong>
+      (borne, télé, page joueur).
+      ${nbService ? `<strong>🧪 = compte de service</strong> (« testeur » ou « admin_… ») : ${nbService} compte(s),
+      visibles ici pour la gestion mais <strong>hors classement</strong> — ils ne prennent la place de personne.` : ""}
+      <strong>—</strong> = quiz pas encore fait.</p>
       ${b.length ? `
       <div style="overflow-x:auto">
       <table>
         <tr><th>#</th><th>Prénom</th><th>Nom</th><th>Pseudo</th><th>Mot de passe</th><th>Récoltées 🌰</th><th>Plantées</th><th>Solde</th><th>Bonnes réponses</th><th>Codes</th><th>Temps</th><th></th></tr>
         ${b.map((p, i) => `
-          <tr${p.quiz_fait === false ? ` style="opacity:.6;" title="Compte créé mais quiz pas encore fait"` : ""}>
-            <td class="num">${p.quiz_fait === false ? "—" : i + 1}</td>
+          <tr${estNomTest(p.name) ? ` style="opacity:.55;" title="Compte de service — hors classement, ne compte pour personne"`
+                : (p.quiz_fait === false ? ` style="opacity:.6;" title="Compte créé mais quiz pas encore fait"` : "")}>
+            <td class="num">${estNomTest(p.name)
+                ? `<span title="Compte de service : hors classement">🧪</span>`
+                : (rangs[i] === null ? "—" : rangs[i])}</td>
             <td>${p.prenom ? esc(p.prenom) : "<span style='opacity:.4'>—</span>"}</td>
             <td>${p.nom ? esc(p.nom) : "<span style='opacity:.4'>—</span>"}</td>
             <td>${esc(p.name)} ${stadeEmoji(p.score)}</td>

@@ -112,6 +112,8 @@ if (getCurrentRole() === 'etudiant' && !hasUnlockedOnboarding(getCurrentUserId()
         <h1><?= t('Intégration : Bienvenue chez Famiflora', 'Onthaal: welkom bij Famiflora') ?></h1>
     </div>
 
+    <?php require_once __DIR__ . '/includes/module_intro.php'; echo moduleIntroDe('onboarding'); ?>
+
     <div class="tiles-container">
         <a href="view-pdf-onboarding.php" class="tile">
             <span class="tile-icon">📖</span>

@@ -13,7 +13,7 @@ if (!function_exists('fjhT')) {
 
 $role = getCurrentRole();
 if (!in_array($role, ['admin', 'teamcoach'], true)) {
-    header('Location: ../index.php');
+    header('Location: ' . famijobSiteUrl('index.php'));
     exit();
 }
 
@@ -1276,7 +1276,7 @@ foreach ($weekDays as $weekDay) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo e(fjhT('Horaires Intérim', 'Interim uurroosters')); ?></title>
-    <link rel="shortcut icon" type="image/x-icon" href="favicon.ico">
+    <link rel="shortcut icon" type="image/x-icon" href="famijob_.ico">
     <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         :root {

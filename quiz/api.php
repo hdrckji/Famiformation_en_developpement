@@ -59,10 +59,537 @@ $CODE_TEST_USED = "FAMI-TEST-USED";
 // telephone, ordi) sans deranger personne. Ils n'apparaissent PAS au classement
 // public ni sur la tele, et ils peuvent refaire le quiz autant de fois qu'ils
 // veulent. Cree-les comme un compte normal avec ce pseudo.
-$COMPTES_TEST = ['testeur', 'admin_'];
+$COMPTES_TEST = ['testeur'];
+// Tout compte dont l'identifiant COMMENCE par « admin_ » est un compte de
+// service : admin_, admin_jimmy, admin_borne… Ce sont des comptes à part, ils
+// ne doivent jamais peser sur le classement. Le test exact d'avant ne prenait
+// que le compte nommé littéralement « admin_ » et laissait passer les autres.
+$PREFIXES_TEST = ['admin_'];
 function estCompteTest($p) {
-  global $COMPTES_TEST;
-  return in_array(mb_strtolower((string)(is_array($p) ? ($p['name'] ?? '') : $p)), $COMPTES_TEST, true);
+  global $COMPTES_TEST, $PREFIXES_TEST;
+  $nom = mb_strtolower((string)(is_array($p) ? ($p['name'] ?? '') : $p));
+  if (in_array($nom, $COMPTES_TEST, true)) { return true; }
+  foreach ($PREFIXES_TEST as $pref) {
+    if (strncmp($nom, $pref, strlen($pref)) === 0) { return true; }
+  }
+  return false;
+}
+
+// ⭐ FAVORITES DES QUESTIONS « ENTREPRISE » VENANT DE LA BASE.
+// Ces questions sont importées de la table quiz_questions, qui n'a pas de
+// colonne « favorite ». On les repère donc par leur texte, à la réinstallation.
+// Comparaison souple (accents, apostrophes et ponctuation ignorés) : le libellé
+// exact varie d'une saisie à l'autre.
+$FAVORIS_TEXTES = [
+  // ⚠️ CETTE LISTE EST LA SEULE MÉMOIRE DES FAVORITES « ENTREPRISE ».
+  // Ces questions viennent de la base Famiformation, qui n'a pas de colonne
+  // « favorite » : une étoile mise à la main dans /quiz/admin est perdue à la
+  // prochaine réinstallation. Il n'y avait plus qu'UNE ligne ici alors que le
+  // quiz en ligne comptait 10 favorites — réinstaller les questions en aurait
+  // effacé 9. Toute nouvelle favorite entreprise doit être ajoutée ICI.
+  // La comparaison ignore la casse, les accents et la ponctuation.
+  'combien y a t il de valeurs dans l entreprise',
+  "En quelle année Famiflora a-t-elle été créée ?",
+  "Combien de places de parking compte le site de Mouscron ?",
+  "Combien de produits différents porte la marque Famiflora ?",
+  "Combien de bonbons différents trouve-t-on chez Lollyland ?",
+  "Combien de variétés de bières différentes propose l'Abbaye ?",
+  "Combien de clients accueillons-nous environ sur la saison d'hiver ?",
+  "Combien de clients accueillons-nous environ au printemps, de mars à fin mai ?",
+  "Combien de nationalités différentes travaillent chez Famiflora ?",
+  "D'où vient la majorité de nos collègues qui travaillent sur le site de Mouscron ?",
+  // Questions « identité Famiflora » : elles parlent du magasin tel qu'on le
+  // voit en y travaillant. Elles élargissent le vivier de favorites, qui était
+  // trop étroit : 5 tirées parmi 10 revenaient presque toujours les mêmes.
+  "Famiflora se définit comme un Garden Center, mais aussi comme...",
+  "Quel secteur occupe une place centrale dès l'entrée du magasin ?",
+  "Que peut-on trouver dans le secteur \"Terroir\" de Famiflora ?",
+  "Famiflora possède un rayon dédié aux animaux, comment s'appelle-t-il ?",
+  "Quelle est la particularité du secteur fleurs coupées ?",
+  "Quel est l'événement majeur de fin d'année chez Famiflora ?",
+  "Que trouve-t-on dans le secteur \"Pépinière\" extérieur ?",
+  "Famiflora propose de quoi se restaurer, comment s'appelle cet espace ?",
+  "Pourquoi les serres immenses sont-elles un avantage ?",
+  "Famiflora est situé dans quelle zone géographique ?",
+];
+
+/**
+ * 👤 PROFIL D'UN NOUVEAU COMPTE créé depuis le quiz.
+ *
+ * Par défaut « beta ». Mais quelqu'un qui figure dans la liste du personnel
+ * n'est pas un visiteur : il entre directement avec le profil employé, sans
+ * passer par la case beta ni attendre un tri manuel.
+ *
+ * La règle ne vaut qu'à partir du 29/07/2026 12h30 (voir personnel_liste.php) :
+ * avant cette heure, tout le monde reste en beta comme prévu.
+ */
+function roleInscription($prenom, $nom) {
+  if (!function_exists('personnelTrouve') || !function_exists('personnelRegleActive')) { return 'beta'; }
+  if (!personnelRegleActive()) { return 'beta'; }
+  return personnelTrouve($nom, $prenom) ? personnelRoleCible() : 'beta';
+}
+function normaliseTexteQuestion($t) {
+  $t = mb_strtolower(trim((string) $t));
+  $t = strtr($t, ['à'=>'a','â'=>'a','ä'=>'a','é'=>'e','è'=>'e','ê'=>'e','ë'=>'e',
+                  'î'=>'i','ï'=>'i','ô'=>'o','ö'=>'o','ù'=>'u','û'=>'u','ü'=>'u','ç'=>'c']);
+  $t = preg_replace('/[^a-z0-9]+/', ' ', $t);
+  return trim(preg_replace('/\s+/', ' ', $t));
+}
+function estFavoriParTexte($q) {
+  global $FAVORIS_TEXTES;
+  $n = normaliseTexteQuestion($q);
+  foreach ($FAVORIS_TEXTES as $ref) {
+    if ($n === normaliseTexteQuestion($ref)) { return true; }
+  }
+  return false;
+}
+
+/**
+ * 🚫 QUESTIONS ÉCARTÉES DU QUIZ.
+ *
+ * Elles restent dans la base Famiformation (elles ont leur place dans les
+ * formations, où l'on a le support sous les yeux), mais elles n'ont rien à faire
+ * dans un quiz joué en magasin : impossible d'y répondre sans avoir la vidéo, le
+ * document ou la fiche produit devant soi, ou sans avoir suivi cette formation-là.
+ *
+ * On les écarte PAR LEUR TEXTE, à la réinstallation des questions : rien n'est
+ * supprimé, il suffit de retirer une ligne d'ici pour qu'une question revienne.
+ */
+$QUESTIONS_EXCLUES = [
+  // Renvoient à un support que le joueur n'a pas.
+  "Quelle est la mission principale de Famiflora présentée dans la vidéo ?",
+  "Où le client doit-il se rendre une fois muni de son article et du document ?",
+  "Le message final du document est :",
+  // Formation Becosoft : incompréhensible sans la fiche article ouverte.
+  "À quoi correspond la valeur \"Vfami\" dans la fiche article ?",
+  "Que signifie l'onglet \"Voorraadlocaties\" dans la fiche article ?",
+  // Parcours de formation numéroté jour par jour : hors sujet pour qui ne l'a pas suivi.
+  "Jour 2 concerne :",
+  "Jour 4 concerne :",
+  "Jour 5 concerne :",
+  "Jour 6 concerne:",
+  "Jour 7 sert à :",
+  "Jour 8 concerne:",
+  // Énoncés tronqués : la question ne se suffit pas à elle-même.
+  "La marraine est :",
+  "Le gerbeur est :",
+  "La Rose de Leary est :",
+  "Les grilles Napoléon sont :",
+  "Bon charbon =",
+  "Le modèle Nestor est :",
+  "Les fixations de couverture sont :",
+  "Les LED sont :",
+  "Le panneau de commande est :",
+  "La bande LED est :",
+  "Le PureSpa Glow est :",
+  "Le design du PureSpa Glow est :",
+  // Saisie accidentelle.
+  "kjjnknk",
+
+  // Role « relais marketing » — 19 questions.
+  "Le relais marketing est un point de :",
+  "Le relais marketing fait le lien entre :",
+  "Le relais marketing aide à :",
+  "Le relais marketing propose :",
+  "Le relais marketing travaille sur :",
+  "Le relais marketing est force de :",
+  "Pourquoi solliciter du relais marketing ?",
+  "L'objectif du relais marketing est :",
+  "Le relais marketing contribue à :",
+  "Le relais marketing participe à :",
+  "Le relais marketing fait vivre :",
+  "Le relais marketing centralise :",
+  "Le relais marketing est disponible pour :",
+  "Le relais marketing accompagne :",
+  "Le relais marketing travaille en lien avec :",
+  "Le relais marketing propose des idées :",
+  "Le relais marketing peut aider pour :",
+  "Le relais marketing suit :",
+  "Le rôle du relais marketing principal est :",
+
+  // Outil « fichier de suivi » — 4 questions.
+  "Le fichier de suivi sert à :",
+  "Le fichier de suivi permet de :",
+  "Dans le fichier de suivi on y note :",
+  "L’objectif du fichier de suivi est :",
+
+  // Programme de marrainage — 8 questions.
+  "La marraine doit :",
+  "La marraine aide à :",
+  "La marraine doit créer :",
+  "La marraine transmet :",
+  "La marraine encourage :",
+  "La marraine doit répondre :",
+  "La marraine fait :",
+  "La marraine observe pour :",
+
+  // Parcours jour par jour — 5 questions.
+  "Jour 1 correspond à :",
+  "Jour 1: On apprend à :",
+  "Jour 1: On découvre :",
+  "Jour 3 est dédié à :",
+  "Jour 7, on vérifie :",
+
+  // Gamme barbecue — 37 questions.
+  "Que possèdent tous les BBQ pour protéger les brûleurs ?",
+  "Que fait la fonte lorsqu’on éteint le BBQ ?",
+  "De quoi est fait le couvercle des BBQ Weber ?",
+  "De quoi est faite la cuve des BBQ Weber ?",
+  "Peut-on fermer le BBQ en cuisant des aliments gras ?",
+  "Pourquoi ne faut-il pas fermer le BBQ avec des aliments gras ?",
+  "Que peut contenir le meuble sous le BBQ ?",
+  "Pourquoi le meuble sous le BBQ est-il ventilé ?",
+  "Quels BBQ peuvent être transformés en plancha ?",
+  "Comment transformer ces BBQ en plancha ?",
+  "Que nécessitent les petits BBQ portatifs ?",
+  "Quel type de cuisson est fréquent avec les BBQ à pellet ?",
+  "Quelle est l’origine de la marque Napoleon ?",
+  "Pourquoi la marque Napoleon s’appelle-t-elle ainsi ?",
+  "En général, Napoleon est moins cher :",
+  "De quelle couleur sont les nouveaux couvercles des BBQ gaz Napoleon ?",
+  "La cuve des BBQ Napoleon est en :",
+  "Garantie de la cuve Napoléon :",
+  "Garantie des brûleurs Napoléon :",
+  "Le « pont » entre les brûleurs Napoléon sert à :",
+  "Le système d’allumage Napoléon s’appelle :",
+  "Pourquoi utiliser une feuille d’aluminium dans le BBQ ?",
+  "Après pyrolyse, il faut :",
+  "Une face des grilles Napoléon sert à :",
+  "La Sizzle Zone permet :",
+  "Température de la Sizzle Zone :",
+  "On peut aussi utiliser la Sizzle Zone pour :",
+  "Le détendeur Napoléon et le tuyau sont :",
+  "On peut transformer un BBQ gaz en :",
+  "Sur BBQ charbon Pro : hauteur de grille :",
+  "BBQ électrique : il faut :",
+  "Les housses sont plus courtes pour :",
+  "Pourquoi vider un BBQ charbon ?",
+  "Dans un brasero, on utilise :",
+  "Les BBQ Barbecook sont en :",
+  "Température idéale grillade :",
+  "Un BBQ fermé permet :",
+
+  // Gamme spa / piscine — 28 questions.
+  "Avec quel produit doit être utilisé Oxy Pool & Spa ?",
+  "Quel est le nouveau coloris du PureSpa Bubble Massage ?",
+  "Le PureSpa Bubble Massage est compatible avec :",
+  "Le PureSpa Glow est conçu pour combien de personnes ?",
+  "Le PureSpa Glow possède :",
+  "Combien de LED possède le PureSpa Glow ?",
+  "Les LED sont alimentées par :",
+  "Le PureSpa Glow dispose de :",
+  "Le spa utilise quel système d’eau ?",
+  "La cartouche du PureSpa Glow est :",
+  "Indice de protection du spa :",
+  "Les lumières LED peuvent être :",
+  "Les LED sont contrôlées via :",
+  "Le spa est décrit comme :",
+  "La connexion LED se fait via :",
+  "L’alimentation LED est :",
+  "Le PureSpa Bubble Massage est considéré comme :",
+  "Le spa Bubble Massage conserve :",
+  "Le système LED permet :",
+  "Le spa est alimenté en LED :",
+  "Le PureSpa Glow est décrit comme :",
+  "Le panneau WiFi est compatible avec :",
+  "Le spa est résistant :",
+  "Le PureSpa Bubble Massage offre :",
+  "Le système de stérilisation est :",
+  "Les LED sont placées :",
+  "Le spa fonctionne avec :",
+  "Le PureSpa Glow appartient à la gamme :",
+
+
+  // ============================================================
+  // 2e VAGUE — le grand menage. Les questions ci-dessus ne suffisaient
+  // pas : l'immense majorite du reservoir venait telle quelle des
+  // supports de formation (menus de logiciel, fiches fournisseur,
+  // chiffres lus dans une video). On garde desormais UNIQUEMENT ce
+  // qu'un collaborateur peut trouver par bon sens, par observation du
+  // magasin ou par culture du metier.
+  // ============================================================
+  // Fiches produit barbecue et plancha : specifications, materiaux, garanties et
+  // modeles. Impossible a deviner sans la fiche du fournisseur sous les yeux.
+  "Condition pour la garantie :",
+  "De quel matériau est faite la poignée ?",
+  "De quel matériau sont faits les protecteurs de brûleurs ?",
+  "De quoi le SAV Weber a-t-il toujours besoin ?",
+  "Les anciennes petites grilles étaient en :",
+  "Les nouvelles petites grilles sont en :",
+  "Où sont conservées les vis ?",
+  "Par quel intermédiaire fonctionne la garantie ?",
+  "Peut-on utiliser des spatules en métal sur les planchas en fonte ?",
+  "Pour le SAV, il faut :",
+  "Pour le SAV, il faut fournir :",
+  "Pourquoi la fonte d’aluminium est-elle utilisée pour la cuve ?",
+  "Pourquoi les protecteurs de brûleurs sont-ils utiles ?",
+  "Pourquoi les vis des plaques mortuaires sont-elles retirées ?",
+  "Pourquoi vider le chariot ?",
+  "Quand doit-on rentrer la planche en bambou ?",
+  "Que faut-il faire des vis des plaques mortuaires ?",
+  "Que faut-il faire du pellet après utilisation ?",
+  "Que font les protecteurs de brûleurs avec la graisse ?",
+  "Quel avantage ont les dessertes Cook’in Garden ?",
+  "Quel est l’objectif du chariot d’invendus ?",
+  "Quelle particularité a la gamme Performer ?",
+  "Version avec chariot permet :",
+  "À quoi sert la planche en bambou sur certaines planchas ?",
+  "À quoi servent les ailettes et le thermomètre numérique ?",
+  // Logiciel Becosoft, scanner Zebra, bons de commande, ventes flash : ce sont des
+  // suites de menus et de boutons. Sans le logiciel devant soi, personne ne peut repondre.
+  "Après avoir choisi \"Sortant\", quelle option faut-il sélectionner ?",
+  "Combien de références maximum dans un seau de fleurs séchées ?",
+  "Combien d’articles de chaque référence sont placés d’abord ?",
+  "Comment finaliser une demande d'étiquettes sur le Zebra ?",
+  "Comment identifie-t-on l'article sur le Zebra pour la vente flash ?",
+  "Comment imprimer une étiquette rayon depuis l'ordinateur ?",
+  "Comment procéder pour une remise sur un article défectueux ?",
+  "Comment s'appelle l'étiquette autocollante simple dans le logiciel ?",
+  "Dans quel cas précis peut-on créer une vente flash pour un client ?",
+  "Dans quel menu de Becosoft CRM se trouve la fonction pour chercher un produit ?",
+  "En cas de problème imprimante :",
+  "Le scan rayon sert à :",
+  "Lors de l'encodage d'un bon pour du gazon artificiel, que représente la \"quantité\" ?",
+  "Où doit-on indiquer la raison de la réduction lors d'une vente flash sur Zebra ?",
+  "Où se rend-elle après avoir récupéré le scan ?",
+  "Peut-on appliquer une remise manuelle sur un article ?",
+  "Peut-on imprimer une affiche A4 directement depuis Becosoft ?",
+  "Pour créer une liste d'étiquettes à traiter plus tard sur PC, quel menu Zebra utilise-t-on ?",
+  "Pour une livraison, que faut-il faire si l'adresse de livraison est différente de la facturation ?",
+  "Pourquoi chaque référence est-elle mise en place ?",
+  "Pourquoi place-t-on un article de chaque référence ?",
+  "Que faut-il faire après avoir appliqué une remise ?",
+  "Que faut-il saisir dans la fenêtre \"Modifier la remise\" ?",
+  "Que se passe-t-il immédiatement après avoir cliqué sur \"Traiter\" sur le Zebra ?",
+  "Que se passe-t-il une fois que l'on a cliqué sur \"Traiter\" ?",
+  "Quel bouton permet de clôturer définitivement la vente sur le Zebra ?",
+  "Quel est l'objectif principal de la formation Vente Flash ?",
+  "Quel est le délai de livraison moyen pour le gazon artificiel après commande ?",
+  "Quel est le montant de l'acompte standard à régler à l'accueil pour un bon de commande ?",
+  "Quel est le nom néerlandais de l'étiquette \"papillon\" ?",
+  "Quel jour les livraisons de gazon naturel sont-elles effectuées ?",
+  "Quel menu doit-on choisir sur le Zebra pour consulter un article ?",
+  "Quel outil doit-on utiliser pour calculer les frais de livraison d'un client ?",
+  "Quel produit fait l'objet d'un cas particulier pour la vente flash ?",
+  "Quelle est l'utilité d'encoder le numéro de TVA d'une société dans Becosoft ?",
+  "Quelle est la condition de valeur minimale pour créer un bon de commande ?",
+  "Quelle est la condition pour accorder une remise de 50% sur une vente flash ?",
+  "Quelle est la première option à choisir dans le menu du Zebra pour débuter ?",
+  "Quelle est la procédure correcte sur Zebra avant de scanner les articles ?",
+  "Quelle fenêtre s'ouvre automatiquement après le scan de l'article ?",
+  "Quelle méthode permet d'imprimer plusieurs étiquettes différentes à la suite sur Zebra ?",
+  "Sur Zebra, que doit-on indiquer dans le champ \"Référence\" d'une demande d'étiquettes ?",
+  "Sur l'ordinateur, dans quel menu faut-il aller pour créer un bon de commande ?",
+  "Sur le Zebra, où trouve-t-on le bouton \"Print label\" ?",
+  "Sur le Zebra, quel est le premier choix à faire dans le menu principal ?",
+  "Une fois traitée sur Zebra, où retrouve-t-on la demande d'étiquettes sur PC ?",
+  "Une étiquette doit être :",
+  "À quoi sert en parti le scan ?",
+  // Implantations et reimplantations de rayons : deroule interne d'un chantier precis.
+  "Comment afficher l'ensemble des articles d'un groupe spécifique ?",
+  "Comment les palettes sont-elles organisées ?",
+  "Où se trouve la palette prioritaire des saisons dans le stock ?",
+  "Pourquoi analyse-t-on la structure du secteur ?",
+  "Pourquoi les affiches sont-elles déjà installées sur les bacs volume ?",
+  "Pourquoi les palettes sont-elles triées ?",
+  "Pourquoi prépare-t-on les implantations à l’avance ?",
+  "Que doit-on aussi vérifier sur la palette ?",
+  "Que facilite l’organisation des palettes par métrage ?",
+  "Que fait-on après avoir refilmé la palette ?",
+  "Que fait-on une fois la palette terminée ?",
+  "Que trouve-t-on également sur la palette ?",
+  "Que vérifie-t-on au dépôt ?",
+  "Que vérifie-t-on sur la palette ?",
+  "Quel est le montant de la caution par palette lors de l'enlèvement du gazon naturel ?",
+  "Quel est le rôle de l’équipe décoration ?",
+  "Quel est l’objectif des supports marketing ?",
+  "Quel outil est utilisé pour préparer les futures implantations ?",
+  "Quel outil utilise-t-on pour déplacer la palette ?",
+  "Quel univers remplace celui de Pâques ?",
+  "Quelle palette est donnée dans l’exemple ?",
+  "Qui démonte les rayonnages ?",
+  "Qui réalise la décoration des vases ?",
+  "Si le client ne souhaite pas payer la caution palette, comment s'effectue le chargement ?",
+  "À partir de quel mois commence Halloween ?",
+  // Produits piscine de marque (Fast, Crystal Clear, Calc Free, Aquapur, Mini Pool Set) :
+  // il faut la fiche produit, pas du raisonnement.
+  "Dans quelle situation utilise-t-on généralement le produit Fast ?",
+  "Pour quel type de piscine utilise-t-on le Mini Pool Set ?",
+  "Quel est l’inconvénient de l’Aquapur 5 en 1 ?",
+  "À quelle fréquence doit-on utiliser le Mini Pool Set ?",
+  "À quoi sert le produit Calc Free ?",
+  // Secteur fleurs artificielles : fournisseurs, tables, emplacements et prenoms tires
+  // de la video de formation (Calista, Lien, Team Deco, Jasaco, Decostar, Louis Maes).
+  "Avec quoi monte-t-on les plantes Bestdeal ?",
+  "Combien de plantes retombantes maximum par crochet ?",
+  "Combien de tables Louis Maes existe-t-il ?",
+  "Combien de tables avec tiges y a-t-il ?",
+  "Combien de tiges minimum faut-il pour soutenir un carré végétal ?",
+  "Comment faut-il organiser les fleurs séchées ?",
+  "Dans quel délai un client doit-il enlever sa marchandise après réception en magasin ?",
+  "Les paniers aident les clients à :",
+  "Les tiges Louis Maes arrivent-elles déjà étiquetées ?",
+  "Où se trouve le pistolet à colle ?",
+  "Où se trouvent les différents lots de tiges ?",
+  "Où se trouvent les phrases des plaques mortuaires ?",
+  "Où se trouvent les potées en plastique mortuaires ?",
+  "Où se trouvent les prix sur les articles Louis Maes ?",
+  "Où sont stockées les commandes clients pour le secteur \"Déco\" ?",
+  "Où sont stockées les commandes clients pour le secteur \"Green & Garden\" ?",
+  "Où stocke-t-on les plantes Bestdeal déballées ?",
+  "Pourquoi Team Deco récupère-t-elle les dernières pièces de tiges ?",
+  "Pourquoi la manutention est-elle importante sur les tiges ?",
+  "Que consulte-t-elle après avoir badgé ?",
+  "Que faire lorsqu'un client présente une carte de réduction à la caisse ?",
+  "Que fait le client après avoir payé une phrase mortuaire ?",
+  "Que fait-on des dernières pièces des tiges ?",
+  "Que met Calista avant de commencer ?",
+  "Que récupère Calista en magasin ?",
+  "Quel est le rôle de Lien ?",
+  "Quel fournisseur correspond à “CountryField” ?",
+  "Quelle est la première action de Calista ?",
+  "Quelle information est indispensable sur une fiche client pour assurer le suivi ?",
+  "Quelles tiges doivent être étiquetées avec Kleeft + prix ?",
+  "Qui remplit les neuvaines ?",
+  // Parcours d'integration et journee type du secteur Mix : horaires, numeros de palette,
+  // dates d'exemple, tableaux internes. Ce sont des reponses tirees d'un support.
+  "Avec quoi transporte-t-on les invendus ?",
+  "Dans quel secteur travaille Audrey ?",
+  "Le débrief final sert à :",
+  "Le facing doit être :",
+  "Le facing signifie :",
+  "Le stock Beco sert à :",
+  "Le tableau caisse sert à :",
+  "L’autonomie signifie :",
+  "L’intégration réussie repose sur :",
+  "Quand consulte-t-on le planning Mix / Polyvalent ?",
+  "Quel est le rôle d’Audrey ?",
+  "Quel est le rôle principal de la marraine ?",
+  "Quel est l’objectif principal du local des invendus ?",
+  "Quelle est la tâche suivante après les invendus ?",
+  "Un article sans EAN doit être :",
+  "À quelle heure commence la journée au mix ?",
+  "“Négatif” signifie :",
+  // Gazon a la coupe : procedure de commande, delais, cautions et tarifs fournisseur.
+  "Est-il possible de faire livrer le gazon artificiel directement par le fournisseur ?",
+  "Où faut-il indiquer les dimensions précises (largeur x longueur) du gazon artificiel ?",
+  "Par quelles tranches de longueur peut-on commander du gazon artificiel ?",
+  "Pour le gazon artificiel, quelle est la surface minimale de commande par rouleau ?",
+  "Quel est le jour limite pour clôturer une commande de gazon naturel pour la semaine en cours ?",
+  "Quelle contrainte peut empêcher la coupe du gazon naturel chez le fournisseur ?",
+  "Quelle est la condition impérative pour valider une commande de gazon (naturel ou artificiel) ?",
+  "Quelle est la dimension standard d'un rouleau de gazon naturel chez Famiflora ?",
+  "Quelles sont les largeurs disponibles pour le gazon artificiel ?",
+  "À partir de quel jour et quelle heure le gazon naturel est-il disponible pour l'enlèvement ?",
+  // Spas et accessoires : specifications produit.
+  "Comment l’espace final doit-il accueillir la saison estivale ?",
+  "Le kit de conversion au sel est :",
+  "Le passage d’air sert à :",
+  "Quelle est la nouvelle cartouche mentionnée ?",
+  // Divers : questions renvoyant a un document, une video ou une procedure precise.
+  "Après les paniers, que fait-on ?",
+  "Combien de paniers compose une pile ?",
+  "Combien de temps dure la pause principale ?",
+  "Combien de temps les produits sont-ils garantis ?",
+  "Comment doit-on remplir le rayon ?",
+  "Comment est décrit le résultat final ?",
+  "Comment s'appelle la collaboratrice présentée ?",
+  "Comment travaille-t-on les plantes intérieures ?",
+  "Devant un produit il faut :",
+  "En quelle année le rayon des fleurs artificielles a-t-il été déplacé ?",
+  "La communication doit être :",
+  "Les améliorations incluent :",
+  "Lors de la vente, que faut-il mettre dans le fond de la boîte de transport de l'animal ?",
+  "L’objectif final est :",
+  "Où apparaît la photo de l'article lorsqu'on le sélectionne dans la liste ?",
+  "Où doit-on indiquer la raison de la réduction (ex: statue fissurée) ?",
+  "Où les bouquets sont-ils fabriqués ?",
+  "Où note-t-on la mise à jour du travail ?",
+  "Où sont placés les bouquets séchés ?",
+  "Où sont rangés les paniers en surplus ?",
+  "Où trouve-t-on les missions de la journée ?",
+  "Pour les souris, gerbilles, hamsters, rats et octodons, où faut-il les déposer à l'accueil ?",
+  "Pour quel type de produit le paiement total est-il exigé dès la commande ?",
+  "Pourquoi ce moment de pause est-il important ?",
+  "Pourquoi commence-t-on tôt le matin ?",
+  "Pourquoi garder le local propre ?",
+  "Pourquoi inscrire une nouvelle date ?",
+  "Pourquoi les produits sont-ils faciles à monter ?",
+  "Pourquoi l’équipe effectue-t-elle des tours en magasin ?",
+  "Pourquoi ramasser ce qui traîne ?",
+  "Pourquoi remplir les piles de paniers ?",
+  "Pourquoi stocker des paniers en réserve ?",
+  "Pourquoi utiliser les produits dormants ?",
+  "Pourquoi vérifier ces informations ?",
+  "Pourquoi y a-t-il souvent beaucoup de paniers ?",
+  "Quand les orchidées ont-elles beaucoup de succès ?",
+  "Quand privilégie-t-on les travaux importants ?",
+  "Que doit-on faire avant d’entrer dans un stock ?",
+  "Que doit-on vérifier dans le rayon ?",
+  "Que doit-on vérifier pour les pastilles parfumées ?",
+  "Que fait-on avec les paniers laissés la veille ?",
+  "Que fait-on avec l’ancienne date ?",
+  "Que fait-on dans le local après les rotations ?",
+  "Que fait-on pendant le remplissage du rayon ?",
+  "Que fait-on une fois arrivé dans le rayon ?",
+  "Que fait-on une fois dans le rayon ?",
+  "Que fait-on une fois le rayon vidé ?",
+  "Que faut-il faire si l’eau est trouble mais pas verte ?",
+  "Que ne faut-il jamais encombrer ?",
+  "Que peut-on saisir dans la barre de recherche pour trouver un article ?",
+  "Que respecte-t-on lors du remplissage ?",
+  "Que sont installés après la mise en place des produits ?",
+  "Que vérifie-t-elle au stock ?",
+  "Quel accessoire est inclus ?",
+  "Quel arbre retrouve-t-on en été ?",
+  "Quel avantage principal a apporté le nouvel emplacement ?",
+  "Quel est l’objectif de toutes ces pratiques ?",
+  "Quel est l’objectif final de toutes ces tâches ?",
+  "Quel impact positif cela a-t-il de fabriquer nos propre bouquets ?",
+  "Quel outil peut être utilisé pour nettoyer le local ?",
+  "Quel outil utilise-t-on pour la remettre en stock ?",
+  "Quel produit agit rapidement au démarrage d’une piscine ?",
+  "Quel produit est conseillé lorsque l’eau est trouble ?",
+  "Quel produit est utilisé pour le démarrage de la piscine ?",
+  "Quel produit stabilise les paramètres sur le long terme ?",
+  "Quel rythme suit le secteur fleurs artificielles ?",
+  "Quel sentiment la vidéo cherche-t-elle à transmettre aux futurs collègues ?",
+  "Quel type de roues équipent leurs produits ?",
+  "Quelle action faut-il faire immédiatement après avoir écrit la remarque ?",
+  "Quelle colonne indique la quantité physique réelle en magasin ?",
+  "Quelle est la première tâche de la journée ?",
+  "Quelle fleur est mise en avant d’août à octobre ?",
+  "Quelle fleur est mise à l’honneur de janvier à mai ?",
+  "Quelle icône doit-on cliquer sur le bureau de l'ordinateur pour ouvrir la base de données ?",
+  "Quelle nouvelle date est inscrite dans l’exemple ?",
+  "Quelle plante domine d’octobre à décembre ?",
+  "Quelle plante est appréciée pour l’extérieur ?",
+  "Quelle plante est citée parmi les variétés proposées ?",
+  "Quelle réduction maximale peut accorder un responsable de rayon seul ?",
+  "Quelle réduction maximale un responsable de rayon peut-il accorder seul ?",
+  "Quelle saison correspond aux chrysanthèmes ?",
+  "Quelle tâche essentielle suit-elle chaque matin ?",
+  "Quelles fleurs dominent de mai à août ?",
+  "Quelles plantes dominent d’octobre à décembre ?",
+  "Qui apprécie particulièrement les carrés végétaux ?",
+  "Qui est responsable du secteur fleurs artificielles ?",
+  "Qui fait le remplissage du “rouge en vert” ?",
+  "Qui met les bouquets en valeur ?",
+  "Qui réalise les compositions ?",
+  "Si un article n'a pas de code-barres, il faut :",
+  "Sur quel logiciel peut-on rechercher des informations sur un article chez Famiflora ?",
+  "Travailler en équipe c’est :",
+  "Une bonne attitude c’est :",
+  "À quelle condition une réduction peut-elle aller jusqu'à 50% ?",
+  "À quoi servent les carrés végétaux ?",
+];
+function estQuestionExclue($q) {
+  global $QUESTIONS_EXCLUES;
+  $n = normaliseTexteQuestion($q);
+  foreach ($QUESTIONS_EXCLUES as $ref) {
+    if ($n === normaliseTexteQuestion($ref)) { return true; }
+  }
+  return false;
 }
 $CODE_GRAINES = 10;   // graines par code bonus (comptent dans le classement)
 $MAX_CODES    = 2;    // combien de codes une même personne peut cumuler
@@ -347,16 +874,130 @@ function exigeRh($input) {
  * LECTURE SEULE (verrou partagé : plusieurs lecteurs en même temps, c'est permis).
  * À n'utiliser que quand on ne compte PAS réécrire derrière.
  */
+/**
+ * Lit un fichier JSON. Renvoie null si le fichier est absent, vide ou illisible
+ * — on distingue « pas de contenu » de « contenu invalide », c'est ce qui permet
+ * de basculer sur la sauvegarde plutôt que de repartir de zéro.
+ */
+function famiLitJsonBrut($file) {
+  if (!is_file($file)) return null;
+  $c = @file_get_contents($file);
+  if ($c === false || trim($c) === '') return null;
+  $d = json_decode($c, true);
+  return is_array($d) ? $d : null;
+}
+
 function readJson($file) {
-  if (!file_exists($file)) return [];
-  $fp = @fopen($file, 'r');
-  if (!$fp) return [];
-  flock($fp, LOCK_SH);
-  $content = stream_get_contents($fp);
-  flock($fp, LOCK_UN);
+  $d = famiLitJsonBrut($file);
+  if ($d !== null) return $d;
+  // ⛑️ FILET DE SÉCURITÉ. Le fichier principal est illisible (coupure en pleine
+  // écriture, disque plein…) : on repart de la dernière version saine plutôt que
+  // de rendre un classement VIDE. Rendre vide serait le pire : la page l'afficherait
+  // comme la vérité, puis le prochain enregistrement l'écrirait par-dessus la
+  // sauvegarde. Une donnée qu'on ne peut pas reconstituer serait perdue pour de bon.
+  $secours = famiLitJsonBrut($file . '.bak');
+  if ($secours !== null) {
+    error_log('[quiz] ' . basename($file) . ' illisible : reprise sur la sauvegarde .bak');
+    return $secours;
+  }
+  return [];
+}
+
+/**
+ * ÉCRITURE ATOMIQUE — le cœur de la protection du classement.
+ *
+ * L'ancienne façon de faire (ftruncate puis fwrite sur le fichier lui-même)
+ * laissait le fichier VIDE entre les deux opérations. Un conteneur remplacé, un
+ * plantage ou un manque de mémoire pile à cet instant, et tout le classement du
+ * magasin disparaissait.
+ *
+ * Ici on écrit à côté, on force sur le disque, puis on renomme. rename() est
+ * atomique sur le système de fichiers : à tout instant, le fichier final est
+ * soit l'ancien complet, soit le nouveau complet. Jamais un entre-deux.
+ *
+ * @return bool false si RIEN n'a été écrit (l'ancien fichier reste intact).
+ */
+function famiEcritJsonAtomique($file, $data) {
+  $json = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+  if ($json === false) {
+    error_log('[quiz] encodage JSON impossible pour ' . basename($file) . ' : rien touché');
+    return false;   // on ne détruit surtout pas ce qui existe
+  }
+
+  $tmp = $file . '.tmp';
+  $fp = @fopen($tmp, 'wb');
+  if (!$fp) return false;
+  $ecrit = @fwrite($fp, $json);
+  $ok = ($ecrit !== false && $ecrit === strlen($json));
+  if ($ok) {
+    fflush($fp);
+    // fsync : les octets sont sur le DISQUE, pas seulement dans un cache que
+    // l'arrêt du conteneur emporterait.
+    if (function_exists('fsync')) { @fsync($fp); }
+  }
   fclose($fp);
-  $d = json_decode($content, true);
-  return is_array($d) ? $d : [];
+  if (!$ok) { @unlink($tmp); return false; }
+
+  if (!@rename($tmp, $file)) { @unlink($tmp); return false; }
+
+  // Sauvegarde APRÈS le remplacement, pas avant : elle reflète ainsi le dernier
+  // état RÉUSSI, et non l'avant-dernier. Si le fichier principal devient un jour
+  // illisible, on repart du classement complet au lieu d'en perdre la dernière
+  // écriture. Sans danger : rename() étant atomique, le fichier qu'on copie ici
+  // est forcément entier.
+  @copy($file, $file . '.bak');
+  return true;
+}
+
+/**
+ * Verrou d'écriture, porté par un fichier DÉDIÉ (.lock) et non par le fichier
+ * de données.
+ *
+ * C'est indispensable depuis l'écriture atomique : rename() remplace le fichier
+ * de données, donc un verrou posé dessus resterait accroché à l'ancien fichier,
+ * désormais invisible. Deux requêtes simultanées se croiraient alors seules et
+ * la seconde écraserait le travail de la première.
+ *
+ * @return resource|false
+ */
+function famiPrendVerrou($file) {
+  // On tente d'abord le fichier de verrou dédié. S'il ne peut pas être CRÉÉ
+  // (droits du dossier, volume restreint…), on se rabat sur le fichier de
+  // données lui-même — ce que faisait l'ancien code, et qui marchait.
+  //
+  // Sans ce repli, un simple fichier .lock impossible à créer fermait TOUT :
+  // connexion, jardin, envoi de score. Un verrou imparfait vaut infiniment mieux
+  // qu'un service à l'arrêt.
+  $fp = @fopen($file . '.lock', 'c');
+  if (!$fp) { $fp = @fopen($file, 'c'); }
+  if (!$fp) { return false; }
+  @flock($fp, LOCK_EX);           // ⬅ attente ici si quelqu'un d'autre écrit
+  return $fp;
+}
+
+/**
+ * Écriture EN PLACE — l'ancienne méthode, gardée comme dernier recours.
+ * Moins sûre (le fichier est vide un très court instant), mais elle fonctionne
+ * là où le renommage atomique échoue. Mieux vaut ce risque minuscule qu'une
+ * donnée perdue parce qu'on a refusé d'écrire.
+ */
+function famiEcritJsonEnPlace($file, $data) {
+  $json = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+  if ($json === false) { return false; }
+  $fp = @fopen($file, 'c');
+  if (!$fp) { return false; }
+  @flock($fp, LOCK_EX);
+  @ftruncate($fp, 0);
+  @rewind($fp);
+  $ok = (@fwrite($fp, $json) !== false);
+  @fflush($fp);
+  @flock($fp, LOCK_UN);
+  @fclose($fp);
+  return $ok;
+}
+
+function famiRendVerrou($fp) {
+  if ($fp) { flock($fp, LOCK_UN); fclose($fp); }
 }
 
 /**
@@ -370,44 +1011,39 @@ function readJson($file) {
  * pour que le fichier soit réécrit. Ce que $fn retourne est renvoyé tel quel.
  */
 function withLock($file, callable $fn) {
-  $fp = @fopen($file, 'c+');            // 'c+' : crée si absent, ne tronque pas
-  if (!$fp) {
-    http_response_code(500);
-    return ['error' => 'Fichier de données verrouillé'];
-  }
-  flock($fp, LOCK_EX);                  // ⬅ attente ici si quelqu'un d'autre écrit
+  // ⚠️ ON NE REFUSE JAMAIS DE TRAVAILLER. Pas de verrou obtenu ? On continue
+  // sans. Le risque de collision entre deux joueurs simultanés est minime ; le
+  // risque de fermer le jeu à tout le monde était, lui, certain.
+  $verrou = famiPrendVerrou($file);
+  if (!$verrou) { error_log('[quiz] verrou indisponible sur ' . basename($file) . ' : on continue sans'); }
 
-  rewind($fp);
-  $content = stream_get_contents($fp);
-  $data = json_decode($content, true);
-  if (!is_array($data)) { $data = []; }
+  // readJson() bascule au besoin sur la sauvegarde .bak.
+  $data = readJson($file);
 
   $write = false;
   $reponse = $fn($data, $write);
 
   if ($write) {
-    rewind($fp);
-    ftruncate($fp, 0);
-    fwrite($fp, json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
-    fflush($fp);
+    // Écriture atomique en priorité ; en dernier recours, l'ancienne écriture en
+    // place. Ne JAMAIS renvoyer d'erreur ici : le joueur ne doit pas rester
+    // coincé parce qu'un renommage a échoué sur ce système de fichiers.
+    if (!famiEcritJsonAtomique($file, $data)) {
+      error_log('[quiz] ecriture atomique impossible sur ' . basename($file) . ' : repli en place');
+      famiEcritJsonEnPlace($file, $data);
+    }
   }
-  flock($fp, LOCK_UN);
-  fclose($fp);
+
+  famiRendVerrou($verrou);
   return $reponse;
 }
 
 /** Écriture simple (sans lecture préalable) : uniquement pour la remise à zéro. */
 function writeJson($file, $data) {
-  $fp = @fopen($file, 'c');
-  if (!$fp) return false;
-  flock($fp, LOCK_EX);
-  ftruncate($fp, 0);
-  rewind($fp);
-  fwrite($fp, json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
-  fflush($fp);
-  flock($fp, LOCK_UN);
-  fclose($fp);
-  return true;
+  $verrou = famiPrendVerrou($file);
+  if (!$verrou) return false;
+  $ok = famiEcritJsonAtomique($file, $data);
+  famiRendVerrou($verrou);
+  return $ok;
 }
 
 function sortBoard(&$board) {
@@ -448,6 +1084,11 @@ function famiDb() {
   // erreur incompréhensible. On avale tout ce qui pourrait sortir.
   ob_start();
   require_once $lib;
+  // Liste du personnel : sert à donner d'emblée le bon profil à quelqu'un qui
+  // s'inscrit et qui travaille déjà chez Famiflora (voir roleInscription()).
+  foreach ([__DIR__ . '/../includes/personnel_liste.php', __DIR__ . '/../public/includes/personnel_liste.php'] as $pl) {
+    if (is_file($pl)) { require_once $pl; break; }
+  }
   ob_end_clean();
   try {
     // QUIZ_DB_DSN sert aux essais hors ligne (SQLite) ; en production, ce sont
@@ -781,7 +1422,7 @@ function traiteInscritGroupe(PDO $db, array $p, $siteId, $heures, $parNom = fals
     $ins = $db->prepare('INSERT INTO utilisateurs (identifiant, nom, prenom, email, mot_de_passe, role, account_activation_pending, site_id, statut_date)
                          VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)');
     $ins->execute([$identifiant, $nom, $prenom, $email,
-      password_hash(bin2hex(random_bytes(16)), PASSWORD_DEFAULT), 'beta', $siteId, date('Y-m-d H:i:s')]);
+      password_hash(bin2hex(random_bytes(16)), PASSWORD_DEFAULT), roleInscription($prenom, $nom), $siteId, date('Y-m-d H:i:s')]);
     $uid = (int) $db->lastInsertId();
     if (envoiFunActivation($db, $uid, $heures)) { return 'cree'; }
     try { $db->prepare('DELETE FROM utilisateurs WHERE id = ?')->execute([$uid]); } catch (Throwable $e) {}
@@ -827,7 +1468,7 @@ function marquePrevenu($cle) {
 }
 // ✉️ Envoie le mail « viens voir les RH » à une personne (par identifiant
 // minuscule). $info = ['type'=>'podium'|'jardin','rang'=>?]. true si parti.
-function mailRecompense(PDO $db, $cle, $info) {
+function mailRecompense(PDO $db, $cle, $info, $modele = 'attente') {
   try {
     $q = $db->prepare('SELECT email, prenom, nom FROM utilisateurs WHERE LOWER(identifiant) = ? LIMIT 1');
     $q->execute([$cle]);
@@ -837,27 +1478,44 @@ function mailRecompense(PDO $db, $cle, $info) {
   if (!filter_var($email, FILTER_VALIDATE_EMAIL)) { return false; }
   $prenom = trim((string) ($u['prenom'] ?? ''));
   $bonjour = $prenom !== '' ? $prenom : 'à toi';
-  if (($info['type'] ?? '') === 'podium') {
-    $rang = (int) ($info['rang'] ?? 0);
-    $sujet = '🏆 Bravo — ta récompense t\'attend chez Famiflora !';
-    $intro = 'Félicitations, tu termines <b>' . ($rang === 1 ? '1er' : $rang . 'e') . '</b> du grand quiz Famiformation&nbsp;! 🎉';
-    $quand = ' (à partir du <b>01/09</b>)';   // podium : remise à partir du 01/09
+  $modele = ($modele === 'prete') ? 'prete' : 'attente';
+
+  // Le MOTIF de la récompense : podium avec son rang, ou jardin terminé.
+  $estPodium = (($info['type'] ?? '') === 'podium');
+  $rang = (int) ($info['rang'] ?? 0);
+  $place = ($rang === 1) ? '1re place' : $rang . 'e place';
+
+  if ($modele === 'attente') {
+    // 1️⃣ ON PRÉPARE. Envoyé dès que la personne devient gagnante : on félicite,
+    // on annonce qu'un second mail suivra. Sans ça, quelqu'un qui gagne le
+    // 20/08 n'entendait plus parler de rien jusqu'au 01/09.
+    $sujet = $estPodium
+      ? '🏆 Bravo — on prépare ta récompense !'
+      : '🌼 Bravo — on prépare ta récompense !';
+    $felicite = $estPodium
+      ? 'L\'équipe Famiformation te félicite pour ta <b>' . $place . '</b> au grand quiz&nbsp;! 🏆'
+      : 'L\'équipe Famiformation te félicite pour avoir <b>terminé ton jardin</b>&nbsp;! 🌼';
+    $suite = 'On <b>prépare ta récompense</b>. Nous t\'enverrons un mail dès que tu pourras venir la récupérer.';
   } else {
-    $sujet = '🎁 Bravo — ta récompense t\'attend chez Famiflora !';
-    $intro = 'Bravo, tu as <b>terminé ton jardin</b> — tu fais partie des gagnants&nbsp;! 🌼';
-    $quand = '';                              // jardin : récompense dispo dès maintenant (pas d\'attente)
+    // 2️⃣ C'EST PRÊT. Envoyé par les RH le jour où la récompense est disponible.
+    // Plus de rappel du classement ici : à ce stade la seule information utile,
+    // c'est qu'elle est prête et où la chercher.
+    $sujet = '🎁 Ta récompense est prête !';
+    $felicite = 'Bonne nouvelle : <b>ta récompense est prête</b>&nbsp;! 🎁';
+    $suite = 'Pour la récupérer, présente-toi <b>auprès des RH</b> du magasin.';
   }
+
   $body = '<div style="font-family:Arial,sans-serif;color:#244230;max-width:560px;margin:0 auto;padding:24px;">'
     . '<p style="font-size:16px;">Bonjour ' . htmlspecialchars($bonjour, ENT_QUOTES, 'UTF-8') . ',</p>'
-    . '<p style="font-size:16px;line-height:1.6;">' . $intro . '</p>'
-    . '<p style="font-size:16px;line-height:1.6;">Pour <b>récupérer ta récompense</b>, présente-toi <b>auprès des RH</b> du magasin' . $quand . '. '
+    . '<p style="font-size:16px;line-height:1.6;">' . $felicite . '</p>'
+    . '<p style="font-size:16px;line-height:1.6;">' . $suite . ' '
     . 'Une question&nbsp;? Écris à <a href="mailto:admin@famiformation.com">admin@famiformation.com</a>.</p>'
     . '<p style="font-size:15px;color:#617268;">Merci d\'avoir joué, et à bientôt&nbsp;! 🌱<br>L\'équipe Famiflora · Famiformation</p></div>';
   $ok = function_exists('sendMail') ? sendMail($email, $sujet, $body, true) : false;
-  // ✅ La personne a bien été prévenue → on prévient AUSSI l'admin (RH) pour qu'il
-  // prépare la récompense. Une seule fois par personne (les appelants gardent le
-  // drapeau dejaPrevenu après un envoi réussi).
-  if ($ok) { mailAdminRecompense($cle, $u, $info); }
+  // On prévient l'admin (RH) uniquement au PREMIER mail (« on prépare ») : c'est
+  // là qu'il y a quelque chose à préparer. Le second part de sa main, inutile de
+  // le lui annoncer.
+  if ($ok && $modele === 'attente') { mailAdminRecompense($cle, $u, $info); }
   return $ok;
 }
 
@@ -912,7 +1570,7 @@ function verifieVainqueursAuto() {
   $joueurs = [];
   foreach ((is_array(readJson($scoresFile)) ? readJson($scoresFile) : []) as $p) {
     if (!is_array($p) || ($p['quiz_fait'] ?? true) === false) { continue; }
-    if (in_array(mb_strtolower((string) ($p['name'] ?? '')), $COMPTES_TEST, true)) { continue; }
+    if (estCompteTest($p)) { continue; }
     $joueurs[] = $p;
   }
   usort($joueurs, function ($a, $b) {
@@ -1149,10 +1807,29 @@ switch ($action) {
     if ($ident === '' || $mdp === '') { echo json_encode(['ok' => false, 'reason' => 'vide']); break; }
     $db = famiDb();
     if (!$db) { http_response_code(503); echo json_encode(['ok' => false, 'reason' => 'base_indisponible']); break; }
-    $stmt = $db->prepare('SELECT id, identifiant, prenom, nom, email, mot_de_passe, account_activation_pending
-                          FROM utilisateurs WHERE identifiant = ? OR email = ? LIMIT 1');
-    $stmt->execute([$ident, mb_strtolower($ident)]);
-    $u = $stmt->fetch();
+    // ⚠️ REQUÊTE PROTÉGÉE. PDO est en mode exception : sans ce try, la moindre
+    // erreur SQL (colonne absente, table verrouillée, connexion coupée en cours)
+    // faisait planter la réponse. Le navigateur recevait alors du HTML d'erreur
+    // au lieu du JSON attendu, n'y comprenait rien, et affichait
+    // « Identifiant ou mot de passe incorrect » — un diagnostic entièrement faux,
+    // qui envoyait le joueur vérifier un mot de passe parfaitement valide.
+    //
+    // La recherche accepte aussi l'identifiant écrit avec une autre casse, et
+    // l'adresse e-mail dans n'importe quelle casse : personne ne doit rester
+    // dehors pour une majuscule.
+    try {
+      $stmt = $db->prepare('SELECT id, identifiant, prenom, nom, email, mot_de_passe, account_activation_pending
+                            FROM utilisateurs
+                            WHERE LOWER(identifiant) = ? OR LOWER(email) = ? LIMIT 1');
+      $stmt->execute([mb_strtolower($ident), mb_strtolower($ident)]);
+      $u = $stmt->fetch();
+    } catch (Throwable $eLog) {
+      // On le DIT au lieu d'accuser le mot de passe.
+      error_log('[quiz] login_fami : erreur base — ' . $eLog->getMessage());
+      http_response_code(503);
+      echo json_encode(['ok' => false, 'reason' => 'base_indisponible']);
+      break;
+    }
     if (!$u) { echo json_encode(['ok' => false, 'reason' => 'inconnu']); break; }
     // Compte créé mais jamais activé : inutile de parler de mot de passe, il n'en
     // a pas encore — on le renvoie vers son mail.
@@ -1206,7 +1883,50 @@ switch ($action) {
         exit;
       }
     }
-    echo json_encode(['ok' => false, 'reason' => 'inconnu']);
+    // 🌱 PREMIÈRE ARRIVÉE DEPUIS FAMIFORMATION (tuile « Quiz & mon espace jardin »).
+    // Aucune fiche de joueur n'existe encore. On répondait « inconnu », et la page
+    // redemandait alors identifiant + mot de passe — à quelqu'un qui vient
+    // justement d'un espace où il est DÉJÀ connecté. Le jeton est signé par notre
+    // serveur : l'uid et l'identifiant qu'il porte sont sûrs. On ouvre donc sa
+    // fiche ici, exactement comme login_fami le fait à la première connexion.
+    //
+    // Si la base est indisponible on répond « inconnu » comme avant : on ne casse
+    // rien, la personne peut encore passer par la connexion classique.
+    $dbMoi = famiDb();
+    if (!$dbMoi) { echo json_encode(['ok' => false, 'reason' => 'inconnu']); break; }
+    try {
+      $stMoi = $dbMoi->prepare('SELECT id, identifiant, prenom, nom FROM utilisateurs WHERE id = ? LIMIT 1');
+      $stMoi->execute([(int) $j['uid']]);
+      $uMoi = $stMoi->fetch();
+    } catch (Throwable $eMoi) {
+      error_log('[quiz] moi : erreur base — ' . $eMoi->getMessage());
+      echo json_encode(['ok' => false, 'reason' => 'inconnu']);
+      break;
+    }
+    // Le compte doit exister ET porter l'identifiant du jeton : un jeton vit 60
+    // jours, le compte a pu être renommé ou supprimé entre-temps.
+    if (!$uMoi || mb_strtolower((string) $uMoi['identifiant']) !== mb_strtolower($j['identifiant'])) {
+      echo json_encode(['ok' => false, 'reason' => 'inconnu']);
+      break;
+    }
+    $ficheMoi = withLock($scoresFile, function (&$board, &$write) use ($uMoi) {
+      // Relecture sous verrou : deux onglets ouverts en même temps ne doivent pas
+      // créer deux fiches pour la même personne.
+      foreach ($board as &$p) {
+        if (mb_strtolower((string) ($p['name'] ?? '')) === mb_strtolower((string) $uMoi['identifiant'])) {
+          return ['quiz_fait' => ($p['quiz_fait'] ?? true), 'recoltees' => round(floatval($p['score'] ?? 0), 1),
+                  'solde' => soldeDe($p), 'nbCodes' => intval($p['codes'] ?? 0), 'pseudo' => ($p['pseudo'] ?? '')];
+        }
+      }
+      unset($p);
+      $board[] = ['name' => $uMoi['identifiant'], 'uid' => (int) $uMoi['id'], 'nom' => $uMoi['nom'], 'prenom' => $uMoi['prenom'],
+        'score' => 0, 'bonus' => 0, 'depensees' => 0, 'correct' => 0, 'codes' => 0, 'codes_pris' => [],
+        'time' => 0, 'quiz_fait' => false, 'date' => date('c')];
+      $write = true;
+      return ['quiz_fait' => false, 'recoltees' => 0, 'solde' => 0, 'nbCodes' => 0, 'pseudo' => ''];
+    });
+    echo json_encode(['ok' => true, 'joueur' => ['name' => $uMoi['identifiant'], 'uid' => (int) $uMoi['id'],
+      'prenom' => $uMoi['prenom'], 'nom' => $uMoi['nom']] + $ficheMoi], JSON_UNESCAPED_UNICODE);
     break;
   }
 
@@ -1282,7 +2002,7 @@ switch ($action) {
       $ins = $db->prepare('INSERT INTO utilisateurs (identifiant, nom, prenom, email, mot_de_passe, role, account_activation_pending, site_id, statut_date)
                            VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)');
       $ins->execute([$identifiant, $nom, $prenom, $email,
-        password_hash(bin2hex(random_bytes(16)), PASSWORD_DEFAULT), 'beta', $siteId, date('Y-m-d H:i:s')]);
+        password_hash(bin2hex(random_bytes(16)), PASSWORD_DEFAULT), roleInscription($prenom, $nom), $siteId, date('Y-m-d H:i:s')]);
       $uid = (int) $db->lastInsertId();
     } catch (Throwable $e) {
       http_response_code(500); echo json_encode(['ok' => false, 'reason' => 'creation_impossible']); break;
@@ -1461,13 +2181,31 @@ switch ($action) {
     foreach ((is_array($board) ? $board : []) as $p) {
       if (is_array($p)) { $parNom[mb_strtolower((string) ($p['name'] ?? ''))] = $p; }
     }
-    $ligne = function ($p, $cle) {
+    // 📧 Les adresses ne sont PAS dans le fichier des scores : on va les chercher
+    // dans les comptes Famiformation, en UNE seule requête pour tout le monde.
+    // Les RH en ont besoin pour recontacter un gagnant qui ne se présente pas, et
+    // pour voir d'un coup d'œil qui n'a pas d'adresse — donc qui ne recevra jamais
+    // le mail « viens chercher ta récompense ».
+    // ⚠️ AUCUN ACCÈS À LA BASE ICI. Cette action sert AUSSI à se connecter : le
+    // formulaire RH l'appelle pour valider le mot de passe. Tout ce qui peut
+    // échouer ici empêche donc les RH d'ENTRER, pas seulement d'afficher une
+    // colonne. Les adresses sont récupérées à part, par l'action rh_adresses,
+    // dont l'échec ne prive que d'une information secondaire.
+    //
+    // Les compteurs d'envoi, eux, viennent du fichier RH déjà lu : aucun risque.
+    $compteurs = (is_array($remises) && isset($remises['mails']) && is_array($remises['mails'])) ? $remises['mails'] : [];
+
+    $ligne = function ($p, $cle) use ($compteurs) {
+      $c = is_array($compteurs[$cle] ?? null) ? $compteurs[$cle] : [];
       return [
         'name'   => (string) ($p['name'] ?? $cle),
         'pseudo' => (string) ($p['pseudo'] ?? ''),
         'prenom' => (string) ($p['prenom'] ?? ''),
         'nom'    => (string) ($p['nom'] ?? ''),
         'score'  => round(floatval($p['score'] ?? 0), 1),
+        'nb_attente' => (int) ($c['attente'] ?? 0),
+        'nb_prete'   => (int) ($c['prete'] ?? 0),
+        'dernier'    => (string) ($c['dernier'] ?? ''),
       ];
     };
 
@@ -1476,7 +2214,7 @@ switch ($action) {
     foreach ((is_array($board) ? $board : []) as $p) {
       if (!is_array($p)) { continue; }
       if (($p['quiz_fait'] ?? true) === false) { continue; }
-      if (in_array(mb_strtolower((string) ($p['name'] ?? '')), $COMPTES_TEST, true)) { continue; }
+      if (estCompteTest($p)) { continue; }
       $joueurs[] = $p;
     }
     usort($joueurs, function ($a, $b) {
@@ -1539,6 +2277,36 @@ switch ($action) {
   // ✉️ Prévenir par MAIL les vainqueurs (podium) + jardins terminés : message
   // simple « viens récupérer ta récompense auprès des RH ». On ne renvoie qu'une
   // fois par personne (suivi dans rh-<site>.json['prevenu']).
+  // 📧 ADRESSES DES GAGNANTS — action SÉPARÉE, appelée après l'affichage.
+  // Volontairement hors de rh_liste : celle-ci sert à se connecter, et une base
+  // injoignable ne doit pas fermer la porte des RH. Ici, un échec ne coûte que
+  // l'affichage des adresses.
+  case 'rh_adresses': {
+    exigeRh($input);
+    $ids = array_values(array_filter(array_map(
+      function ($x) { return mb_strtolower(trim((string) $x)); },
+      (array) ($input['ids'] ?? [])
+    )));
+    $sortie = [];
+    try {
+      if (!empty($ids) && count($ids) <= 400) {
+        $dbA = famiDb();
+        if ($dbA) {
+          $trous = implode(',', array_fill(0, count($ids), '?'));
+          $qa = $dbA->prepare("SELECT LOWER(identifiant) AS ident, email FROM utilisateurs WHERE LOWER(identifiant) IN ($trous)");
+          $qa->execute($ids);
+          foreach ($qa->fetchAll(PDO::FETCH_ASSOC) as $lig) {
+            $sortie[(string) $lig['ident']] = trim((string) ($lig['email'] ?? ''));
+          }
+        }
+      }
+    } catch (Throwable $eA) {
+      error_log('[quiz] rh_adresses : ' . $eA->getMessage());
+    }
+    echo json_encode(['ok' => true, 'adresses' => $sortie], JSON_UNESCAPED_UNICODE);
+    break;
+  }
+
   case 'rh_mail': {
     exigeRh($input);
     $db = famiDb();
@@ -1552,7 +2320,7 @@ switch ($action) {
     foreach ((is_array($board) ? $board : []) as $p) {
       if (!is_array($p)) { continue; }
       if (($p['quiz_fait'] ?? true) === false) { continue; }
-      if (in_array(mb_strtolower((string) ($p['name'] ?? '')), $COMPTES_TEST, true)) { continue; }
+      if (estCompteTest($p)) { continue; }
       $joueurs[] = $p;
     }
     usort($joueurs, function ($a, $b) {
@@ -1573,44 +2341,59 @@ switch ($action) {
       }
     }
 
-    $deja = readJson($rhFile);
-    $prevenus = (is_array($deja) && isset($deja['prevenu']) && is_array($deja['prevenu'])) ? $deja['prevenu'] : [];
-    $res = ['envoye' => 0, 'deja' => 0, 'sans_mail' => 0, 'echec' => 0];
+    // 🎯 QUI, ET QUEL MAIL. Les RH choisissent les personnes (cases à cocher) et
+    // le modèle. Rien n'est plus envoyé « à tout le monde d'un coup ».
+    //
+    // Et on n'interdit PLUS le renvoi : un mail perdu dans les indésirables, une
+    // adresse corrigée, une relance avant la fermeture — il faut pouvoir renvoyer.
+    // On COMPTE les envois au lieu de les bloquer, ce qui informe sans empêcher.
+    $modele = (($input['modele'] ?? '') === 'prete') ? 'prete' : 'attente';
+    $demandes = array_values(array_filter(array_map(
+      function ($x) { return mb_strtolower(trim((string) $x)); },
+      (array) ($input['ids'] ?? [])
+    )));
+    // Sans liste explicite, on garde l'ancien comportement : tous les gagnants.
+    if (!empty($demandes)) {
+      $cibles = array_intersect_key($cibles, array_flip($demandes));
+    }
+
+    $res = ['envoye' => 0, 'deja' => 0, 'sans_mail' => 0, 'echec' => 0, 'modele' => $modele];
     $faits = [];
     foreach ($cibles as $cle => $info) {
-      if (!empty($prevenus[$cle])) { $res['deja']++; continue; }
-      try {
-        $q = $db->prepare('SELECT email, prenom FROM utilisateurs WHERE LOWER(identifiant) = ? LIMIT 1');
-        $q->execute([$cle]);
-        $u = $q->fetch(PDO::FETCH_ASSOC);
-      } catch (Throwable $e) { $u = null; }
-      $email = $u ? trim((string) ($u['email'] ?? '')) : '';
-      if (!filter_var($email, FILTER_VALIDATE_EMAIL)) { $res['sans_mail']++; continue; }
-      $prenom = trim((string) ($u['prenom'] ?? ''));
-      $bonjour = $prenom !== '' ? $prenom : 'à toi';
-      if ($info['type'] === 'podium') {
-        $sujet = '🏆 Bravo — ta récompense t\'attend chez Famiflora !';
-        $intro = 'Félicitations, tu termines <b>' . ($info['rang'] == 1 ? '1er' : $info['rang'] . 'e') . '</b> du grand quiz Famiformation&nbsp;! 🎉';
-        $quand = ' (à partir du <b>01/09</b>)';   // podium : remise à partir du 01/09
+      // Un seul endroit construit ces mails : mailRecompense(). L'ancien code
+      // recopiait le texte ici, si bien qu'une correction devait être faite deux
+      // fois — et ne l'était jamais.
+      $ok = mailRecompense($db, $cle, $info, $modele);
+      if ($ok) {
+        $res['envoye']++;
+        $faits[] = $cle;
       } else {
-        $sujet = '🎁 Bravo — ta récompense t\'attend chez Famiflora !';
-        $intro = 'Bravo, tu as <b>terminé ton jardin</b> — tu fais partie des gagnants&nbsp;! 🌼';
-        $quand = '';                              // jardin : récompense dispo dès maintenant
+        // mailRecompense renvoie false aussi bien pour une adresse absente que
+        // pour un envoi rate : on distingue les deux, les RH n'ont pas le meme
+        // geste a faire.
+        $sansMail = true;
+        try {
+          $q = $db->prepare('SELECT email FROM utilisateurs WHERE LOWER(identifiant) = ? LIMIT 1');
+          $q->execute([$cle]);
+          $sansMail = !filter_var(trim((string) $q->fetchColumn()), FILTER_VALIDATE_EMAIL);
+        } catch (Throwable $e) {}
+        if ($sansMail) { $res['sans_mail']++; } else { $res['echec']++; }
       }
-      $body = '<div style="font-family:Arial,sans-serif;color:#244230;max-width:560px;margin:0 auto;padding:24px;">'
-        . '<p style="font-size:16px;">Bonjour ' . htmlspecialchars($bonjour, ENT_QUOTES, 'UTF-8') . ',</p>'
-        . '<p style="font-size:16px;line-height:1.6;">' . $intro . '</p>'
-        . '<p style="font-size:16px;line-height:1.6;">Pour <b>récupérer ta récompense</b>, présente-toi <b>auprès des RH</b> du magasin' . $quand . '. '
-        . 'Une question&nbsp;? Écris à <a href="mailto:admin@famiformation.com">admin@famiformation.com</a>.</p>'
-        . '<p style="font-size:15px;color:#617268;">Merci d\'avoir joué, et à bientôt&nbsp;! 🌱<br>L\'équipe Famiflora · Famiformation</p></div>';
-      $ok = function_exists('sendMail') ? sendMail($email, $sujet, $body, true) : false;
-      if ($ok) { $res['envoye']++; $faits[] = $cle; } else { $res['echec']++; }
     }
     if ($faits) {
-      withLock($rhFile, function (&$data, &$write) use ($faits) {
+      withLock($rhFile, function (&$data, &$write) use ($faits, $modele) {
         if (!is_array($data)) { $data = []; }
         if (!isset($data['prevenu']) || !is_array($data['prevenu'])) { $data['prevenu'] = []; }
-        foreach ($faits as $c) { $data['prevenu'][$c] = 1; }
+        // Compteur par personne ET par modèle : « combien de fois ai-je écrit à
+        // cette personne, et pour lui dire quoi ». C'est ce qui remplace le
+        // verrou d'envoi unique.
+        if (!isset($data['mails']) || !is_array($data['mails'])) { $data['mails'] = []; }
+        foreach ($faits as $c) {
+          $data['prevenu'][$c] = 1;   // conservé : sert à l'envoi automatique
+          if (!isset($data['mails'][$c]) || !is_array($data['mails'][$c])) { $data['mails'][$c] = []; }
+          $data['mails'][$c][$modele] = (int) ($data['mails'][$c][$modele] ?? 0) + 1;
+          $data['mails'][$c]['dernier'] = date('c');
+        }
         $write = true;
       });
     }
@@ -2172,20 +2955,35 @@ switch ($action) {
   // Écrit dans questions-<site>.json (à relancer pour chaque magasin).
   case 'questions_seed': {
     exigeAdmin($input);
+    // 😄 La 4e proposition, toujours fausse et toujours drôle.
+    //
+    // Les questions de la base Famiformation n'ont que 3 réponses (A/B/C) : on en
+    // ajoute une quatrième pour détendre. Elle doit rester DRÔLE POUR QUELQU'UN
+    // QUI TRAVAILLE ICI — une blague qu'il faut expliquer n'est pas une blague.
+    // « 42, évidemment » (clin d'œil au Guide du voyageur galactique) et « Google
+    // le sait mieux que moi » ne parlaient à personne et revenaient une fois sur
+    // quinze : elles sont remplacées par des vannes de terrain.
+    //
+    // ⚠️ Toujours EXACTEMENT le même nombre d'entrées ici et dans $RIGOLOTES_NL,
+    // et dans le même ordre : la version NL est reprise par le même index.
     $RIGOLOTES = [
       "Rien du tout, on improvise 😅", "Demander à un collègue 🤷", "Appeler Jimmy 📞",
-      "42, évidemment", "Ça dépend de la météo ☀️", "Un bon barbecue 🍖", "Comme d'habitude, au feeling 😎",
+      "Comme d'habitude, au feeling 😎", "Ça dépend de la météo ☀️", "Un bon barbecue 🍖",
       "Aucune idée, mais ça sonne bien", "La même chose qu'hier", "Fermer les yeux et espérer 🤞",
-      "C'est écrit nulle part, donc non", "Un café d'abord ☕", "Google le sait mieux que moi",
-      "On verra ça lundi", "Poser la question à l'accueil 🙋",
+      "C'est écrit nulle part, donc non", "Un café d'abord ☕", "Demander à la plante, elle sait 🌱",
+      "On verra ça lundi", "Poser la question à l'accueil 🙋", "Sortir la brouette, on ne sait jamais 🛒",
+      "Comme au marché de Noël : au feeling 🎄", "Faire semblant de ne pas avoir vu 🙈",
+      "Attendre que quelqu'un d'autre le fasse 😴", "En parler à la pause ☕",
     ];
     // Version NL des mauvaises réponses rigolotes (même ordre que $RIGOLOTES).
     $RIGOLOTES_NL = [
       "Niets, we improviseren 😅", "Aan een collega vragen 🤷", "Jimmy bellen 📞",
-      "42, uiteraard", "Hangt af van het weer ☀️", "Een goeie barbecue 🍖", "Zoals altijd, op gevoel 😎",
+      "Zoals altijd, op gevoel 😎", "Hangt af van het weer ☀️", "Een goeie barbecue 🍖",
       "Geen idee, maar het klinkt goed", "Hetzelfde als gisteren", "Ogen dicht en hopen 🤞",
-      "Staat nergens, dus nee", "Eerst een koffie ☕", "Google weet het beter dan ik",
-      "We zien wel maandag", "Vraag het aan het onthaal 🙋",
+      "Staat nergens, dus nee", "Eerst een koffie ☕", "Vraag het aan de plant, die weet het 🌱",
+      "We zien wel maandag", "Vraag het aan het onthaal 🙋", "De kruiwagen halen, je weet maar nooit 🛒",
+      "Zoals op de kerstmarkt: op gevoel 🎄", "Doen alsof je niets gezien hebt 🙈",
+      "Wachten tot iemand anders het doet 😴", "Erover praten tijdens de pauze ☕",
     ];
     $lettreVersIndex = ['A' => 0, 'B' => 1, 'C' => 2];
     $tout = [];
@@ -2213,6 +3011,8 @@ switch ($action) {
           $optsNl[] = trim((string)($r[$col . '_nl'] ?? ''));   // NL aligné (vide → fallback FR)
         }
         if ($q === '' || count($opts) < 2) { continue; }
+        // Injouable sans le support ou la formation : on l'écarte du quiz.
+        if (estQuestionExclue($q)) { continue; }
         // Y a-t-il une VRAIE traduction NL de la question (énoncé ou vraies réponses) ?
         // On regarde AVANT d'ajouter la réponse rigolote, pour ne pas afficher une seule
         // proposition en NL au milieu d'une question restée en FR.
@@ -2222,6 +3022,11 @@ switch ($action) {
         if ($correct >= count($opts)) { $correct = 0; }
         $opts[] = $RIGOLOTES[$i % count($RIGOLOTES)];   // réponse fausse rigolote à la fin
         $item = ['q' => $q, 'options' => $opts, 'correct' => $correct, 'theme' => 'entreprise'];
+        // ⭐ Favorites choisies PAR TEXTE. Les questions entreprise viennent de la
+        // base Famiformation, qui n'a pas de colonne « favorite » : sans ça, une
+        // étoile mise à la main dans /quiz/admin serait perdue à chaque
+        // réinstallation des questions.
+        if (estFavoriParTexte($q)) { $item['fav'] = true; }
         // On ne passe en bilingue QUE si la question a une vraie trad NL : dans ce cas
         // seulement, on traduit aussi la réponse rigolote (pour rester 100 % cohérent).
         // Sinon la question entreprise reste entièrement en FR.

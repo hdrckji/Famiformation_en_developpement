@@ -15,7 +15,7 @@ verifierConnexion($db);
 
 $role = (string) ($_SESSION['role'] ?? '');
 if (!in_array($role, ['admin', 'teamcoach'], true)) {
-    header('Location: ../index.php');
+    header('Location: ' . famijobSiteUrl('index.php'));
     exit();
 }
 $isAdmin = ($role === 'admin');

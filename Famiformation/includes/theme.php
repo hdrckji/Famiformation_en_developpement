@@ -140,6 +140,16 @@ if (!function_exists('persoFeatureOn')) {
 if (!function_exists('themesEnabled')) {
     function themesEnabled(PDO $db)
     {
+        // 🧪 LE PROFIL BETA RESTE À L'ÉCART. C'est un espace séparé, avec sa
+        // propre identité et son propre rythme : AUCUN thème du site ne s'y
+        // applique — ni bienvenue, ni anniversaire, ni thème saisonnier.
+        // Ne pas retirer : la beta ne doit jamais hériter du décor du site.
+        if (($_SESSION['role'] ?? '') === 'beta') {
+            return false;
+        }
+        // Réglage du SITE, décidé par l'admin. Le choix personnel se fait
+        // ailleurs, par le thème retenu dans les préférences (famiThemeChoisi) :
+        // « aucun » y coupe le décor pour soi seul.
         return persoFeatureOn($db, 'themes_enabled');
     }
 }
@@ -227,6 +237,87 @@ if (!function_exists('welcomeTheme')) {
     }
 }
 
+if (!function_exists('famiPremiereVisite')) {
+    /**
+     * Est-ce la toute première visite de cette personne ?
+     *
+     * La colonne welcome_seen vaut 0 tant qu'elle n'a jamais ouvert l'accueil ;
+     * index.php la passe à 1 au premier affichage. Le thème est calculé AVANT
+     * cette écriture, donc il s'applique bien à cette première page — et à elle
+     * seule.
+     *
+     * Lu une seule fois par requête : cette fonction est appelée depuis
+     * config.php, donc sur chaque page du site.
+     */
+    function famiPremiereVisite(PDO $db)
+    {
+        static $rep = null;
+        if ($rep !== null) { return $rep; }
+
+        $aujourdhui = date('Y-m-d');
+
+        // 👁 APERÇU ADMIN. ?welcome=preview ne rejouait que l'animation : le thème,
+        // lui, restait éteint, et il était donc IMPOSSIBLE de le voir depuis un
+        // compte déjà accueilli — c'est-à-dire depuis tous les comptes admin.
+        // L'aperçu montre maintenant l'ensemble : décor + animation, exactement ce
+        // que découvre un nouvel arrivant.
+        if ((($_SESSION['role'] ?? '') === 'admin') && (($_GET['welcome'] ?? '') === 'preview')) {
+            $rep = true;
+            return $rep;
+        }
+
+        // Retenu en session pour ne pas relire la base à chaque page. On mémorise
+        // le JOUR et non un simple oui/non : le thème doit tenir toute la journée,
+        // donc la réponse change au passage à minuit.
+        if (isset($_SESSION['fami_welcome_jour'])) {
+            $rep = ((string) $_SESSION['fami_welcome_jour'] === $aujourdhui);
+            return $rep;
+        }
+
+        $rep = false;
+        $uid = (int) ($_SESSION['user_id'] ?? 0);
+        if ($uid > 0) {
+            try {
+                $st = $db->prepare("SELECT welcome_seen, welcome_day FROM utilisateurs WHERE id = ? LIMIT 1");
+                $st->execute([$uid]);
+                $u = $st->fetch(PDO::FETCH_ASSOC);
+                if ($u) {
+                    // Pas encore accueilli : l'animation va se déclencher, le thème
+                    // l'accompagne. Déjà accueilli AUJOURD'HUI : on garde le décor
+                    // toute la journée, sur toutes les pages.
+                    $jour = (string) ($u['welcome_day'] ?? '');
+                    $rep = ((int) $u['welcome_seen'] === 0) || ($jour !== '' && $jour === $aujourdhui);
+                    if ($jour !== '') { $_SESSION['fami_welcome_jour'] = $jour; }
+                }
+            } catch (Exception $e) { /* colonne absente : pas de thème de bienvenue */ }
+        }
+        return $rep;
+    }
+}
+
+if (!function_exists('famiThemeChoisi')) {
+    /**
+     * Thème choisi par l'utilisateur dans ses préférences.
+     * '' = automatique (saison / anniversaire / bienvenue), 'aucun' = aucun décor,
+     * sinon la clé d'un thème qui s'applique IMMÉDIATEMENT, hors de sa saison.
+     */
+    function famiThemeChoisi(PDO $db)
+    {
+        if (!function_exists('widgetUserGet')) { return ''; }
+        return (string) widgetUserGet($db, (int) ($_SESSION['user_id'] ?? 0), 'theme_choisi', '');
+    }
+
+    /** Le thème correspondant à une clé, ou null si la clé est inconnue. */
+    function famiThemeParCle($cle)
+    {
+        $cle = (string) $cle;
+        if ($cle === 'bienvenue' && function_exists('welcomeTheme')) { return welcomeTheme(); }
+        if ($cle === 'anniversaire' && function_exists('birthdayTheme')) { return birthdayTheme(); }
+        $cat = function_exists('siteThemeCatalog') ? siteThemeCatalog() : [];
+        return isset($cat[$cle]) ? (['key' => $cle] + $cat[$cle]) : null;
+    }
+}
+
 if (!function_exists('activePageTheme')) {
     /**
      * Thème à appliquer GLOBALEMENT (fond du site), sur toutes les pages.
@@ -247,6 +338,23 @@ if (!function_exists('activePageTheme')) {
                 return ['key' => $pv] + $catalog[$pv];
             }
         }
+        // 🎨 CHOIX PERSONNEL. Si la personne a choisi un thème dans ses préférences,
+        // il s'applique TOUT DE SUITE et passe avant tout le reste : c'est son
+        // espace, elle décide de son décor sans attendre la bonne saison.
+        // '' = laisser faire l'automatique, 'aucun' = pas de décor du tout.
+        if (themesEnabled($db)) {
+            $__choisi = famiThemeChoisi($db);
+            if ($__choisi === 'aucun') {
+                return null;
+            }
+            if ($__choisi !== '') {
+                $__th = famiThemeParCle($__choisi);
+                if ($__th !== null) {
+                    return $__th;
+                }
+            }
+        }
+
         // L'anniversaire est un thème événementiel comme les autres : soumis au maître,
         // à la catégorie Thèmes, et à son interrupteur individuel theme_anniversaire_on.
         if (($_SESSION['is_birthday_today'] ?? '') === '1'
@@ -254,6 +362,16 @@ if (!function_exists('activePageTheme')) {
             && eventEnabled($db, 'anniversaire')
             && (!function_exists('widgetGet') || widgetGet($db, 'theme_anniversaire_on', '1') === '1')) {
             return birthdayTheme();
+        }
+        // Thème « Bienvenue » : la toute PREMIÈRE visite. Il n'était atteignable que
+        // par l'aperçu admin — autrement dit personne ne l'avait jamais vu, alors
+        // que ses réglages existaient déjà. Il se comporte comme les autres thèmes
+        // événementiels : soumis au maître, à la catégorie Thèmes et à son propre
+        // interrupteur theme_bienvenue_on.
+        if (famiPremiereVisite($db)
+            && themesEnabled($db)
+            && (!function_exists('widgetGet') || widgetGet($db, 'theme_bienvenue_on', '1') === '1')) {
+            return welcomeTheme();
         }
         return activeSiteTheme($db, $pays);
     }

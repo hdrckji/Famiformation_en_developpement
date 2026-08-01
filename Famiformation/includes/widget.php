@@ -536,6 +536,111 @@ BLAGUES
         return widgetGet($db, 'enabled', '1') === '1';
     }
 
+    /**
+     * ─── PRÉFÉRENCES PERSONNELLES DU WIDGET ──────────────────────────────────
+     * Les réglages ci-dessus (enabled, show_meteo…) sont ceux du SITE, décidés
+     * par l'admin. Ceux-là appartiennent à CHAQUE utilisateur : il peut couper
+     * le widget ou l'un de ses blocs pour lui seul, sans rien changer chez les
+     * autres.
+     *
+     * Règle : le réglage du site l'emporte toujours. Si l'admin coupe la météo
+     * pour tout le monde, la préférence personnelle ne peut pas la rallumer —
+     * elle ne peut que retirer davantage, jamais ajouter.
+     */
+    function widgetUserEnsure(PDO $db)
+    {
+        static $ok = false;
+        if ($ok) { return; }
+        try {
+            $db->exec(
+                "CREATE TABLE IF NOT EXISTS widget_user_settings (
+                    user_id INT NOT NULL,
+                    skey VARCHAR(60) NOT NULL,
+                    sval VARCHAR(20) NOT NULL,
+                    PRIMARY KEY (user_id, skey)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+            );
+            $ok = true;
+        } catch (Exception $e) { /* base indisponible : on retombera sur les défauts */ }
+    }
+
+    /**
+     * Clés que l'utilisateur a le droit de régler (liste blanche).
+     * « theme_choisi » porte le décor qu'il a retenu ; les autres sont des
+     * interrupteurs du widget.
+     */
+    function widgetUserKeys()
+    {
+        return ['user_enabled', 'user_meteo', 'user_phrases', 'user_date', 'theme_choisi'];
+    }
+
+    /**
+     * Clés dont la valeur est un TEXTE et non un interrupteur.
+     * « theme_choisi » vaut '' (automatique), 'aucun', ou la clé d'un thème.
+     */
+    function widgetUserKeysTexte()
+    {
+        return ['theme_choisi'];
+    }
+
+    function widgetUserGet(PDO $db, $userId, $key, $default = '1')
+    {
+        $userId = (int) $userId;
+        if ($userId <= 0 || !in_array($key, widgetUserKeys(), true)) { return $default; }
+        // Volontairement PAS de widgetUserEnsure() ici : la lecture a lieu sur
+        // CHAQUE page du site (themesEnabled), et y placer un CREATE TABLE
+        // revenait à envoyer une requête de structure à chaque affichage. Si la
+        // table n'existe pas encore, le SELECT échoue sans bruit et tout le monde
+        // garde les valeurs par défaut — c'est exactement le comportement voulu.
+        // La table est créée au premier enregistrement (widgetUserSet).
+        static $cache = [];
+        if (!array_key_exists($userId, $cache)) {
+            // CACHE DE SESSION. Ces préférences ne changent que lorsque
+            // l'utilisateur les modifie lui-même — et widgetUserSet() vide alors
+            // le cache. Sans lui, on relisait la table à CHAQUE page du site :
+            // une dépense inutile, et facturée.
+            if (isset($_SESSION['fami_wprefs']) && is_array($_SESSION['fami_wprefs'])
+                && (int) ($_SESSION['fami_wprefs_uid'] ?? 0) === $userId) {
+                $cache[$userId] = $_SESSION['fami_wprefs'];
+            } else {
+                $cache[$userId] = [];
+                try {
+                    $st = $db->prepare("SELECT skey, sval FROM widget_user_settings WHERE user_id = ?");
+                    $st->execute([$userId]);
+                    foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) { $cache[$userId][$r['skey']] = $r['sval']; }
+                } catch (Exception $e) { /* table pas encore créée : valeurs par défaut */ }
+                $_SESSION['fami_wprefs'] = $cache[$userId];
+                $_SESSION['fami_wprefs_uid'] = $userId;
+            }
+        }
+        return array_key_exists($key, $cache[$userId]) ? $cache[$userId][$key] : $default;
+    }
+
+    function widgetUserSet(PDO $db, $userId, $key, $val)
+    {
+        $userId = (int) $userId;
+        if ($userId <= 0 || !in_array($key, widgetUserKeys(), true)) { return false; }
+        widgetUserEnsure($db);
+        // Interrupteur (0/1) ou valeur texte courte selon la clé.
+        $stocke = in_array($key, widgetUserKeysTexte(), true)
+            ? substr((string) $val, 0, 20)
+            : ($val === '1' ? '1' : '0');
+        try {
+            $db->prepare("INSERT INTO widget_user_settings (user_id, skey, sval) VALUES (?, ?, ?)
+                          ON DUPLICATE KEY UPDATE sval = VALUES(sval)")
+               ->execute([$userId, $key, $stocke]);
+            // Le cache de session ne doit pas survivre à une modification.
+            unset($_SESSION['fami_wprefs'], $_SESSION['fami_wprefs_uid']);
+            return true;
+        } catch (Exception $e) { return false; }
+    }
+
+    /** L'utilisateur a-t-il activé ce bloc ? (défaut : oui) */
+    function widgetUserOn(PDO $db, $userId, $key)
+    {
+        return widgetUserGet($db, $userId, $key, '1') === '1';
+    }
+
     function widgetRoles(PDO $db)
     {
         $r = (string) widgetGet($db, 'roles', 'admin');
@@ -545,9 +650,13 @@ BLAGUES
     /**
      * Le widget doit-il être affiché pour ce rôle ? (activé ET rôle autorisé ; liste vide = tous)
      */
-    function userSeesWidget(PDO $db, $role)
+    function userSeesWidget(PDO $db, $role, $userId = null)
     {
         if (!widgetEnabled($db)) {
+            return false;
+        }
+        // Choix personnel : chacun peut masquer le widget pour lui seul.
+        if ($userId !== null && !widgetUserOn($db, $userId, 'user_enabled')) {
             return false;
         }
         $roles = widgetRoles($db);
@@ -657,9 +766,20 @@ BLAGUES
             $items = [$tt('Bienvenue chez Famiflora 🌿', 'Welkom bij Famiflora 🌿')];
         }
         $phrases = $items;
-        // Message de fête (thème événementiel) : alterne avec les phrases habituelles.
+        // Thème du jour. Il était simplement placé EN TÊTE de la liste : il passait
+        // une fois au début puis disparaissait pour tout le reste du cycle, alors
+        // qu'on voulait le voir revenir régulièrement. On l'intercale donc vraiment
+        // entre chaque phrase : thème, phrase, thème, phrase…
+        // Préfixé « Thème : » car seul, le nom passait pour une phrase de plus.
         if (is_string($festiveMessage) && trim($festiveMessage) !== '') {
-            array_unshift($phrases, '🎉 ' . trim($festiveMessage));
+            $ligneTheme = $tt('Thème', 'Thema') . ' : 🎉 ' . trim($festiveMessage);
+            $alterne = [];
+            foreach ($phrases as $p) {
+                $alterne[] = $ligneTheme;
+                $alterne[] = $p;
+            }
+            // Aucune phrase à alterner : on affiche au moins le thème.
+            $phrases = $alterne ?: [$ligneTheme];
         }
         $phrasesAttr = htmlspecialchars(json_encode($phrases, JSON_UNESCAPED_UNICODE), ENT_QUOTES, 'UTF-8');
         // Météo du site (lieu de travail) de l'utilisateur — Open-Meteo, mise en cache
@@ -681,10 +801,14 @@ BLAGUES
         }
         ?>
         <?php
-            // Composants activables individuellement (Paramètres → Widget).
-            $showMeteo = widgetGet($db, 'show_meteo', '1') === '1';
-            $showPhrases = widgetGet($db, 'show_phrases', '1') === '1';
-            $showDate = widgetGet($db, 'show_date', '1') === '1';
+            // Composants activables individuellement (Paramètres → Widget), puis
+            // filtrés par le choix PERSONNEL de l'utilisateur. Le réglage du site
+            // l'emporte : une préférence personnelle peut retirer un bloc, jamais
+            // en rallumer un que l'admin a coupé pour tout le monde.
+            $wUid = (int) ($_SESSION['user_id'] ?? 0);
+            $showMeteo   = widgetGet($db, 'show_meteo', '1') === '1'   && widgetUserOn($db, $wUid, 'user_meteo');
+            $showPhrases = widgetGet($db, 'show_phrases', '1') === '1' && widgetUserOn($db, $wUid, 'user_phrases');
+            $showDate    = widgetGet($db, 'show_date', '1') === '1'    && widgetUserOn($db, $wUid, 'user_date');
 
             // 🍦 TICKET GLACE : collé dans le COIN du widget qui porte sa raison —
             //    en bas à GAUCHE pour la chaleur (côté météo), en bas à DROITE pour le

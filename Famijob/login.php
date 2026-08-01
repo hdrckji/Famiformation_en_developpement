@@ -26,6 +26,17 @@ function resolveFamijobBackgroundUrl(): string {
 
         $version = @filemtime($realPath) ?: time();
 
+        // L'image est dans le dossier FamiJob, à côté de cette page : on renvoie
+        // une URL RELATIVE, valable sur les deux domaines. Une URL absolue
+        // /famijob/... serait fausse sur student.famiformation.com, où famijob/
+        // est déjà la racine : la règle rewrite du Caddyfile la préfixerait une
+        // seconde fois (/famijob/famijob/...) et le fond ne s'afficherait pas.
+        $famijobDir = str_replace('\\', '/', (string) realpath(__DIR__));
+        $normalizedRealPath = str_replace('\\', '/', $realPath);
+        if ($famijobDir !== '' && strpos($normalizedRealPath, $famijobDir . '/') === 0) {
+            return substr($normalizedRealPath, strlen($famijobDir) + 1) . '?v=' . $version;
+        }
+
         if ($docRoot !== false) {
             $normalizedDocRoot = str_replace('\\', '/', $docRoot);
             $normalizedRealPath = str_replace('\\', '/', $realPath);
@@ -70,7 +81,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit();
         }
 
-        header('Location: ../index.php');
+        header('Location: ' . famijobSiteUrl('index.php'));
         exit();
     }
 
@@ -83,7 +94,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= e(famiT('login.page_title')) ?></title>
-    <link rel="shortcut icon" type="image/x-icon" href="../favicon.ico">
+    <link rel="shortcut icon" type="image/x-icon" href="famijob_.ico">
     <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         body {
@@ -242,7 +253,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </form>
 
         <div class="links">
-            <a href="../account_help.php"><?= e(famiT('login.help')) ?></a>
+            <a href="<?= e(famijobSiteUrl('account_help.php')) ?>"><?= e(famiT('login.help')) ?></a>
         </div>
     </div>
 </body>

@@ -477,6 +477,26 @@ body.mode-tele .fami-bulle { display: none; }   /* pas sur la télé */
 .lang-switch button.on { background: var(--pousse); color: #fff; }
 .lang-switch button:not(.on):hover { background: var(--brume); }
 body.mode-tele .lang-switch { display: none; }   /* pas sur la télé */
+/* 🔙 RETOUR VERS FAMIFORMATION.
+   Le quiz est un site STATIQUE : le ruban commun de FamiFormation
+   (public/includes/topbar.php, posé automatiquement sur les pages PHP) ne peut
+   pas s'y injecter. Sans ce lien, entrer dans le quiz depuis la tuile enferme
+   la personne dans /quiz, sans aucun chemin de retour.
+   Il est dans le FLUX de l'en-tête, et non en position fixe : les deux coins du
+   haut sont déjà pris par le sélecteur FR/NL (à gauche) et « se déconnecter »
+   (à droite). */
+.fami-retour { display: inline-flex; align-items: center; gap: 6px; margin-top: 12px;
+  border: 2px solid var(--pousse); background: #fff; color: var(--foret); text-decoration: none;
+  font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: .9rem; line-height: 1;
+  padding: 8px 14px; border-radius: 999px; box-shadow: 0 4px 14px rgba(0,0,0,.10);
+  transition: background .15s, transform .15s; }
+.fami-retour:hover, .fami-retour:active { background: var(--brume); transform: translateY(-1px); }
+/* Jamais sur la télé ni sur la borne : ce sont des écrans publics en libre
+   service, on ne doit pas pouvoir en sortir vers le site interne. Le lien y est
+   aussi RETIRÉ en JavaScript (voir plus bas) ; cette règle évite juste qu'il
+   apparaisse une fraction de seconde avant que le mode soit posé sur le body. */
+body.mode-tele .fami-retour, body.mode-borne .fami-retour { display: none; }
+
 /* 🚪 Bouton « se déconnecter » (haut à droite), présent dans l'espace connecté
    (tableau de bord, jardin, classement…) sur téléphone/ordi. */
 .btn-deco { position: fixed; top: 16px; right: 16px; z-index: 100002; display: inline-flex; align-items: center;
@@ -817,6 +837,40 @@ body.mode-borne .home .home-role { margin-top: clamp(8px, 1.2vh, 14px); }
 body.mode-tele { justify-content: flex-start; padding-top: 20px; }
 body.mode-tele .fami-head { margin-bottom: 6px; }
 body.mode-tele #app { flex: 0 0 auto; }
+
+/* 📺 LA TÉLÉ TIENT DANS L'ÉCRAN, SANS DÉFILEMENT.
+   Toutes les tailles ci-dessus sont calées sur la LARGEUR (clamp(…, 26vw, …)).
+   Sur un écran mural — large mais peu haut — le chrono seul prenait la moitié
+   de la hauteur et le classement partait sous le bord bas. Il fallait faire
+   défiler, ce que personne ne fait devant une télé accrochée au mur.
+   On borne donc chaque taille par la HAUTEUR aussi : min(taille, Xvh). L'écran
+   se remplit toujours autant, mais rien ne dépasse plus. */
+body.mode-tele {
+  height: 100vh; height: 100dvh;
+  padding: 14px 18px 18px;
+  overflow: hidden;                 /* ce qui compte se voit d'un seul coup d'œil */
+  box-sizing: border-box;
+}
+body.mode-tele .fami-head { margin-bottom: 2px; }
+body.mode-tele .fami-logo { font-size: min(2.4rem, 5vh); }
+body.mode-tele .fami-magasin { font-size: min(1.4rem, 3vh); }
+body.mode-tele #app { width: 100%; }
+body.mode-tele .tv { padding: 0; }
+
+/* Compte à rebours : c'est lui qui débordait le plus. */
+body.mode-tele .tv-phase  { font-size: min(1.6rem, 3.4vh); padding: min(10px, 1.3vh) 26px; margin-bottom: min(24px, 2.6vh); }
+body.mode-tele .tv-chrono { font-size: min(17rem, 26vw, 44vh); }
+body.mode-tele .tv-tree   { font-size: min(3.6rem, 11vh); margin-top: min(14px, 1.4vh); }
+body.mode-tele .tv-sub    { font-size: min(1.5rem, 3.2vh); margin-top: min(12px, 1.4vh); }
+
+/* Classement + QR côte à côte : on les aligne en haut et on retire la grande
+   marge qui poussait le QR vers le bas. */
+body.mode-tele .tv-cols  { gap: min(30px, 2.5vw); align-items: flex-start; }
+body.mode-tele .tv-row   { font-size: min(1.5rem, 3vh); padding: min(12px, 1.4vh) 20px; margin-bottom: min(10px, 1.1vh); }
+body.mode-tele .tv-qr    { margin-top: 0; width: min(280px, 20vw, 30vh); }
+body.mode-tele .tv-codes { font-size: min(1.5rem, 2.8vh); padding: min(10px, 1.2vh) 14px; margin-bottom: min(16px, 1.8vh); }
+body.mode-tele .tv-scan  { font-size: min(1.6rem, 3vh); margin-top: min(14px, 1.4vh); }
+body.mode-tele .tv-url   { font-size: min(1.05rem, 2.2vh); }
 .tv-cols { display: flex; gap: 30px; align-items: center; justify-content: center; flex-wrap: wrap; }
 .tv-board { flex: 1 1 320px; max-width: 520px; text-align: left; }
 .tv-row { display: flex; justify-content: space-between; gap: 12px; background: var(--craie); border-radius: 14px;
@@ -1032,6 +1086,7 @@ body.mode-tele #app { flex: 0 0 auto; }
   <div class="fami-logo">Famiformation <span>●</span></div>
   <div class="fami-tag" id="fami-tag">Le grand quiz de lancement</div>
   <div class="fami-magasin" id="fami-magasin"></div>
+  <a class="fami-retour" id="fami-retour" href="#">⬅ <span>Retour à FamiFormation</span></a>
 </header>
 
 <main id="app" style="width:100%; display:flex; flex-direction:column; align-items:center;"></main>
@@ -1090,8 +1145,16 @@ const affG = (n) => Math.round(Number(n) || 0);
 // 🧪 Compte de test : le pseudo « Testeur » sert à essayer le jeu EN VRAI (borne,
 // téléphone, ordi) sans déranger personne — il n'apparaît pas au classement et
 // rien ne lui est verrouillé (quiz rejouable, jardin toujours ouvert).
-const COMPTES_TEST = ["testeur", "admin_"];
-function estCompteTest() { return !!joueur && COMPTES_TEST.includes((joueur.name || "").toLowerCase()); }
+const COMPTES_TEST = ["testeur"];
+// Tout compte commençant par « admin_ » est un compte de service (admin_,
+// admin_jimmy, admin_borne…) : il ne doit jamais peser sur le classement. Le
+// test exact d'avant ne couvrait que le compte nommé littéralement « admin_ ».
+const PREFIXES_TEST = ["admin_"];
+function estNomTest(n) {
+  const s = (n || "").toLowerCase();
+  return COMPTES_TEST.includes(s) || PREFIXES_TEST.some((p) => s.startsWith(p));
+}
+function estCompteTest() { return !!joueur && estNomTest(joueur.name); }
 const toutOuvert = () => SIMULATION || estCompteTest();
 
 /* ============================================================
@@ -1172,6 +1235,21 @@ function quizBase() {
   const racine = location.origin + (i >= 0 ? location.pathname.slice(0, i) : "") + "/quiz/";
   return SITE ? racine + SITE + "/" : racine;
 }
+// 🔙 LIEN « Retour à FamiFormation » de l'en-tête.
+// La cible se DÉDUIT de l'adresse courante, comme quizBase() : c'est tout ce qui
+// précède « /quiz ». Écrire « /index.php » en dur casserait le lien le jour où
+// le site serait servi sous un sous-chemin.
+// Sur la télé et sur la borne, le lien est retiré du document : ce sont des
+// écrans publics posés en magasin, sortir vers le site interne n'a aucun sens et
+// laisserait un client s'y promener.
+(function () {
+  const a = document.getElementById("fami-retour");
+  if (!a) return;
+  if (ECRAN === "tele" || ECRAN === "borne") { a.remove(); return; }
+  const i = location.pathname.indexOf("/quiz");
+  a.href = location.origin + (i >= 0 ? location.pathname.slice(0, i) : "") + "/index.php";
+})();
+
 let simPret = { board: false, jardin: false };   // 1er chargement réel, ensuite local
 let simTimers = [];
 function stopSim() { simTimers.forEach((t) => { clearTimeout(t); clearInterval(t); }); simTimers = []; }
@@ -1294,13 +1372,35 @@ async function apiSubmit(entry) {
     board.sort((a, b) => b.score - a.score || a.time - b.time);
     return true;
   }
-  const r = await fetch(`${CONFIG.api}?site=${SITE}&action=submit`, {
-    method: "POST", headers: { "Content-Type": "application/json" },
-    // Le jeton prouve que c'est bien MON compte (les comptes Famiformation n'ont
-    // pas de code jardinier : sans jeton, le serveur refuse d'écrire sous ce nom).
-    body: JSON.stringify({ ...entry, jeton: (joueur && joueur.jeton) || "" }),
-  });
-  return r.status !== 409;
+  // 🛡️ ON NE PERD PAS UN SCORE.
+  // Le réseau d'un magasin décroche, le serveur est redéployé, une écriture
+  // échoue : sans insistance, la récolte du joueur disparaissait sans un mot.
+  // On réessaie donc plusieurs fois, en espaçant les tentatives.
+  //
+  // C'est sans danger : le serveur est IDEMPOTENT. Si le score était en fait
+  // déjà enregistré et que seule la réponse s'est perdue, la tentative suivante
+  // retombe sur « quiz déjà fait » et renvoie un succès — jamais un doublon,
+  // jamais un score compté deux fois.
+  const attentes = [0, 900, 2000, 4000];   // ~7 s au total : de quoi traverser un redéploiement
+  let derniere = null;
+  for (let essai = 0; essai < attentes.length; essai++) {
+    if (attentes[essai]) { await new Promise((r) => setTimeout(r, attentes[essai])); }
+    try {
+      const r = await fetch(`${CONFIG.api}?site=${SITE}&action=submit`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        // Le jeton prouve que c'est bien MON compte (les comptes Famiformation n'ont
+        // pas de code jardinier : sans jeton, le serveur refuse d'écrire sous ce nom).
+        body: JSON.stringify({ ...entry, jeton: (joueur && joueur.jeton) || "" }),
+      });
+      if (r.status === 409) return false;   // nom pris : réessayer n'y changera rien
+      if (r.ok) return true;                // enregistré (ou déjà enregistré)
+      derniere = "http " + r.status;        // 5xx : le serveur redémarre ou n'a pas pu écrire
+    } catch (e) {
+      derniere = "reseau";                  // coupure : on retente
+    }
+  }
+  console.warn("[quiz] score non enregistré après " + attentes.length + " tentatives :", derniere);
+  return null;                              // null = ÉCHEC, à distinguer de false (nom pris)
 }
 // 🔑 SE CONNECTER avec son compte Famiformation (identifiant OU email + mot de
 // passe). Renvoie un jeton de session + l'état de jeu du joueur.
@@ -1517,7 +1617,11 @@ const app = $("#app");
 const pad = (n) => String(n).padStart(2, "0");
 const medals = ["🥇", "🥈", "🥉"];
 // Nom AFFICHÉ d'un joueur au classement : son pseudo choisi, sinon son identifiant.
-function nomAff(p) { return (p && (p.pseudo || p.name)) || ""; }
+// Nom AFFICHÉ au classement : le pseudo choisi, sinon le PRÉNOM, et seulement en
+// dernier recours la clé du compte. Sans le prénom, quelqu'un connecté avec son
+// compte Famiformation s'affichait sous son identifiant (« jdupont »), ce qui ne
+// parle à personne sur un classement projeté en magasin.
+function nomAff(p) { return (p && (p.pseudo || p.prenom || p.name)) || ""; }
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 function shuffle(arr) {
@@ -1535,7 +1639,7 @@ const QUIZ_THEMES = { entreprise: 10, culture: 5, fun: 5 };
 // ⭐ FAVORIS : par quiz, on garantit ce nombre de questions FAVORITES par thème
 // (tirées au hasard parmi TOUTES les favorites du thème → rotation naturelle),
 // le reste étant complété par des questions normales. La culture n'a pas de favoris.
-const FAV_PAR_THEME = { entreprise: 3, fun: 2, culture: 0 };
+const FAV_PAR_THEME = { entreprise: 5, fun: 2, culture: 0 };
 const QUIZ_TOTAL = Object.values(QUIZ_THEMES).reduce((a, b) => a + b, 0);
 function prepareQuestions() {
   const parTheme = { entreprise: [], culture: [], fun: [] };
@@ -1558,7 +1662,21 @@ function prepareQuestions() {
   // S'il n'y a pas assez de questions dans un thème, on complète avec les autres
   // (mieux vaut un quiz complet qu'un quiz tronqué).
   if (choix.length < QUIZ_TOTAL) choix = choix.concat(shuffle(restes).slice(0, QUIZ_TOTAL - choix.length));
-  return shuffle(choix).map((item) => ({
+
+  // 🔀 ORDRE DE PASSAGE : on ALTERNE normale → favorite → normale → favorite…
+  // tant qu'il reste des favorites, puis on enchaîne les normales restantes.
+  // Les favorites sont les questions « maison » (chiffres Famiflora, anecdotes
+  // vécues) : les étaler ainsi tient le joueur en haleine, au lieu de les
+  // laisser tomber n'importe où — voire toutes d'affilée — au hasard du tirage.
+  const favTirees = shuffle(choix.filter((q) => q.fav));
+  const autres = shuffle(choix.filter((q) => !q.fav));
+  const ordre = [];
+  while (autres.length || favTirees.length) {
+    if (autres.length) ordre.push(autres.shift());
+    if (favTirees.length) ordre.push(favTirees.shift());
+  }
+
+  return ordre.map((item) => ({
     q: item.q,
     q_nl: item.q_nl || "",                       // 🌍 énoncé NL (vide = pas traduit → on affichera le FR)
     options: shuffle(item.options.map((text, i) => ({
@@ -1671,6 +1789,9 @@ function majLangSwitch() {
   // Le tag sous le logo (en-tête fixe) suit aussi la langue — y compris sur la télé.
   const tag = document.getElementById("fami-tag");
   if (tag) tag.textContent = t("Le grand quiz de lancement", "De grote lanceringsquiz");
+  // Le retour vers FamiFormation suit la langue comme le reste de l'en-tête.
+  const ret = document.querySelector("#fami-retour span");
+  if (ret) ret.textContent = t("Retour à FamiFormation", "Terug naar FamiFormation");
 }
 
 // 🔒 Module « Quiz & mon espace jardin » de l'accueil : VERROUILLÉ pour tout le
@@ -1966,11 +2087,45 @@ function renderCountdown() {
   }
 }
 
+// 📺 AJUSTEMENT AUTOMATIQUE DE L'ÉCRAN TÉLÉ.
+//
+// Les tailles du CSS sont bornées par la hauteur, mais un téléviseur reste
+// imprévisible : résolution réelle différente de celle annoncée, zoom du
+// navigateur, bords rognés par la dalle (overscan), classement plus ou moins
+// long selon le nombre de joueurs… Plutôt que de deviner, on MESURE le bloc
+// une fois affiché et on le réduit juste ce qu'il faut pour qu'il tienne.
+//
+// C'est ce qui garantit que rien ne sort de l'écran, sur n'importe quelle télé.
+function ajusteTele() {
+  if (!document.body.classList.contains("mode-tele")) return;
+  const bloc = document.querySelector(".tv, .tf-wrap, .tw");
+  if (!bloc) return;
+  bloc.style.transform = "";                 // on repart toujours de la taille naturelle
+  bloc.style.transformOrigin = "top center";
+  const haut = bloc.getBoundingClientRect().top;
+  const dispo = window.innerHeight - haut - 14;   // 14 px d'air en bas
+  const besoin = bloc.scrollHeight;
+  if (besoin > 0 && dispo > 0 && besoin > dispo) {
+    // Plancher à 0,45 : en dessous, ce serait illisible de loin — mieux vaut
+    // alors que ça déborde un peu et que tu le voies, plutôt qu'un écran
+    // minuscule dont personne ne comprend le problème.
+    bloc.style.transform = "scale(" + Math.max(0.45, dispo / besoin) + ")";
+  }
+}
+// Après chaque affichage (le rendu est synchrone, mais les polices et le QR
+// arrivent après) et à chaque changement de taille d'écran.
+function ajusteTeleBientot() {
+  requestAnimationFrame(ajusteTele);
+  setTimeout(ajusteTele, 250);    // une fois les polices et l'image du QR posées
+}
+window.addEventListener("resize", ajusteTele);
+
 // 📺 TÉLÉ — les 10 dernières secondes : uniquement un chiffre géant (10 → 1).
 function teleFinal() {
   document.body.classList.add("mode-tele");
   FEE.stop(); stopHerbes();
   app.innerHTML = `<div class="tf-wrap"><div class="tf-num" id="tf-num">10</div></div>`;
+  ajusteTeleBientot();
   clearInterval(tickTimer); clearTimeout(tickTimer);
   const maj = () => {
     const diff = CONFIG.dateLancement.getTime() - Date.now();
@@ -2046,7 +2201,11 @@ async function avanceQuiz() {
   const time = Math.round((Date.now() - quiz.start) / 1000);
   quiz.tempsTotal = time;          // pour l'afficher sur l'écran de fin
   quiz.score = arr1(quiz.score);   // score final à virgule (les décimales départagent)
-  await apiSubmit({ name: quiz.pseudo, pseudo: (joueur && joueur.pseudo) || "", code: quiz.code, nom: quiz.nom, score: quiz.score, correct: quiz.correct, time }).catch(() => {});
+  // null = l'enregistrement a échoué malgré les tentatives. On le DIT au joueur :
+  // le laisser croire que sa récolte est enregistrée alors qu'elle est perdue,
+  // c'est la seule chose qu'on ne peut pas rattraper après coup.
+  const envoi = await apiSubmit({ name: quiz.pseudo, pseudo: (joueur && joueur.pseudo) || "", code: quiz.code, nom: quiz.nom, score: quiz.score, correct: quiz.correct, time }).catch(() => null);
+  quiz.envoiRate = (envoi === null);
   sauveMoi(quiz.pseudo, quiz.code);                    // l'appareil perso se souvient
   if (!joueur) joueur = { name: quiz.pseudo, code: quiz.code, nbCodes: 0 };
   joueur.recoltees = quiz.score;
@@ -2222,6 +2381,12 @@ function renderQuiz() {
     <div style="font-size:4.2rem; line-height:1.1;">${stadeFinal.emoji}</div>
     <h2 class="q-text" style="margin-bottom:6px;">${t("Bravo " + esc((joueur && joueur.pseudo) || quiz.pseudo) + ", te voilà « " + stadeFinal.nom + " » !", "Bravo " + esc((joueur && joueur.pseudo) || quiz.pseudo) + ", je bent nu « " + stadeFinal.nom + " »!")}</h2>
     <div class="score-big">${affG(joueur.recoltees)} 🌰</div>
+    ${quiz.envoiRate ? `<div class="alert" style="margin:14px 0; text-align:left;">
+      ⚠️ <b>${t("Ta récolte n'a pas pu être enregistrée.", "Jouw oogst kon niet worden opgeslagen.")}</b><br>
+      ${t("La connexion n'a pas tenu. Reste sur cette page et appuie sur « Réessayer » : ton score est toujours là.",
+          "De verbinding hield het niet. Blijf op deze pagina en druk op « Opnieuw proberen »: je score staat er nog.")}
+      <br><button class="btn" id="q-retry" style="margin-top:10px;">${t("↻ Réessayer l'enregistrement", "↻ Opnieuw proberen")}</button>
+    </div>` : ""}
     <p class="hint" style="margin-top:14px;">
       <b>${quiz.correct} ${t("bonne" + (quiz.correct > 1 ? "s" : "") + " réponse" + (quiz.correct > 1 ? "s" : "") + " sur " + quiz.questions.length, "juist" + (quiz.correct > 1 ? "e" : "") + " antwoord" + (quiz.correct > 1 ? "en" : "") + " op " + quiz.questions.length)}</b>
       · ⏱ ${t((quiz.tempsTotal ?? 0) + " s au total (soit " + ((quiz.tempsTotal ?? 0) / quiz.questions.length).toFixed(1).replace(".", ",") + " s par question).", (quiz.tempsTotal ?? 0) + " s in totaal (dus " + ((quiz.tempsTotal ?? 0) / quiz.questions.length).toFixed(1).replace(".", ",") + " s per vraag).")}
@@ -2235,6 +2400,22 @@ function renderQuiz() {
     <p class="center" style="margin-top:12px;"><button class="lien-explik" id="q-explik">${t("✨ Comment ça marche ? Découvre tout ce que tu peux faire", "✨ Hoe werkt het? Ontdek alles wat je kan doen")}</button></p>
   </div>`;
   $("#q-explik").addEventListener("click", ouvreExplication);
+  // Nouvelle tentative d'enregistrement, à la demande. Les données du quiz sont
+  // toujours en mémoire : tant que la page n'est pas fermée, rien n'est perdu.
+  const btnRetry = $("#q-retry");
+  if (btnRetry) {
+    btnRetry.addEventListener("click", async () => {
+      btnRetry.disabled = true;
+      btnRetry.textContent = t("Envoi en cours…", "Bezig met verzenden…");
+      const envoi = await apiSubmit({
+        name: quiz.pseudo, pseudo: (joueur && joueur.pseudo) || "", code: quiz.code,
+        nom: quiz.nom, score: quiz.score, correct: quiz.correct, time: quiz.tempsTotal || 0,
+      }).catch(() => null);
+      quiz.envoiRate = (envoi === null);
+      if (!quiz.envoiRate) { board = await apiGetBoard().catch(() => board); }
+      renderQuiz();
+    });
+  }
   $("#q-jardin").addEventListener("click", async () => {
     jardin = await apiJardin();
     userView = "jardin";
@@ -2331,7 +2512,7 @@ function renderBoard() {
   const titre = `<div class="board-titre">${fini ? t("🏆 Résultats finaux <span>— merci d'avoir joué !</span>", "🏆 Eindresultaten <span>— bedankt voor het spelen!</span>") : t("🏆 Classement en direct", "🏆 Live ranking")}</div>`;
   // On ne montre QUE ceux qui ont joué (un compte réservé mais pas encore joué
   // n'apparaît pas). Le serveur filtre déjà ; ici c'est utile en simulation.
-  const lignes = board.filter((p) => p.quiz_fait !== false && !COMPTES_TEST.includes((p.name || "").toLowerCase()));
+  const lignes = board.filter((p) => p.quiz_fait !== false && !estNomTest(p.name));
   if (!lignes.length) {
     app.innerHTML = `${pillsHtml("board")}<div class="card center">${titre}
       <p class="hint">${fini ? t("Le quiz est terminé.", "De quiz is afgelopen.") : t("Sois le premier ou la première à jouer ! 🌱", "Wees de eerste om te spelen! 🌱")}</p></div>`;
@@ -2869,7 +3050,22 @@ function ouvreConnexionFami() {
       const raison = r && r.reason;
       if (raison === "a_activer") { erreur(t("Ton compte n'est pas encore activé : clique sur le lien reçu par e-mail pour choisir ton mot de passe.", "Je account is nog niet geactiveerd: klik op de link in je e-mail om een wachtwoord te kiezen.")); return; }
       if (raison === "base_indisponible") { erreur(t("Le service est momentanément indisponible. Réessaie dans un instant.", "De dienst is even niet beschikbaar. Probeer straks opnieuw.")); return; }
-      erreur(t("Identifiant ou mot de passe incorrect.", "Gebruikersnaam of wachtwoord onjuist.")); return;
+      // ⚠️ « Identifiant OU mot de passe incorrect » melangeait deux problemes
+      // tres differents alors que le serveur les distingue depuis toujours
+      // (raisons « inconnu » et « mauvais_mdp »). Impossible de savoir s'il
+      // fallait corriger son identifiant ou son mot de passe. On le dit.
+      if (raison === "inconnu") {
+        erreur(t("Aucun compte trouvé avec « " + esc(id) + " ». Essaie avec ton <b>adresse e-mail</b> à la place.",
+                 "Geen account gevonden met « " + esc(id) + " ». Probeer met je <b>e-mailadres</b>."));
+        return;
+      }
+      if (raison === "mauvais_mdp") {
+        erreur(t("Mot de passe incorrect. C'est bien celui du site Famiformation.",
+                 "Wachtwoord onjuist. Het is dat van de Famiformation-site."));
+        return;
+      }
+      if (raison === "reseau") { erreur(t("Connexion interrompue. Réessaie.", "Verbinding onderbroken. Probeer opnieuw.")); return; }
+      erreur(t("Connexion impossible. Réessaie dans un instant.", "Aanmelden lukt niet. Probeer straks opnieuw.")); return;
     }
     // Connecté : on ouvre sa session de jeu et on garde le jeton (téléphone perso).
     const j = r.joueur || {};
@@ -3220,7 +3416,7 @@ function renderDashboard() {
   // le top 3 du classement final, on l'en félicite et on l'oriente vers les RH.
   let rangFinal = 0;
   if (phase === "termine" && joueur) {
-    const classe = (board || []).filter((p) => p.quiz_fait !== false && !COMPTES_TEST.includes((p.name || "").toLowerCase()))
+    const classe = (board || []).filter((p) => p.quiz_fait !== false && !estNomTest(p.name))
       .slice().sort((a, b) => (b.score - a.score) || ((a.time || 0) - (b.time || 0)));
     const idx = classe.findIndex((p) => (p.name || "").toLowerCase() === (joueur.name || "").toLowerCase());
     if (idx >= 0 && idx < 3) rangFinal = idx + 1;
@@ -3550,7 +3746,11 @@ function chargeQR() {
   if (qrCharge) return qrCharge;
   qrCharge = new Promise((res, rej) => {
     const s = document.createElement("script");
-    s.src = "qrcode.js"; s.onload = res; s.onerror = rej;
+    // Chemin ABSOLU, comme pour api.php : la télé tourne sur /quiz/<site>/tele,
+    // donc un « qrcode.js » relatif partait chercher /quiz/mouscron/qrcode.js
+    // → 404 → chargement en échec → aucun QR à l'écran. La librairie vit à la
+    // racine du quiz, quelle que soit la profondeur de l'URL affichée.
+    s.src = QUIZ_RACINE + "qrcode.js"; s.onload = res; s.onerror = rej;
     document.head.appendChild(s);
   });
   return qrCharge;
@@ -3625,6 +3825,7 @@ function renderSimTele() {
       <div class="tv-tree" id="tvTree">${arbreCourt(n)}</div>
       <div class="tv-sub">Regarde l'arbre grandir… 🌱</div>
     </div>`;
+    ajusteTeleBientot();
     FEE.start();   // la fée est là aussi dans l'aperçu télé
     const it = setInterval(() => {
       const c = document.getElementById("tvC"), tr = document.getElementById("tvTree");
@@ -3659,6 +3860,7 @@ function renderSimTele() {
         </div>
       </div>
     </div>`;
+    ajusteTeleBientot();
     simTimers.push(setTimeout(phaseChrono, 12000));   // puis on reboucle sur le chrono
   }
 
@@ -3710,7 +3912,7 @@ async function renderTeleBoard() {
   board = await apiGetBoard().catch(() => board);
   const q = await qrQuiz().catch(() => null);
   const cr = await apiCodesRestants().catch(() => null);
-  const top = board.filter((p) => p.quiz_fait !== false && !COMPTES_TEST.includes((p.name || "").toLowerCase())).slice(0, 8);
+  const top = board.filter((p) => p.quiz_fait !== false && !estNomTest(p.name)).slice(0, 8);
   const termine = phaseNow() === "termine";
   app.innerHTML = `<div class="tv">
     <div class="tv-phase">${termine ? "🏆 Classement final · Eindklassement" : "🏆 Classement en direct · Live ranking"}</div>
@@ -3727,6 +3929,7 @@ async function renderTeleBoard() {
       </div>
     </div>
   </div>`;
+  ajusteTeleBientot();
   // Rafraîchissement auto. À la fin, on ALTERNE avec l'écran des 3 vainqueurs.
   clearInterval(tickTimer); clearTimeout(tickTimer);
   tickTimer = setTimeout(() => {
@@ -3743,7 +3946,7 @@ async function renderTeleWinners() {
   document.body.classList.add("mode-tele");
   FEE.stop(); clearInterval(tickTimer); clearTimeout(tickTimer);
   board = await apiGetBoard().catch(() => board);
-  const top = board.filter((p) => p.quiz_fait !== false && !COMPTES_TEST.includes((p.name || "").toLowerCase())).slice(0, 3);
+  const top = board.filter((p) => p.quiz_fait !== false && !estNomTest(p.name)).slice(0, 3);
   if (!top.length) { renderTeleBoard(); return; }
   const ordre = [1, 0, 2];   // 2e à gauche, 1er au centre, 3e à droite
   app.innerHTML = `<div class="tw">
@@ -3759,6 +3962,7 @@ async function renderTeleWinners() {
     </div>
     <div class="tw-merci">Bravo et merci à toutes et tous d'avoir joué 🌱 · Proficiat en bedankt aan iedereen!</div>
   </div>`;
+  ajusteTeleBientot();
   lanceConfettis(7000);
   tickTimer = setTimeout(() => renderTeleBoard(), 13000);
 }
@@ -4897,7 +5101,28 @@ function retourNav() {
   // 🔐 Session Famiformation : si ce téléphone a un jeton mémorisé, on reprend la
   // session sans redemander le mot de passe. Sur une borne, jamais (chargeJeton
   // renvoie "" sur borne). Un jeton périmé/invalide est simplement ignoré.
-  const jetonMemo = chargeJeton();
+  // 🔗 ARRIVÉE DEPUIS FAMIFORMATION (?jeton=…). La personne vient de cliquer sur
+  // la tuile « Quiz & mon espace jardin » : elle est déjà authentifiée là-bas, on
+  // ne lui redemande rien. Le jeton est signé par le serveur — un jeton bricolé
+  // est rejeté par l'API, il n'y a donc rien à vérifier ici.
+  //
+  // On le retire ensuite de la barre d'adresse : un jeton laissé dans l'URL se
+  // retrouverait dans l'historique, dans un lien partagé ou dans une capture
+  // d'écran, et donnerait accès au compte.
+  const jetonUrl = SIM_PARAMS.get("jeton");
+  if (jetonUrl) {
+    sauveJeton(jetonUrl);
+    try {
+      const propre = new URL(location.href);
+      propre.searchParams.delete("jeton");
+      history.replaceState(null, "", propre.pathname + (propre.search || "") + propre.hash);
+    } catch (e) { /* navigateur ancien : le jeton reste visible, sans gravite */ }
+  }
+
+  // Sur une borne, chargeJeton() renvoie "" (appareil partagé) : on prend alors
+  // le jeton de l'URL directement, sinon arriver depuis FamiFormation sur une
+  // borne ne connecterait personne.
+  const jetonMemo = chargeJeton() || jetonUrl || "";
   if (jetonMemo && !joueur) {
     const r = await apiMoi(jetonMemo).catch(() => null);
     if (r && r.ok && r.joueur) {

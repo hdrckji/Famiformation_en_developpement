@@ -62,6 +62,31 @@ if (!function_exists('famiEnvFlag')) {
     }
 }
 
+if (!function_exists('famijobSiteUrl')) {
+    /**
+     * Lien vers une page du SITE PRINCIPAL depuis FamiJob.
+     *
+     * Sur le domaine principal, FamiJob vit dans le sous-dossier /famijob/ :
+     * « ../index.php » remonte donc correctement vers le site. Mais sur le
+     * sous-domaine student.famiformation.com, le dossier famijob EST la racine
+     * (voir le Caddyfile) : « ../ » sortirait du site, et sur index.php la
+     * requete retomberait sur FamiJob -> boucle de redirection infinie.
+     * On renvoie alors une URL absolue vers le domaine principal.
+     */
+    function famijobSiteUrl($path = '')
+    {
+        $host = strtolower((string) ($_SERVER['HTTP_HOST'] ?? ''));
+        $host = explode(':', $host)[0];
+        $path = ltrim((string) $path, '/');
+
+        if ($host === 'student.famiformation.com') {
+            return 'https://www.famiformation.com/' . $path;
+        }
+
+        return '../' . $path;
+    }
+}
+
 if (!function_exists('e')) {
     function e($value)
     {

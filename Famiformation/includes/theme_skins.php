@@ -94,9 +94,26 @@ if (!function_exists('skinBase')) {
     function skinBase()
     {
         return '
-        .skin-fx{ position:fixed; inset:0; top:0; left:0; right:0; bottom:0; pointer-events:none; overflow:hidden; z-index:0; }
+        /* LE DECOR PASSE DERRIERE TOUT LE RESTE.
+           z-index:-1 le place sous le contenu de la page tout en le laissant
+           au-dessus du fond : c est exactement ce qu on veut d un decor.
+
+           AVANT, on faisait l inverse : le decor restait a z-index:0 et une
+           regle "body > *" remontait TOUS les enfants de body en
+           position:relative; z-index:1 pour passer par-dessus. Cette regle a
+           casse trois choses successives, parce qu elle ecrasait ce que les
+           elements declaraient eux-memes :
+             - la fee (position:fixed) retombait dans le flux et sortait en
+               rectangle au milieu de la page ;
+             - l animation de bienvenue faisait pareil, au-dessus du ruban ;
+             - les barres de navigation (.top-nav et .fami-rib, z-index:300)
+               redescendaient a 1, donc le contenu de la page passait PAR-DESSUS
+               et interceptait les clics : plus moyen de se deconnecter.
+           Chaque correction demandait une exception de plus, et la suivante
+           cassait ailleurs. En mettant simplement le decor derriere, il n y a
+           plus rien a remonter, donc plus rien a casser. */
+        .skin-fx{ position:fixed; inset:0; top:0; left:0; right:0; bottom:0; pointer-events:none; overflow:hidden; z-index:-1; }
         .skin-fx > span{ position:absolute; will-change:transform; }
-        body > *:not(.skin-fx){ position:relative; z-index:1; }
 
         .skin-fx .sk-mote{ border-radius:50%; top:auto; bottom:-6%; filter:blur(.3px);
             animation-name:skRise; animation-timing-function:linear; animation-iteration-count:infinite; }
@@ -139,12 +156,16 @@ if (!function_exists('skinBuild')) {
             $docVars .= '--' . $k . ':' . $v . ';';
         }
 
+        // Vignette et motif : DERRIERE le contenu (z-index:-1), comme les
+        // particules. A z-index:0 ils passaient au-dessus de tout ce qui n est
+        // pas positionne — c est ce qui obligeait a remonter artificiellement
+        // toute la page, avec les degats decrits plus haut.
         $vignette = empty($c['vignette']) ? '' : '
-        body::after{ content:""; position:fixed; inset:0; top:0; left:0; right:0; bottom:0; pointer-events:none; z-index:0;
+        body::after{ content:""; position:fixed; inset:0; top:0; left:0; right:0; bottom:0; pointer-events:none; z-index:-1;
             background:radial-gradient(120% 80% at 50% 40%, transparent 55%, ' . $c['vignette'] . ' 100%); }';
 
         $pattern = empty($c['pattern']) ? '' : '
-        body::before{ content:""; position:fixed; inset:0; top:0; left:0; right:0; bottom:0; pointer-events:none; z-index:0;
+        body::before{ content:""; position:fixed; inset:0; top:0; left:0; right:0; bottom:0; pointer-events:none; z-index:-1;
             opacity:' . ($c['patternOpacity'] ?? '.5') . ';
             background:' . $c['pattern'] . '; }';
 

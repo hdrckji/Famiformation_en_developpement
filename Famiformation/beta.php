@@ -62,13 +62,62 @@ $userPhoto = $_SESSION['photo_profil'] ?? null;
         .header { text-align: center; padding: 6px 20px 2px; }
         .logo-main { max-width: 220px; filter: drop-shadow(0 5px 15px rgba(0,0,0,0.2)); }
 
-        .tiles-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 25px; width: 90%; max-width: 760px; margin-top: 6px; padding: 10px 0 40px; }
+        /* 🧩 Les 3 modules alignés sur UNE SEULE LIGNE. C'était le max-width qui
+           décidait : à 760px, trois colonnes de 280px minimum ne rentraient pas
+           et la 3e tuile passait à la ligne. On fixe donc 3 colonnes et on
+           élargit le conteneur.
+           minmax(0, 1fr) et non 1fr : sans le 0, une tuile dont le texte est long
+           refuse de se réduire et déborde de la grille. */
+        .tiles-container { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 25px; width: 90%; max-width: 1080px; margin-top: 6px; padding: 10px 0 40px; }
         .tile { background: rgba(255,255,255,0.96); border-radius: 20px; padding: 44px 30px; text-align: center; text-decoration: none; color: #333; box-shadow: 0 10px 25px rgba(0,0,0,0.1); transition: all .3s ease; display: flex; flex-direction: column; align-items: center; }
         .tile:hover { transform: translateY(-8px); box-shadow: 0 15px 35px rgba(0,0,0,0.2); }
         .tile-icon { font-size: 3.4rem; margin-bottom: 14px; }
         .tile-title { font-size: 1.4rem; font-weight: 700; color: #2d5a37; margin-bottom: 8px; }
         .tile-desc { font-size: .95rem; color: #666; line-height: 1.4; }
 
+        /* 🌱 MISE EN AVANT DE LA TUILE « Quiz & mon espace jardin ».
+           Classes DÉDIÉES et animations préfixées « jd » : les deux autres tuiles
+           de cette page ne changent pas d'un pixel. Le « position: relative » est
+           ici INDISPENSABLE — contrairement à l'accueil normal, le .tile de cette
+           page ne l'a pas, et le badge irait se coller au coin de la page. */
+        .tile.tile-jardin {
+            position: relative;
+            border: 2px solid #7bc47f;
+            background: linear-gradient(180deg, rgba(255,255,255,0.97) 55%, rgba(232,245,233,0.97));
+            animation: jdRespire 2.8s ease-in-out infinite;
+        }
+        @keyframes jdRespire {
+            0%, 100% { box-shadow: 0 10px 25px rgba(0,0,0,0.10), 0 0 0 0 rgba(123,196,127,0.55); }
+            50%      { box-shadow: 0 14px 30px rgba(0,0,0,0.14), 0 0 0 12px rgba(123,196,127,0); }
+        }
+        .tile.tile-jardin:hover { border-color: #2d5a37; animation-play-state: paused; }
+        .tile.tile-jardin .tile-icon { animation: jdPousse 3.2s ease-in-out infinite; }
+        @keyframes jdPousse {
+            0%, 100% { transform: translateY(0) rotate(-5deg); }
+            50%      { transform: translateY(-6px) rotate(5deg); }
+        }
+        .badge-jardin {
+            position: absolute; top: -11px; right: -11px; z-index: 10;
+            display: inline-flex; align-items: center; gap: 5px;
+            background: linear-gradient(135deg, #2d5a37, #7bc47f);
+            color: #fff; font-size: 0.74rem; font-weight: 800; letter-spacing: 0.04em;
+            padding: 6px 13px; border-radius: 999px;
+            box-shadow: 0 4px 12px rgba(45,90,55,0.45);
+            animation: jdBadge 2.8s ease-in-out infinite;
+        }
+        @keyframes jdBadge { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+        @media (prefers-reduced-motion: reduce) {
+            .tile.tile-jardin, .tile.tile-jardin .tile-icon, .badge-jardin { animation: none; }
+            .tile.tile-jardin { box-shadow: 0 10px 25px rgba(0,0,0,0.10), 0 0 0 4px rgba(123,196,127,0.45); }
+        }
+
+        /* 💻 Tablette ou fenêtre réduite : à cette largeur, 3 colonnes rendraient
+           les titres illisibles (« Quiz & mon espace jardin » se couperait en
+           quatre lignes). On repasse à 2, puis à 1 sur téléphone juste en dessous.
+           Ce bloc doit rester AVANT celui des 560px, qui doit gagner sur lui. */
+        @media (max-width: 900px) {
+            .tiles-container { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 760px; }
+        }
         @media (max-width: 560px) {
             .tiles-container { grid-template-columns: 1fr; gap: 16px; }
             .tile { padding: 30px 22px; }
@@ -124,6 +173,17 @@ $userPhoto = $_SESSION['photo_profil'] ?? null;
             <span class="tile-icon">🛒</span>
             <div class="tile-title"><?= t('Magasin', 'Winkel') ?></div>
             <div class="tile-desc"><?= t("Les rayons du magasin — commence par la Caisse.", "De afdelingen van de winkel — begin bij de kassa.") ?></div>
+        </a>
+
+        <?php // 🌱 Le jeu est ouvert à TOUT LE MONDE, profil beta compris : les
+              // beta ne passent jamais par index.php, la tuile doit donc être ici
+              // aussi. quiz_acces.php fabrique le jeton : aucun mot de passe à
+              // resaisir, on est déjà connecté. ?>
+        <a href="quiz_acces.php" class="tile tile-jardin">
+            <span class="badge-jardin">🎁 <?= t('NOUVEAU', 'NIEUW') ?></span>
+            <span class="tile-icon">🌱</span>
+            <div class="tile-title"><?= t('Quiz & mon espace jardin', 'Quiz & mijn tuin') ?></div>
+            <div class="tile-desc"><?= t("Réponds au quiz, récolte tes graines et fais pousser ton jardin.", "Doe de quiz, oogst je zaadjes en laat je tuin groeien.") ?></div>
         </a>
     </div>
 </body>

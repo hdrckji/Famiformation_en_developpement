@@ -134,17 +134,17 @@ if (!function_exists('ensureModulesTable')) {
                 $nonEtu = 'employe_magasin,teamcoach,mentor,employe_logistique,admin,evaluateur';
                 $base = [
                     // [nom, description, icône, rôles (accès), lien]
-                    ['Onboarding', 'Bienvenue chez Famiflora — découverte de notre univers.', '🚀', '', 'onboarding.php'],
-                    ['Formation', 'Formations en ligne et en présentiel.', '📅', '', 'formation.php'],
-                    ['Magasin', 'Procédures de vente et caisses.', '🛒', 'admin,teamcoach,mentor,employe_magasin', 'magasin.php'],
+                    ['Onboarding', "La présentation de l'entreprise : qui on est, d'où on vient et comment ça tourne ici.", '🚀', '', 'onboarding.php'],
+                    ['Formation', "Réserve ton créneau et viens te former pour de vrai. De nouvelles dates arrivent très bientôt 👀", '📅', '', 'formation.php'],
+                    ['Magasin', "Le savoir-faire de chaque rayon, réuni au même endroit. Du contenu arrive bientôt 🌱", '🛒', 'admin,teamcoach,mentor,employe_magasin', 'magasin.php'],
                     ['Management', 'Outils et formations pour managers et mentors.', '🧑‍💼', 'admin,teamcoach,mentor', 'management.php'],
-                    ['Becosoft', 'Logiciel de gestion de stock.', '💻', $nonEtu, 'formation_becosoft.php'],
+                    ['Becosoft', "Maîtriser notre base de données : la retrouver, la lire et la faire parler.", '💻', $nonEtu, 'formation_becosoft.php'],
                     ['Formation Caisse', 'Parcours rapide sur l\'utilisation de la caisse.', '💳', 'etudiant', 'formation-caisse.php'],
                     ['Mes disponibilités', 'Jours de disponibilité sur les 30 prochains jours.', '🗓️', 'etudiant', 'student_disponibilites.php'],
                     ['Mes horaires attribués', 'Créneaux passés, du jour et futurs (lecture seule).', '🕒', 'etudiant', 'mon_horaire.php'],
                     ['Logistique', 'Gestion des flux et des stocks.', '📦', 'admin,employe_logistique,teamcoach,mentor', 'logistique.php'],
-                    ['Classement', 'Tableau des scores et points.', '🏆', $nonEtu, 'classement.php'],
-                    ['Sécurité au travail', 'Chaussures de sécurité & secourisme.', '🦺', $nonEtu, 'securite_travail.php'],
+                    ['Classement', "Ta place face aux collègues, points à l'appui. Et ça se prépare dans l'ombre… 👀", '🏆', $nonEtu, 'classement.php'],
+                    ['Sécurité au travail', "Tout le nécessaire pour travailler en sécurité. Ici, rien n'est optionnel.", '🦺', $nonEtu, 'securite_travail.php'],
                     ['Famijob', 'Plateforme Famijob (gestion des jobs étudiants).', '💼', 'admin,teamcoach', 'famijob/index.php'],
                     ['Demandes Horaires Intérim', 'Créer/modifier/supprimer les demandes d\'horaires intérim.', '📝', 'admin', 'interim_horaires_demandes.php'],
                     ['Matching Intérim', 'Assigner les étudiants aux créneaux intérim.', '🤝', 'admin', 'interim_horaires.php'],
@@ -582,6 +582,154 @@ if (!function_exists('ensureModulesTable')) {
             if (!$hasFlag('fix_root_zero_sort_v1')) {
                 $db->exec("UPDATE modules SET sort_order = 900 + id WHERE parent_id IS NULL AND sort_order = 0");
                 $setFlag('fix_root_zero_sort_v1');
+            }
+
+            // 21) FORMATIONS EN LIGNE : mises de côté pour l'instant. Le module
+            //     « Formation » ne propose plus que le PRÉSENTIEL, donc la tuile
+            //     « En ligne » n'a plus rien à ouvrir (formation.php redirige tout
+            //     vers le présentiel). On la DÉSACTIVE seulement — surtout pas de
+            //     suppression : le module et son historique doivent rester intacts
+            //     pour pouvoir le rallumer d'un simple is_active = 1.
+            // 24) FORMATIONS OUVERTES AU PROFIL MAGASIN : caisse et gerbeur.
+            //     « Formation Caisse » était réservée aux étudiants, et « Gerbeur »
+            //     n'existait qu'en sous-module de Logistique — donc hors de portée
+            //     d'un employé magasin, qui en a pourtant besoin au quotidien.
+            // try/catch PROPRE à cette migration : sans lui, une erreur ici
+            // (colonne manquante, table verrouillée…) ferait sauter TOUTES les
+            // migrations suivantes — dont la bascule du personnel en profil
+            // magasin, qui est autrement plus importante qu'une tuile.
+            try {
+            if (!$hasFlag('magasin_caisse_gerbeur_v1')) {
+                // Caisse : on AJOUTE le profil aux rôles existants, on ne remplace
+                // rien — les étudiants doivent la garder.
+                $fc = $db->query("SELECT id, roles FROM modules WHERE nom = 'Formation Caisse' AND parent_id IS NULL LIMIT 1")
+                         ->fetch(PDO::FETCH_ASSOC);
+                if ($fc) {
+                    $roles = array_values(array_filter(array_map('trim', explode(',', (string) $fc['roles']))));
+                    // Une liste VIDE veut dire « tout le monde » : dans ce cas on n'y
+                    // touche surtout pas, sinon on RESTREINDRAIT l'accès.
+                    if (!empty($roles) && !in_array('employe_magasin', $roles, true)) {
+                        $roles[] = 'employe_magasin';
+                        $db->prepare("UPDATE modules SET roles = ? WHERE id = ?")
+                           ->execute([implode(',', $roles), (int) $fc['id']]);
+                    }
+                }
+
+                // Gerbeur : tuile d'accueil dédiée, pour y accéder sans passer par
+                // Logistique. Le sous-module existant n'est pas touché.
+                $dejaG = (int) $db->query("SELECT COUNT(*) FROM modules WHERE nom = 'Gerbeur' AND parent_id IS NULL")->fetchColumn();
+                if ($dejaG === 0) {
+                    $db->prepare("INSERT INTO modules (nom, nom_nl, description, description_nl, is_container, parent_id, icon, roles, is_active, is_locked, link)
+                                  VALUES (?, ?, ?, ?, 0, NULL, ?, ?, 1, 0, ?)")
+                       ->execute([
+                           'Gerbeur', 'Stapelaar',
+                           'Conduite et sécurité du gerbeur : ce qu\'il faut savoir avant de l\'utiliser.',
+                           'Rijden met en veiligheid van de stapelaar: wat je moet weten voor je hem gebruikt.',
+                           '🏗️',
+                           'admin,employe_magasin,employe_logistique,teamcoach,mentor',
+                           'gerbeur.php',
+                       ]);
+                }
+                $setFlag('magasin_caisse_gerbeur_v1');
+            }
+            } catch (Exception $e) {
+                error_log('[FamiFormation] tuiles caisse/gerbeur : ' . $e->getMessage());
+            }
+
+            // 23) PERSONNEL RECONNU → PROFIL MAGASIN, AUTOMATIQUEMENT.
+            //     La page « Tri des profils » demandait une validation à la main.
+            //     Ce n'était pas la demande : tout compte beta dont le nom figure
+            //     dans la liste du personnel doit basculer, sans intervention.
+            //
+            //     Garde-fous : SEULS les comptes « beta » sont touchés (un profil
+            //     choisi à la main n'est jamais écrasé), et seuls les noms
+            //     réellement présents dans la liste. welcome_seen repasse à 0 pour
+            //     que ces personnes soient accueillies comme il se doit : passer en
+            //     employé, c'est leur première visite du vrai site.
+            //
+            //     Le drapeau porte un numéro de version : pour rejouer la bascule
+            //     après un ajout à la liste, passer à _v2, _v3…
+            if (!$hasFlag('bascule_personnel_magasin_v1')) {
+                foreach ([__DIR__ . '/personnel_liste.php'] as $pl) {
+                    if (is_file($pl)) { require_once $pl; }
+                }
+                if (function_exists('personnelTrouve') && function_exists('personnelRoleCible')) {
+                    $betas = $db->query("SELECT id, prenom, nom FROM utilisateurs WHERE role = 'beta'")
+                                ->fetchAll(PDO::FETCH_ASSOC);
+                    $majRole = $db->prepare("UPDATE utilisateurs SET role = ? WHERE id = ? AND role = 'beta'");
+                    $majAcc  = $db->prepare("UPDATE utilisateurs SET welcome_seen = 0 WHERE id = ?");
+                    $bascules = 0;
+                    foreach ($betas as $u) {
+                        if (!personnelTrouve($u['nom'] ?? '', $u['prenom'] ?? '')) { continue; }
+                        $majRole->execute([personnelRoleCible(), (int) $u['id']]);
+                        if ($majRole->rowCount() > 0) {
+                            $bascules++;
+                            try { $majAcc->execute([(int) $u['id']]); } catch (Exception $e) {}
+                        }
+                    }
+                    if ($bascules > 0) {
+                        error_log('[FamiFormation] bascule personnel : ' . $bascules . ' compte(s) beta passes en ' . personnelRoleCible());
+                    }
+                }
+                $setFlag('bascule_personnel_magasin_v1');
+            }
+
+            // 22) DESCRIPTIONS DES TUILES : dire à quoi sert chaque module.
+            //     Les textes d'origine décrivaient le contenu ; ils ne disaient pas
+            //     ce qu'on vient y faire, ni que certaines tuiles se remplissent
+            //     encore. Textes dictés par la direction — on les pose donc tels
+            //     quels, en FR et en NL.
+            if (!$hasFlag('desc_tuiles_v2')) {
+                $textes = [
+                    'Onboarding' => [
+                        "La présentation de l'entreprise : qui on est, d'où on vient et comment ça tourne ici.",
+                        'De voorstelling van het bedrijf: wie we zijn, waar we vandaan komen en hoe het hier draait.',
+                    ],
+                    'Formation' => [
+                        "Réserve ton créneau et viens te former pour de vrai. De nouvelles dates arrivent très bientôt 👀",
+                        'Reserveer je moment en kom je echt bijscholen. Nieuwe data komen heel binnenkort 👀',
+                    ],
+                    'Magasin' => [
+                        "Le savoir-faire de chaque rayon, réuni au même endroit. Du contenu arrive bientôt 🌱",
+                        'De knowhow van elke afdeling, op één plek verzameld. Er komt binnenkort inhoud aan 🌱',
+                    ],
+                    'Becosoft' => [
+                        "Maîtriser notre base de données : la retrouver, la lire et la faire parler.",
+                        'Onze database onder de knie krijgen: terugvinden, lezen en laten spreken.',
+                    ],
+                    'Sécurité au travail' => [
+                        "Tout le nécessaire pour travailler en sécurité. Ici, rien n'est optionnel.",
+                        'Alles wat je nodig hebt om veilig te werken. Hier is niets optioneel.',
+                    ],
+                    'Classement' => [
+                        "Ta place face aux collègues, points à l'appui. Et ça se prépare dans l'ombre… 👀",
+                        'Jouw plaats tegenover de collega\'s, punten inbegrepen. En er wordt iets voorbereid… 👀',
+                    ],
+                ];
+                $majDesc = $db->prepare("UPDATE modules SET description = ?, description_nl = ?
+                                         WHERE nom = ? AND parent_id IS NULL");
+                foreach ($textes as $nomMod => $t) {
+                    $majDesc->execute([$t[0], $t[1], $nomMod]);
+                }
+                $setFlag('desc_tuiles_v2');
+            }
+
+            if (!$hasFlag('hide_formation_enligne_v1')) {
+                $formationRootId = (int) $db->query("SELECT id FROM modules WHERE nom = 'Formation' AND parent_id IS NULL ORDER BY id ASC LIMIT 1")->fetchColumn();
+                if ($formationRootId > 0) {
+                    $db->prepare("UPDATE modules SET is_active = 0 WHERE nom = 'En ligne' AND parent_id = ?")
+                       ->execute([$formationRootId]);
+                    // La description de la tuile annonçait « en ligne et en présentiel ».
+                    // On ne la corrige QUE si elle est restée telle quelle : une
+                    // description réécrite à la main ne doit pas être écrasée.
+                    $db->prepare("UPDATE modules SET description = ? WHERE id = ? AND description = ?")
+                       ->execute([
+                           'Formations en présentiel (sessions planifiées).',
+                           $formationRootId,
+                           'Formations en ligne et en présentiel.',
+                       ]);
+                }
+                $setFlag('hide_formation_enligne_v1');
             }
         } catch (Exception $e) {
             // migration non critique : on ignore

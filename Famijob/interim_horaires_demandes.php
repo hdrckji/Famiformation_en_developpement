@@ -13,7 +13,7 @@ if (!function_exists('fjdT')) {
 
 // Contrôle d'accès FamiJob : admin et teamcoach uniquement
 if (!in_array($_SESSION['role'] ?? '', ['admin', 'teamcoach'], true)) {
-    header('Location: ../index.php');
+    header('Location: ' . famijobSiteUrl('index.php'));
     exit();
 }
 
@@ -514,7 +514,7 @@ if (isset($_POST['create_requests']) && $createFailed) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo e(fjdT('Demandes Horaires Intérim', 'Interim uurroosteraanvragen')); ?></title>
-    <link rel="shortcut icon" type="image/x-icon" href="favicon.ico">
+    <link rel="shortcut icon" type="image/x-icon" href="famijob_.ico">
     <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         :root {

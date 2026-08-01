@@ -28,6 +28,33 @@
 		@quizdata path /quiz/data/*
 		respond @quizdata 403
 
+		# Bloque /quiz/seed/* : ces fichiers contiennent les questions du quiz AVEC
+		# leurs bonnes reponses (culture.json, fun.json), plus les scripts de
+		# reinstallation. Ils etaient librement telechargeables : il suffisait de
+		# connaitre l'adresse pour avoir le corrige avant de jouer. api.php les lit
+		# depuis le disque, pas par HTTP : les bloquer ne casse donc rien.
+		@quizseed path /quiz/seed/*
+		respond @quizseed 403
+
+		# 🎓 SOUS-DOMAINE FAMIJOB : student.famiformation.com.
+		# Meme principe que « root * /app/public » plus haut, qui rend le dossier
+		# public/ invisible dans l'URL du site principal : ici on rend le dossier
+		# famijob/ invisible sur le sous-domaine. student.famiformation.com sert
+		# donc FamiJob a sa racine, exactement comme du temps d'IONOS, et les
+		# anciens favoris des etudiants continuent de fonctionner tels quels.
+		#
+		# REECRITURE (rewrite) et non redirection : l'URL affichee ne change pas,
+		# le navigateur ne voit jamais /famijob/.
+		#
+		# ⚠️ Ceci ne marche QUE parce que les liens de FamiJob vers le site
+		# principal passent par famijobSiteUrl() (Famijob/config.php). Sur ce
+		# sous-domaine, famijob/ etant la racine, un « ../index.php » en dur
+		# sortirait du site : la requete retomberait ici, serait reecrite vers
+		# famijob/index.php, et bouclerait a l'infini. Ne pas reintroduire de
+		# « ../ » en dur dans FamiJob.
+		@famijobSousDomaine host student.famiformation.com
+		rewrite @famijobSousDomaine /famijob{uri}
+
 		# Le quiz est un site STATIQUE : son index est index.html. Or php_server ne
 		# reconnait que index.php comme index de dossier : /quiz/ ne trouvait donc
 		# rien et retombait sur le index.php de l'app principale, qui redirige vers

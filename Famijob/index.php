@@ -6,7 +6,7 @@ verifierConnexion($db);
 // Contrôle d'accès : uniquement admin et teamcoach
 $role = isset($_SESSION['role']) ? $_SESSION['role'] : '';
 if (!in_array($role, ['admin', 'teamcoach'], true)) {
-    header('Location: ../index.php');
+    header('Location: ' . famijobSiteUrl('index.php'));
     exit();
 }
 
@@ -32,6 +32,17 @@ function resolvePublicAssetUrl(array $absoluteCandidates, string $fallbackUrl): 
         }
 
         $version = @filemtime($realPath) ?: time();
+
+        // L'asset est dans le dossier FamiJob, à côté de cette page : on renvoie
+        // une URL RELATIVE, valable sur les deux domaines. Une URL absolue
+        // /famijob/... serait fausse sur student.famiformation.com, où famijob/
+        // est déjà la racine : la règle rewrite du Caddyfile la préfixerait une
+        // seconde fois (/famijob/famijob/...) et le fond ne s'afficherait pas.
+        $famijobDir = str_replace('\\', '/', (string) realpath(__DIR__));
+        $normalizedRealPath = str_replace('\\', '/', $realPath);
+        if ($famijobDir !== '' && strpos($normalizedRealPath, $famijobDir . '/') === 0) {
+            return substr($normalizedRealPath, strlen($famijobDir) + 1) . '?v=' . $version;
+        }
 
         if ($docRoot !== false) {
             $normalizedDocRoot = str_replace('\\', '/', $docRoot);
@@ -81,6 +92,7 @@ $famijobBackgroundUrl = resolvePublicAssetUrl(
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= e(famiT('index.title')) ?> - <?= e(famiT('tile.matching.title')) ?></title>
+    <link rel="shortcut icon" type="image/x-icon" href="famijob_.ico">
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {

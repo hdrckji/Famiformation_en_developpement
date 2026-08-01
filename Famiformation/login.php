@@ -31,6 +31,13 @@ $allowedRedirects = [
     'famijob/index.php',
 ];
 $postLoginRedirect = in_array($requestedRedirect, $allowedRedirects, true) ? $requestedRedirect : '';
+// Sur le serveur (Linux) la casse compte, et le dossier deploye s'appelle
+// « famijob » en minuscules (Dockerfile). Un ancien lien ecrit avec un F
+// majuscule pointait donc dans le vide et ramenait sur le site principal.
+// On accepte toujours ces liens, mais on corrige la casse avant de rediriger.
+if ($postLoginRedirect !== '') {
+    $postLoginRedirect = str_replace('Famijob/', 'famijob/', $postLoginRedirect);
+}
 $isFamijobHost = ($requestHost === 'student.famiformation.com');
 $isFamijobLogin = $postLoginRedirect !== '' || $isFamijobHost;
 $loginBackgroundImage = $isFamijobLogin ? '/background-famijob.png' : 'background.jpg';
