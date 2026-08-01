@@ -339,6 +339,24 @@ if (!empty($_SESSION['module_flash'])) {
             .tile.tile-jardin { box-shadow: 0 10px 25px rgba(0,0,0,0.10), 0 0 0 4px rgba(123,196,127,0.45); }
         }
 
+        /* 🎟️ « J'AI UN CODE » — second accès, sous la tuile jardin.
+           .jardin-cell est la CASE de grille : elle remplace la tuile comme
+           enfant direct de .tiles-container et empile la tuile puis le lien. Sans
+           elle, le lien deviendrait une case à lui tout seul et décalerait toutes
+           les tuiles suivantes. La tuile, elle, n'est pas touchée : le « flex: 1 »
+           lui rend juste la hauteur qu'elle avait quand elle était la case. */
+        .jardin-cell { display: flex; flex-direction: column; }
+        .jardin-cell > .tile { flex: 1; }
+        .lien-code {
+            align-self: center; margin-top: 14px;
+            display: inline-flex; align-items: center; gap: 7px;
+            background: rgba(255,255,255,0.92); color: #2d5a37; text-decoration: none;
+            font-weight: 700; font-size: 0.9rem; padding: 9px 17px; border-radius: 999px;
+            border: 2px solid #7bc47f; box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            transition: background 0.2s ease, transform 0.2s ease;
+        }
+        .lien-code:hover { background: #fff; transform: translateY(-2px); }
+
         .btn-param { background: rgba(255,255,255,0.9); color: #2d5a37; text-decoration: none; padding: 12px 18px; border-radius: 30px; font-weight: bold; font-size: 0.9rem; box-shadow: 0 4px 10px rgba(0,0,0,0.1); transition: all 0.3s ease; }
         .btn-param:hover { background: #fff; transform: scale(1.05); }
         .lang-switch { display: flex; gap: 6px; }
@@ -593,13 +611,27 @@ if ($wcThemeOn && !empty($siteTheme) && is_array($siteTheme)) {
         <?php // 🌱 QUIZ & JARDIN — volontairement HORS de toute garde de profil :
               // le jeu est ouvert à tout le monde. On passe par quiz_acces.php, qui
               // fabrique le jeton de session du quiz : la personne est déjà
-              // connectée ici, hors de question de lui redemander son mot de passe. ?>
+              // connectée ici, hors de question de lui redemander son mot de passe.
+              //
+              // 🎟️ La tuile elle-même n'est PAS modifiée (voir le commentaire de
+              // .tile : « ne pas re-styler sans demande explicite »). On l'enveloppe
+              // seulement, pour poser « J'ai un code » dessous DANS LA MÊME case de
+              // la grille — en frère direct, le lien occuperait une case à lui tout
+              // seul et décalerait toutes les tuiles suivantes. ?>
+        <div class="jardin-cell">
         <a href="quiz_acces.php" class="tile tile-jardin">
             <span class="badge-jardin">🎁 <?= t('NOUVEAU', 'NIEUW') ?></span>
             <div class="tile-media"><span class="tile-icon">🌱</span></div>
             <div class="tile-title"><?= t('Quiz & mon espace jardin', 'Quiz & mijn tuin') ?></div>
             <div class="tile-desc"><?= t('Réponds au quiz, récolte tes graines et fais pousser ton jardin.', 'Doe de quiz, oogst je zaadjes en laat je tuin groeien.') ?></div>
         </a>
+        <?php // Second accès seulement : l'écran de saisie du quiz reste en place
+              // (/quiz/<magasin>/code, et le QR scanné en magasin). « vers=code »
+              // emmène droit sur cet écran, jamais sur l'accueil du quiz, et le
+              // jeton part avec : le code est réclamé sous le bon compte sans
+              // redemander quoi que ce soit. ?>
+        <a href="quiz_acces.php?vers=code" class="lien-code">🎟️ <?= t("J'ai un code", 'Ik heb een code') ?></a>
+        </div>
 
         <?php if ($role === 'admin' || $role === 'teamcoach' || $role === 'mentor' || $role === 'employe_magasin'): ?>
         <a href="module.php?id=<?= (int) ($rootModuleIds['Magasin'] ?? 0) ?>" class="tile">
