@@ -1811,6 +1811,51 @@ function dejaPrevenu($cle) {
  * elle avait été prévenue. On compte donc désormais dans mailRecompense(), le
  * seul endroit qui envoie : automatique ou manuel, tout est tracé au même titre.
  */
+/**
+ * 📜 RANGEMENT, UNE FOIS POUR TOUTES, DES ENVOIS D'AVANT LA SÉPARATION.
+ *
+ * Les compteurs n'étaient pas rangés par récompense. Ces envois-là sont
+ * pourtant tous des mails « JARDIN » : le mail automatique du podium ne part
+ * qu'après l'annonce des résultats (31/08 12h30), donc aucun n'a pu partir
+ * avant. Les laisser sans motif les faisait apparaître sur la ligne PODIUM des
+ * gagnants — « on prépare » s'affichait chez quelqu'un du podium alors que le
+ * mail concernait son jardin, et il fallait se souvenir à chaque fois que ce
+ * n'était pas ça.
+ *
+ * On les déplace donc dans le compteur « jardin ». Les valeurs d'origine sont
+ * conservées dans « _avant_migration » : rien n'est détruit.
+ */
+function migreCompteursVersJardin() {
+  global $rhFile;
+  $d = readJson($rhFile);
+  if (!is_array($d) || !empty($d['mails_ranges_jardin']) || empty($d['mails'])) { return; }
+  withLock($rhFile, function (&$data, &$write) {
+    if (!is_array($data) || !empty($data['mails_ranges_jardin'])) { return; }
+    foreach (($data['mails'] ?? []) as $cle => $c) {
+      if (!is_array($c)) { continue; }
+      $att = (int) ($c['attente'] ?? 0);
+      $pre = (int) ($c['prete'] ?? 0);
+      if ($att === 0 && $pre === 0) { continue; }
+      if (!isset($data['mails'][$cle]['jardin']) || !is_array($data['mails'][$cle]['jardin'])) {
+        $data['mails'][$cle]['jardin'] = [];
+      }
+      $j = &$data['mails'][$cle]['jardin'];
+      $j['attente'] = (int) ($j['attente'] ?? 0) + $att;
+      $j['prete']   = (int) ($j['prete'] ?? 0) + $pre;
+      if (empty($j['dernier']) && !empty($c['dernier'])) { $j['dernier'] = $c['dernier']; }
+      if (empty($j['origine']) && !empty($c['origine'])) { $j['origine'] = $c['origine']; }
+      unset($j);
+      // On garde une trace de ce qu'il y avait, au cas où.
+      $data['mails'][$cle]['_avant_migration'] = ['attente' => $att, 'prete' => $pre,
+                                                  'dernier' => (string) ($c['dernier'] ?? '')];
+      unset($data['mails'][$cle]['attente'], $data['mails'][$cle]['prete'],
+            $data['mails'][$cle]['dernier'], $data['mails'][$cle]['origine']);
+    }
+    $data['mails_ranges_jardin'] = 1;
+    $write = true;
+  });
+}
+
 function noteEnvoiRecompense($cle, $modele, $origine = 'auto', $motif = 'podium') {
   global $rhFile;
   $motif = ($motif === 'jardin') ? 'jardin' : 'podium';
@@ -2678,6 +2723,9 @@ switch ($action) {
   // pleine + les 3 lotus). Chaque personne a un état « remis » (coché par les RH).
   case 'rh_liste': {
     exigeRh($input);
+    // 📜 Range une fois pour toutes les envois d'avant la séparation, qui sont
+    // tous des mails « jardin ». Sans quoi ils s'affichaient aussi au podium.
+    migreCompteursVersJardin();
     $board   = readJson($scoresFile);
     $jardins = readJson($jardinFile);
     $remises = readJson($rhFile);
@@ -2722,15 +2770,6 @@ switch ($action) {
         // la personne était déjà au courant sans avoir rien fait.
         'origine'    => (string) ($c['origine'] ?? ''),
         'motif'      => $motif,
-        // 📜 HISTORIQUE D'AVANT LA SÉPARATION PAR RÉCOMPENSE.
-        // Ces envois-là n'étaient pas rangés par motif, mais le MODÈLE, lui,
-        // était bien enregistré : « on prépare » et « c'est prêt » étaient déjà
-        // comptés à part. On les rend donc tels quels, avec leur libellé exact
-        // — les résumer à « motif inconnu » perdait une information qu'on a.
-        // Seule la récompense concernée (podium ou jardin) reste indéterminée.
-        'anciens_attente' => (int) ($tout['attente'] ?? 0),
-        'anciens_prete'   => (int) ($tout['prete'] ?? 0),
-        'anciens_dernier' => (string) ($tout['dernier'] ?? ''),
       ];
     };
 
