@@ -165,7 +165,8 @@ function ligneHtml(p, type, rangClass) {
     <div class="rh-info">
       <div class="rh-nom">${esc(nomAffiche(p))}${estTest ? ` <span class="rh-badge-test">TEST</span>` : ""}</div>
       <div class="rh-meta">${estTest
-        ? `<b>Compte d'essai — ne compte pas au classement.</b> Coche-le pour t'envoyer le mail à toi-même et voir ce que reçoit un gagnant.`
+        ? `<b>Compte d'essai — ne compte pas au classement.</b> Coche-le ici pour recevoir la version
+           <b>${type === "podium" ? "podium (comme un 1<sup>er</sup>)" : "jardin terminé"}</b> du mail, et voir exactement ce que reçoit un gagnant.`
         : meta.join(" · ")}</div>
       <div class="rh-mail-ligne"><span class="rh-mail-zone"><span class="rh-mail rh-jamais">adresse…</span></span> ${envois}</div>
     </div>
@@ -245,13 +246,23 @@ function rendre() {
 
   // Un seul envoi possible : celui des personnes COCHÉES, avec le modèle choisi.
   async function envoyer(modele, bouton, libelle) {
-    const ids = cases().filter((c) => c.checked).map((c) => c.value);
+    const cochees = cases().filter((c) => c.checked);
+    // 🎯 D'OÙ vient chaque case : « podium » ou « jardin ». Le compte d'essai
+    // figure dans les deux listes ; sans cette information, cocher sa ligne du
+    // podium envoyait quand même le mail « jardin terminé ». Pour les vrais
+    // gagnants, ça ne change rien : leur motif est celui qui leur revient.
+    const sections = {};
+    cochees.forEach((c) => {
+      const row = c.closest(".rh-row");
+      if (row && !sections[c.value]) sections[c.value] = row.dataset.type;
+    });
+    const ids = [...new Set(cochees.map((c) => c.value))];
     if (!ids.length) { $("#msg").innerHTML = `<div class="msg err">Coche d'abord les personnes à prévenir.</div>`; return; }
     const quoi = modele === "prete" ? "« ta récompense est prête »" : "« on prépare ta récompense »";
     if (!confirm(`Envoyer le mail ${quoi} à ${ids.length} personne(s) ?\n\nTu peux le renvoyer autant de fois que nécessaire.`)) return;
     const b = $(bouton); const texte = b.textContent;
     b.disabled = true; b.textContent = "Envoi…";
-    const r = await post("rh_mail", { ids, modele });
+    const r = await post("rh_mail", { ids, modele, sections });
     b.disabled = false; b.textContent = texte;
     if (r.status === 401) { auth = null; localStorage.removeItem("fj_rh_auth"); vueLogin("Session expirée, reconnecte-toi."); return; }
     if (!r.ok || !r.data || !r.data.ok) { $("#msg").innerHTML = `<div class="msg err">${(r.data && r.data.reason === "base_indisponible") ? "Base injoignable, réessaie plus tard." : "Envoi impossible, réessaie."}</div>`; return; }

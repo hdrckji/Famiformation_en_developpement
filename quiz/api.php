@@ -76,6 +76,30 @@ function estCompteTest($p) {
   return in_array($nom, $COMPTES_TEST, true);
 }
 
+/**
+ * 👋 Le prénom tel qu'on l'écrit en tête d'un mail.
+ *
+ * Les prénoms viennent de la base Famiformation, alimentée en partie par des
+ * imports Excel : on y trouve « ENYLSON » ou « enylson » aussi souvent que
+ * « Enylson ». Écrit tel quel, le mail commence par « Bonjour ENYLSON, », ce
+ * qui donne l'impression de crier sur la personne qu'on félicite.
+ *
+ * ⚠️ On ne retouche QUE les prénoms entièrement en majuscules ou entièrement en
+ * minuscules — ceux des imports. Tout ce qui a une casse voulue est laissé
+ * intact : « McDonald », « van Damme », « d'Hondt » ne doivent pas être
+ * « corrigés » en quelque chose que la personne n'écrit pas comme ça.
+ */
+function prenomAffichable($prenom) {
+  $p = trim(preg_replace('/\s+/u', ' ', (string) $prenom));
+  if ($p === '') { return ''; }
+  $bas  = mb_strtolower($p, 'UTF-8');
+  $haut = mb_strtoupper($p, 'UTF-8');
+  if ($p !== $bas && $p !== $haut) { return $p; }   // casse voulue : on n'y touche pas
+  // MB_CASE_TITLE met aussi la majuscule après un trait d'union ou une
+  // apostrophe : « jean-marc » → « Jean-Marc », « o'brien » → « O'Brien ».
+  return mb_convert_case($bas, MB_CASE_TITLE, 'UTF-8');
+}
+
 // ⭐ FAVORITES DES QUESTIONS « ENTREPRISE » VENANT DE LA BASE.
 // Ces questions sont importées de la table quiz_questions, qui n'a pas de
 // colonne « favorite ». On les repère donc par leur texte, à la réinstallation.
@@ -1560,8 +1584,10 @@ function envoiFunActivation(PDO $db, $userId, $heures = 336) {
   $heures = max(1, (int) $heures);
   $token = issueUserAccountAccessToken($db, $u['id'], 'activation', $heures);
   $url   = famiBuildAppUrl('set_password.php', ['token' => $token]);
-  $prenom = trim((string) ($u['prenom'] ?? ''));
-  $bonjour = $prenom !== '' ? $prenom : trim((string) ($u['identifiant'] ?? ''));
+  // Le prénom remis en forme. Sans prénom on écrivait l'identifiant du compte —
+  // « Bonjour marie.durand, » — ce qui ressemble à un mail automatique raté.
+  $prenom = prenomAffichable($u['prenom'] ?? '');
+  $bonjour = $prenom !== '' ? $prenom : 'à toi';
   $validite = $heures >= 48 ? ((int) round($heures / 24) . ' jours') : ((int) $heures . ' heures');
   $e = function ($s) { return htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8'); };
 
@@ -1922,7 +1948,9 @@ function mailRecompense(PDO $db, $cle, $info, $modele = 'attente', $origine = 'a
   } catch (Throwable $e) { return false; }
   $email = $u ? trim((string) ($u['email'] ?? '')) : '';
   if (!filter_var($email, FILTER_VALIDATE_EMAIL)) { return false; }
-  $prenom = trim((string) ($u['prenom'] ?? ''));
+  // 👋 Le prénom, remis en forme : la base contient aussi bien « ENYLSON » que
+  // « enylson » selon la façon dont le compte a été créé.
+  $prenom = prenomAffichable($u['prenom'] ?? '');
   $bonjour = $prenom !== '' ? $prenom : 'à toi';
   $modele = ($modele === 'prete') ? 'prete' : 'attente';
 
@@ -2841,14 +2869,31 @@ switch ($action) {
     )));
     // 🧪 Le compte d'essai peut recevoir le mail, pour le voir en vrai. Il n'est
     // ajouté QUE si on l'a explicitement coché : sans ça, un envoi « à tout le
-    // monde » lui écrirait aussi. On complète ici la liste commencée au jardin
-    // — un compte d'essai qui a fait le quiz reçoit la version « podium ».
+    // monde » lui écrirait aussi.
     foreach ((is_array($board) ? $board : []) as $p) {
       if (!is_array($p) || ($p['quiz_fait'] ?? true) === false) { continue; }
       if (!estCompteTest($p)) { continue; }
       $cleT = mb_strtolower((string) $p['name']);
       // Rang 1 : le mail d'essai doit ressembler à celui d'un vrai gagnant.
       if (!isset($ciblesTest[$cleT])) { $ciblesTest[$cleT] = ['type' => 'podium', 'rang' => 1]; }
+    }
+
+    // 🎯 DEPUIS QUELLE SECTION LA CASE A-T-ELLE ÉTÉ COCHÉE ?
+    //
+    // Le compte d'essai apparaît dans les DEUX listes. Sans cette précision, la
+    // boucle du jardin l'inscrivait en premier, et cocher sa ligne du PODIUM
+    // envoyait quand même le mail « jardin terminé » : impossible de voir à quoi
+    // ressemble le mail d'un vainqueur du classement. La page RH indique donc la
+    // section d'origine, et on choisit la version en conséquence.
+    // Ça ne concerne QUE les comptes d'essai : un vrai gagnant garde le motif
+    // qui lui revient réellement.
+    $sections = (array) ($input['sections'] ?? []);
+    foreach ($sections as $cleS => $section) {
+      $cleS = mb_strtolower(trim((string) $cleS));
+      if (!isset($ciblesTest[$cleS])) { continue; }
+      $ciblesTest[$cleS] = ($section === 'podium')
+        ? ['type' => 'podium', 'rang' => 1]   // faux 1er, pour voir le vrai mail du podium
+        : ['type' => 'jardin'];
     }
 
     // Sans liste explicite, on garde l'ancien comportement : tous les gagnants
