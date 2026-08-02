@@ -2722,10 +2722,15 @@ switch ($action) {
         // la personne était déjà au courant sans avoir rien fait.
         'origine'    => (string) ($c['origine'] ?? ''),
         'motif'      => $motif,
-        // Mails partis AVANT que les compteurs ne soient separes par motif :
-        // on ne sait pas s'ils concernaient le podium ou le jardin, alors on
-        // le DIT au lieu de les ranger arbitrairement dans une section.
-        'anciens'    => (int) ($tout['attente'] ?? 0) + (int) ($tout['prete'] ?? 0),
+        // 📜 HISTORIQUE D'AVANT LA SÉPARATION PAR RÉCOMPENSE.
+        // Ces envois-là n'étaient pas rangés par motif, mais le MODÈLE, lui,
+        // était bien enregistré : « on prépare » et « c'est prêt » étaient déjà
+        // comptés à part. On les rend donc tels quels, avec leur libellé exact
+        // — les résumer à « motif inconnu » perdait une information qu'on a.
+        // Seule la récompense concernée (podium ou jardin) reste indéterminée.
+        'anciens_attente' => (int) ($tout['attente'] ?? 0),
+        'anciens_prete'   => (int) ($tout['prete'] ?? 0),
+        'anciens_dernier' => (string) ($tout['dernier'] ?? ''),
       ];
     };
 

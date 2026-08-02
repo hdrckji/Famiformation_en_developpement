@@ -157,14 +157,24 @@ function ligneHtml(p, type, rangClass) {
   if (p.nb_prete) {
     bouts.push(`<span class="rh-part rh-part-prete">🎁 « c'est prêt » <b>${quoi}</b> envoyé${p.nb_prete > 1 ? " ×" + p.nb_prete : ""}</span>`);
   }
-  if (!bouts.length) {
-    bouts.push(`<span class="rh-envois rh-jamais">✉️ aucun mail « ${quoi} » envoyé</span>`);
+  // « Aucun mail » ne doit s'afficher que si vraiment RIEN n'est parti — ni pour
+  // cette récompense, ni avant la séparation. Sinon on affirme le contraire de
+  // la ligne d'à côté.
+  const aDeja = p.nb_attente || p.nb_prete || p.anciens_attente || p.anciens_prete;
+  if (!bouts.length && !aDeja) {
+    bouts.push(`<span class="rh-envois rh-jamais">✉️ aucun mail envoyé</span>`);
   }
-  // Mails partis avant la séparation podium / jardin : on ne peut pas savoir
-  // lequel des deux ils concernaient, on le dit plutôt que de faire semblant.
-  if (p.anciens) {
-    bouts.push(`<span class="rh-part rh-part-ancien" title="Envoyés avant que les compteurs ne soient séparés par récompense">`
-      + `❓ ${p.anciens} mail(s) plus ancien(s), motif inconnu</span>`);
+  // 📜 HISTORIQUE d'avant la séparation podium / jardin. On sait EXACTEMENT
+  // quel mail est parti — « on prépare » ou « c'est prêt » —, seule la
+  // récompense concernée n'était pas notée. On l'affiche donc en toutes
+  // lettres : dire « motif inconnu » revenait à jeter une info qu'on a.
+  const anciens = [];
+  if (p.anciens_attente) anciens.push(`⏳ « on prépare » ×${p.anciens_attente}`);
+  if (p.anciens_prete) anciens.push(`🎁 « c'est prêt » ×${p.anciens_prete}`);
+  if (anciens.length) {
+    const quandA = p.anciens_dernier ? " — le " + esc(p.anciens_dernier.slice(0, 16).replace("T", " à ")) : "";
+    bouts.push(`<span class="rh-part rh-part-ancien" title="Envoyé avant que les envois ne soient notés par récompense${quandA}">`
+      + `📜 déjà envoyé avant : ${anciens.join(" · ")}</span>`);
   }
   const envois = `<span class="rh-envois" title="${esc(quand.replace(/^ — /, ""))}">${bouts.join(" ")}</span>`;
   // 🧪 COMPTE DE TEST (admin_…). Il ne compte PAS au classement et ne prend la
