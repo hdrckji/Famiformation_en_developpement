@@ -59,20 +59,21 @@ $CODE_TEST_USED = "FAMI-TEST-USED";
 // telephone, ordi) sans deranger personne. Ils n'apparaissent PAS au classement
 // public ni sur la tele, et ils peuvent refaire le quiz autant de fois qu'ils
 // veulent. Cree-les comme un compte normal avec ce pseudo.
-$COMPTES_TEST = ['testeur'];
-// Tout compte dont l'identifiant COMMENCE par « admin_ » est un compte de
-// service : admin_, admin_jimmy, admin_borne… Ce sont des comptes à part, ils
-// ne doivent jamais peser sur le classement. Le test exact d'avant ne prenait
-// que le compte nommé littéralement « admin_ » et laissait passer les autres.
-$PREFIXES_TEST = ['admin_'];
+// ⚠️ LISTE EXACTE, PAS UN PRÉFIXE. Seuls ces identifiants précis sont des
+// comptes de service. « admin_ » est le compte d'essai ; il ne s'agit PAS de
+// tous les comptes administrateurs.
+//
+// La règle a été en préfixe pendant un temps : tout ce qui commençait par
+// « admin_ » était écarté. Résultat, un ou une collègue avec un profil admin
+// qui joue pour de vrai — identifiant « admin_sophie » par exemple — était
+// silencieusement retiré du classement, alors qu'il ou elle a parfaitement le
+// droit de concourir. Pour ajouter un compte de service, écris son identifiant
+// complet ici.
+$COMPTES_TEST = ['testeur', 'admin_'];
 function estCompteTest($p) {
-  global $COMPTES_TEST, $PREFIXES_TEST;
-  $nom = mb_strtolower((string)(is_array($p) ? ($p['name'] ?? '') : $p));
-  if (in_array($nom, $COMPTES_TEST, true)) { return true; }
-  foreach ($PREFIXES_TEST as $pref) {
-    if (strncmp($nom, $pref, strlen($pref)) === 0) { return true; }
-  }
-  return false;
+  global $COMPTES_TEST;
+  $nom = mb_strtolower(trim((string)(is_array($p) ? ($p['name'] ?? '') : $p)));
+  return in_array($nom, $COMPTES_TEST, true);
 }
 
 // ⭐ FAVORITES DES QUESTIONS « ENTREPRISE » VENANT DE LA BASE.

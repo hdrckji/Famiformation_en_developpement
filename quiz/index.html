@@ -1124,14 +1124,13 @@ const affG = (n) => Math.round(Number(n) || 0);
 // 🧪 Compte de test : le pseudo « Testeur » sert à essayer le jeu EN VRAI (borne,
 // téléphone, ordi) sans déranger personne — il n'apparaît pas au classement et
 // rien ne lui est verrouillé (quiz rejouable, jardin toujours ouvert).
-const COMPTES_TEST = ["testeur"];
-// Tout compte commençant par « admin_ » est un compte de service (admin_,
-// admin_jimmy, admin_borne…) : il ne doit jamais peser sur le classement. Le
-// test exact d'avant ne couvrait que le compte nommé littéralement « admin_ ».
-const PREFIXES_TEST = ["admin_"];
+// ⚠️ LISTE EXACTE, PAS UN PRÉFIXE — et la même que $COMPTES_TEST dans api.php.
+// « admin_ » est le compte d'essai, ce ne sont PAS tous les comptes admin :
+// quelqu'un avec un profil administrateur qui joue pour de vrai doit compter au
+// classement comme tout le monde.
+const COMPTES_TEST = ["testeur", "admin_"];
 function estNomTest(n) {
-  const s = (n || "").toLowerCase();
-  return COMPTES_TEST.includes(s) || PREFIXES_TEST.some((p) => s.startsWith(p));
+  return COMPTES_TEST.includes((n || "").trim().toLowerCase());
 }
 function estCompteTest() { return !!joueur && estNomTest(joueur.name); }
 const toutOuvert = () => SIMULATION || estCompteTest();

@@ -945,12 +945,14 @@ function dessineListe() {
 
 /* ---------------------- ONGLET CLASSEMENT ---------------------- */
 
-// Comptes de service : « testeur » et tout ce qui commence par « admin_ ».
-// Ils sont exclus du classement public (borne, télé, page joueur) — cette liste
-// doit rester identique à celle de quiz/index.html et de api.php.
+// Comptes de service : « testeur » et « admin_ », EXACTEMENT ces deux
+// identifiants — pas tout ce qui commence par « admin_ ». Un profil
+// administrateur qui joue pour de vrai compte au classement comme tout le
+// monde. Cette liste doit rester identique à celle de quiz/index.html et de
+// api.php ($COMPTES_TEST).
 function estNomTest(n) {
-  const s = (n || "").toLowerCase();
-  return s === "testeur" || s.startsWith("admin_");
+  const s = (n || "").trim().toLowerCase();
+  return s === "testeur" || s === "admin_";
 }
 
 function vueClassement() {
