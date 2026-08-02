@@ -1749,7 +1749,10 @@ function msg(cle, defautFr, defautNl, trous) {
   const perso = MESSAGES[cle];
   let s = (perso && (LANG === "nl" ? perso.nl : perso.fr)) || t(defautFr, defautNl);
   if (trous) { for (const k in trous) s = s.split("{" + k + "}").join(trous[k]); }
-  return s;
+  // Un message peut tenir sur plusieurs lignes dans l'admin : chaque retour à
+  // la ligne devient un saut de ligne à l'écran. Les lignes vides sont
+  // ignorées, sinon un retour en trop creuse un blanc dans la fenêtre.
+  return s.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).join("<br>");
 }
 function setLang(l) {
   LANG = (l === "nl") ? "nl" : "fr";
@@ -2421,9 +2424,10 @@ function modaleQuizFini(graines) {
   o.innerHTML = `<div class="modal code-modal">
     <div class="cm-emoji">🎉</div>
     <h2 class="cm-titre">${msg("quiz_fini_titre", "Quiz terminé !", "Quiz voltooid!")}</h2>
-    <p class="cm-sous">${msg("quiz_fini_graines", "Tu as récolté <b>{graines} 🌰</b> graines.", "Je hebt <b>{graines} 🌰</b> zaadjes geoogst.", { graines: affG(graines) })}<br>
-      ${msg("quiz_fini_jardin", "<b>Ton jardin est maintenant ouvert</b> 🌼 : plantes-y tes graines. Elles vont diminuer — <b>c'est normal, ça ne concerne que le jardin</b>, <b>ton score au classement ne bougera pas</b>.", "<b>Je tuin is nu open</b> 🌼: plant er je zaadjes. Ze zullen afnemen — <b>dat is normaal, het geldt enkel voor de tuin</b>, <b>je score in de ranking verandert niet</b>.")}<br>
-      ${msg("quiz_fini_recompense", "🎁 Et surtout : <b>va au bout de ton jardin et tu gagnes une récompense toi aussi</b>, même sans être sur le podium !", "🎁 En vooral: <b>werk je tuin af en jij wint ook een beloning</b>, ook zonder op het podium te staan!")}</p>
+    <p class="cm-sous">${msg("quiz_fini_corps",
+      "Tu as récolté <b>{graines} 🌰</b> graines.\n<b>Ton jardin est maintenant ouvert</b> 🌼 : plantes-y tes graines. Elles vont diminuer — <b>c'est normal, ça ne concerne que le jardin</b>, <b>ton score au classement ne bougera pas</b>.\n🎁 Et surtout : <b>va au bout de ton jardin et tu gagnes une récompense toi aussi</b>, même sans être sur le podium !",
+      "Je hebt <b>{graines} 🌰</b> zaadjes geoogst.\n<b>Je tuin is nu open</b> 🌼: plant er je zaadjes. Ze zullen afnemen — <b>dat is normaal, het geldt enkel voor de tuin</b>, <b>je score in de ranking verandert niet</b>.\n🎁 En vooral: <b>werk je tuin af en jij wint ook een beloning</b>, ook zonder op het podium te staan!",
+      { graines: affG(graines) })}</p>
     <div class="cm-modules">
       <button class="cm-mod" data-qf="jardin"><span class="cm-mod-emo">🌼</span><span class="cm-mod-titre">${t("Mon jardin", "Mijn tuin")}</span></button>
       <button class="cm-mod" data-qf="board"><span class="cm-mod-emo">🏆</span><span class="cm-mod-titre">${t("Le classement", "De ranking")}</span></button>
@@ -2445,8 +2449,9 @@ function modaleJardinGagne() {
   o.innerHTML = `<div class="modal code-modal">
     <div class="cm-emoji">🏆</div>
     <h2 class="cm-titre">${msg("jardin_gagne_titre", "Bravo, tu as gagné !", "Bravo, je hebt gewonnen!")}</h2>
-    <p class="cm-sous">${msg("jardin_gagne_texte1", "Tu as <b>complété tout ton jardin</b> et planté les <b>3 lotus</b> (or, argent, bronze) 🌸", "Je hebt <b>je hele tuin voltooid</b> en de <b>3 lotussen</b> (goud, zilver, brons) geplant 🌸")}<br>
-      ${msg("jardin_gagne_texte2", "Tu fais officiellement partie des <b>gagnants du jardin</b> 🎁 <b>Ta récompense est en cours de préparation.</b> Nous t'enverrons un mail une fois que tu pourras venir la chercher.", "Je hoort officieel bij de <b>winnaars van de tuin</b> 🎁 <b>Je beloning wordt klaargemaakt.</b> We sturen je een mail zodra je ze mag komen ophalen.")}</p>
+    <p class="cm-sous">${msg("jardin_gagne_corps",
+      "Tu as <b>complété tout ton jardin</b> et planté les <b>3 lotus</b> (or, argent, bronze) 🌸\nTu fais officiellement partie des <b>gagnants du jardin</b> 🎁 <b>Ta récompense est en cours de préparation.</b> Nous t'enverrons un mail une fois que tu pourras venir la chercher.",
+      "Je hebt <b>je hele tuin voltooid</b> en de <b>3 lotussen</b> (goud, zilver, brons) geplant 🌸\nJe hoort officieel bij de <b>winnaars van de tuin</b> 🎁 <b>Je beloning wordt klaargemaakt.</b> We sturen je een mail zodra je ze mag komen ophalen.")}</p>
     <button class="btn" id="cm-ok" style="min-width:200px;">${t("Trop bien ! 🌟", "Geweldig! 🌟")}</button>
   </div>`;
   document.body.appendChild(o);

@@ -55,9 +55,15 @@ h2 { font-family: 'Fredoka', sans-serif; font-size: 1.2rem; margin-bottom: 14px;
 .msg-intro p { margin:0 0 8px; }
 .msg-groupe { margin-bottom:26px; }
 .msg-groupe h3 { margin:0 0 10px; font-size:1.05rem; color:#2d5a37;
-  border-bottom:2px solid #cfe6d5; padding-bottom:6px; }
-.msg-item { background:#fff; border:1px solid #e2ece5; border-radius:12px;
-  padding:14px 16px; margin-bottom:12px; }
+  border-bottom:2px solid #cfe6d5; padding-bottom:6px;
+  display:flex; align-items:center; gap:10px; }
+/* Un groupe = UN message complet : on l'encadre pour qu'on le voie d'un coup. */
+.msg-groupe { background:#fbfdfc; border:1px solid #e2ece5; border-radius:14px; padding:14px 16px; }
+.msg-item { background:#fff; border:1px solid #e9f1ec; border-radius:10px;
+  padding:12px 14px; margin-bottom:10px; }
+.msg-item:last-child { margin-bottom:0; }
+.msg-defaut summary { cursor:pointer; font-weight:600; }
+.msg-defaut summary:hover { color:#2d5a37; }
 .msg-titre { font-weight:700; margin-bottom:10px; display:flex; align-items:center;
   gap:8px; flex-wrap:wrap; }
 .msg-trou { font-family:monospace; font-size:.78rem; background:#eef6f0; color:#2d5a37;
@@ -315,30 +321,35 @@ async function vueMessages() {
     if (m.defaut[lang] === null) return "";
     const val = m.perso[lang] || "";
     const lab = lang === "fr" ? "🇫🇷 Français" : "🇳🇱 Néerlandais";
+    // Un message sur plusieurs lignes mérite un champ haut : sinon on édite
+    // trois paragraphes dans une fente de deux centimètres.
+    const hauteur = m.lignes ? 6 : 3;
     return `<div class="msg-lang">
       <label>${lab}</label>
-      <textarea data-cle="${esc(m.cle)}" data-lang="${lang}" rows="3"
+      <textarea data-cle="${esc(m.cle)}" data-lang="${lang}" rows="${hauteur}"
         placeholder="Laisser vide pour garder le texte d'origine">${esc(val)}</textarea>
-      <div class="msg-defaut"><b>Texte d'origine :</b> ${esc(m.defaut[lang])}</div>
+      <details class="msg-defaut"><summary>Voir le texte d'origine</summary>
+        <div>${esc(m.defaut[lang])}</div></details>
     </div>`;
   };
 
   c.innerHTML = `
     <div class="msg-intro">
       <p><b>Tous les messages liés aux récompenses</b> — ce qui s'affiche à l'écran et ce qui part par mail.
-      Modifie ce que tu veux&nbsp;: <b>un champ vide reprend le texte d'origine</b> affiché en dessous.</p>
+      <b>Un encadré = un message complet.</b> Modifie ce que tu veux&nbsp;:
+      <b>un champ vide reprend le texte d'origine</b> (repliable sous chaque champ).</p>
       <p class="hint">🏬 Ces textes ne concernent que <b>${esc(SITES[siteAdmin])}</b> — comme les questions et les codes.
-      L'autre magasin garde les siens : pense à faire le tour des deux si tu veux le même discours partout.
-      Les <b>mails</b> n'existent qu'en français. Tu peux utiliser du gras avec <code>&lt;b&gt;…&lt;/b&gt;</code>.</p>
+      L'autre magasin garde les siens : pense à faire le tour des deux si tu veux le même discours partout.<br>
+      ✏️ <b>Un retour à la ligne = un nouveau paragraphe.</b> Gras avec <code>&lt;b&gt;…&lt;/b&gt;</code>.
+      Les <b>mails</b> n'existent qu'en français ; le « Bonjour », l'adresse de contact et la signature sont ajoutés automatiquement.</p>
     </div>
     ${groupes.map((g) => `
       <div class="msg-groupe">
-        <h3>${esc(g.nom)}</h3>
+        <h3>${esc(g.nom)}${g.items.some((m) => m.perso.fr || m.perso.nl) ? ` <span class="msg-modifie">modifié</span>` : ""}</h3>
         ${g.items.map((m) => `
           <div class="msg-item">
             <div class="msg-titre">${esc(m.libelle)}
               ${m.trous ? `<span class="msg-trou" title="Remplacé automatiquement par le jeu">${esc(m.trous)}</span>` : ""}
-              ${m.perso.fr || m.perso.nl ? `<span class="msg-modifie">modifié</span>` : ""}
             </div>
             ${champ(m, "fr")}
             ${champ(m, "nl")}

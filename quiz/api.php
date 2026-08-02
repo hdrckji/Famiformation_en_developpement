@@ -1824,65 +1824,67 @@ function marquePrevenu($cle) {
    Les mails n'existent qu'en français : ils sont écrits à la main par les RH.
    ============================================================ */
 $MESSAGES_DEFAUT = [
-  // --- Fenêtre de fin de quiz ---
-  'quiz_fini_titre' => ['groupe' => 'Fin du quiz', 'libelle' => 'Titre',
+  // ── 🎉 Fenêtre affichée à la fin du quiz ──────────────────────────────
+  'quiz_fini_titre' => ['groupe' => '🎉 Fenêtre — fin du quiz', 'libelle' => 'Titre de la fenêtre',
     'fr' => 'Quiz terminé !', 'nl' => 'Quiz voltooid!'],
-  'quiz_fini_graines' => ['groupe' => 'Fin du quiz', 'libelle' => 'Graines récoltées', 'trous' => '{graines}',
-    'fr' => 'Tu as récolté <b>{graines} 🌰</b> graines.',
-    'nl' => 'Je hebt <b>{graines} 🌰</b> zaadjes geoogst.'],
-  'quiz_fini_jardin' => ['groupe' => 'Fin du quiz', 'libelle' => 'Ouverture du jardin',
-    'fr' => "<b>Ton jardin est maintenant ouvert</b> 🌼 : plantes-y tes graines. Elles vont diminuer — <b>c'est normal, ça ne concerne que le jardin</b>, <b>ton score au classement ne bougera pas</b>.",
-    'nl' => '<b>Je tuin is nu open</b> 🌼: plant er je zaadjes. Ze zullen afnemen — <b>dat is normaal, het geldt enkel voor de tuin</b>, <b>je score in de ranking verandert niet</b>.'],
-  'quiz_fini_recompense' => ['groupe' => 'Fin du quiz', 'libelle' => 'Promesse de récompense',
-    'fr' => '🎁 Et surtout : <b>va au bout de ton jardin et tu gagnes une récompense toi aussi</b>, même sans être sur le podium !',
-    'nl' => '🎁 En vooral: <b>werk je tuin af en jij wint ook een beloning</b>, ook zonder op het podium te staan!'],
+  'quiz_fini_corps' => ['groupe' => '🎉 Fenêtre — fin du quiz', 'libelle' => 'Message',
+    'lignes' => true, 'trous' => '{graines}',
+    'fr' => "Tu as récolté <b>{graines} 🌰</b> graines.\n"
+          . "<b>Ton jardin est maintenant ouvert</b> 🌼 : plantes-y tes graines. Elles vont diminuer — <b>c'est normal, ça ne concerne que le jardin</b>, <b>ton score au classement ne bougera pas</b>.\n"
+          . "🎁 Et surtout : <b>va au bout de ton jardin et tu gagnes une récompense toi aussi</b>, même sans être sur le podium !",
+    'nl' => "Je hebt <b>{graines} 🌰</b> zaadjes geoogst.\n"
+          . "<b>Je tuin is nu open</b> 🌼: plant er je zaadjes. Ze zullen afnemen — <b>dat is normaal, het geldt enkel voor de tuin</b>, <b>je score in de ranking verandert niet</b>.\n"
+          . "🎁 En vooral: <b>werk je tuin af en jij wint ook een beloning</b>, ook zonder op het podium te staan!"],
 
-  // --- Fenêtre « jardin terminé » ---
-  'jardin_gagne_titre' => ['groupe' => 'Jardin terminé', 'libelle' => 'Titre',
+  // ── 🏆 Fenêtre affichée quand le jardin est terminé ───────────────────
+  'jardin_gagne_titre' => ['groupe' => '🏆 Fenêtre — jardin terminé', 'libelle' => 'Titre de la fenêtre',
     'fr' => 'Bravo, tu as gagné !', 'nl' => 'Bravo, je hebt gewonnen!'],
-  'jardin_gagne_texte1' => ['groupe' => 'Jardin terminé', 'libelle' => 'Ce qui vient d\'être accompli',
-    'fr' => 'Tu as <b>complété tout ton jardin</b> et planté les <b>3 lotus</b> (or, argent, bronze) 🌸',
-    'nl' => 'Je hebt <b>je hele tuin voltooid</b> en de <b>3 lotussen</b> (goud, zilver, brons) geplant 🌸'],
-  'jardin_gagne_texte2' => ['groupe' => 'Jardin terminé', 'libelle' => 'Ce qui va se passer',
-    'fr' => "Tu fais officiellement partie des <b>gagnants du jardin</b> 🎁 <b>Ta récompense est en cours de préparation.</b> Nous t'enverrons un mail une fois que tu pourras venir la chercher.",
-    'nl' => 'Je hoort officieel bij de <b>winnaars van de tuin</b> 🎁 <b>Je beloning wordt klaargemaakt.</b> We sturen je een mail zodra je ze mag komen ophalen.'],
+  'jardin_gagne_corps' => ['groupe' => '🏆 Fenêtre — jardin terminé', 'libelle' => 'Message',
+    'lignes' => true,
+    'fr' => "Tu as <b>complété tout ton jardin</b> et planté les <b>3 lotus</b> (or, argent, bronze) 🌸\n"
+          . "Tu fais officiellement partie des <b>gagnants du jardin</b> 🎁 <b>Ta récompense est en cours de préparation.</b> Nous t'enverrons un mail une fois que tu pourras venir la chercher.",
+    'nl' => "Je hebt <b>je hele tuin voltooid</b> en de <b>3 lotussen</b> (goud, zilver, brons) geplant 🌸\n"
+          . "Je hoort officieel bij de <b>winnaars van de tuin</b> 🎁 <b>Je beloning wordt klaargemaakt.</b> We sturen je een mail zodra je ze mag komen ophalen."],
 
-  // --- Encart « objectif récompense » dans le jardin ---
-  'objectif_ok' => ['groupe' => 'Dans le jardin', 'libelle' => 'Objectif atteint',
+  // ── 🌼 Encart « objectif récompense », dans le jardin ─────────────────
+  'objectif_ok' => ['groupe' => '🌼 Encart du jardin', 'libelle' => 'Quand le jardin est terminé',
     'fr' => "Bravo&nbsp;! Ton jardin est complet et tes <b>3 lotus</b> sont plantés — tu es <b>gagnant du jardin</b> 🌟 Ta récompense est en cours de préparation, tu recevras un mail dès qu'elle sera prête.",
     'nl' => 'Bravo&nbsp;! Je tuin is volledig en je <b>3 lotussen</b> zijn geplant — je bent <b>winnaar van de tuin</b> 🌟 Je beloning wordt klaargemaakt, je krijgt een mail zodra ze klaar is.'],
-  'objectif_aide' => ['groupe' => 'Dans le jardin', 'libelle' => 'Objectif pas encore atteint',
+  'objectif_aide' => ['groupe' => '🌼 Encart du jardin', 'libelle' => 'Tant qu\'il n\'est pas terminé',
     'fr' => 'Remplis <b>toutes</b> tes cases et plante les <b>3 lotus (or, argent, bronze)</b> pour gagner ta récompense.',
     'nl' => 'Vul <b>al</b> je vakjes en plant de <b>3 lotussen (goud, zilver, brons)</b> om je beloning te winnen.'],
 
-  // --- Bandeau podium (après l'annonce des résultats) ---
-  'podium_bandeau' => ['groupe' => 'Podium', 'libelle' => 'Bandeau du tableau de bord', 'trous' => '{rang}',
+  // ── 🥇 Bandeau affiché aux 3 premiers, après l'annonce ────────────────
+  'podium_bandeau' => ['groupe' => '🥇 Bandeau podium', 'libelle' => 'Message affiché aux 3 premiers', 'trous' => '{rang}',
     'fr' => 'Bravo, tu finis <b>{rang}</b> du classement ! Ta récompense est en cours de préparation — tu recevras un mail dès que tu pourras venir la chercher.',
     'nl' => 'Proficiat, je eindigt <b>{rang}</b> in de ranking! Je beloning wordt klaargemaakt — je krijgt een mail zodra je ze mag komen ophalen.'],
 
-  // --- Mails (français uniquement) ---
-  'mail_attente_sujet_podium' => ['groupe' => 'Mail « on prépare »', 'libelle' => 'Objet — podium',
+  // ── ✉️ Mail « on prépare », version podium ────────────────────────────
+  'mail_podium_sujet' => ['groupe' => '✉️ Mail — podium', 'libelle' => 'Objet du mail',
     'fr' => '🏆 Bravo — on prépare ta récompense !', 'nl' => null],
-  'mail_attente_sujet_jardin' => ['groupe' => 'Mail « on prépare »', 'libelle' => 'Objet — jardin',
-    'fr' => '🌼 Bravo — on prépare ta récompense !', 'nl' => null],
-  'mail_attente_felicite_podium' => ['groupe' => 'Mail « on prépare »', 'libelle' => 'Félicitations — podium', 'trous' => '{place}',
-    'fr' => "L'équipe Famiformation te félicite pour ta <b>{place}</b> au grand quiz&nbsp;! 🏆", 'nl' => null],
-  'mail_attente_felicite_jardin' => ['groupe' => 'Mail « on prépare »', 'libelle' => 'Félicitations — jardin',
-    'fr' => "L'équipe Famiformation te félicite pour avoir <b>terminé ton jardin</b>&nbsp;! 🌼", 'nl' => null],
-  'mail_attente_suite' => ['groupe' => 'Mail « on prépare »', 'libelle' => 'La suite',
-    'fr' => "On <b>prépare ta récompense</b>. Nous t'enverrons un mail une fois que tu pourras venir la chercher.", 'nl' => null],
-  'mail_prete_sujet' => ['groupe' => 'Mail « c\'est prêt »', 'libelle' => 'Objet',
-    'fr' => '🎁 Ta récompense est prête !', 'nl' => null],
-  'mail_prete_felicite' => ['groupe' => 'Mail « c\'est prêt »', 'libelle' => 'Annonce',
-    'fr' => 'Bonne nouvelle : <b>ta récompense est prête</b>&nbsp;! 🎁', 'nl' => null],
-  'mail_prete_suite' => ['groupe' => 'Mail « c\'est prêt »', 'libelle' => 'Où la récupérer',
-    'fr' => 'Pour la récupérer, présente-toi <b>auprès des RH</b> du magasin.', 'nl' => null],
+  'mail_podium_corps' => ['groupe' => '✉️ Mail — podium', 'libelle' => 'Message', 'lignes' => true, 'trous' => '{place}',
+    'fr' => "L'équipe Famiformation te félicite pour ta <b>{place}</b> au grand quiz&nbsp;! 🏆\n"
+          . "On <b>prépare ta récompense</b>. Nous t'enverrons un mail une fois que tu pourras venir la chercher.", 'nl' => null],
 
-  // --- Modalités (le « Comment ça marche ») ---
-  'modalites_podium' => ['groupe' => 'Modalités', 'libelle' => 'Comment on gagne au classement', 'trous' => '{date_resultats}',
+  // ── ✉️ Mail « on prépare », version jardin ────────────────────────────
+  'mail_jardin_sujet' => ['groupe' => '✉️ Mail — jardin terminé', 'libelle' => 'Objet du mail',
+    'fr' => '🌼 Bravo — on prépare ta récompense !', 'nl' => null],
+  'mail_jardin_corps' => ['groupe' => '✉️ Mail — jardin terminé', 'libelle' => 'Message', 'lignes' => true,
+    'fr' => "L'équipe Famiformation te félicite pour avoir <b>terminé ton jardin</b>&nbsp;! 🌼\n"
+          . "On <b>prépare ta récompense</b>. Nous t'enverrons un mail une fois que tu pourras venir la chercher.", 'nl' => null],
+
+  // ── ✉️ Mail « c'est prêt », envoyé par les RH ─────────────────────────
+  'mail_prete_sujet' => ['groupe' => '✉️ Mail — récompense prête', 'libelle' => 'Objet du mail',
+    'fr' => '🎁 Ta récompense est prête !', 'nl' => null],
+  'mail_prete_corps' => ['groupe' => '✉️ Mail — récompense prête', 'libelle' => 'Message', 'lignes' => true,
+    'fr' => "Bonne nouvelle : <b>ta récompense est prête</b>&nbsp;! 🎁\n"
+          . "Pour la récupérer, présente-toi <b>auprès des RH</b> du magasin.", 'nl' => null],
+
+  // ── 📋 Modalités, dans le « Comment ça marche » ───────────────────────
+  'modalites_podium' => ['groupe' => '📋 Modalités', 'libelle' => 'Comment on gagne au classement', 'trous' => '{date_resultats}',
     'fr' => "Ta récolte de graines (quiz + codes), c'est tout. Les <b>3 meilleures récoltes repartent avec de très belles récompenses</b> — de quoi viser le podium&nbsp;! Annonce des vainqueurs le {date_resultats}.",
     'nl' => "Je oogst aan zaadjes (quiz + codes), that's it. De <b>3 beste oogsten winnen heel mooie prijzen</b> — mik dus op het podium&nbsp;! Bekendmaking van de winnaars op {date_resultats}."],
-  'modalites_jardin' => ['groupe' => 'Modalités', 'libelle' => 'Comment on gagne avec le jardin',
+  'modalites_jardin' => ['groupe' => '📋 Modalités', 'libelle' => 'Comment on gagne avec le jardin',
     'fr' => "<b>Va au bout de ton jardin</b> (toutes les cases + les <b>3 lotus</b>) et tu deviens gagnant toi aussi. <b>Ta récompense est alors préparée</b> et tu reçois un mail dès qu'elle est prête. Et <b>jardin et podium se cumulent</b> 🌼🏆",
     'nl' => "<b>Werk je tuin af</b> (alle vakjes + de <b>3 lotussen</b>) en jij wordt ook een winnaar. <b>Je beloning wordt dan klaargemaakt</b> en je krijgt een mail zodra ze klaar is. En <b>tuin en podium zijn cumuleerbaar</b> 🌼🏆"],
 ];
@@ -1931,31 +1933,37 @@ function mailRecompense(PDO $db, $cle, $info, $modele = 'attente', $origine = 'a
   $rang = (int) ($info['rang'] ?? 0);
   $place = ($rang === 1) ? '1re place' : $rang . 'e place';
 
-  // 📝 Les textes viennent de l'onglet « Messages » de l'administration
-  // (msgTexte). Ils ne sont plus écrits en dur ici : les RH peuvent les
-  // reformuler sans toucher au code.
+  // 📝 Les textes viennent de l'onglet « Messages » de l'administration.
+  // Un mail = un OBJET + un MESSAGE, le message pouvant tenir sur plusieurs
+  // lignes (une ligne = un paragraphe). Le « Bonjour », le lien de contact et
+  // la signature restent automatiques : ils ne changent jamais.
   if ($modele === 'attente') {
     // 1️⃣ ON PRÉPARE. Envoyé dès que la personne devient gagnante : on félicite,
     // on annonce qu'un second mail suivra. Sans ça, quelqu'un qui gagne le
     // 20/08 n'entendait plus parler de rien jusqu'au 01/09.
-    $sujet    = msgTexte($estPodium ? 'mail_attente_sujet_podium' : 'mail_attente_sujet_jardin');
-    $felicite = msgTexte($estPodium ? 'mail_attente_felicite_podium' : 'mail_attente_felicite_jardin',
-                         'fr', ['place' => $place]);
-    $suite    = msgTexte('mail_attente_suite');
+    $sujet = msgTexte($estPodium ? 'mail_podium_sujet' : 'mail_jardin_sujet');
+    $corps = msgTexte($estPodium ? 'mail_podium_corps' : 'mail_jardin_corps', 'fr', ['place' => $place]);
   } else {
     // 2️⃣ C'EST PRÊT. Envoyé par les RH le jour où la récompense est disponible.
     // Plus de rappel du classement ici : à ce stade la seule information utile,
     // c'est qu'elle est prête et où la chercher.
-    $sujet    = msgTexte('mail_prete_sujet');
-    $felicite = msgTexte('mail_prete_felicite');
-    $suite    = msgTexte('mail_prete_suite');
+    $sujet = msgTexte('mail_prete_sujet');
+    $corps = msgTexte('mail_prete_corps');
+  }
+
+  // Une ligne du message = un paragraphe. Les lignes vides sont ignorées, pour
+  // qu'un retour à la ligne en trop ne fabrique pas un blanc dans le mail.
+  $paragraphes = '';
+  foreach (preg_split('/\R/u', $corps) as $i => $ligne) {
+    $ligne = trim($ligne);
+    if ($ligne === '') { continue; }
+    $paragraphes .= '<p style="font-size:16px;line-height:1.6;">' . $ligne . '</p>';
   }
 
   $body = '<div style="font-family:Arial,sans-serif;color:#244230;max-width:560px;margin:0 auto;padding:24px;">'
     . '<p style="font-size:16px;">Bonjour ' . htmlspecialchars($bonjour, ENT_QUOTES, 'UTF-8') . ',</p>'
-    . '<p style="font-size:16px;line-height:1.6;">' . $felicite . '</p>'
-    . '<p style="font-size:16px;line-height:1.6;">' . $suite . ' '
-    . 'Une question&nbsp;? Écris à <a href="mailto:admin@famiformation.com">admin@famiformation.com</a>.</p>'
+    . $paragraphes
+    . '<p style="font-size:16px;line-height:1.6;">Une question&nbsp;? Écris à <a href="mailto:admin@famiformation.com">admin@famiformation.com</a>.</p>'
     . '<p style="font-size:15px;color:#617268;">Merci d\'avoir joué, et à bientôt&nbsp;! 🌱<br>L\'équipe Famiflora · Famiformation</p></div>';
   $ok = function_exists('sendMail') ? sendMail($email, $sujet, $body, true) : false;
   // Tracé ICI, donc pour TOUS les envois — automatiques comme manuels.
@@ -3393,6 +3401,8 @@ switch ($action) {
         'groupe'  => $def['groupe'],
         'libelle' => $def['libelle'],
         'trous'   => $def['trous'] ?? '',
+        // Message tenant sur plusieurs lignes : l'admin lui donne un champ haut.
+        'lignes'  => !empty($def['lignes']),
         'defaut'  => ['fr' => $def['fr'], 'nl' => $def['nl']],
         'perso'   => ['fr' => is_array($perso) ? (string) ($perso[$cle]['fr'] ?? '') : '',
                       'nl' => is_array($perso) ? (string) ($perso[$cle]['nl'] ?? '') : ''],
