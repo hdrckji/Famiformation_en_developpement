@@ -91,8 +91,6 @@ $rolesChoisis = array_values(array_intersect(array_map('strval', $rolesChoisis),
 
 // Domaine : FACULTATIF (vide = toutes les adresses). On n'accepte qu'un domaine
 // plausible, jamais un motif SQL bricolé depuis l'URL.
-// Pas de domaine par défaut : pré-remplir @famiflora.be masquait silencieusement
-// tous les comptes en adresse personnelle. Vide = toutes les adresses.
 $domaine = trim((string) ($_REQUEST['domaine'] ?? ''));
 if ($domaine !== '') {
     if (!preg_match('/^@?[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$/', $domaine)) {

@@ -179,8 +179,7 @@ if (!function_exists('_designedPages')) {
 
             $inner = '';
             foreach ($g as $b) { $inner .= _dBlockHtml($b, $ctx); }
-            // Ancre nommée : le sommaire et le bouton « Commencer » défilent jusqu'ici.
-            $contentPages[] = '<main class="page" id="uni-p' . $pageIndex . '">' . $inner . '</main>';
+            $contentPages[] = '<main class="page">' . $inner . '</main>';
             $pageIndex++;
         }
 
@@ -247,7 +246,7 @@ if (!function_exists('renderUniformContent')) {
             . '<p class="outro__eyebrow">' . t('Formation terminée', 'Opleiding voltooid') . '</p>'
             . '<h2 class="outro__title">' . t('Bravo, vous avez tout parcouru&nbsp;!', 'Proficiat, je hebt alles doorlopen&nbsp;!') . '</h2>'
             . '<p class="outro__message">' . t('Une question&nbsp;? N\'hésitez pas à demander au personnel.', 'Een vraag&nbsp;? Aarzel niet om het personeel te vragen.') . '</p>'
-            . '<p class="outro__thanks">' . t('Merci pour votre attention 🌿', 'Bedankt voor je aandacht 🌿') . '</p>'
+            . '<p class="outro__thanks">' . t('Merci pour votre écoute 🌿', 'Bedankt voor je aandacht 🌿') . '</p>'
             . $outroCta
             . '</div></section></main>';
         $n = count($pages);
@@ -366,32 +365,19 @@ if (!function_exists('renderUniformContent')) {
             .fami-doc, .fami-doc * { visibility:visible; }
             .fami-doc { position:absolute; left:0; top:0; width:100%;
                         -webkit-print-color-adjust:exact; print-color-adjust:exact; }
-            /* Les sections s'enchaînent, comme à l'écran. Un page-break-after sur
-               chacune laissait de grandes zones blanches dès qu'une section était
-               courte. Seule la couverture garde son saut de page. */
-            .fami-doc .doc-page { display:block !important; page-break-after:auto; }
-            .fami-doc .doc-page[data-page="0"] { page-break-after:always; }
-            .fami-doc .page { max-width:none; padding-bottom:0; }
-            /* On évite seulement de couper un bloc en deux au milieu d'une page. */
-            .fami-doc .callout, .fami-doc .keyfigures, .fami-doc figure,
-            .fami-doc .list li { page-break-inside:avoid; break-inside:avoid; }
-            .fami-doc h2, .fami-doc h3 { page-break-after:avoid; break-after:avoid; }
+            .fami-doc .doc-page { display:block !important; page-break-after:always; }
+            .fami-doc .doc-page:last-child { page-break-after:auto; }
+            .fami-doc .page { max-width:none; }
             .fami-doc .doc-pdf, .fami-doc .pagenav, .fami-doc #famiDoneModal { display:none !important; }
         }
-        /* Lecture en continu : les sections s'enchaînent, on descend en scrollant.
-           Seule la couverture occupe l'écran entier ; le reste suit d'un trait. */
-        .fami-doc { scroll-behavior: smooth; }
-        .fami-doc .page{ scroll-margin-top: 16px; }
         </style>
 
         <div class="fami-doc">
             <div class="doc-view doc-read">
                 <?php foreach ($pages as $i => $html): ?>
-                    <?php /* Lecture en continu : toutes les sections sont visibles et
-                             s'enchaînent. Plus de display:none ni de pagination. */ ?>
-                    <div class="doc-page" data-page="<?= (int) $i ?>"><?= $html ?></div>
+                    <div class="doc-page" data-page="<?= (int) $i ?>" <?= $i === 0 ? '' : 'style="display:none;"' ?>><?= $html ?></div>
                 <?php endforeach; ?>
-                <?php if (false): ?>
+                <?php if ($n > 1): ?>
                     <nav class="pagenav" aria-label="<?= t('Navigation entre les pages', 'Paginanavigatie') ?>">
                         <button type="button" class="pagenav__link pagenav__link--prev" id="uniPrev" onclick="uniPage(-1)"><span aria-hidden="true">←</span> <?= t('Précédent', 'Vorige') ?></button>
                         <p class="pagenav__counter"><?= t('Page', 'Pagina') ?> <strong id="uniCur">1</strong> / <?= (int) $n ?></p>
@@ -444,37 +430,21 @@ if (!function_exists('renderUniformContent')) {
                 if (eye) { eye.textContent = showPdf ? '📖' : '👁'; eye.title = showPdf ? <?= json_encode(t('Revenir à la lecture', 'Terug naar het lezen')) ?> : <?= json_encode(t('Voir le PDF original', 'Originele PDF bekijken')) ?>; }
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             };
-            // Lecture en continu : « aller à la page N » = y faire défiler.
             function show(i) {
                 idx = Math.max(0, Math.min(total - 1, i));
-                var cible = document.querySelector('.doc-page[data-page="' + idx + '"]');
-                if (cible && cible.scrollIntoView) { cible.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+                visited[idx] = true; // page vue (pour le suivi de lecture)
+                document.querySelectorAll('.doc-page').forEach(function (p) {
+                    p.style.display = (parseInt(p.getAttribute('data-page'), 10) === idx) ? '' : 'none';
+                });
+                var c = document.getElementById('uniCur'); if (c) { c.textContent = idx + 1; }
+                var pv = document.getElementById('uniPrev'), nx = document.getElementById('uniNext');
+                if (pv) { pv.disabled = (idx === 0); }
+                if (nx) { nx.disabled = (idx === total - 1); }
+                var d = document.querySelector('.fami-doc');
+                if (d && d.scrollIntoView) { d.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
             }
             window.uniPage = function (d) { show(idx + d); };
             window.uniGoto = function (i) { show(i); };
-
-            // Suivi de lecture : une section compte comme vue quand elle a
-            // réellement traversé l'écran. Avec l'ancien système page par page,
-            // c'était le clic sur « Suivant » qui le prouvait ; ici il faut
-            // observer le défilement, sinon tout serait « lu » dès l'ouverture.
-            (function () {
-                var pages = document.querySelectorAll('.doc-page');
-                if (!pages.length) { return; }
-                if (!('IntersectionObserver' in window)) {
-                    // Navigateur sans observateur : on n'empêche pas l'accès au quiz.
-                    pages.forEach(function (p) { visited[parseInt(p.getAttribute('data-page'), 10)] = true; });
-                    return;
-                }
-                var obs = new IntersectionObserver(function (entries) {
-                    entries.forEach(function (en) {
-                        if (en.isIntersecting) {
-                            visited[parseInt(en.target.getAttribute('data-page'), 10)] = true;
-                            obs.unobserve(en.target);
-                        }
-                    });
-                }, { threshold: 0.35 });
-                pages.forEach(function (p) { obs.observe(p); });
-            })();
             show(0);
         })();
         </script>

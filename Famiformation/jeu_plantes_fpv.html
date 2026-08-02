@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Plante Carnivore FPV</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #183118; color: #fff; text-align: center; }
+        .jeu-container { margin: 40px auto; padding: 30px; background: #1e3a1e; border-radius: 12px; box-shadow: 0 2px 8px #222; max-width: 600px; }
+        canvas { background: #295329; border-radius: 10px; margin-bottom: 20px; display: block; margin-left: auto; margin-right: auto; }
+        #status { font-size: 1.2em; margin: 10px; }
+        #score { font-size: 1.1em; margin-bottom: 10px; }
+        .barre-vie { width: 300px; height: 18px; background: #444; border-radius: 8px; margin: 10px auto; position: relative; }
+        .vie { height: 100%; background: #e74c3c; border-radius: 8px; transition: width 0.2s; }
+        .machette { position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); pointer-events: none; }
+    </style>
+</head>
+<body>
+<div class="jeu-container">
+    <h2>Plante Carnivore - FPV</h2>
+    <div id="score">Plantes vaincues : <span id="score-nb">0</span></div>
+    <div class="barre-vie"><div class="vie" id="vie-bar"></div></div>
+    <canvas id="jeuCanvas" width="500" height="300"></canvas>
+    <div id="status">Appuie sur la barre d'espace pour donner un coup de machette !</div>
+    <button id="rejouer" onclick="rejouer()" style="display:none;">Rejouer</button>
+</div>
+<script>
+const canvas = document.getElementById('jeuCanvas');
+const ctx = canvas.getContext('2d');
+let plantePV = 100;
+let planteVitesse = 0.4; // Encore plus lent au début
+let planteZ = 1.0; // 1.0 = loin, 0.2 = très proche
+let attaque = false;
+let hacheEnVol = false;
+let hacheX = 0;
+let hacheY = 0;
+let hacheVX = 0;
+let hacheVY = 0;
+let enJeu = true;
+let score = 0;
+let jungleOffset = 0;
+let jungleSpeed = 1.2;
+// Palette jungle
+const junglePal = [
+    '#2e4d2e', '#295329', '#1e3a1e', '#3a5c2a', '#4e7c3a', '#2b3d1a', '#3e5c2e', '#1a2c1a'
+];
+function dessinerJungle(offset) {
+    // Arbres et feuillages qui défilent
+    for (let i = 0; i < 12; i++) {
+        let x = (i * 80 - (offset % 80));
+        let h = 120 + 40 * Math.sin(i + offset * 0.03);
+        ctx.save();
+        ctx.globalAlpha = 0.5 + 0.2 * Math.sin(i + offset * 0.1);
+        ctx.fillStyle = junglePal[i % junglePal.length];
+        ctx.beginPath();
+        ctx.ellipse(x, canvas.height - h / 2, 40, h, 0, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.restore();
+    }
+    // Sol
+    ctx.save();
+    ctx.fillStyle = '#3e5c2e';
+    ctx.fillRect(0, canvas.height - 40, canvas.width, 40);
+    ctx.restore();
+}
+function dessinerPlanteCarnivore(z, blessure) {
+    // z = 1 (loin), z = 0.2 (proche)
+    ctx.save();
+    ctx.translate(canvas.width/2, canvas.height*0.65);
+    let scale = 2.2 - z*1.7;
+    ctx.scale(scale, scale);
+    // Tige
+    ctx.save();
+    ctx.strokeStyle = '#388e3c';
+    ctx.lineWidth = 16;
+    ctx.beginPath();
+    ctx.moveTo(0, 80);
+    ctx.bezierCurveTo(-20, 40, 0, 10, 0, 0);
+    ctx.stroke();
+    ctx.restore();
+    // Corps rond (style cartoon)
+    ctx.save();
+    ctx.shadowColor = '#222';
+    ctx.shadowBlur = 12;
+    ctx.beginPath();
+    ctx.arc(0, 0, 55, 0, 2 * Math.PI);
+    ctx.fillStyle = blessure ? '#b71c1c' : '#6eea5a';
+    ctx.fill();
+    ctx.restore();
+    // Bouche
+    ctx.save();
+    ctx.beginPath();
+    ctx.ellipse(0, 10, 38, 22, 0, 0, Math.PI, false);
+    ctx.fillStyle = '#b71c1c';
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(0, 10, 38, 22, 0, Math.PI, 0, false);
+    ctx.fillStyle = '#e0a0a0';
+    ctx.fill();
+    ctx.restore();
+    // Dents (haut)
+    for(let i=0;i<8;i++){
+        let angle = -Math.PI/2 + i*Math.PI/7;
+        let x = Math.cos(angle)*38;
+        let y = Math.sin(angle)*10 + 10;
+        ctx.save();
+        ctx.translate(x, y-10);
+        ctx.rotate(angle);
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.moveTo(0,0);
+        ctx.lineTo(4,10);
+        ctx.lineTo(-4,10);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+    }
+    // Dents (bas)
+    for(let i=0;i<8;i++){
+        let angle = Math.PI/2 - i*Math.PI/7;
+        let x = Math.cos(angle)*38;
+        let y = Math.sin(angle)*10 + 10;
+        ctx.save();
+        ctx.translate(x, y+10);
+        ctx.rotate(angle+Math.PI);
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.moveTo(0,0);
+        ctx.lineTo(4,10);
+        ctx.lineTo(-4,10);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+    }
+    // Yeux cartoon
+    ctx.save();
+    ctx.translate(-18, -18);
+    ctx.beginPath();
+    ctx.arc(0,0,10,0,2*Math.PI);
+    ctx.fillStyle = '#fff';
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(-2,0,3,0,2*Math.PI);
+    ctx.fillStyle = '#222';
+    ctx.fill();
+    ctx.restore();
+    ctx.save();
+    ctx.translate(18, -18);
+    ctx.beginPath();
+    ctx.arc(0,0,10,0,2*Math.PI);
+    ctx.fillStyle = '#fff';
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(2,0,3,0,2*Math.PI);
+    ctx.fillStyle = '#222';
+    ctx.fill();
+    ctx.restore();
+    // Petites taches sur la tête
+    ctx.save();
+    ctx.globalAlpha = 0.2;
+    ctx.fillStyle = '#222';
+    ctx.beginPath(); ctx.arc(-20,0,7,0,2*Math.PI); ctx.fill();
+    ctx.beginPath(); ctx.arc(20,10,5,0,2*Math.PI); ctx.fill();
+    ctx.beginPath(); ctx.arc(0,-15,4,0,2*Math.PI); ctx.fill();
+    ctx.restore();
+    ctx.restore();
+}
+function dessiner() {
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    dessinerJungle(jungleOffset);
+        dessinerPlanteCarnivore(planteZ, attaque);
+        dessinerHache();
+        if (hacheEnVol) {
+            ctx.save();
+            ctx.translate(hacheX, hacheY);
+            ctx.rotate(Date.now()/120 % (2*Math.PI));
+            ctx.fillStyle = '#bbb';
+            ctx.fillRect(-7, -20, 14, 40); // lame
+            ctx.fillStyle = '#795548';
+            ctx.fillRect(-4, 20, 8, 18); // manche
+            ctx.restore();
+        } else {
+            // Hache au sol devant le joueur
+            ctx.save();
+            ctx.translate(canvas.width/2, canvas.height-30);
+            ctx.rotate(-0.2);
+            ctx.fillStyle = '#bbb';
+            ctx.fillRect(-7, -20, 14, 40);
+            ctx.fillStyle = '#795548';
+            ctx.fillRect(-4, 20, 8, 18);
+            ctx.restore();
+        }
+    }
+        if (!enJeu || hacheEnVol) return;
+        hacheEnVol = true;
+        hacheX = canvas.width/2;
+        hacheY = canvas.height-30;
+        hacheVX = 0;
+        hacheVY = -8;
+        document.getElementById('status').textContent = "Hache lancée !";
+    }
+    // ...existing code...
+}
+dessiner();
+function majBarreVie() {
+    let barre = document.getElementById('vie-bar');
+    barre.style.width = plantePV + '%';
+}
+function boucleJeu() {
+        // Animation de la hache
+        if (hacheEnVol) {
+            hacheY += hacheVY;
+            // Collision simple (milieu)
+            if (hacheY < canvas.height*0.65 - 55*planteZ) {
+                let degats = Math.floor(Math.random()*30)+35;
+                plantePV -= degats;
+                if (plantePV < 0) plantePV = 0;
+                majBarreVie();
+                document.getElementById('status').textContent = `Hache ! -${degats} PV à la plante.`;
+                hacheEnVol = false;
+                if (plantePV === 0) {
+                    score++;
+                    document.getElementById('score-nb').textContent = score;
+                    setTimeout(nouvellePlante, 700);
+                    return;
+                }
+            }
+            // Sortie d'écran
+            if (hacheY < -40) hacheEnVol = false;
+        }
+        if (e.code === 'Space') {
+            lancerHache();
+            e.preventDefault();
+        }
+    });
+        <div id="status">Appuie sur la barre d'espace pour lancer la hache !</div>
+</script>
+</body>
+
+</html>
+</script>
+</body>
+
+</html>

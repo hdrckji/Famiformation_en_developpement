@@ -533,7 +533,7 @@ foreach ($db->query("SELECT interim, COUNT(*) AS c FROM utilisateurs WHERE inter
         .fold-body { padding:16px 18px; }
 
         .type-container { background:#e8f5e9; color:#2d5a37; }
-        /* Sous-types de Module : C = affiche du contenu (PDF/vidéo) · S = fonction spéciale dédiée */
+        /* Sous-types d'Élément : C = affiche du contenu (PDF/vidéo) · S = fonction spéciale dédiée */
         .type-content { background:#e3f0fb; color:#1f5c8c; }
         .type-special { background:#fff3e0; color:#8a5a00; }
         .type-empty   { background:#f1f1f1; color:#8f9a94; }
@@ -611,14 +611,6 @@ foreach ($db->query("SELECT interim, COUNT(*) AS c FROM utilisateurs WHERE inter
 
     <!-- ONGLET : Contenu (stockage) -->
     <div id="tab-contenu" class="tab-content">
-        <?php if ($isAdmin): ?>
-            <div class="card">
-                <h2 style="margin-top:0; color:#2d5a37;">📦 Migration des médias legacy</h2>
-                <p class="muted">Basculer les PDF servis en statique et les vidéos YouTube vers le volume,
-                    puis les faire traiter par l'IA (extraction, orthographe, néerlandais).</p>
-                <a class="btn" href="admin_import_medias.php">Ouvrir l'import par lot</a>
-            </div>
-        <?php endif; ?>
         <?php renderStorageTab($db); ?>
     </div>
 
@@ -642,9 +634,9 @@ foreach ($db->query("SELECT interim, COUNT(*) AS c FROM utilisateurs WHERE inter
             </div>
             <div style="display:flex; align-items:center; gap:8px; margin:0 0 10px; font-size:0.8rem; flex-wrap:wrap;">
                 <span class="muted" style="font-weight:700;">Types :</span>
-                <span class="type-badge type-container">📁 Module</span><span class="muted">contient d'autres modules</span>
-                <span class="type-badge type-content">📄 Module <span class="tb-letter">C</span></span><span class="muted">porte du <strong>contenu</strong> (PDF / vidéo)</span>
-                <span class="type-badge type-special">⚙️ Module <span class="tb-letter">S</span></span><span class="muted">fonction <strong>spéciale</strong> (ex. Formation présentiel, Classement)</span>
+                <span class="type-badge type-container">📁 Conteneur</span><span class="muted">contient d'autres modules</span>
+                <span class="type-badge type-content">📄 Élément <span class="tb-letter">C</span></span><span class="muted">affiche du <strong>contenu</strong> (PDF / vidéo)</span>
+                <span class="type-badge type-special">⚙️ Élément <span class="tb-letter">S</span></span><span class="muted">fonction <strong>spéciale</strong> (ex. Formation présentiel, Classement)</span>
             </div>
             <?php bulkBar('module'); ?>
             <table class="bulk-table" data-entity="module">
@@ -668,16 +660,16 @@ foreach ($db->query("SELECT interim, COUNT(*) AS c FROM utilisateurs WHERE inter
                             <?php if (!empty($m['is_container']) || $hasChildren): ?>
                                 <span class="type-badge type-container">📁 Conteneur</span>
                             <?php else:
-                                // Sous-type de Module : C = contenu (PDF/vidéo), S = fonction spéciale (page dédiée).
+                                // Sous-type d'Élément : C = contenu (PDF/vidéo), S = fonction spéciale (page dédiée).
                                 $elHasContent = !empty($m['pdf_path']) || !empty($m['video_path']) || !empty($m['contenu_ia']);
                                 $elHasLink = trim((string) ($m['link'] ?? '')) !== '';
                             ?>
                                 <?php if ($elHasContent): ?>
-                                    <span class="type-badge type-content" title="Module C — porte un PDF et/ou une vidéo">📄 Module <span class="tb-letter">C</span></span>
+                                    <span class="type-badge type-content" title="Élément CONTENU — affiche un PDF et/ou une vidéo">📄 Élément <span class="tb-letter">C</span></span>
                                 <?php elseif ($elHasLink): ?>
-                                    <span class="type-badge type-special" title="Module S — fonction dédiée (ex. Formation présentiel, Classement)">⚙️ Module <span class="tb-letter">S</span></span>
+                                    <span class="type-badge type-special" title="Élément SPÉCIAL — fonction dédiée (ex. Formation présentiel, Classement)">⚙️ Élément <span class="tb-letter">S</span></span>
                                 <?php else: ?>
-                                    <span class="type-badge type-empty" title="Module sans contenu — en attente">📄 Module</span>
+                                    <span class="type-badge type-empty" title="Élément vide — en attente de contenu">📄 Élément</span>
                                 <?php endif; ?>
                             <?php endif; ?>
                         </td>
@@ -711,7 +703,7 @@ foreach ($db->query("SELECT interim, COUNT(*) AS c FROM utilisateurs WHERE inter
                                     <input type="hidden" name="return" value="parametres.php">
                                     <button type="submit" class="btn btn-light" title="<?= $lk ? 'Module verrouillé — déverrouillez-le pour changer le statut' : 'Activer / Désactiver' ?>" <?= $lk ? 'disabled' : '' ?>><?= (int) $m['is_active'] === 1 ? '⏸' : '▶' ?></button>
                                 </form>
-                                <button type="button" class="btn btn-danger" style="<?= $hasLockedDesc ? 'background:#9b1c1c; box-shadow:0 0 0 2px #ffb3b3;' : '' ?>" title="<?= $lk ? 'Module verrouillé — mot de passe requis' : ($hasLockedDesc ? 'Contient des sous-modules VERROUILLÉS — suppression irréversible' : 'Supprimer') ?>" onclick="askDeleteModule(<?= (int) $m['id'] ?>, <?= htmlspecialchars(json_encode((string) $m['nom'], JSON_UNESCAPED_UNICODE), ENT_QUOTES) ?>, <?= $hasLockedDesc ? 'true' : 'false' ?>, <?= $hasChildren ? 'true' : 'false' ?>, <?= $lk ? 'true' : 'false' ?>)"><?= $hasLockedDesc ? '⚠️🗑' : '🗑' ?></button>
+                                <button type="button" class="btn btn-danger" style="<?= $hasLockedDesc ? 'background:#9b1c1c; box-shadow:0 0 0 2px #ffb3b3;' : '' ?>" title="<?= $lk ? 'Module verrouillé — déverrouillez-le pour supprimer' : ($hasLockedDesc ? 'Contient des sous-modules VERROUILLÉS — suppression irréversible' : 'Supprimer') ?>" <?= $lk ? 'disabled' : '' ?> onclick="askDeleteModule(<?= (int) $m['id'] ?>, <?= htmlspecialchars(json_encode((string) $m['nom'], JSON_UNESCAPED_UNICODE), ENT_QUOTES) ?>, <?= $hasLockedDesc ? 'true' : 'false' ?>, <?= $hasChildren ? 'true' : 'false' ?>)"><?= $hasLockedDesc ? '⚠️🗑' : '🗑' ?></button>
                             </div>
                         </td>
                         <td style="text-align:right;">
@@ -1406,13 +1398,8 @@ foreach ($db->query("SELECT interim, COUNT(*) AS c FROM utilisateurs WHERE inter
             <input type="hidden" name="action" value="delete">
             <input type="hidden" name="id" id="delId" value="">
             <input type="hidden" name="return" value="parametres.php">
-            <!-- Champ affiché UNIQUEMENT pour un module verrouillé (ou dont un
-                 descendant l'est). `required` est retiré quand il est masqué :
-                 un champ requis mais caché empêcherait l'envoi du formulaire. -->
-            <div id="delPwdBlock" style="display:none;">
-                <label style="display:block; font-weight:700; color:#244230; margin:14px 0 4px; text-align:left;">Mot de passe de verrouillage</label>
-                <input type="password" name="admin_password" id="delPwdInput" autocomplete="off" placeholder="Mot de passe de verrouillage" style="width:100%; box-sizing:border-box; padding:10px; border:1px solid #ccc; border-radius:8px;">
-            </div>
+            <label style="display:block; font-weight:700; color:#244230; margin:14px 0 4px; text-align:left;">Mot de passe administrateur</label>
+            <input type="password" name="admin_password" required autocomplete="off" placeholder="Mot de passe de verrouillage" style="width:100%; box-sizing:border-box; padding:10px; border:1px solid #ccc; border-radius:8px;">
             <div class="modal-actions">
                 <button type="button" class="btn btn-light" onclick="closeModal('delModal')">Annuler</button>
                 <button type="submit" id="delConfirmBtn" class="btn btn-danger">🗑 Supprimer définitivement</button>
@@ -1473,18 +1460,8 @@ foreach ($db->query("SELECT interim, COUNT(*) AS c FROM utilisateurs WHERE inter
     }, true);
 
     // Ouvre la modale de suppression, adaptée au module (et alerte si sous-modules verrouillés).
-    function askDeleteModule(id, nom, hasLocked, hasChildren, selfLocked) {
+    function askDeleteModule(id, nom, hasLocked, hasChildren) {
         document.getElementById('delId').value = id;
-        // Mot de passe exigé seulement si le module est verrouillé, ou si l'un de
-        // ses descendants l'est — la suppression étant récursive.
-        var besoinPwd = !!selfLocked || !!hasLocked;
-        var bloc = document.getElementById('delPwdBlock');
-        var champ = document.getElementById('delPwdInput');
-        if (bloc && champ) {
-            bloc.style.display = besoinPwd ? 'block' : 'none';
-            if (besoinPwd) { champ.setAttribute('required', 'required'); }
-            else { champ.removeAttribute('required'); champ.value = ''; }
-        }
         document.getElementById('delTitle').textContent = 'Supprimer « ' + nom + ' » ?';
         var msg = document.getElementById('delMsg');
         var warn = document.getElementById('delWarn');

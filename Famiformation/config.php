@@ -339,9 +339,3 @@ if (isset($db) && isset($_SESSION['user_id'])) {
         ob_start('famiInjectPageTheme');
     }
 }
-
-// Une ancienne page dont le module a été basculé renvoie vers module.php.
-// Placé en toute fin : la session et $db sont prêts, et rien n'a encore été
-// envoyé au navigateur (les en-têtes sont donc encore modifiables).
-require_once __DIR__ . '/includes/legacy_redirect.php';
-famiLegacyRedirect($db);

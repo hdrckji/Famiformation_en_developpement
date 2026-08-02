@@ -70,13 +70,7 @@ $ctype = $types[$ext] ?? 'application/octet-stream';
 
 header('Content-Type: ' . $ctype);
 header('Accept-Ranges: bytes');
-// ?dl=1 force le téléchargement au lieu de l'affichage : indispensable pour
-// récupérer une piste .vtt, qu'un navigateur afficherait sinon comme du texte.
-// On propose un nom lisible si l'appelant en fournit un (?as=), sinon le nom réel.
-$__disp = !empty($_GET['dl']) ? 'attachment' : 'inline';
-$__as = preg_replace('/[^A-Za-z0-9._ \[\]-]/', '', (string) ($_GET['as'] ?? ''));
-$__name = ($__as !== '') ? $__as : basename($real);
-header('Content-Disposition: ' . $__disp . '; filename="' . $__name . '"');
+header('Content-Disposition: inline; filename="' . basename($real) . '"');
 header('X-Content-Type-Options: nosniff');
 // Fichiers à noms uniques (jamais réécrits) -> cache navigateur d'1 semaine.
 // Compromis egress / sécurité : si un accès est retiré (départ, exclusion…), la copie
