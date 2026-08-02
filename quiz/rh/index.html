@@ -43,6 +43,14 @@
   .rh-pick { flex:none; display:flex; align-items:center; padding-right:4px; }
   .rh-pick input { width:18px; height:18px; cursor:pointer; }
   .rh-pick input:disabled { cursor:not-allowed; opacity:.4; }
+  /* 🧪 Ligne d'essai : violette et rayée, impossible a confondre avec un gagnant. */
+  .rh-row.rh-test { background:repeating-linear-gradient(45deg,#f6f1fb,#f6f1fb 10px,#efe7f7 10px,#efe7f7 20px);
+    border-left:4px solid #8b5cf6; }
+  .rh-row.rh-test .rh-nom { color:#5b21b6; }
+  .rh-badge-test { background:#8b5cf6; color:#fff; border-radius:999px; padding:1px 9px;
+    font-size:.7rem; font-weight:800; letter-spacing:.06em; vertical-align:middle; }
+  .rh-rang-test { font-size:1.3rem; }
+  .rh-check-vide { color:#b8a8cc; font-weight:800; padding:0 18px; }
   .aide-envoi { background:#f2faf4; border:1px solid #cfe6d5; border-radius:12px;
     padding:11px 15px; margin:0 0 14px; font-size:.9rem; line-height:1.6; }
   .rh-envois { font-size:.8rem; font-weight:700; display:inline-flex; gap:6px; flex-wrap:wrap; }
@@ -146,30 +154,41 @@ function ligneHtml(p, type, rangClass) {
   const envois = bouts.length
     ? `<span class="rh-envois" title="${esc(quand.replace(/^ — /, ""))}">${bouts.join(" ")}</span>`
     : `<span class="rh-envois rh-jamais">✉️ aucun mail envoyé</span>`;
-  return `<div class="rh-row ${remis ? "remis" : ""}" data-name="${esc(p.name)}" data-type="${type}">
+  // 🧪 COMPTE DE TEST (admin_…). Il ne compte PAS au classement et ne prend la
+  // place de personne : il n'est là que pour essayer un envoi de mail. On le
+  // rend visuellement impossible à confondre avec un vrai gagnant — sinon on
+  // finit par lui « remettre » une récompense qui n'existe pas.
+  const estTest = !!p.test;
+  return `<div class="rh-row ${remis ? "remis" : ""} ${estTest ? "rh-test" : ""}" data-name="${esc(p.name)}" data-type="${type}">
     <label class="rh-pick"><input type="checkbox" class="rh-cb" value="${esc(String(p.name || "").toLowerCase())}" disabled></label>
-    ${rang}
+    ${estTest ? `<span class="rh-rang rh-rang-test" title="Compte de test">🧪</span>` : rang}
     <div class="rh-info">
-      <div class="rh-nom">${esc(nomAffiche(p))}</div>
-      <div class="rh-meta">${meta.join(" · ")}</div>
+      <div class="rh-nom">${esc(nomAffiche(p))}${estTest ? ` <span class="rh-badge-test">TEST</span>` : ""}</div>
+      <div class="rh-meta">${estTest
+        ? `<b>Compte d'essai — ne compte pas au classement.</b> Coche-le pour t'envoyer le mail à toi-même et voir ce que reçoit un gagnant.`
+        : meta.join(" · ")}</div>
       <div class="rh-mail-ligne"><span class="rh-mail-zone"><span class="rh-mail rh-jamais">adresse…</span></span> ${envois}</div>
     </div>
+    ${estTest ? `<span class="rh-check-vide" title="Rien à remettre : ce n'est pas un vrai gagnant">—</span>` : `
     <label class="rh-check ${remis ? "on" : ""}">
       <input type="checkbox" ${remis ? "checked" : ""}>
       <span>${remis ? "Remis ✅" : "À remettre"}</span>
-    </label>
+    </label>`}
   </div>`;
 }
 
 function sectionHtml(titre, emoji, liste, type) {
-  const nbRemis = liste.filter((p) => p.remis).length;
+  // Le compteur « X/Y remis » ne parle que des VRAIS gagnants : un compte de
+  // test dans le total ferait croire qu'il reste une récompense à remettre.
+  const vrais = liste.filter((p) => !p.test);
+  const nbRemis = vrais.filter((p) => p.remis).length;
   const rows = liste.length
     ? liste.map((p, i) => ligneHtml(p, type, type === "podium" ? ["or","argent","bronze"][i] || "" : "")).join("")
     : `<div class="vide">Personne pour l'instant.</div>`;
   return `<div class="card">
     <div class="sec-titre">
       <h2>${emoji} ${titre}</h2>
-      <span class="compte">${nbRemis}/${liste.length} remis</span>
+      <span class="compte">${nbRemis}/${vrais.length} remis</span>
     </div>
     ${rows}
   </div>`;

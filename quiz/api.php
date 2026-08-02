@@ -1880,13 +1880,10 @@ $MESSAGES_DEFAUT = [
     'fr' => "Bonne nouvelle : <b>ta récompense est prête</b>&nbsp;! 🎁\n"
           . "Pour la récupérer, présente-toi <b>auprès des RH</b> du magasin.", 'nl' => null],
 
-  // ── 📋 Modalités, dans le « Comment ça marche » ───────────────────────
-  'modalites_podium' => ['groupe' => '📋 Modalités', 'libelle' => 'Comment on gagne au classement', 'trous' => '{date_resultats}',
-    'fr' => "Ta récolte de graines (quiz + codes), c'est tout. Les <b>3 meilleures récoltes repartent avec de très belles récompenses</b> — de quoi viser le podium&nbsp;! Annonce des vainqueurs le {date_resultats}.",
-    'nl' => "Je oogst aan zaadjes (quiz + codes), that's it. De <b>3 beste oogsten winnen heel mooie prijzen</b> — mik dus op het podium&nbsp;! Bekendmaking van de winnaars op {date_resultats}."],
-  'modalites_jardin' => ['groupe' => '📋 Modalités', 'libelle' => 'Comment on gagne avec le jardin',
-    'fr' => "<b>Va au bout de ton jardin</b> (toutes les cases + les <b>3 lotus</b>) et tu deviens gagnant toi aussi. <b>Ta récompense est alors préparée</b> et tu reçois un mail dès qu'elle est prête. Et <b>jardin et podium se cumulent</b> 🌼🏆",
-    'nl' => "<b>Werk je tuin af</b> (alle vakjes + de <b>3 lotussen</b>) en jij wordt ook een winnaar. <b>Je beloning wordt dan klaargemaakt</b> en je krijgt een mail zodra ze klaar is. En <b>tuin en podium zijn cumuleerbaar</b> 🌼🏆"],
+  // Les MODALITÉS (le « Comment ça marche ») ne sont volontairement PAS ici :
+  // ce sont les règles du jeu, pas un message de félicitations. Les mettre à
+  // côté des mails de récompense allongeait la page sans rendre service. Elles
+  // restent dans quiz/index.html, à côté du reste de l'explication.
 ];
 
 /**
@@ -2690,8 +2687,22 @@ switch ($action) {
     $rang = 1;
     foreach (array_slice($joueurs, 0, 3) as $p) {
       $cle = mb_strtolower((string) ($p['name'] ?? ''));
-      $podium[] = $ligne($p, $cle) + ['rang' => $rang, 'remis' => !empty($remisPodium[$cle])];
+      $podium[] = $ligne($p, $cle) + ['rang' => $rang, 'remis' => !empty($remisPodium[$cle]), 'test' => false];
       $rang++;
+    }
+
+    // 🧪 COMPTES DE TEST (admin_…), AJOUTÉS EN FIN DE PODIUM.
+    //
+    // Ils sont exclus du classement juste au-dessus — ils ne prennent donc
+    // AUCUNE place et ne décalent personne : le podium reste le vrai podium.
+    // On les affiche quand même ici, marqués « TEST », pour pouvoir essayer
+    // l'envoi d'un mail sans écrire à un vrai gagnant. Leur rang vaut 0 :
+    // c'est ce qui dit à la page RH de les afficher autrement.
+    foreach ((is_array($board) ? $board : []) as $p) {
+      if (!is_array($p) || ($p['quiz_fait'] ?? true) === false) { continue; }
+      if (!estCompteTest($p)) { continue; }
+      $cle = mb_strtolower((string) ($p['name'] ?? ''));
+      $podium[] = $ligne($p, $cle) + ['rang' => 0, 'remis' => !empty($remisPodium[$cle]), 'test' => true];
     }
 
     // 🎁 Jardin terminé : grille pleine + les 3 lotus (or, argent, bronze).
@@ -2816,9 +2827,21 @@ switch ($action) {
       function ($x) { return mb_strtolower(trim((string) $x)); },
       (array) ($input['ids'] ?? [])
     )));
-    // Sans liste explicite, on garde l'ancien comportement : tous les gagnants.
+    // 🧪 Les comptes de test (admin_…) peuvent recevoir le mail, pour l'essayer
+    // en vrai. Ils ne sont ajoutés QUE si on les a explicitement cochés : sans
+    // ça, un envoi « à tout le monde » leur écrirait aussi.
+    $ciblesTest = [];
+    foreach ((is_array($board) ? $board : []) as $p) {
+      if (!is_array($p) || ($p['quiz_fait'] ?? true) === false) { continue; }
+      if (!estCompteTest($p)) { continue; }
+      // Rang 1 : le mail d'essai doit ressembler à celui d'un vrai gagnant.
+      $ciblesTest[mb_strtolower((string) $p['name'])] = ['type' => 'podium', 'rang' => 1];
+    }
+
+    // Sans liste explicite, on garde l'ancien comportement : tous les gagnants
+    // — les comptes de test restant, eux, en dehors.
     if (!empty($demandes)) {
-      $cibles = array_intersect_key($cibles, array_flip($demandes));
+      $cibles = array_intersect_key($cibles + $ciblesTest, array_flip($demandes));
     }
 
     $res = ['envoye' => 0, 'deja' => 0, 'sans_mail' => 0, 'echec' => 0, 'modele' => $modele];
