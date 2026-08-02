@@ -1811,18 +1811,30 @@ function dejaPrevenu($cle) {
  * elle avait été prévenue. On compte donc désormais dans mailRecompense(), le
  * seul endroit qui envoie : automatique ou manuel, tout est tracé au même titre.
  */
-function noteEnvoiRecompense($cle, $modele, $origine = 'auto') {
+function noteEnvoiRecompense($cle, $modele, $origine = 'auto', $motif = 'podium') {
   global $rhFile;
-  withLock($rhFile, function (&$data, &$write) use ($cle, $modele, $origine) {
+  $motif = ($motif === 'jardin') ? 'jardin' : 'podium';
+  withLock($rhFile, function (&$data, &$write) use ($cle, $modele, $origine, $motif) {
     if (!is_array($data)) { $data = []; }
     if (!isset($data['mails']) || !is_array($data['mails'])) { $data['mails'] = []; }
     if (!isset($data['mails'][$cle]) || !is_array($data['mails'][$cle])) { $data['mails'][$cle] = []; }
-    $data['mails'][$cle][$modele] = (int) ($data['mails'][$cle][$modele] ?? 0) + 1;
-    $data['mails'][$cle]['dernier'] = date('c');
-    // Origine du TOUT PREMIER mail : parti tout seul, ou envoyé à la main ? La
-    // page RH l'affiche, pour qu'on sache si la personne est déjà au courant
-    // sans que personne n'ait rien fait.
-    if (!isset($data['mails'][$cle]['origine'])) { $data['mails'][$cle]['origine'] = $origine; }
+    // ⚠️ COMPTEURS SÉPARÉS PAR MOTIF (podium / jardin). Une même personne peut
+    // être sur le podium ET avoir terminé son jardin : ce sont deux récompenses
+    // et deux mails distincts. Avec un compteur unique, la page RH affichait
+    // « mail envoyé » dans les DEUX sections dès qu'un seul était parti — on
+    // croyait avoir prévenu quelqu'un pour son podium alors que le mail
+    // concernait son jardin.
+    if (!isset($data['mails'][$cle][$motif]) || !is_array($data['mails'][$cle][$motif])) {
+      $data['mails'][$cle][$motif] = [];
+    }
+    $b = &$data['mails'][$cle][$motif];
+    $b[$modele] = (int) ($b[$modele] ?? 0) + 1;
+    $b['dernier'] = date('c');
+    // Origine du TOUT PREMIER mail de ce motif : parti tout seul, ou envoyé à
+    // la main ? La page RH l'affiche, pour qu'on sache si la personne est déjà
+    // au courant sans que personne n'ait rien fait.
+    if (!isset($b['origine'])) { $b['origine'] = $origine; }
+    unset($b);
     $write = true;
   });
 }
@@ -1901,10 +1913,18 @@ $MESSAGES_DEFAUT = [
           . "On <b>prépare ta récompense</b>. Nous t'enverrons un mail une fois que tu pourras venir la chercher.", 'nl' => null],
 
   // ── ✉️ Mail « c'est prêt », envoyé par les RH ─────────────────────────
-  'mail_prete_sujet' => ['groupe' => '✉️ Mail — récompense prête', 'libelle' => 'Objet du mail',
-    'fr' => '🎁 Ta récompense est prête !', 'nl' => null],
-  'mail_prete_corps' => ['groupe' => '✉️ Mail — récompense prête', 'libelle' => 'Message', 'lignes' => true,
-    'fr' => "Bonne nouvelle : <b>ta récompense est prête</b>&nbsp;! 🎁\n"
+  // Deux versions, comme pour « on prépare » : quelqu'un peut être sur le
+  // podium ET avoir terminé son jardin. Il recevra alors deux mails, et doit
+  // pouvoir dire lequel concerne quoi.
+  'mail_prete_podium_sujet' => ['groupe' => "✉️ Mail — podium : c'est prêt", 'libelle' => 'Objet du mail',
+    'fr' => '🏆 Ta récompense du podium est prête !', 'nl' => null],
+  'mail_prete_podium_corps' => ['groupe' => "✉️ Mail — podium : c'est prêt", 'libelle' => 'Message', 'lignes' => true,
+    'fr' => "Bonne nouvelle : <b>ta récompense du podium est prête</b>&nbsp;! 🏆\n"
+          . "Pour la récupérer, présente-toi <b>auprès des RH</b> du magasin.", 'nl' => null],
+  'mail_prete_jardin_sujet' => ['groupe' => "✉️ Mail — jardin : c'est prêt", 'libelle' => 'Objet du mail',
+    'fr' => '🌼 Ta récompense du jardin est prête !', 'nl' => null],
+  'mail_prete_jardin_corps' => ['groupe' => "✉️ Mail — jardin : c'est prêt", 'libelle' => 'Message', 'lignes' => true,
+    'fr' => "Bonne nouvelle : <b>ta récompense pour ton jardin terminé est prête</b>&nbsp;! 🌼\n"
           . "Pour la récupérer, présente-toi <b>auprès des RH</b> du magasin.", 'nl' => null],
 
   // Les MODALITÉS (le « Comment ça marche ») ne sont volontairement PAS ici :
@@ -1973,8 +1993,8 @@ function mailRecompense(PDO $db, $cle, $info, $modele = 'attente', $origine = 'a
     // 2️⃣ C'EST PRÊT. Envoyé par les RH le jour où la récompense est disponible.
     // Plus de rappel du classement ici : à ce stade la seule information utile,
     // c'est qu'elle est prête et où la chercher.
-    $sujet = msgTexte('mail_prete_sujet');
-    $corps = msgTexte('mail_prete_corps');
+    $sujet = msgTexte($estPodium ? 'mail_prete_podium_sujet' : 'mail_prete_jardin_sujet');
+    $corps = msgTexte($estPodium ? 'mail_prete_podium_corps' : 'mail_prete_jardin_corps');
   }
 
   // Une ligne du message = un paragraphe. Les lignes vides sont ignorées, pour
@@ -1992,8 +2012,9 @@ function mailRecompense(PDO $db, $cle, $info, $modele = 'attente', $origine = 'a
     . '<p style="font-size:16px;line-height:1.6;">Une question&nbsp;? Écris à <a href="mailto:admin@famiformation.com">admin@famiformation.com</a>.</p>'
     . '<p style="font-size:15px;color:#617268;">Merci d\'avoir joué, et à bientôt&nbsp;! 🌱<br>L\'équipe Famiflora · Famiformation</p></div>';
   $ok = function_exists('sendMail') ? sendMail($email, $sujet, $body, true) : false;
-  // Tracé ICI, donc pour TOUS les envois — automatiques comme manuels.
-  if ($ok) { noteEnvoiRecompense($cle, $modele, $origine); }
+  // Tracé ICI, donc pour TOUS les envois — automatiques comme manuels, et
+  // séparément selon qu'il s'agit du podium ou du jardin.
+  if ($ok) { noteEnvoiRecompense($cle, $modele, $origine, $estPodium ? 'podium' : 'jardin'); }
   // On prévient l'admin (RH) uniquement au PREMIER mail (« on prépare ») : c'est
   // là qu'il y a quelque chose à préparer. Le second part de sa main, inutile de
   // le lui annoncer.
@@ -2681,8 +2702,12 @@ switch ($action) {
     // Les compteurs d'envoi, eux, viennent du fichier RH déjà lu : aucun risque.
     $compteurs = (is_array($remises) && isset($remises['mails']) && is_array($remises['mails'])) ? $remises['mails'] : [];
 
-    $ligne = function ($p, $cle) use ($compteurs) {
-      $c = is_array($compteurs[$cle] ?? null) ? $compteurs[$cle] : [];
+    // $motif = 'podium' ou 'jardin' : on ne montre QUE les mails de cette
+    // récompense-là. Les comptes d'avant la séparation n'ont pas de motif ; on
+    // les remonte à part plutôt que de les attribuer au hasard à une section.
+    $ligne = function ($p, $cle, $motif) use ($compteurs) {
+      $tout = is_array($compteurs[$cle] ?? null) ? $compteurs[$cle] : [];
+      $c = is_array($tout[$motif] ?? null) ? $tout[$motif] : [];
       return [
         'name'   => (string) ($p['name'] ?? $cle),
         'pseudo' => (string) ($p['pseudo'] ?? ''),
@@ -2696,6 +2721,11 @@ switch ($action) {
         // podium du 31/08). Sans cette information, on ne pouvait pas savoir si
         // la personne était déjà au courant sans avoir rien fait.
         'origine'    => (string) ($c['origine'] ?? ''),
+        'motif'      => $motif,
+        // Mails partis AVANT que les compteurs ne soient separes par motif :
+        // on ne sait pas s'ils concernaient le podium ou le jardin, alors on
+        // le DIT au lieu de les ranger arbitrairement dans une section.
+        'anciens'    => (int) ($tout['attente'] ?? 0) + (int) ($tout['prete'] ?? 0),
       ];
     };
 
@@ -2716,7 +2746,7 @@ switch ($action) {
     $rang = 1;
     foreach (array_slice($joueurs, 0, 3) as $p) {
       $cle = mb_strtolower((string) ($p['name'] ?? ''));
-      $podium[] = $ligne($p, $cle) + ['rang' => $rang, 'remis' => !empty($remisPodium[$cle]), 'test' => false];
+      $podium[] = $ligne($p, $cle, 'podium') + ['rang' => $rang, 'remis' => !empty($remisPodium[$cle]), 'test' => false];
       $rang++;
     }
 
@@ -2731,7 +2761,7 @@ switch ($action) {
       if (!is_array($p) || ($p['quiz_fait'] ?? true) === false) { continue; }
       if (!estCompteTest($p)) { continue; }
       $cle = mb_strtolower((string) ($p['name'] ?? ''));
-      $podium[] = $ligne($p, $cle) + ['rang' => 0, 'remis' => !empty($remisPodium[$cle]), 'test' => true];
+      $podium[] = $ligne($p, $cle, 'podium') + ['rang' => 0, 'remis' => !empty($remisPodium[$cle]), 'test' => true];
     }
 
     // 🎁 Jardin terminé : grille pleine + les 3 lotus (or, argent, bronze).
@@ -2748,7 +2778,7 @@ switch ($action) {
         if ($nb >= $JARDIN_CASES && count($lotus) >= count($LOTUS_REQUIS)) {
           $p = $parNom[$cle] ?? ['name' => $cle];
           // 🧪 Le compte d'essai apparaît ici aussi — marqué, comme au podium.
-          $jardin[] = $ligne($p, $cle) + ['remis' => !empty($remisJardin[$cle]),
+          $jardin[] = $ligne($p, $cle, 'jardin') + ['remis' => !empty($remisJardin[$cle]),
                                           'test' => estCompteTest($cle)];
         }
       }
@@ -2837,24 +2867,37 @@ switch ($action) {
       if ($d > 0) { return 1; } if ($d < 0) { return -1; }
       return intval($a['time'] ?? 0) - intval($b['time'] ?? 0);
     });
+    // ⚠️ DEUX QUALIFICATIONS SÉPARÉES, et non une seule liste.
+    //
+    // Quelqu'un peut être sur le podium ET avoir terminé son jardin : ce sont
+    // DEUX récompenses et DEUX mails. L'ancienne liste unique inscrivait la
+    // personne au podium puis ignorait son jardin (« si pas déjà présente ») :
+    // elle ne pouvait donc JAMAIS recevoir le mail du jardin. On qualifie
+    // maintenant pour chaque récompense indépendamment ; la section d'où vient
+    // la case cochée décide de celle qu'on envoie.
+    $qualifPodium = [];
     $rang = 1;
-    foreach (array_slice($joueurs, 0, 3) as $p) { $cibles[mb_strtolower((string) $p['name'])] = ['type' => 'podium', 'rang' => $rang]; $rang++; }
-    // 🧪 Le jardin terminé du compte d'essai va dans une liste À PART.
-    // Sans cette séparation, « admin_ » se retrouvait parmi les vrais gagnants
-    // du jardin : un envoi groupé lui écrivait aussi, alors qu'il n'est là que
-    // pour tester. Le tri du podium, lui, l'écartait déjà.
+    foreach (array_slice($joueurs, 0, 3) as $p) { $qualifPodium[mb_strtolower((string) $p['name'])] = ['type' => 'podium', 'rang' => $rang]; $rang++; }
+
+    // 🧪 Les comptes d'essai vont dans une liste À PART : sans ça, un envoi
+    // groupé leur écrirait alors qu'ils ne sont là que pour tester.
+    $qualifJardin = [];
     $ciblesTest = [];
     if (is_array($jardins)) {
       foreach ($jardins as $cle => $cases) {
         if (!is_array($cases)) { continue; }
         $nb = count($cases); $lotus = [];
         foreach ($cases as $c) { $pl = is_array($c) ? (string) ($c['plante'] ?? '') : ''; if (in_array($pl, $LOTUS_REQUIS, true)) { $lotus[$pl] = true; } }
-        if ($nb >= $JARDIN_CASES && count($lotus) >= count($LOTUS_REQUIS) && !isset($cibles[$cle])) {
+        if ($nb >= $JARDIN_CASES && count($lotus) >= count($LOTUS_REQUIS)) {
           if (estCompteTest($cle)) { $ciblesTest[$cle] = ['type' => 'jardin']; }
-          else { $cibles[$cle] = ['type' => 'jardin']; }
+          else { $qualifJardin[$cle] = ['type' => 'jardin']; }
         }
       }
     }
+    // Liste par défaut (envoi sans sélection) : le podium d'abord, puis les
+    // jardins de ceux qui n'y sont pas — un seul mail par personne.
+    $cibles = $qualifPodium;
+    foreach ($qualifJardin as $cle => $info) { if (!isset($cibles[$cle])) { $cibles[$cle] = $info; } }
 
     // 🎯 QUI, ET QUEL MAIL. Les RH choisissent les personnes (cases à cocher) et
     // le modèle. Rien n'est plus envoyé « à tout le monde d'un coup ».
@@ -2880,26 +2923,36 @@ switch ($action) {
 
     // 🎯 DEPUIS QUELLE SECTION LA CASE A-T-ELLE ÉTÉ COCHÉE ?
     //
-    // Le compte d'essai apparaît dans les DEUX listes. Sans cette précision, la
-    // boucle du jardin l'inscrivait en premier, et cocher sa ligne du PODIUM
-    // envoyait quand même le mail « jardin terminé » : impossible de voir à quoi
-    // ressemble le mail d'un vainqueur du classement. La page RH indique donc la
-    // section d'origine, et on choisit la version en conséquence.
-    // Ça ne concerne QUE les comptes d'essai : un vrai gagnant garde le motif
-    // qui lui revient réellement.
+    // C'est ce qui décide de la récompense dont on parle. Martine est au podium
+    // ET a fini son jardin : cocher sa ligne du jardin doit envoyer le mail du
+    // jardin, cocher celle du podium celui du podium. On ne peut évidemment pas
+    // lui envoyer un mail de podium si elle n'y est pas : la section n'est
+    // suivie que si la personne est bien qualifiée pour cette récompense-là.
     $sections = (array) ($input['sections'] ?? []);
-    foreach ($sections as $cleS => $section) {
-      $cleS = mb_strtolower(trim((string) $cleS));
-      if (!isset($ciblesTest[$cleS])) { continue; }
-      $ciblesTest[$cleS] = ($section === 'podium')
-        ? ['type' => 'podium', 'rang' => 1]   // faux 1er, pour voir le vrai mail du podium
-        : ['type' => 'jardin'];
-    }
+    $section = function ($cle) use ($sections) {
+      $s = mb_strtolower(trim((string) ($sections[$cle] ?? '')));
+      return ($s === 'podium' || $s === 'jardin') ? $s : '';
+    };
 
-    // Sans liste explicite, on garde l'ancien comportement : tous les gagnants
-    // — les comptes de test restant, eux, en dehors.
     if (!empty($demandes)) {
-      $cibles = array_intersect_key($cibles + $ciblesTest, array_flip($demandes));
+      $choisies = [];
+      foreach ($demandes as $cle) {
+        $sec = $section($cle);
+        // Compte d'essai : il n'a rien gagné, on lui envoie la version demandée.
+        if (isset($ciblesTest[$cle])) {
+          $choisies[$cle] = ($sec === 'podium')
+            ? ['type' => 'podium', 'rang' => 1]   // faux 1er, pour voir le mail du podium
+            : (($sec === 'jardin') ? ['type' => 'jardin'] : $ciblesTest[$cle]);
+          continue;
+        }
+        // Vrai gagnant : la section demandée si elle correspond à une
+        // récompense qu'il a réellement obtenue, sinon celle qu'il a.
+        if ($sec === 'podium' && isset($qualifPodium[$cle])) { $choisies[$cle] = $qualifPodium[$cle]; }
+        elseif ($sec === 'jardin' && isset($qualifJardin[$cle])) { $choisies[$cle] = $qualifJardin[$cle]; }
+        elseif (isset($qualifPodium[$cle])) { $choisies[$cle] = $qualifPodium[$cle]; }
+        elseif (isset($qualifJardin[$cle])) { $choisies[$cle] = $qualifJardin[$cle]; }
+      }
+      $cibles = $choisies;
     }
 
     $res = ['envoye' => 0, 'deja' => 0, 'sans_mail' => 0, 'echec' => 0, 'modele' => $modele];
