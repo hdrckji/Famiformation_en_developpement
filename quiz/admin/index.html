@@ -49,6 +49,32 @@ h2 { font-family: 'Fredoka', sans-serif; font-size: 1.2rem; margin-bottom: 14px;
          color: #A34A00; margin-bottom: 14px; }
 .alert.ok { background: #E7F6EC; color: var(--pousse); }
 .hint { font-size: .88rem; opacity: .72; line-height: 1.55; margin-bottom: 14px; }
+
+/* 💬 Onglet Messages & mails */
+.msg-intro { background:#f2faf4; border-radius:12px; padding:14px 18px; margin-bottom:18px; line-height:1.6; }
+.msg-intro p { margin:0 0 8px; }
+.msg-groupe { margin-bottom:26px; }
+.msg-groupe h3 { margin:0 0 10px; font-size:1.05rem; color:#2d5a37;
+  border-bottom:2px solid #cfe6d5; padding-bottom:6px; }
+.msg-item { background:#fff; border:1px solid #e2ece5; border-radius:12px;
+  padding:14px 16px; margin-bottom:12px; }
+.msg-titre { font-weight:700; margin-bottom:10px; display:flex; align-items:center;
+  gap:8px; flex-wrap:wrap; }
+.msg-trou { font-family:monospace; font-size:.78rem; background:#eef6f0; color:#2d5a37;
+  border-radius:6px; padding:2px 8px; font-weight:600; }
+.msg-modifie { font-size:.72rem; background:#E9A93C; color:#fff; border-radius:999px;
+  padding:2px 10px; font-weight:800; letter-spacing:.03em; }
+.msg-lang { margin-bottom:10px; }
+.msg-lang label { display:block; font-size:.82rem; font-weight:700; opacity:.75; margin-bottom:4px; }
+.msg-lang textarea { width:100%; box-sizing:border-box; font-family:inherit; font-size:.92rem;
+  line-height:1.5; padding:9px 11px; border:2px solid #d8e6dc; border-radius:9px; resize:vertical; }
+.msg-lang textarea:focus { outline:none; border-color:#7bc47f; }
+.msg-defaut { font-size:.8rem; opacity:.62; line-height:1.5; margin-top:4px;
+  padding-left:10px; border-left:3px solid #e2ece5; }
+.msg-actions { position:sticky; bottom:0; background:rgba(255,255,255,.96);
+  padding:14px 0; display:flex; gap:10px; flex-wrap:wrap;
+  border-top:2px solid #e2ece5; }
+@media (max-width:620px) { .msg-item { padding:12px; } }
 /* 🏬 Sélecteur de magasin : bien visible, au-dessus des onglets. La couleur de
    fond change avec le magasin choisi, pour qu'on ne confonde JAMAIS les deux. */
 .site-switch { display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
@@ -216,6 +242,7 @@ function rendre() {
     ["jardin", "🎮 Tester le jeu"],
     ["codes", "🎁 Codes bonus"],
     ["countdown", "⏱ Compte à rebours"],
+    ["messages", "💬 Messages & mails"],
     ["envoi", "✉️ Envoi groupé"],
     ["simulation", "🎬 Simulation"],
   ];
@@ -248,8 +275,106 @@ function rendre() {
   else if (vue === "jardin") vueJardin();
   else if (vue === "countdown") vueCountdown();
   else if (vue === "envoi") vueEnvoi();
+  else if (vue === "messages") vueMessages();
   else if (vue === "simulation") vueSimulation();
   else vueCodes();
+}
+
+/* ---------------------- ONGLET MESSAGES & MAILS ----------------------
+   Tous les textes qu'une personne voit ou reçoit quand elle gagne quelque
+   chose, réunis et modifiables. Chaque champ montre le texte D'ORIGINE en
+   dessous : vider le champ y revient. Rien n'est enregistré tant qu'on ne
+   clique pas sur « Enregistrer ».
+   ⚠️ Ces textes sont les MÊMES pour les deux magasins — contrairement au reste
+   de cette page. C'est dit à l'écran pour éviter la mauvaise surprise. */
+let messagesListe = null;
+
+async function vueMessages() {
+  const c = document.getElementById("contenu");
+  if (!messagesListe) {
+    c.innerHTML = `<p class="hint">Chargement des textes…</p>`;
+    const r = await post("messages_admin");
+    if (r.status === 401) { auth = null; vueConnexion("Session expirée, reconnecte-toi."); return; }
+    if (!r.ok || !r.data || !r.data.ok) { c.innerHTML = `<div class="alert">Impossible de charger les textes.</div>`; return; }
+    messagesListe = r.data.messages;
+  }
+
+  // Regroupement dans l'ordre d'apparition, pour retrouver ses petits.
+  const groupes = [];
+  messagesListe.forEach((m) => {
+    let g = groupes.find((x) => x.nom === m.groupe);
+    if (!g) { g = { nom: m.groupe, items: [] }; groupes.push(g); }
+    g.items.push(m);
+  });
+
+  const champ = (m, lang) => {
+    if (m.defaut[lang] === null) return "";
+    const val = m.perso[lang] || "";
+    const lab = lang === "fr" ? "🇫🇷 Français" : "🇳🇱 Néerlandais";
+    return `<div class="msg-lang">
+      <label>${lab}</label>
+      <textarea data-cle="${esc(m.cle)}" data-lang="${lang}" rows="3"
+        placeholder="Laisser vide pour garder le texte d'origine">${esc(val)}</textarea>
+      <div class="msg-defaut"><b>Texte d'origine :</b> ${esc(m.defaut[lang])}</div>
+    </div>`;
+  };
+
+  c.innerHTML = `
+    <div class="msg-intro">
+      <p><b>Tous les messages liés aux récompenses</b> — ce qui s'affiche à l'écran et ce qui part par mail.
+      Modifie ce que tu veux&nbsp;: <b>un champ vide reprend le texte d'origine</b> affiché en dessous.</p>
+      <p class="hint">⚠️ Ces textes valent pour <b>les deux magasins</b> (contrairement aux questions et aux codes).
+      Les <b>mails</b> n'existent qu'en français. Tu peux utiliser du gras avec <code>&lt;b&gt;…&lt;/b&gt;</code>.</p>
+    </div>
+    ${groupes.map((g) => `
+      <div class="msg-groupe">
+        <h3>${esc(g.nom)}</h3>
+        ${g.items.map((m) => `
+          <div class="msg-item">
+            <div class="msg-titre">${esc(m.libelle)}
+              ${m.trous ? `<span class="msg-trou" title="Remplacé automatiquement par le jeu">${esc(m.trous)}</span>` : ""}
+              ${m.perso.fr || m.perso.nl ? `<span class="msg-modifie">modifié</span>` : ""}
+            </div>
+            ${champ(m, "fr")}
+            ${champ(m, "nl")}
+          </div>`).join("")}
+      </div>`).join("")}
+    <div class="msg-actions">
+      <button class="btn" id="msg-save">💾 Enregistrer les textes</button>
+      <button class="btn ghost" id="msg-reset">↩️ Tout remettre par défaut</button>
+    </div>`;
+
+  document.getElementById("msg-save").addEventListener("click", async () => {
+    const out = {};
+    c.querySelectorAll("textarea[data-cle]").forEach((ta) => {
+      const k = ta.dataset.cle, l = ta.dataset.lang;
+      if (!out[k]) out[k] = {};
+      out[k][l] = ta.value;
+    });
+    const b = document.getElementById("msg-save");
+    b.disabled = true; b.textContent = "Enregistrement…";
+    const r = await post("messages_save", { messages: out });
+    b.disabled = false; b.textContent = "💾 Enregistrer les textes";
+    if (r.status === 401) { auth = null; vueConnexion("Session expirée, reconnecte-toi."); return; }
+    if (!r.ok || !r.data || !r.data.ok) { message = { ok: false, texte: "Enregistrement impossible." }; rendre(); return; }
+    messagesListe = null;   // on relit, pour voir les étiquettes « modifié » à jour
+    message = { ok: true, texte: `Textes enregistrés (${r.data.modifies} personnalisé(s)). Les joueurs les voient au prochain chargement de la page.` };
+    rendre();
+  });
+
+  document.getElementById("msg-reset").addEventListener("click", () => {
+    modaleConfirm({
+      titre: "Tout remettre par défaut ?",
+      texte: "Toutes tes modifications de textes seront effacées et les messages d'origine reviendront. Les questions, les scores et les codes ne sont pas touchés.",
+      ok: "Tout remettre",
+    }, async () => {
+      const r = await post("messages_save", { messages: {} });
+      if (!r.ok || !r.data || !r.data.ok) { message = { ok: false, texte: "Impossible de réinitialiser." }; rendre(); return; }
+      messagesListe = null;
+      message = { ok: true, texte: "Textes remis à leur version d'origine." };
+      rendre();
+    });
+  });
 }
 
 /* ---------------------- ONGLET ENVOI GROUPÉ ---------------------- */

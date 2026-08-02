@@ -43,8 +43,13 @@
   .rh-pick { flex:none; display:flex; align-items:center; padding-right:4px; }
   .rh-pick input { width:18px; height:18px; cursor:pointer; }
   .rh-pick input:disabled { cursor:not-allowed; opacity:.4; }
-  .rh-envois { font-size:.8rem; font-weight:700; color:#1E7A46; background:#e7f6ea; border-radius:999px; padding:2px 9px; white-space:nowrap; }
-  .rh-envois.rh-jamais { color:#8a968f; background:#f2f4f3; font-weight:600; }
+  .aide-envoi { background:#f2faf4; border:1px solid #cfe6d5; border-radius:12px;
+    padding:11px 15px; margin:0 0 14px; font-size:.9rem; line-height:1.6; }
+  .rh-envois { font-size:.8rem; font-weight:700; display:inline-flex; gap:6px; flex-wrap:wrap; }
+  .rh-envois.rh-jamais { color:#8a968f; background:#f2f4f3; border-radius:999px; padding:2px 9px; font-weight:600; }
+  .rh-part { border-radius:999px; padding:2px 9px; white-space:nowrap; }
+  .rh-part-att { color:#8a5b00; background:#fdf0d5; }
+  .rh-part-prete { color:#1E7A46; background:#e7f6ea; }
   .rh-barre { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:0 0 12px; font-size:.86rem; }
   .rh-lien { background:none; border:none; padding:0; font:inherit; color:#2d5a37; font-weight:700; text-decoration:underline; cursor:pointer; }
   .rh-compteur { margin-left:auto; color:#7a8a80; }
@@ -125,12 +130,22 @@ function ligneHtml(p, type, rangClass) {
   // il faut donc la prevenir autrement.
   // 📨 Compteur d'envois, par modele. Il remplace l'ancien verrou « une seule
   // fois » : on peut renvoyer autant qu'on veut, et on sait ce qui est deja parti.
-  const cpt = [];
-  if (p.nb_attente) cpt.push(`⏳ ${p.nb_attente}`);
-  if (p.nb_prete) cpt.push(`🎁 ${p.nb_prete}`);
-  const envois = cpt.length
-    ? `<span class="rh-envois" title="⏳ « on prépare » · 🎁 « c'est prêt »${p.dernier ? " — dernier envoi : " + esc(p.dernier.slice(0, 16).replace("T", " ")) : ""}">${cpt.join(" · ")}</span>`
-    : `<span class="rh-envois rh-jamais">aucun mail envoyé</span>`;
+  // 📨 CE QUI EST DÉJÀ PARTI, en toutes lettres. L'ancien affichage montrait
+  // « ⏳ 1 · 🎁 2 » : il fallait deviner. Et surtout, le mail AUTOMATIQUE (jardin
+  // terminé, podium) n'était pas compté du tout — la ligne disait « aucun mail
+  // envoyé » alors que la personne avait bien été prévenue.
+  const quand = p.dernier ? " — dernier envoi le " + esc(p.dernier.slice(0, 16).replace("T", " à ")) : "";
+  const bouts = [];
+  if (p.nb_attente) {
+    bouts.push(`<span class="rh-part rh-part-att">⏳ « on prépare » envoyé${p.nb_attente > 1 ? " ×" + p.nb_attente : ""}`
+      + `${p.origine === "auto" && p.nb_attente === 1 ? " (automatique)" : ""}</span>`);
+  }
+  if (p.nb_prete) {
+    bouts.push(`<span class="rh-part rh-part-prete">🎁 « c'est prêt » envoyé${p.nb_prete > 1 ? " ×" + p.nb_prete : ""}</span>`);
+  }
+  const envois = bouts.length
+    ? `<span class="rh-envois" title="${esc(quand.replace(/^ — /, ""))}">${bouts.join(" ")}</span>`
+    : `<span class="rh-envois rh-jamais">✉️ aucun mail envoyé</span>`;
   return `<div class="rh-row ${remis ? "remis" : ""}" data-name="${esc(p.name)}" data-type="${type}">
     <label class="rh-pick"><input type="checkbox" class="rh-cb" value="${esc(String(p.name || "").toLowerCase())}" disabled></label>
     ${rang}
@@ -167,6 +182,11 @@ function rendre() {
     <div class="site-switch">
       <span style="font-weight:700;">🏬 Magasin :</span>
       ${Object.entries(SITES).map(([k,l]) => `<button class="ss-btn ${site===k?"on":""}" data-site="${k}">${l}</button>`).join("")}
+    </div>
+    <div class="aide-envoi">
+      📨 <b>Pour écrire à quelqu'un</b> : coche la <b>case à gauche de son nom</b>, puis choisis le mail à envoyer.
+      Tu peux en cocher plusieurs. <b>Les personnes sans adresse e-mail ne sont pas cochables</b> — à prévenir de vive voix.
+      Chaque ligne indique <b>ce qui lui est déjà parti</b>.
     </div>
     <div class="top">
       <button class="btn ghost" id="rafraichir">🔄 Rafraîchir</button>

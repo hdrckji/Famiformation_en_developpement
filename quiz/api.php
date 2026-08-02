@@ -1774,6 +1774,31 @@ function dejaPrevenu($cle) {
   $d = readJson($rhFile);
   return is_array($d) && !empty($d['prevenu'][$cle]);
 }
+
+/**
+ * 📨 Enregistre qu'un mail de récompense est parti, pour que la page RH le voie.
+ *
+ * ⚠️ Ce comptage était fait UNIQUEMENT dans l'action rh_mail. Résultat : le mail
+ * AUTOMATIQUE (jardin terminé, podium du 31/08) partait bien, mais la page RH
+ * affichait « aucun mail envoyé » pour cette personne — impossible de savoir si
+ * elle avait été prévenue. On compte donc désormais dans mailRecompense(), le
+ * seul endroit qui envoie : automatique ou manuel, tout est tracé au même titre.
+ */
+function noteEnvoiRecompense($cle, $modele, $origine = 'auto') {
+  global $rhFile;
+  withLock($rhFile, function (&$data, &$write) use ($cle, $modele, $origine) {
+    if (!is_array($data)) { $data = []; }
+    if (!isset($data['mails']) || !is_array($data['mails'])) { $data['mails'] = []; }
+    if (!isset($data['mails'][$cle]) || !is_array($data['mails'][$cle])) { $data['mails'][$cle] = []; }
+    $data['mails'][$cle][$modele] = (int) ($data['mails'][$cle][$modele] ?? 0) + 1;
+    $data['mails'][$cle]['dernier'] = date('c');
+    // Origine du TOUT PREMIER mail : parti tout seul, ou envoyé à la main ? La
+    // page RH l'affiche, pour qu'on sache si la personne est déjà au courant
+    // sans que personne n'ait rien fait.
+    if (!isset($data['mails'][$cle]['origine'])) { $data['mails'][$cle]['origine'] = $origine; }
+    $write = true;
+  });
+}
 function marquePrevenu($cle) {
   global $rhFile;
   withLock($rhFile, function (&$data, &$write) use ($cle) {
@@ -1784,7 +1809,109 @@ function marquePrevenu($cle) {
 }
 // ✉️ Envoie le mail « viens voir les RH » à une personne (par identifiant
 // minuscule). $info = ['type'=>'podium'|'jardin','rang'=>?]. true si parti.
-function mailRecompense(PDO $db, $cle, $info, $modele = 'attente') {
+/* ============================================================
+   ✉️ TEXTES DES RÉCOMPENSES — modifiables depuis /quiz/admin
+   ============================================================
+   Tous les messages qu'une personne voit ou reçoit quand elle gagne quelque
+   chose sont réunis ICI, avec leur texte par défaut. L'onglet « Messages » de
+   l'administration les enregistre dans messages.json (dossier de données) ;
+   ce fichier ne contient QUE ce qui a été modifié, le reste retombe sur ces
+   valeurs. Vider un champ dans l'admin revient donc à revenir au texte d'origine.
+
+   Les {accolades} sont des trous remplis par le jeu :
+     {graines} nombre de graines récoltées · {rang} 1er, 2e, 3e
+     {place} « 1re place », « 2e place » · {prenom} prénom de la personne
+   Les mails n'existent qu'en français : ils sont écrits à la main par les RH.
+   ============================================================ */
+$MESSAGES_DEFAUT = [
+  // --- Fenêtre de fin de quiz ---
+  'quiz_fini_titre' => ['groupe' => 'Fin du quiz', 'libelle' => 'Titre',
+    'fr' => 'Quiz terminé !', 'nl' => 'Quiz voltooid!'],
+  'quiz_fini_graines' => ['groupe' => 'Fin du quiz', 'libelle' => 'Graines récoltées', 'trous' => '{graines}',
+    'fr' => 'Tu as récolté <b>{graines} 🌰</b> graines.',
+    'nl' => 'Je hebt <b>{graines} 🌰</b> zaadjes geoogst.'],
+  'quiz_fini_jardin' => ['groupe' => 'Fin du quiz', 'libelle' => 'Ouverture du jardin',
+    'fr' => "<b>Ton jardin est maintenant ouvert</b> 🌼 : plantes-y tes graines. Elles vont diminuer — <b>c'est normal, ça ne concerne que le jardin</b>, <b>ton score au classement ne bougera pas</b>.",
+    'nl' => '<b>Je tuin is nu open</b> 🌼: plant er je zaadjes. Ze zullen afnemen — <b>dat is normaal, het geldt enkel voor de tuin</b>, <b>je score in de ranking verandert niet</b>.'],
+  'quiz_fini_recompense' => ['groupe' => 'Fin du quiz', 'libelle' => 'Promesse de récompense',
+    'fr' => '🎁 Et surtout : <b>va au bout de ton jardin et tu gagnes une récompense toi aussi</b>, même sans être sur le podium !',
+    'nl' => '🎁 En vooral: <b>werk je tuin af en jij wint ook een beloning</b>, ook zonder op het podium te staan!'],
+
+  // --- Fenêtre « jardin terminé » ---
+  'jardin_gagne_titre' => ['groupe' => 'Jardin terminé', 'libelle' => 'Titre',
+    'fr' => 'Bravo, tu as gagné !', 'nl' => 'Bravo, je hebt gewonnen!'],
+  'jardin_gagne_texte1' => ['groupe' => 'Jardin terminé', 'libelle' => 'Ce qui vient d\'être accompli',
+    'fr' => 'Tu as <b>complété tout ton jardin</b> et planté les <b>3 lotus</b> (or, argent, bronze) 🌸',
+    'nl' => 'Je hebt <b>je hele tuin voltooid</b> en de <b>3 lotussen</b> (goud, zilver, brons) geplant 🌸'],
+  'jardin_gagne_texte2' => ['groupe' => 'Jardin terminé', 'libelle' => 'Ce qui va se passer',
+    'fr' => "Tu fais officiellement partie des <b>gagnants du jardin</b> 🎁 <b>Ta récompense est en cours de préparation.</b> Nous t'enverrons un mail une fois que tu pourras venir la chercher.",
+    'nl' => 'Je hoort officieel bij de <b>winnaars van de tuin</b> 🎁 <b>Je beloning wordt klaargemaakt.</b> We sturen je een mail zodra je ze mag komen ophalen.'],
+
+  // --- Encart « objectif récompense » dans le jardin ---
+  'objectif_ok' => ['groupe' => 'Dans le jardin', 'libelle' => 'Objectif atteint',
+    'fr' => "Bravo&nbsp;! Ton jardin est complet et tes <b>3 lotus</b> sont plantés — tu es <b>gagnant du jardin</b> 🌟 Ta récompense est en cours de préparation, tu recevras un mail dès qu'elle sera prête.",
+    'nl' => 'Bravo&nbsp;! Je tuin is volledig en je <b>3 lotussen</b> zijn geplant — je bent <b>winnaar van de tuin</b> 🌟 Je beloning wordt klaargemaakt, je krijgt een mail zodra ze klaar is.'],
+  'objectif_aide' => ['groupe' => 'Dans le jardin', 'libelle' => 'Objectif pas encore atteint',
+    'fr' => 'Remplis <b>toutes</b> tes cases et plante les <b>3 lotus (or, argent, bronze)</b> pour gagner ta récompense.',
+    'nl' => 'Vul <b>al</b> je vakjes en plant de <b>3 lotussen (goud, zilver, brons)</b> om je beloning te winnen.'],
+
+  // --- Bandeau podium (après l'annonce des résultats) ---
+  'podium_bandeau' => ['groupe' => 'Podium', 'libelle' => 'Bandeau du tableau de bord', 'trous' => '{rang}',
+    'fr' => 'Bravo, tu finis <b>{rang}</b> du classement ! Ta récompense est en cours de préparation — tu recevras un mail dès que tu pourras venir la chercher.',
+    'nl' => 'Proficiat, je eindigt <b>{rang}</b> in de ranking! Je beloning wordt klaargemaakt — je krijgt een mail zodra je ze mag komen ophalen.'],
+
+  // --- Mails (français uniquement) ---
+  'mail_attente_sujet_podium' => ['groupe' => 'Mail « on prépare »', 'libelle' => 'Objet — podium',
+    'fr' => '🏆 Bravo — on prépare ta récompense !', 'nl' => null],
+  'mail_attente_sujet_jardin' => ['groupe' => 'Mail « on prépare »', 'libelle' => 'Objet — jardin',
+    'fr' => '🌼 Bravo — on prépare ta récompense !', 'nl' => null],
+  'mail_attente_felicite_podium' => ['groupe' => 'Mail « on prépare »', 'libelle' => 'Félicitations — podium', 'trous' => '{place}',
+    'fr' => "L'équipe Famiformation te félicite pour ta <b>{place}</b> au grand quiz&nbsp;! 🏆", 'nl' => null],
+  'mail_attente_felicite_jardin' => ['groupe' => 'Mail « on prépare »', 'libelle' => 'Félicitations — jardin',
+    'fr' => "L'équipe Famiformation te félicite pour avoir <b>terminé ton jardin</b>&nbsp;! 🌼", 'nl' => null],
+  'mail_attente_suite' => ['groupe' => 'Mail « on prépare »', 'libelle' => 'La suite',
+    'fr' => "On <b>prépare ta récompense</b>. Nous t'enverrons un mail une fois que tu pourras venir la chercher.", 'nl' => null],
+  'mail_prete_sujet' => ['groupe' => 'Mail « c\'est prêt »', 'libelle' => 'Objet',
+    'fr' => '🎁 Ta récompense est prête !', 'nl' => null],
+  'mail_prete_felicite' => ['groupe' => 'Mail « c\'est prêt »', 'libelle' => 'Annonce',
+    'fr' => 'Bonne nouvelle : <b>ta récompense est prête</b>&nbsp;! 🎁', 'nl' => null],
+  'mail_prete_suite' => ['groupe' => 'Mail « c\'est prêt »', 'libelle' => 'Où la récupérer',
+    'fr' => 'Pour la récupérer, présente-toi <b>auprès des RH</b> du magasin.', 'nl' => null],
+
+  // --- Modalités (le « Comment ça marche ») ---
+  'modalites_podium' => ['groupe' => 'Modalités', 'libelle' => 'Comment on gagne au classement', 'trous' => '{date_resultats}',
+    'fr' => "Ta récolte de graines (quiz + codes), c'est tout. Les <b>3 meilleures récoltes repartent avec de très belles récompenses</b> — de quoi viser le podium&nbsp;! Annonce des vainqueurs le {date_resultats}.",
+    'nl' => "Je oogst aan zaadjes (quiz + codes), that's it. De <b>3 beste oogsten winnen heel mooie prijzen</b> — mik dus op het podium&nbsp;! Bekendmaking van de winnaars op {date_resultats}."],
+  'modalites_jardin' => ['groupe' => 'Modalités', 'libelle' => 'Comment on gagne avec le jardin',
+    'fr' => "<b>Va au bout de ton jardin</b> (toutes les cases + les <b>3 lotus</b>) et tu deviens gagnant toi aussi. <b>Ta récompense est alors préparée</b> et tu reçois un mail dès qu'elle est prête. Et <b>jardin et podium se cumulent</b> 🌼🏆",
+    'nl' => "<b>Werk je tuin af</b> (alle vakjes + de <b>3 lotussen</b>) en jij wordt ook een winnaar. <b>Je beloning wordt dan klaargemaakt</b> en je krijgt een mail zodra ze klaar is. En <b>tuin en podium zijn cumuleerbaar</b> 🌼🏆"],
+];
+
+/** Les textes en vigueur : les valeurs par défaut, écrasées par messages.json. */
+function messagesActuels() {
+  global $MESSAGES_DEFAUT, $dataDir;
+  static $cache = null;
+  if ($cache !== null) { return $cache; }
+  $perso = readJson($dataDir . '/messages.json');
+  $out = [];
+  foreach ($MESSAGES_DEFAUT as $cle => $def) {
+    foreach (['fr', 'nl'] as $lang) {
+      if ($def[$lang] === null) { continue; }
+      $v = is_array($perso) ? trim((string) ($perso[$cle][$lang] ?? '')) : '';
+      $out[$cle][$lang] = $v !== '' ? $v : $def[$lang];
+    }
+  }
+  return $cache = $out;
+}
+/** Un texte, avec ses trous remplis. */
+function msgTexte($cle, $lang = 'fr', $trous = []) {
+  $m = messagesActuels();
+  $t = $m[$cle][$lang] ?? ($m[$cle]['fr'] ?? '');
+  foreach ($trous as $k => $v) { $t = str_replace('{' . $k . '}', (string) $v, $t); }
+  return $t;
+}
+
+function mailRecompense(PDO $db, $cle, $info, $modele = 'attente', $origine = 'auto') {
   try {
     $q = $db->prepare('SELECT email, prenom, nom FROM utilisateurs WHERE LOWER(identifiant) = ? LIMIT 1');
     $q->execute([$cle]);
@@ -1801,24 +1928,24 @@ function mailRecompense(PDO $db, $cle, $info, $modele = 'attente') {
   $rang = (int) ($info['rang'] ?? 0);
   $place = ($rang === 1) ? '1re place' : $rang . 'e place';
 
+  // 📝 Les textes viennent de l'onglet « Messages » de l'administration
+  // (msgTexte). Ils ne sont plus écrits en dur ici : les RH peuvent les
+  // reformuler sans toucher au code.
   if ($modele === 'attente') {
     // 1️⃣ ON PRÉPARE. Envoyé dès que la personne devient gagnante : on félicite,
     // on annonce qu'un second mail suivra. Sans ça, quelqu'un qui gagne le
     // 20/08 n'entendait plus parler de rien jusqu'au 01/09.
-    $sujet = $estPodium
-      ? '🏆 Bravo — on prépare ta récompense !'
-      : '🌼 Bravo — on prépare ta récompense !';
-    $felicite = $estPodium
-      ? 'L\'équipe Famiformation te félicite pour ta <b>' . $place . '</b> au grand quiz&nbsp;! 🏆'
-      : 'L\'équipe Famiformation te félicite pour avoir <b>terminé ton jardin</b>&nbsp;! 🌼';
-    $suite = 'On <b>prépare ta récompense</b>. Nous t\'enverrons un mail dès que tu pourras venir la récupérer.';
+    $sujet    = msgTexte($estPodium ? 'mail_attente_sujet_podium' : 'mail_attente_sujet_jardin');
+    $felicite = msgTexte($estPodium ? 'mail_attente_felicite_podium' : 'mail_attente_felicite_jardin',
+                         'fr', ['place' => $place]);
+    $suite    = msgTexte('mail_attente_suite');
   } else {
     // 2️⃣ C'EST PRÊT. Envoyé par les RH le jour où la récompense est disponible.
     // Plus de rappel du classement ici : à ce stade la seule information utile,
     // c'est qu'elle est prête et où la chercher.
-    $sujet = '🎁 Ta récompense est prête !';
-    $felicite = 'Bonne nouvelle : <b>ta récompense est prête</b>&nbsp;! 🎁';
-    $suite = 'Pour la récupérer, présente-toi <b>auprès des RH</b> du magasin.';
+    $sujet    = msgTexte('mail_prete_sujet');
+    $felicite = msgTexte('mail_prete_felicite');
+    $suite    = msgTexte('mail_prete_suite');
   }
 
   $body = '<div style="font-family:Arial,sans-serif;color:#244230;max-width:560px;margin:0 auto;padding:24px;">'
@@ -1828,10 +1955,12 @@ function mailRecompense(PDO $db, $cle, $info, $modele = 'attente') {
     . 'Une question&nbsp;? Écris à <a href="mailto:admin@famiformation.com">admin@famiformation.com</a>.</p>'
     . '<p style="font-size:15px;color:#617268;">Merci d\'avoir joué, et à bientôt&nbsp;! 🌱<br>L\'équipe Famiflora · Famiformation</p></div>';
   $ok = function_exists('sendMail') ? sendMail($email, $sujet, $body, true) : false;
+  // Tracé ICI, donc pour TOUS les envois — automatiques comme manuels.
+  if ($ok) { noteEnvoiRecompense($cle, $modele, $origine); }
   // On prévient l'admin (RH) uniquement au PREMIER mail (« on prépare ») : c'est
   // là qu'il y a quelque chose à préparer. Le second part de sa main, inutile de
   // le lui annoncer.
-  if ($ok && $modele === 'attente') { mailAdminRecompense($cle, $u, $info); }
+  if ($ok && $modele === 'attente' && $origine === 'auto') { mailAdminRecompense($cle, $u, $info); }
   return $ok;
 }
 
@@ -2522,6 +2651,10 @@ switch ($action) {
         'nb_attente' => (int) ($c['attente'] ?? 0),
         'nb_prete'   => (int) ($c['prete'] ?? 0),
         'dernier'    => (string) ($c['dernier'] ?? ''),
+        // « auto » : le tout premier mail est parti tout seul (jardin terminé ou
+        // podium du 31/08). Sans cette information, on ne pouvait pas savoir si
+        // la personne était déjà au courant sans avoir rien fait.
+        'origine'    => (string) ($c['origine'] ?? ''),
       ];
     };
 
@@ -2679,7 +2812,7 @@ switch ($action) {
       // Un seul endroit construit ces mails : mailRecompense(). L'ancien code
       // recopiait le texte ici, si bien qu'une correction devait être faite deux
       // fois — et ne l'était jamais.
-      $ok = mailRecompense($db, $cle, $info, $modele);
+      $ok = mailRecompense($db, $cle, $info, $modele, 'rh');
       if ($ok) {
         $res['envoye']++;
         $faits[] = $cle;
@@ -2700,15 +2833,11 @@ switch ($action) {
       withLock($rhFile, function (&$data, &$write) use ($faits, $modele) {
         if (!is_array($data)) { $data = []; }
         if (!isset($data['prevenu']) || !is_array($data['prevenu'])) { $data['prevenu'] = []; }
-        // Compteur par personne ET par modèle : « combien de fois ai-je écrit à
-        // cette personne, et pour lui dire quoi ». C'est ce qui remplace le
-        // verrou d'envoi unique.
-        if (!isset($data['mails']) || !is_array($data['mails'])) { $data['mails'] = []; }
+        // ⚠️ Le comptage des mails n'est PLUS fait ici : il l'est dans
+        // mailRecompense(), donc pour les envois automatiques AUSSI. Le refaire
+        // ici compterait chaque envoi RH deux fois.
         foreach ($faits as $c) {
           $data['prevenu'][$c] = 1;   // conservé : sert à l'envoi automatique
-          if (!isset($data['mails'][$c]) || !is_array($data['mails'][$c])) { $data['mails'][$c] = []; }
-          $data['mails'][$c][$modele] = (int) ($data['mails'][$c][$modele] ?? 0) + 1;
-          $data['mails'][$c]['dernier'] = date('c');
         }
         $write = true;
       });
@@ -3235,6 +3364,54 @@ switch ($action) {
       break;
     }
     echo json_encode(['ok' => true]);
+    break;
+  }
+
+  // ✉️ Les textes des récompenses (fenêtres + modalités), lus par la page joueur.
+  // Public : ce sont des textes qu'elle affiche de toute façon.
+  case 'messages': {
+    echo json_encode(messagesActuels(), JSON_UNESCAPED_UNICODE);
+    break;
+  }
+
+  // ✏️ L'onglet « Messages » de l'administration : la liste complète avec le
+  // texte par défaut ET le texte personnalisé, pour pouvoir montrer les deux.
+  case 'messages_admin': {
+    exigeAdmin($input);
+    $perso = readJson($dataDir . '/messages.json');
+    $liste = [];
+    foreach ($MESSAGES_DEFAUT as $cle => $def) {
+      $liste[] = [
+        'cle'     => $cle,
+        'groupe'  => $def['groupe'],
+        'libelle' => $def['libelle'],
+        'trous'   => $def['trous'] ?? '',
+        'defaut'  => ['fr' => $def['fr'], 'nl' => $def['nl']],
+        'perso'   => ['fr' => is_array($perso) ? (string) ($perso[$cle]['fr'] ?? '') : '',
+                      'nl' => is_array($perso) ? (string) ($perso[$cle]['nl'] ?? '') : ''],
+      ];
+    }
+    echo json_encode(['ok' => true, 'messages' => $liste], JSON_UNESCAPED_UNICODE);
+    break;
+  }
+
+  // 💾 Enregistrement des textes personnalisés. On ne garde QUE ce qui diffère
+  // du texte d'origine : un champ vidé revient automatiquement au défaut, et le
+  // fichier reste minuscule et lisible.
+  case 'messages_save': {
+    exigeAdmin($input);
+    $recu = (array) ($input['messages'] ?? []);
+    $propre = [];
+    foreach ($MESSAGES_DEFAUT as $cle => $def) {
+      foreach (['fr', 'nl'] as $lang) {
+        if ($def[$lang] === null) { continue; }   // ce texte n'existe pas dans cette langue
+        $v = trim((string) ($recu[$cle][$lang] ?? ''));
+        if ($v === '' || $v === $def[$lang]) { continue; }
+        $propre[$cle][$lang] = mb_substr($v, 0, 1500);
+      }
+    }
+    writeJson($dataDir . '/messages.json', $propre);
+    echo json_encode(['ok' => true, 'modifies' => count($propre)], JSON_UNESCAPED_UNICODE);
     break;
   }
 

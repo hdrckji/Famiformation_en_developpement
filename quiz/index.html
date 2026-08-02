@@ -1304,6 +1304,14 @@ async function apiClaimCode(code, name) {
 }
 // ⏱ Les dates de l'événement (réglées dans l'admin). En cas d'échec, on garde
 // les dates par défaut inscrites dans CONFIG.
+async function apiMessages() {
+  try {
+    const r = await fetchFrais("messages");
+    if (!r.ok) return null;
+    const d = await r.json();
+    return (d && typeof d === "object") ? d : null;
+  } catch { return null; }
+}
 async function apiConfig() {
   try {
     const r = await fetchFrais("config_get");
@@ -1730,6 +1738,19 @@ function avatarDe(name) {
 // renvoie la bonne chaîne ; les écrans non encore traduits restent en français.
 let LANG = (() => { try { return localStorage.getItem("fj_lang") === "nl" ? "nl" : "fr"; } catch (e) { return "fr"; } })();
 function t(fr, nl) { return LANG === "nl" ? nl : fr; }
+
+/* ✉️ TEXTES DES RÉCOMPENSES, modifiables dans /quiz/admin (onglet Messages).
+   MESSAGES est rempli au démarrage par l'API. Tant qu'il est vide — API lente,
+   hors ligne, ancienne version — on garde le texte écrit ici : un message de
+   félicitations ne doit JAMAIS s'afficher vide.
+   msg() remplit aussi les {trous} : msg("podium_bandeau", fr, nl, {rang: "1er"}). */
+let MESSAGES = {};
+function msg(cle, defautFr, defautNl, trous) {
+  const perso = MESSAGES[cle];
+  let s = (perso && (LANG === "nl" ? perso.nl : perso.fr)) || t(defautFr, defautNl);
+  if (trous) { for (const k in trous) s = s.split("{" + k + "}").join(trous[k]); }
+  return s;
+}
 function setLang(l) {
   LANG = (l === "nl") ? "nl" : "fr";
   infoLang = LANG;
@@ -1911,7 +1932,7 @@ function ouvreExplication() {
     <h2 class="explik-titre">${t("🌱 Comment ça marche ?", "🌱 Hoe werkt het?")}</h2>
     <p class="explik-sous">${t("Le grand jeu Famiflora, de la graine au ticket glace.", "Het grote Famiflora-spel, van zaadje tot ijsjesticket.")}</p>
     <div class="explik-steps">
-      <div class="explik-step explik-star"><span class="explik-ico">🏆</span><span class="explik-txt"><b class="eh">${t("Un seul classement ⭐", "Eén enkele ranking ⭐")}</b>${t("Ta récolte de graines (quiz + codes), c'est tout. Les <b>3 meilleures récoltes repartent avec de très belles récompenses</b> — de quoi viser le podium&nbsp;! Annonce des vainqueurs le " + esc(CONFIG.dateResultats) + ".", "Je oogst aan zaadjes (quiz + codes), that's it. De <b>3 beste oogsten winnen heel mooie prijzen</b> — mik dus op het podium&nbsp;! Bekendmaking van de winnaars op " + esc(CONFIG.dateResultats) + ".")}</span></div>
+      <div class="explik-step explik-star"><span class="explik-ico">🏆</span><span class="explik-txt"><b class="eh">${t("Un seul classement ⭐", "Eén enkele ranking ⭐")}</b>${msg("modalites_podium", "Ta récolte de graines (quiz + codes), c'est tout. Les <b>3 meilleures récoltes repartent avec de très belles récompenses</b> — de quoi viser le podium&nbsp;! Annonce des vainqueurs le {date_resultats}.", "Je oogst aan zaadjes (quiz + codes), that's it. De <b>3 beste oogsten winnen heel mooie prijzen</b> — mik dus op het podium&nbsp;! Bekendmaking van de winnaars op {date_resultats}.", { date_resultats: esc(CONFIG.dateResultats) })}</span></div>
       <div class="explik-step"><span class="explik-ico">🎯</span><span class="explik-txt"><b class="eh">${t("Réponds au quiz", "Beantwoord de quiz")}</b>${t("<b>" + QUIZ_TOTAL + " questions</b> tirées au hasard dans un grand réservoir : <b>" + QUIZ_THEMES.entreprise + " sur l'entreprise et le magasin</b>, <b>" + QUIZ_THEMES.culture + " de culture générale</b> (jardinage) et <b>" + QUIZ_THEMES.fun + " questions fun</b>. Deux personnes n'ont donc pas le même questionnaire !", "<b>" + QUIZ_TOTAL + " vragen</b> willekeurig getrokken uit een grote pot: <b>" + QUIZ_THEMES.entreprise + " over het bedrijf en de winkel</b>, <b>" + QUIZ_THEMES.culture + " algemene kennis</b> (tuinieren) en <b>" + QUIZ_THEMES.fun + " fun-vragen</b>. Twee mensen hebben dus niet dezelfde vragenlijst!")}</span></div>
       <div class="explik-step"><span class="explik-ico">🌰</span><span class="explik-txt"><b class="eh">${t("Comment on gagne des graines", "Hoe je zaadjes wint")}</b>${t("Chaque bonne réponse rapporte <b>" + BAREME.base + " graines</b>, avec deux bonus.", "Elk juist antwoord levert <b>" + BAREME.base + " zaadjes</b> op, met twee bonussen.")}
         <span class="explik-liste">
@@ -1922,7 +1943,7 @@ function ouvreExplication() {
       <div class="explik-step"><span class="explik-ico">👤</span><span class="explik-txt"><b class="eh">${t("Ton compte = ton compte Famiformation", "Je account = je Famiformation-account")}</b>${t("Pour jouer et garder ta récolte, tu te connectes avec ton <b>compte Famiformation</b> (ton <b>identifiant</b> + ton <b>mot de passe</b>). <b>Pas encore de compte ?</b> Inscris-toi en 2 minutes (prénom, nom, e-mail) : tu reçois ton <b>lien de connexion par mail</b> et ton <b>ticket glace</b> à l'accueil 🍦. Ensuite tu te reconnectes depuis n'importe quel appareil avec les mêmes identifiants.", "Om te spelen en je oogst te bewaren, meld je je aan met je <b>Famiformation-account</b> (je <b>gebruikersnaam</b> + je <b>wachtwoord</b>). <b>Nog geen account?</b> Schrijf je in op 2 minuten (voornaam, naam, e-mail): je ontvangt je <b>aanmeldlink per mail</b> en je <b>ijsjesticket</b> aan het onthaal 🍦. Daarna meld je je aan op eender welk toestel met dezelfde gegevens.")}</span></div>
       <div class="explik-step"><span class="explik-ico">📅</span><span class="explik-txt"><b class="eh">${t("Les dates à retenir", "De data om te onthouden")}</b>${t("Le quiz <b>ouvre le " + CONFIG.dateLancement.toLocaleDateString("fr-BE", { day: "numeric", month: "long" }) + " à 12h30</b> et <b>ferme le " + CONFIG.dateCloture.toLocaleDateString("fr-BE", { day: "numeric", month: "long" }) + " au soir</b>. Ton <b>quiz du classement compte une seule fois</b> (le 1er essai fige ton score), mais tu peux <b>chercher des codes bonus autant que tu veux</b> jusqu'à la clôture. Annonce des vainqueurs le <b>" + esc(CONFIG.dateResultats) + "</b>.", "De quiz <b>opent op " + CONFIG.dateLancement.toLocaleDateString("nl-BE", { day: "numeric", month: "long" }) + " om 12u30</b> en <b>sluit op " + CONFIG.dateCloture.toLocaleDateString("nl-BE", { day: "numeric", month: "long" }) + " 's avonds</b>. Je <b>quiz voor de ranking telt één keer</b> (je eerste poging bepaalt je score), maar je kan <b>zoveel bonuscodes zoeken als je wil</b> tot de sluiting. Bekendmaking van de winnaars op <b>" + esc(CONFIG.dateResultats) + "</b>.")}</span></div>
       <div class="explik-step"><span class="explik-ico">🎁</span><span class="explik-txt"><b class="eh">${t("Traque les codes bonus", "Jaag op de bonuscodes")}</b>${t("Des codes sont cachés en magasin : chacun te rapporte <b>+" + CONFIG.pointsParCodeBonus + " graines</b>. Tu peux en accumuler <b>" + CONFIG.maxCodes + " au maximum</b> (soit +" + (CONFIG.pointsParCodeBonus * CONFIG.maxCodes) + " graines), et elles comptent au classement. <b>Même après avoir fait le quiz</b>, tu peux encore en récupérer : ça te fait remonter ! Ouvre l'œil 👀", "Er liggen codes verstopt in de winkel: elk levert je <b>+" + CONFIG.pointsParCodeBonus + " zaadjes</b> op. Je kan er <b>maximaal " + CONFIG.maxCodes + "</b> verzamelen (dus +" + (CONFIG.pointsParCodeBonus * CONFIG.maxCodes) + " zaadjes), en ze tellen mee in de ranking. <b>Zelfs na de quiz</b> kan je er nog ophalen: zo stijg je! Hou je ogen open 👀")}</span></div>
-      <div class="explik-step"><span class="explik-ico">🌼</span><span class="explik-txt"><b class="eh">${t("Ton jardin — après le quiz", "Je tuin — na de quiz")}</b>${t("Une fois ton quiz terminé, <b>ton jardin s'ouvre</b> : chacun a le sien. Tu y dépenses tes graines pour planter des fleurs, des arbres, des variétés rares… Tu les verras diminuer, <b>c'est normal, ça ne concerne que le jardin</b> : <b>ton score au classement ne bouge pas</b>. Et surtout : <b>va au bout de ton jardin</b> (toutes les cases + les <b>3 lotus</b>) et tu deviens gagnant toi aussi — tu peux réclamer ta <b>récompense aux RH dès que c'est fini</b>, <b>sans attendre</b> le podium. Et <b>jardin et podium se cumulent</b> 🌼🏆", "Zodra je quiz klaar is, <b>opent je tuin</b>: iedereen heeft de zijne. Je geeft er je zaadjes uit om bloemen, bomen en zeldzame soorten te planten… Je ziet ze dalen, <b>dat is normaal, het geldt enkel voor de tuin</b>: <b>je score in de ranking verandert niet</b>. En vooral: <b>werk je tuin af</b> (alle vakjes + de <b>3 lotussen</b>) en jij wordt ook een winnaar — je kan je <b>beloning bij HR ophalen zodra hij af is</b>, <b>zonder</b> op het podium te wachten. En <b>tuin en podium zijn cumuleerbaar</b> 🌼🏆")}</span></div>
+      <div class="explik-step"><span class="explik-ico">🌼</span><span class="explik-txt"><b class="eh">${t("Ton jardin — après le quiz", "Je tuin — na de quiz")}</b>${t("Une fois ton quiz terminé, <b>ton jardin s'ouvre</b> : chacun a le sien. Tu y dépenses tes graines pour planter des fleurs, des arbres, des variétés rares… Tu les verras diminuer, <b>c'est normal, ça ne concerne que le jardin</b> : <b>ton score au classement ne bouge pas</b>. ", "Zodra je quiz klaar is, <b>opent je tuin</b>: iedereen heeft de zijne. Je geeft er je zaadjes uit om bloemen, bomen en zeldzame soorten te planten… Je ziet ze dalen, <b>dat is normaal, het geldt enkel voor de tuin</b>: <b>je score in de ranking verandert niet</b>. ")}${msg("modalites_jardin", "<b>Va au bout de ton jardin</b> (toutes les cases + les <b>3 lotus</b>) et tu deviens gagnant toi aussi. <b>Ta récompense est alors préparée</b> et tu reçois un mail dès qu'elle est prête. Et <b>jardin et podium se cumulent</b> 🌼🏆", "<b>Werk je tuin af</b> (alle vakjes + de <b>3 lotussen</b>) en jij wordt ook een winnaar. <b>Je beloning wordt dan klaargemaakt</b> en je krijgt een mail zodra ze klaar is. En <b>tuin en podium zijn cumuleerbaar</b> 🌼🏆")}</span></div>
       <div class="explik-step"><span class="explik-ico">🌿</span><span class="explik-txt"><b class="eh">${t("Un mini-jeu bonus", "Een bonus-minispel")}</b>${t("La chasse aux mauvaises herbes te donne des graines <b>en plus, uniquement pour planter</b> dans ton jardin. Ça ne compte pas au classement.", "Het onkruid vangen geeft je <b>extra zaadjes, enkel om te planten</b> in je tuin. Dat telt niet mee in de ranking.")}</span></div>
     </div>
     <button class="btn" id="explik-ok" style="width:100%;">${t("J'ai tout compris, à moi de jouer ! 🌱", "Alles begrepen, ik ga spelen! 🌱")}</button>
@@ -2399,10 +2420,10 @@ function modaleQuizFini(graines) {
   o.className = "modal-fond";
   o.innerHTML = `<div class="modal code-modal">
     <div class="cm-emoji">🎉</div>
-    <h2 class="cm-titre">${t("Quiz terminé !", "Quiz voltooid!")}</h2>
-    <p class="cm-sous">${t("Tu as récolté <b>" + affG(graines) + " 🌰</b> graines.", "Je hebt <b>" + affG(graines) + " 🌰</b> zaadjes geoogst.")}<br>
-      ${t("<b>Ton jardin est maintenant ouvert</b> 🌼 : plantes-y tes graines. Elles vont diminuer — <b>c'est normal, ça ne concerne que le jardin</b>, <b>ton score au classement ne bougera pas</b>.", "<b>Je tuin is nu open</b> 🌼: plant er je zaadjes. Ze zullen afnemen — <b>dat is normaal, het geldt enkel voor de tuin</b>, <b>je score in de ranking verandert niet</b>.")}<br>
-      ${t("🎁 Et surtout : <b>va au bout de ton jardin et tu gagnes une récompense toi aussi</b>, même sans être sur le podium !", "🎁 En vooral: <b>werk je tuin af en jij wint ook een beloning</b>, ook zonder op het podium te staan!")}</p>
+    <h2 class="cm-titre">${msg("quiz_fini_titre", "Quiz terminé !", "Quiz voltooid!")}</h2>
+    <p class="cm-sous">${msg("quiz_fini_graines", "Tu as récolté <b>{graines} 🌰</b> graines.", "Je hebt <b>{graines} 🌰</b> zaadjes geoogst.", { graines: affG(graines) })}<br>
+      ${msg("quiz_fini_jardin", "<b>Ton jardin est maintenant ouvert</b> 🌼 : plantes-y tes graines. Elles vont diminuer — <b>c'est normal, ça ne concerne que le jardin</b>, <b>ton score au classement ne bougera pas</b>.", "<b>Je tuin is nu open</b> 🌼: plant er je zaadjes. Ze zullen afnemen — <b>dat is normaal, het geldt enkel voor de tuin</b>, <b>je score in de ranking verandert niet</b>.")}<br>
+      ${msg("quiz_fini_recompense", "🎁 Et surtout : <b>va au bout de ton jardin et tu gagnes une récompense toi aussi</b>, même sans être sur le podium !", "🎁 En vooral: <b>werk je tuin af en jij wint ook een beloning</b>, ook zonder op het podium te staan!")}</p>
     <div class="cm-modules">
       <button class="cm-mod" data-qf="jardin"><span class="cm-mod-emo">🌼</span><span class="cm-mod-titre">${t("Mon jardin", "Mijn tuin")}</span></button>
       <button class="cm-mod" data-qf="board"><span class="cm-mod-emo">🏆</span><span class="cm-mod-titre">${t("Le classement", "De ranking")}</span></button>
@@ -2423,9 +2444,9 @@ function modaleJardinGagne() {
   o.className = "modal-fond";
   o.innerHTML = `<div class="modal code-modal">
     <div class="cm-emoji">🏆</div>
-    <h2 class="cm-titre">${t("Bravo, tu as gagné !", "Bravo, je hebt gewonnen!")}</h2>
-    <p class="cm-sous">${t("Tu as <b>complété tout ton jardin</b> et planté les <b>3 lotus</b> (or, argent, bronze) 🌸", "Je hebt <b>je hele tuin voltooid</b> en de <b>3 lotussen</b> (goud, zilver, brons) geplant 🌸")}<br>
-      ${t("Tu fais officiellement partie des <b>gagnants du jardin</b> 🎁 <b>Va récupérer ta récompense auprès des RH</b> du magasin — <b>dès maintenant</b>, pas besoin d'attendre le podium ! Et bonne nouvelle : <b>jardin et podium se cumulent</b> 🏆🌼", "Je hoort officieel bij de <b>winnaars van de tuin</b> 🎁 <b>Haal je beloning op bij de HR</b> van de winkel — <b>meteen</b>, je hoeft niet op het podium te wachten! En goed nieuws: <b>tuin en podium zijn cumuleerbaar</b> 🏆🌼")}</p>
+    <h2 class="cm-titre">${msg("jardin_gagne_titre", "Bravo, tu as gagné !", "Bravo, je hebt gewonnen!")}</h2>
+    <p class="cm-sous">${msg("jardin_gagne_texte1", "Tu as <b>complété tout ton jardin</b> et planté les <b>3 lotus</b> (or, argent, bronze) 🌸", "Je hebt <b>je hele tuin voltooid</b> en de <b>3 lotussen</b> (goud, zilver, brons) geplant 🌸")}<br>
+      ${msg("jardin_gagne_texte2", "Tu fais officiellement partie des <b>gagnants du jardin</b> 🎁 <b>Ta récompense est en cours de préparation.</b> Nous t'enverrons un mail une fois que tu pourras venir la chercher.", "Je hoort officieel bij de <b>winnaars van de tuin</b> 🎁 <b>Je beloning wordt klaargemaakt.</b> We sturen je een mail zodra je ze mag komen ophalen.")}</p>
     <button class="btn" id="cm-ok" style="min-width:200px;">${t("Trop bien ! 🌟", "Geweldig! 🌟")}</button>
   </div>`;
   document.body.appendChild(o);
@@ -2684,10 +2705,10 @@ function renderJardin() {
     ${JARDIN_LIBRE ? "" : `<div class="j-objectif ${eligible ? "j-objectif-ok" : ""}">
       <div class="jo-titre">${t("🎁 Objectif récompense", "🎁 Doel: beloning")}</div>
       ${eligible
-        ? `<div class="jo-ok">${t("Bravo&nbsp;! Ton jardin est complet et tes <b>3 lotus</b> sont plantés — tu es <b>gagnant du jardin</b> 🌟 Va chercher ta <b>récompense aux RH dès maintenant</b> (cumulable avec le podium&nbsp;!)", "Bravo&nbsp;! Je tuin is volledig en je <b>3 lotussen</b> zijn geplant — je bent <b>winnaar van de tuin</b> 🌟 Haal je <b>beloning nu bij HR</b> (cumuleerbaar met het podium&nbsp;!)")}</div>`
+        ? `<div class="jo-ok">${msg("objectif_ok", "Bravo&nbsp;! Ton jardin est complet et tes <b>3 lotus</b> sont plantés — tu es <b>gagnant du jardin</b> 🌟 Ta récompense est en cours de préparation, tu recevras un mail dès qu'elle sera prête.", "Bravo&nbsp;! Je tuin is volledig en je <b>3 lotussen</b> zijn geplant — je bent <b>winnaar van de tuin</b> 🌟 Je beloning wordt klaargemaakt, je krijgt een mail zodra ze klaar is.")}</div>`
         : `<div class="jo-progress"><div class="jo-barre"><div style="width:${Math.round(nbPlantees / JARDIN_CASES * 100)}%"></div></div>
            <span class="jo-chiffres"><b>${nbPlantees}/${JARDIN_CASES}</b> ${t("cases", "vakjes")} · <b>${lotusFaits}/3</b> ${t("lotus", "lotus")} 🌼</span></div>
-           <div class="jo-aide">${t("Remplis <b>toutes</b> tes cases et plante les <b>3 lotus (or, argent, bronze)</b> pour gagner ta récompense.", "Vul <b>al</b> je vakjes en plant de <b>3 lotussen (goud, zilver, brons)</b> om je beloning te winnen.")}</div>`}
+           <div class="jo-aide">${msg("objectif_aide", "Remplis <b>toutes</b> tes cases et plante les <b>3 lotus (or, argent, bronze)</b> pour gagner ta récompense.", "Vul <b>al</b> je vakjes en plant de <b>3 lotussen (goud, zilver, brons)</b> om je beloning te winnen.")}</div>`}
     </div>`}
     <div class="jardin-explik">
       <b>${t("🌼 Ton jardin, comment ça marche ?", "🌼 Je tuin, hoe werkt het?")}</b>
@@ -3386,7 +3407,7 @@ function renderDashboard() {
   app.innerHTML = `<div class="home">
     <div class="dash-hello">${t("Salut", "Hallo")} <b>${esc(joueur.name)}</b> 🌱 <span>${affG(joueur.recoltees)} ${t("graines récoltées", "zaadjes geoogst")}</span></div>
     ${rangFinal ? `<div class="alert ok" style="max-width:660px;margin:0 auto 16px;background:#fff7e4;border:2px solid #E9A93C;color:#7a4a11;font-weight:600;">
-      🏆 ${t("Bravo, tu finis <b>" + ordinal(rangFinal) + "</b> du classement ! Va <b>récupérer ta récompense auprès des RH</b> du magasin (dès le 01/09).", "Proficiat, je eindigt <b>" + ordinal(rangFinal) + "</b> in de ranking! <b>Haal je beloning op bij de HR</b> van de winkel (vanaf 01/09).")}
+      🏆 ${msg("podium_bandeau", "Bravo, tu finis <b>{rang}</b> du classement ! Ta récompense est en cours de préparation — tu recevras un mail dès que tu pourras venir la chercher.", "Proficiat, je eindigt <b>{rang}</b> in de ranking! Je beloning wordt klaargemaakt — je krijgt een mail zodra je ze mag komen ophalen.", { rang: ordinal(rangFinal) })}
     </div>` : ""}
     ${jardinMsg ? `<div class="alert" style="max-width:640px;margin:0 auto 16px;">${esc(jardinMsg)}</div>` : ""}
     <div class="borne-modules dash-modules">
@@ -4925,8 +4946,9 @@ function retourNav() {
   // échoue, QUESTIONS garde la liste de secours définie plus haut. Le catalogue
   // des plantes vient aussi du serveur : page et api.php restent d'accord sur
   // les coûts même si tu les modifies dans api.php.
-  const [dist, bd, cat, conf] = await Promise.all([apiQuestions(), apiGetBoard(), apiPlantes(), apiConfig()]);
+  const [dist, bd, cat, conf, mess] = await Promise.all([apiQuestions(), apiGetBoard(), apiPlantes(), apiConfig(), apiMessages()]);
   if (dist) { QUESTIONS = dist; }
+  if (mess) { MESSAGES = mess; }   // textes des récompenses réglés dans /quiz/admin
   if (cat && cat.plantes) { PLANTES = cat.plantes; JARDIN_CASES = cat.cases || JARDIN_CASES; }
   // Dates de l'événement réglées dans l'admin (sinon on garde celles de CONFIG).
   if (conf) {
