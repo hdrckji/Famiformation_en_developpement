@@ -43,8 +43,21 @@
   .rh-pick { flex:none; display:flex; align-items:center; padding-right:4px; }
   .rh-pick input { width:18px; height:18px; cursor:pointer; }
   .rh-pick input:disabled { cursor:not-allowed; opacity:.4; }
-  .rh-envois { font-size:.8rem; font-weight:700; color:#1E7A46; background:#e7f6ea; border-radius:999px; padding:2px 9px; white-space:nowrap; }
-  .rh-envois.rh-jamais { color:#8a968f; background:#f2f4f3; font-weight:600; }
+  /* 🧪 Ligne d'essai : violette et rayée, impossible a confondre avec un gagnant. */
+  .rh-row.rh-test { background:repeating-linear-gradient(45deg,#f6f1fb,#f6f1fb 10px,#efe7f7 10px,#efe7f7 20px);
+    border-left:4px solid #8b5cf6; }
+  .rh-row.rh-test .rh-nom { color:#5b21b6; }
+  .rh-badge-test { background:#8b5cf6; color:#fff; border-radius:999px; padding:1px 9px;
+    font-size:.7rem; font-weight:800; letter-spacing:.06em; vertical-align:middle; }
+  .rh-rang-test { font-size:1.3rem; }
+  .rh-check-vide { color:#b8a8cc; font-weight:800; padding:0 18px; }
+  .aide-envoi { background:#f2faf4; border:1px solid #cfe6d5; border-radius:12px;
+    padding:11px 15px; margin:0 0 14px; font-size:.9rem; line-height:1.6; }
+  .rh-envois { font-size:.8rem; font-weight:700; display:inline-flex; gap:6px; flex-wrap:wrap; }
+  .rh-envois.rh-jamais { color:#8a968f; background:#f2f4f3; border-radius:999px; padding:2px 9px; font-weight:600; }
+  .rh-part { border-radius:999px; padding:2px 9px; white-space:nowrap; }
+  .rh-part-att { color:#8a5b00; background:#fdf0d5; }
+  .rh-part-prete { color:#1E7A46; background:#e7f6ea; }
   .rh-barre { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:0 0 12px; font-size:.86rem; }
   .rh-lien { background:none; border:none; padding:0; font:inherit; color:#2d5a37; font-weight:700; text-decoration:underline; cursor:pointer; }
   .rh-compteur { margin-left:auto; color:#7a8a80; }
@@ -125,36 +138,58 @@ function ligneHtml(p, type, rangClass) {
   // il faut donc la prevenir autrement.
   // 📨 Compteur d'envois, par modele. Il remplace l'ancien verrou « une seule
   // fois » : on peut renvoyer autant qu'on veut, et on sait ce qui est deja parti.
-  const cpt = [];
-  if (p.nb_attente) cpt.push(`⏳ ${p.nb_attente}`);
-  if (p.nb_prete) cpt.push(`🎁 ${p.nb_prete}`);
-  const envois = cpt.length
-    ? `<span class="rh-envois" title="⏳ « on prépare » · 🎁 « c'est prêt »${p.dernier ? " — dernier envoi : " + esc(p.dernier.slice(0, 16).replace("T", " ")) : ""}">${cpt.join(" · ")}</span>`
-    : `<span class="rh-envois rh-jamais">aucun mail envoyé</span>`;
-  return `<div class="rh-row ${remis ? "remis" : ""}" data-name="${esc(p.name)}" data-type="${type}">
+  // 📨 CE QUI EST DÉJÀ PARTI, en toutes lettres. L'ancien affichage montrait
+  // « ⏳ 1 · 🎁 2 » : il fallait deviner. Et surtout, le mail AUTOMATIQUE (jardin
+  // terminé, podium) n'était pas compté du tout — la ligne disait « aucun mail
+  // envoyé » alors que la personne avait bien été prévenue.
+  const quand = p.dernier ? " — dernier envoi le " + esc(p.dernier.slice(0, 16).replace("T", " à ")) : "";
+  const bouts = [];
+  if (p.nb_attente) {
+    bouts.push(`<span class="rh-part rh-part-att">⏳ « on prépare » envoyé${p.nb_attente > 1 ? " ×" + p.nb_attente : ""}`
+      + `${p.origine === "auto" && p.nb_attente === 1 ? " (automatique)" : ""}</span>`);
+  }
+  if (p.nb_prete) {
+    bouts.push(`<span class="rh-part rh-part-prete">🎁 « c'est prêt » envoyé${p.nb_prete > 1 ? " ×" + p.nb_prete : ""}</span>`);
+  }
+  const envois = bouts.length
+    ? `<span class="rh-envois" title="${esc(quand.replace(/^ — /, ""))}">${bouts.join(" ")}</span>`
+    : `<span class="rh-envois rh-jamais">✉️ aucun mail envoyé</span>`;
+  // 🧪 COMPTE DE TEST (admin_…). Il ne compte PAS au classement et ne prend la
+  // place de personne : il n'est là que pour essayer un envoi de mail. On le
+  // rend visuellement impossible à confondre avec un vrai gagnant — sinon on
+  // finit par lui « remettre » une récompense qui n'existe pas.
+  const estTest = !!p.test;
+  return `<div class="rh-row ${remis ? "remis" : ""} ${estTest ? "rh-test" : ""}" data-name="${esc(p.name)}" data-type="${type}">
     <label class="rh-pick"><input type="checkbox" class="rh-cb" value="${esc(String(p.name || "").toLowerCase())}" disabled></label>
-    ${rang}
+    ${estTest ? `<span class="rh-rang rh-rang-test" title="Compte de test">🧪</span>` : rang}
     <div class="rh-info">
-      <div class="rh-nom">${esc(nomAffiche(p))}</div>
-      <div class="rh-meta">${meta.join(" · ")}</div>
+      <div class="rh-nom">${esc(nomAffiche(p))}${estTest ? ` <span class="rh-badge-test">TEST</span>` : ""}</div>
+      <div class="rh-meta">${estTest
+        ? `<b>Compte d'essai — ne compte pas au classement.</b> Coche-le ici pour recevoir la version
+           <b>${type === "podium" ? "podium (comme un 1<sup>er</sup>)" : "jardin terminé"}</b> du mail, et voir exactement ce que reçoit un gagnant.`
+        : meta.join(" · ")}</div>
       <div class="rh-mail-ligne"><span class="rh-mail-zone"><span class="rh-mail rh-jamais">adresse…</span></span> ${envois}</div>
     </div>
+    ${estTest ? `<span class="rh-check-vide" title="Rien à remettre : ce n'est pas un vrai gagnant">—</span>` : `
     <label class="rh-check ${remis ? "on" : ""}">
       <input type="checkbox" ${remis ? "checked" : ""}>
       <span>${remis ? "Remis ✅" : "À remettre"}</span>
-    </label>
+    </label>`}
   </div>`;
 }
 
 function sectionHtml(titre, emoji, liste, type) {
-  const nbRemis = liste.filter((p) => p.remis).length;
+  // Le compteur « X/Y remis » ne parle que des VRAIS gagnants : un compte de
+  // test dans le total ferait croire qu'il reste une récompense à remettre.
+  const vrais = liste.filter((p) => !p.test);
+  const nbRemis = vrais.filter((p) => p.remis).length;
   const rows = liste.length
     ? liste.map((p, i) => ligneHtml(p, type, type === "podium" ? ["or","argent","bronze"][i] || "" : "")).join("")
     : `<div class="vide">Personne pour l'instant.</div>`;
   return `<div class="card">
     <div class="sec-titre">
       <h2>${emoji} ${titre}</h2>
-      <span class="compte">${nbRemis}/${liste.length} remis</span>
+      <span class="compte">${nbRemis}/${vrais.length} remis</span>
     </div>
     ${rows}
   </div>`;
@@ -167,6 +202,11 @@ function rendre() {
     <div class="site-switch">
       <span style="font-weight:700;">🏬 Magasin :</span>
       ${Object.entries(SITES).map(([k,l]) => `<button class="ss-btn ${site===k?"on":""}" data-site="${k}">${l}</button>`).join("")}
+    </div>
+    <div class="aide-envoi">
+      📨 <b>Pour écrire à quelqu'un</b> : coche la <b>case à gauche de son nom</b>, puis choisis le mail à envoyer.
+      Tu peux en cocher plusieurs. <b>Les personnes sans adresse e-mail ne sont pas cochables</b> — à prévenir de vive voix.
+      Chaque ligne indique <b>ce qui lui est déjà parti</b>.
     </div>
     <div class="top">
       <button class="btn ghost" id="rafraichir">🔄 Rafraîchir</button>
@@ -206,13 +246,23 @@ function rendre() {
 
   // Un seul envoi possible : celui des personnes COCHÉES, avec le modèle choisi.
   async function envoyer(modele, bouton, libelle) {
-    const ids = cases().filter((c) => c.checked).map((c) => c.value);
+    const cochees = cases().filter((c) => c.checked);
+    // 🎯 D'OÙ vient chaque case : « podium » ou « jardin ». Le compte d'essai
+    // figure dans les deux listes ; sans cette information, cocher sa ligne du
+    // podium envoyait quand même le mail « jardin terminé ». Pour les vrais
+    // gagnants, ça ne change rien : leur motif est celui qui leur revient.
+    const sections = {};
+    cochees.forEach((c) => {
+      const row = c.closest(".rh-row");
+      if (row && !sections[c.value]) sections[c.value] = row.dataset.type;
+    });
+    const ids = [...new Set(cochees.map((c) => c.value))];
     if (!ids.length) { $("#msg").innerHTML = `<div class="msg err">Coche d'abord les personnes à prévenir.</div>`; return; }
     const quoi = modele === "prete" ? "« ta récompense est prête »" : "« on prépare ta récompense »";
     if (!confirm(`Envoyer le mail ${quoi} à ${ids.length} personne(s) ?\n\nTu peux le renvoyer autant de fois que nécessaire.`)) return;
     const b = $(bouton); const texte = b.textContent;
     b.disabled = true; b.textContent = "Envoi…";
-    const r = await post("rh_mail", { ids, modele });
+    const r = await post("rh_mail", { ids, modele, sections });
     b.disabled = false; b.textContent = texte;
     if (r.status === 401) { auth = null; localStorage.removeItem("fj_rh_auth"); vueLogin("Session expirée, reconnecte-toi."); return; }
     if (!r.ok || !r.data || !r.data.ok) { $("#msg").innerHTML = `<div class="msg err">${(r.data && r.data.reason === "base_indisponible") ? "Base injoignable, réessaie plus tard." : "Envoi impossible, réessaie."}</div>`; return; }
