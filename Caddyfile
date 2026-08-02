@@ -36,6 +36,15 @@
 		@quizseed path /quiz/seed/*
 		respond @quizseed 403
 
+		# 🪪 FAMICARD : /famicard/ sert index.php tout seul (php_server reconnait
+		# index.php comme index de dossier) — aucune reecriture necessaire.
+		# En revanche on ferme deux portes :
+		#  • includes/ ne contient que des briques appelees par les pages ;
+		#    y acceder directement n'a aucun usage legitime ;
+		#  • README.md decrit la structure interne et l'etat d'avancement.
+		@famicardPrive path /famicard/includes/* /famicard/README.md
+		respond @famicardPrive 403
+
 		# 🎓 SOUS-DOMAINE FAMIJOB : student.famiformation.com.
 		# Meme principe que « root * /app/public » plus haut, qui rend le dossier
 		# public/ invisible dans l'URL du site principal : ici on rend le dossier

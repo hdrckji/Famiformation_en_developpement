@@ -21,6 +21,11 @@ COPY Famijob/ /app/public/famijob/
 # Copie le site du quiz de lancement (accessible via /quiz/)
 COPY quiz/ /app/public/quiz/
 
+# Copie Famicard (carte d'identite du collaborateur), accessible via /famicard/.
+# Place APRES Famiformation : Famicard lit « ../config.php », qui doit donc
+# deja exister a la racine servie.
+COPY Famicard/ /app/public/famicard/
+
 # Le quiz ecrit ses scores dans quiz/data/ : le dossier doit exister et etre
 # accessible en ecriture par le serveur (sinon api.php ne peut rien enregistrer).
 RUN mkdir -p /app/public/quiz/data && chown -R www-data:www-data /app/public/quiz/data
