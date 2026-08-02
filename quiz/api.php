@@ -1887,12 +1887,15 @@ $MESSAGES_DEFAUT = [
     'nl' => "<b>Werk je tuin af</b> (alle vakjes + de <b>3 lotussen</b>) en jij wordt ook een winnaar. <b>Je beloning wordt dan klaargemaakt</b> en je krijgt een mail zodra ze klaar is. En <b>tuin en podium zijn cumuleerbaar</b> 🌼🏆"],
 ];
 
-/** Les textes en vigueur : les valeurs par défaut, écrasées par messages.json. */
+/**
+ * Les textes en vigueur POUR LE MAGASIN COURANT : les valeurs par défaut,
+ * écrasées par messages-<magasin>.json. Chaque magasin a donc les siens.
+ */
 function messagesActuels() {
-  global $MESSAGES_DEFAUT, $dataDir;
+  global $MESSAGES_DEFAUT, $messagesFile;
   static $cache = null;
   if ($cache !== null) { return $cache; }
-  $perso = readJson($dataDir . '/messages.json');
+  $perso = readJson($messagesFile);
   $out = [];
   foreach ($MESSAGES_DEFAUT as $cle => $def) {
     foreach (['fr', 'nl'] as $lang) {
@@ -2084,6 +2087,10 @@ $questionsFile = $dataDir . "/questions-$SITE.json";
 $jardinFile    = $dataDir . "/jardin-$SITE.json";
 $configFile    = $dataDir . "/config-$SITE.json";
 $rhFile        = $dataDir . "/rh-$SITE.json";   // récompenses remises (coché par les RH)
+// 💬 Textes des récompenses : PAR MAGASIN, comme tout le reste. Mouscron et
+// La Panne n'ont ni les mêmes lots ni la même organisation — leurs messages
+// doivent donc pouvoir différer.
+$messagesFile  = $dataDir . "/messages-$SITE.json";
 $BONUS_CODES   = array_merge($BONUS_CODES_PAR_SITE[$SITE], [$CODE_TEST_OK, $CODE_TEST_USED]);
 
 switch ($action) {
@@ -3378,7 +3385,7 @@ switch ($action) {
   // texte par défaut ET le texte personnalisé, pour pouvoir montrer les deux.
   case 'messages_admin': {
     exigeAdmin($input);
-    $perso = readJson($dataDir . '/messages.json');
+    $perso = readJson($messagesFile);   // ceux du magasin sélectionné dans l'admin
     $liste = [];
     foreach ($MESSAGES_DEFAUT as $cle => $def) {
       $liste[] = [
@@ -3410,8 +3417,8 @@ switch ($action) {
         $propre[$cle][$lang] = mb_substr($v, 0, 1500);
       }
     }
-    writeJson($dataDir . '/messages.json', $propre);
-    echo json_encode(['ok' => true, 'modifies' => count($propre)], JSON_UNESCAPED_UNICODE);
+    writeJson($messagesFile, $propre);   // n'affecte QUE le magasin sélectionné
+    echo json_encode(['ok' => true, 'modifies' => count($propre), 'site' => $SITE], JSON_UNESCAPED_UNICODE);
     break;
   }
 

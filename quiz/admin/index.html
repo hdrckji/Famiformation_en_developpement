@@ -267,6 +267,10 @@ function rendre() {
     siteAdmin = b.dataset.site;
     localStorage.setItem("fj_admin_site", siteAdmin);
     message = null;
+    // ⚠️ Les textes des récompenses sont PAR MAGASIN et gardés en mémoire :
+    // sans cette remise à zéro, on continuerait d'afficher — et d'enregistrer —
+    // ceux de l'autre magasin.
+    messagesListe = null;
     await charger();   // on recharge TOUTES les données du nouveau magasin
   }));
 
@@ -323,7 +327,8 @@ async function vueMessages() {
     <div class="msg-intro">
       <p><b>Tous les messages liés aux récompenses</b> — ce qui s'affiche à l'écran et ce qui part par mail.
       Modifie ce que tu veux&nbsp;: <b>un champ vide reprend le texte d'origine</b> affiché en dessous.</p>
-      <p class="hint">⚠️ Ces textes valent pour <b>les deux magasins</b> (contrairement aux questions et aux codes).
+      <p class="hint">🏬 Ces textes ne concernent que <b>${esc(SITES[siteAdmin])}</b> — comme les questions et les codes.
+      L'autre magasin garde les siens : pense à faire le tour des deux si tu veux le même discours partout.
       Les <b>mails</b> n'existent qu'en français. Tu peux utiliser du gras avec <code>&lt;b&gt;…&lt;/b&gt;</code>.</p>
     </div>
     ${groupes.map((g) => `
@@ -358,20 +363,20 @@ async function vueMessages() {
     if (r.status === 401) { auth = null; vueConnexion("Session expirée, reconnecte-toi."); return; }
     if (!r.ok || !r.data || !r.data.ok) { message = { ok: false, texte: "Enregistrement impossible." }; rendre(); return; }
     messagesListe = null;   // on relit, pour voir les étiquettes « modifié » à jour
-    message = { ok: true, texte: `Textes enregistrés (${r.data.modifies} personnalisé(s)). Les joueurs les voient au prochain chargement de la page.` };
+    message = { ok: true, texte: `Textes enregistrés pour ${SITES[siteAdmin]} (${r.data.modifies} personnalisé(s)). Les joueurs de ce magasin les voient au prochain chargement de la page.` };
     rendre();
   });
 
   document.getElementById("msg-reset").addEventListener("click", () => {
     modaleConfirm({
-      titre: "Tout remettre par défaut ?",
-      texte: "Toutes tes modifications de textes seront effacées et les messages d'origine reviendront. Les questions, les scores et les codes ne sont pas touchés.",
+      titre: `Tout remettre par défaut pour ${SITES[siteAdmin]} ?`,
+      texte: `Tes modifications de textes pour ${SITES[siteAdmin]} seront effacées et les messages d'origine reviendront. L'autre magasin, les questions, les scores et les codes ne sont pas touchés.`,
       ok: "Tout remettre",
     }, async () => {
       const r = await post("messages_save", { messages: {} });
       if (!r.ok || !r.data || !r.data.ok) { message = { ok: false, texte: "Impossible de réinitialiser." }; rendre(); return; }
       messagesListe = null;
-      message = { ok: true, texte: "Textes remis à leur version d'origine." };
+      message = { ok: true, texte: `Textes de ${SITES[siteAdmin]} remis à leur version d'origine.` };
       rendre();
     });
   });
