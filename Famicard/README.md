@@ -1,13 +1,14 @@
 # Famicard
 
-La **carte d'identité du collaborateur Famiflora** : ce qui lui donne accès aux services
-de la maison. Aujourd'hui **FamiFormation** et **FamiJob** ; les autres viendront après.
+La **carte d'identité du collaborateur Famiflora**. À terme, c'est **depuis Famicard**
+qu'on donnera accès aux plateformes de la maison — FamiFormation, FamiJob, et les
+suivantes. Aujourd'hui elle décrit le collaborateur ; demain elle ouvre les portes.
 
 Deux lectures d'un même objet :
 
 | Qui | Ce que Famicard est pour lui |
 |---|---|
-| **Collaborateur** | une plateforme informative : sa carte, ses infos, ses accès |
+| **Collaborateur** | une plateforme informative : sa carte, ses infos, son badge |
 | **Administrateur** | la base de données des collaborateurs de l'entreprise |
 
 ---
@@ -15,12 +16,12 @@ Deux lectures d'un même objet :
 ## Le principe de départ
 
 **Famicard n'ouvre pas une nouvelle base.** Elle lit la table `utilisateurs`, celle que
-FamiFormation et FamiJob utilisent déjà. C'est ce qui rend la carte vraie : si elle avait
-ses propres lignes, elle dirait autre chose que les services auxquels elle donne accès,
-et il faudrait synchroniser deux vérités.
+FamiFormation et FamiJob utilisent déjà, et **reprend leurs libellés** (« Ville de
+résidence », « Lieu de travail », « Date d'anniversaire »...). Un même champ ne porte pas
+deux noms selon l'écran.
 
 Conséquence pratique : la session est déjà partagée (même cookie, même domaine). Un
-collaborateur connecté à FamiFormation est connecté à Famicard. Rien à brancher.
+collaborateur connecté à FamiFormation est connecté à Famicard.
 
 ---
 
@@ -29,106 +30,141 @@ collaborateur connecté à FamiFormation est connecté à Famicard. Rien à bran
 ```
 Famicard/
   config.php           amorçage — réutilise la config du site (session, base, CSRF)
-  includes/carte.php   ⭐ LE MODÈLE : la liste des champs et leurs règles
+  includes/carte.php   ⭐ LE MODÈLE : les champs et leurs règles
   index.php            la carte du collaborateur
-  admin.php            la base des collaborateurs (consultation + filtres)
+  admin.php            la base des collaborateurs (liste, filtres, badge, export)
+  badge.php            le badge imprimable 75 × 36 mm
+  export.php           l'export Excel, colonnes au choix
+  admin_champs.php     création des libellés par l'administrateur
 ```
 
-**Tout part de `includes/carte.php`.** Chaque champ y porte : son libellé (FR/NL), sa
-colonne en base, s'il est obligatoire, sa nature (service / personnel / sensible), qui a
-le droit de le voir, et s'il peut figurer sur le badge imprimé.
+### Deux sortes de champs
 
-La règle de confidentialité voyage **avec le champ**. Une page ne décide pas toute seule
-d'afficher une date de naissance : elle demande à `famicardPeutVoir()`. C'est ce qui fait
-qu'un futur écran, écrit distraitement, ne peut pas exposer ce qu'il ne doit pas.
+**Le socle** — adossé aux colonnes de `utilisateurs`. Existe déjà, sert déjà aux deux
+autres plateformes. Non modifiable depuis Famicard, exprès.
 
-Un champ dont la colonne vaut `null` est **prévu mais pas encore en base**. Il s'affiche
-« à définir » et les exports l'ignorent. **Aucune colonne n'est créée automatiquement** :
-ce sera une décision explicite.
+**Les champs libres** — créés par un administrateur dans `admin_champs.php`. Ils vivent
+dans deux tables à part (`famicard_champs`, `famicard_valeurs`).
+
+> **Pourquoi pas des colonnes ?** Ajouter une colonne à `utilisateurs` à chaque libellé
+> créé, c'est modifier la table dont dépendent FamiFormation, FamiJob et le quiz — pour un
+> besoin d'affichage. Une table de valeurs ne casse personne, et un libellé supprimé ne
+> laisse pas une colonne morte derrière lui.
+
+### La règle voyage avec le champ
+
+Chaque champ déclare sa **nature** (service / personnel), **qui a le droit de le voir**, et
+**s'il peut figurer sur le badge**. Une page n'affiche pas une date d'anniversaire parce
+qu'elle est dans la table : elle demande à `famicardPeutVoir()`. Un écran écrit vite, plus
+tard, ne peut pas exposer ce qu'il ne doit pas.
 
 ---
 
 ## Ce qui est fait
 
-- [x] Le dossier, branché sur `/famicard/` (Dockerfile + Caddyfile)
-- [x] L'amorçage sans duplication de la config
-- [x] Le modèle de champs avec les règles de visibilité
-- [x] La carte du collaborateur
-- [x] La base des collaborateurs : liste, recherche, filtre profil + magasin
+- [x] Dossier branché sur `/famicard/` (Dockerfile + Caddyfile)
+- [x] Amorçage sans duplication de la config
+- [x] Modèle de champs avec règles de visibilité, libellés alignés sur FamiFormation
+- [x] **Photo obligatoire** — la carte signale les champs requis encore vides
+- [x] Carte du collaborateur
+- [x] Base des collaborateurs : liste, recherche, filtres profil + lieu
+- [x] **Badge 75 × 36 mm** imprimable
+- [x] **Export Excel** avec choix des colonnes
+- [x] **Libellés créés par l'admin**, obligatoires ou non
 
 ## Ce qui reste
 
-- [ ] **Badge imprimable 36 × 75 mm** — décidé, contenu à arrêter
-- [ ] **Export Excel filtré** — décidé, colonnes à arrêter
+- [ ] **Saisie des champs libres** — ils s'affichent, mais rien ne permet encore de les
+      remplir. Prochaine étape logique.
+- [ ] **Famicard comme autorité d'accès** : ouvrir/fermer FamiFormation et FamiJob depuis ici
 - [ ] **Volet RGPD** — voir plus bas
-- [ ] **Champs manquants** : téléphone, département
 - [ ] **Bitmoji 3D** — le personnage réutilisé dans les jeux three.js de FamiFormation
 
 ---
 
-## Les deux fonctionnalités
+## Le badge
 
-### 1. Le badge (36 × 75 mm)
+**75 mm de longueur × 36 mm de hauteur**, paysage. Contenu : le **prénom**, et dessous la
+mention en français puis en néerlandais.
 
-Le format est fixé, le contenu non. Les champs autorisés sur un badge sont déjà marqués
-`'badge' => true` dans le modèle : prénom, nom, profil, magasin, département. Tout le
-reste en est exclu par construction — un badge se perd, se photographie, traîne sur un
-comptoir.
+| Profil | Mention |
+|---|---|
+| Étudiant | **Étudiant** / Student |
+| Tout le reste | **À votre disposition** / Tot uw dienst |
 
-Impression au millimètre via `@page { size: 36mm 75mm }` et des dimensions en `mm`
-(jamais en pixels : le rendu dépendrait de l'écran).
+Rien d'autre n'y figure, et ce n'est pas un oubli : un badge se perd, se photographie et
+traîne sur un comptoir. Le modèle marque `'badge' => true` sur le seul prénom — aucun
+champ libre ne peut y atterrir.
 
-**À trancher :** un logo ? une photo ? un QR code ? le format est en hauteur (36 large
-× 75 haut) ou en largeur ?
+Tout est coté **en millimètres**, jamais en pixels : un badge coté en px sort à une taille
+qui dépend de l'écran et du navigateur, donc jamais à 75 × 36. `@page { size: 75mm 36mm }`
+fait que l'imprimante sort le carton seul, pas un badge perdu au milieu d'une A4.
 
-### 2. L'export Excel
+Un prénom long descend automatiquement d'un ou deux crans de taille plutôt que de déborder.
 
-`phpspreadsheet` est **déjà** dans `Famiformation/vendor/` — rien à installer.
+Un administrateur imprime le badge de n'importe qui depuis la liste (`badge.php?id=`).
 
-L'export lira **les filtres de `admin.php`**, pour que le fichier contienne exactement ce
-qui est à l'écran. C'est la seule façon d'éviter le classique « le fichier ne dit pas la
-même chose que la liste ».
+---
 
-**À trancher :** quelles colonnes par défaut ? l'admin les choisit-il ? un export nominatif
-laisse-t-il une trace (voir RGPD) ?
+## L'export Excel
+
+`phpspreadsheet` **5.5.0** est déjà dans `Famiformation/vendor/` — rien à installer.
+
+L'administrateur **choisit ses colonnes** parmi toute la fiche, champs libres compris.
+Ne sont proposés que les champs qu'un admin a le droit de voir : un champ réservé ne peut
+pas sortir par l'export.
+
+Les filtres de `admin.php` sont **repris dans l'URL** : le fichier contient exactement ce
+qui était à l'écran. Sinon on retombe sur le classique « le fichier ne dit pas la même
+chose que la liste », et personne ne sait laquelle des deux a raison.
+
+Repli **CSV** (avec BOM UTF-8) si PhpSpreadsheet est indisponible : mieux vaut un fichier
+ouvrable qu'une page d'erreur.
 
 ---
 
 ## RGPD
 
-Ce n'est pas une case à cocher à la fin : Famicard rassemble des données personnelles de
-salariés, c'est le cœur du sujet. Ce qui est déjà en place et ce qui manque :
+Ce n'est pas une case à cocher : Famicard rassemble les données personnelles des salariés.
 
 **En place**
 
 - **Minimisation par défaut** — un champ n'est visible que si sa règle l'autorise.
-- **Séparation obligatoire / optionnel** — le nécessaire au contrat d'un côté, le
-  facultatif de l'autre.
-- **Champs exclus du badge** — décidé dans le modèle, pas au moment de l'impression.
+- **Obligatoire / facultatif** séparés, y compris sur les libellés créés par l'admin.
+- **Badge muet** — décidé dans le modèle, pas au moment de l'impression.
+- **Suppression propre** — supprimer un libellé efface les réponses (`ON DELETE CASCADE`) :
+  on ne garde pas des données rattachées à un champ disparu, donc invisibles et
+  impossibles à corriger.
 
 **À faire**
 
-- **Base légale** par catégorie : contrat de travail pour l'essentiel, **consentement**
-  pour le facultatif (photo, bitmoji, date de naissance).
+- **Base légale** par catégorie : contrat pour l'essentiel, **consentement** pour le
+  facultatif (photo, bitmoji, date d'anniversaire).
 - **Information** : dire au collaborateur ce qui est stocké, pourquoi, combien de temps.
-- **Droits** : accès, rectification, effacement. L'accès et la rectification passent
-  naturellement par la carte ; l'effacement demande une décision (que garde-t-on d'un
-  collaborateur parti, et combien de temps ?).
-- **Durée de conservation** — **rien n'est décidé aujourd'hui**, c'est le vrai trou.
-- **Traçabilité** : qui a consulté / exporté la base, et quand. Un export nominatif de
-  tout le personnel doit laisser une trace.
+- **Droits** : accès et rectification passent par la carte ; l'effacement demande une
+  décision.
+- **Durée de conservation** — **rien n'est décidé**, c'est le vrai trou. Que garde-t-on
+  d'un collaborateur parti, et combien de temps ?
+- **Traçabilité** : qui a exporté la base, quand, avec quelles colonnes.
 
 ---
 
 ## Notes techniques
 
 **Ne pas utiliser `verifierConnexion()` ici.** Elle redirige vers `login.php` en relatif,
-ce qui depuis `/famicard/` vise `/famicard/login.php` — une page qui n'existe pas. Passer
-par `famicardExigeConnexion()`, qui utilise un chemin absolu.
+ce qui depuis `/famicard/` vise `/famicard/login.php`. Passer par
+`famicardExigeConnexion()`, qui utilise un chemin absolu.
+
+**Vider les tampons avant d'envoyer un fichier.** `config.php` ouvre un `ob_start()` pour
+injecter le thème ; sans `ob_end_clean()`, le HTML se colle devant le `.xlsx` et Excel
+refuse de l'ouvrir.
+
+**La DDL est dans `admin_champs.php`, et nulle part ailleurs.** Le site a fait le ménage
+une fois pour « retirer la DDL du chemin chaud » : pas de `CREATE TABLE` sur chaque page.
 
 **Deux dispositions coexistent.** Dans le conteneur, FamiFormation est à la racine servie
-et Famicard dans `/famicard/`. Dans le dépôt, ce sont deux dossiers frères. `config.php`
-essaie les deux chemins au lieu d'en supposer un.
+et Famicard dans `/famicard/`. Dans le dépôt, ce sont deux dossiers frères. `config.php` et
+`export.php` essaient les deux chemins au lieu d'en supposer un.
 
 **`Famiformation/` et `Famijob/` sont une copie conforme du live** : ne rien y modifier
-pour Famicard sans le dire, ça casserait la conformité.
+pour Famicard sans le dire.

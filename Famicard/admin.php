@@ -2,15 +2,13 @@
 // ============================================================
 // FAMICARD — LA BASE DES COLLABORATEURS (vue administrateur).
 //
-// Consultation seule pour l'instant : on liste, on filtre, on compte.
-// La modification reste dans admin_user.php, qui la gère déjà ; dupliquer
-// l'édition ici créerait deux façons de changer la même ligne, donc deux
-// comportements qui finiraient par diverger.
+// Consultation seule : on liste, on filtre, on compte, on imprime un badge,
+// on exporte. La MODIFICATION reste dans admin_user.php, qui la gère déjà ;
+// deux façons de changer la même ligne finissent toujours par diverger.
 //
-// Les filtres de cet écran sont AUSSI ceux du futur export Excel : le jour où
-// on branche l'export, il exportera exactement ce qui est à l'écran, sans
-// seconde requête écrite ailleurs. C'est ce qui évite le classique « le fichier
-// ne contient pas la même chose que la liste ».
+// Les filtres de cet écran sont AUSSI ceux de l'export : export.php les relit
+// dans l'URL, donc le fichier contient exactement ce qui est à l'écran. C'est
+// ce qui évite le classique « le fichier ne dit pas la même chose que la liste ».
 // ============================================================
 require_once __DIR__ . '/config.php';
 
@@ -21,7 +19,7 @@ if (!famicardEstAdmin()) {
     exit();
 }
 
-$champs   = famicardChamps();
+$champs   = famicardChamps($db);
 $magasins = famicardMagasins($db);
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -36,55 +34,81 @@ try {
     $roles = [];
 }
 
-$fRole    = (string) ($_GET['role'] ?? '');
-$fRole    = in_array($fRole, $roles, true) ? $fRole : '';
-$fSite    = (string) ($_GET['site'] ?? '');
-$fSite    = isset($magasins[(int) $fSite]) ? (string) (int) $fSite : '';
-$fTexte   = trim((string) ($_GET['q'] ?? ''));
+$fRole  = (string) ($_GET['role'] ?? '');
+$fRole  = in_array($fRole, $roles, true) ? $fRole : '';
+$fSite  = (string) ($_GET['site'] ?? '');
+$fSite  = isset($magasins[(int) $fSite]) ? (string) (int) $fSite : '';
+$fTexte = trim((string) ($_GET['q'] ?? ''));
 
 $conditions = [];
 $params     = [];
-
-if ($fRole !== '') {
-    $conditions[] = 'role = ?';
-    $params[] = $fRole;
-}
-if ($fSite !== '') {
-    $conditions[] = 'site_id = ?';
-    $params[] = (int) $fSite;
-}
+if ($fRole !== '')  { $conditions[] = 'role = ?';    $params[] = $fRole; }
+if ($fSite !== '')  { $conditions[] = 'site_id = ?'; $params[] = (int) $fSite; }
 if ($fTexte !== '') {
     $conditions[] = '(nom LIKE ? OR prenom LIKE ? OR identifiant LIKE ? OR email LIKE ?)';
     $motif = '%' . $fTexte . '%';
     array_push($params, $motif, $motif, $motif, $motif);
 }
-
 $where = $conditions ? (' WHERE ' . implode(' AND ', $conditions)) : '';
 
-// Colonnes réellement lisibles : on ne construit la requête qu'avec les champs
-// adossés à une colonne existante (voir famicardChampsDisponibles()).
-$colonnes = ['id'];
-foreach (famicardChampsDisponibles() as $champ) {
-    $colonnes[] = $champ['colonne'];
-}
-$colonnes = array_values(array_unique($colonnes));
-$listeSql = '`' . implode('`, `', $colonnes) . '`';
+// Les filtres, reconduits tels quels vers l'export.
+$filtresUrl = http_build_query(array_filter([
+    'role' => $fRole,
+    'site' => $fSite,
+    'q'    => $fTexte,
+], static function ($v) { return $v !== ''; }));
 
-$st = $db->prepare("SELECT $listeSql FROM utilisateurs" . $where . " ORDER BY nom ASC, prenom ASC");
-$st->execute($params);
-$lignes = $st->fetchAll(PDO::FETCH_ASSOC);
-
-// Colonnes affichées dans le tableau : celles que l'admin a le droit de voir,
-// sans la photo (illisible en tableau) ni les champs pas encore créés.
+// ─────────────────────────────────────────────────────────────────────────────
+// LECTURE
+// ─────────────────────────────────────────────────────────────────────────────
+// Colonnes affichées : celles que l'admin a le droit de voir, sans la photo
+// (illisible en tableau). On construit la requête à partir de cette liste, donc
+// elle ne peut pas porter sur une colonne qui n'existe pas.
 $colonnesTableau = [];
 foreach ($champs as $cle => $champ) {
-    if ($cle === 'photo_profil' || empty($champ['colonne'])) {
+    if ($cle === 'photo_profil') {
         continue;
     }
     if (!famicardPeutVoir($champ, true, false)) {
         continue;
     }
     $colonnesTableau[$cle] = $champ;
+}
+
+$colonnesSql = ['id'];
+foreach ($colonnesTableau as $champ) {
+    if (!empty($champ['colonne'])) {
+        $colonnesSql[] = $champ['colonne'];
+    }
+}
+// Le prénom sert au badge même s'il n'est pas dans les colonnes retenues.
+$colonnesSql[] = 'prenom';
+$colonnesSql = array_values(array_unique($colonnesSql));
+$listeSql = '`' . implode('`, `', $colonnesSql) . '`';
+
+$st = $db->prepare("SELECT $listeSql FROM utilisateurs" . $where . " ORDER BY nom ASC, prenom ASC");
+$st->execute($params);
+$lignes = $st->fetchAll(PDO::FETCH_ASSOC);
+
+// Valeurs des champs libres : une seule requête pour toute la page, pas une
+// par collaborateur (sur 400 lignes, la différence se voit).
+$libresParUser = [];
+$aDesChampsLibres = false;
+foreach ($colonnesTableau as $champ) {
+    if (!empty($champ['champ_id'])) { $aDesChampsLibres = true; break; }
+}
+if ($aDesChampsLibres && $lignes) {
+    try {
+        $ids = array_map(static function ($l) { return (int) $l['id']; }, $lignes);
+        $trous = implode(',', array_fill(0, count($ids), '?'));
+        $sv = $db->prepare("SELECT user_id, champ_id, valeur FROM famicard_valeurs WHERE user_id IN ($trous)");
+        $sv->execute($ids);
+        foreach ($sv->fetchAll(PDO::FETCH_ASSOC) as $v) {
+            $libresParUser[(int) $v['user_id']][(int) $v['champ_id']] = (string) $v['valeur'];
+        }
+    } catch (Exception $e) {
+        $libresParUser = [];
+    }
 }
 ?>
 <!DOCTYPE html>
@@ -108,7 +132,6 @@ foreach ($champs as $cle => $champ) {
     .bouton { border: 0; border-radius: 30px; padding: 10px 22px; font-family: inherit; font-weight: 700; font-size: .9rem; cursor: pointer; text-decoration: none; display: inline-block; }
     .bouton-plein { background: #2d5a37; color: #fff; }
     .bouton-vide { background: #eef3ef; color: #2d5a37; }
-    .bouton-attente { background: #eee; color: #999; cursor: not-allowed; }
 
     .compte { margin: 18px 2px 10px; font-size: .92rem; color: #555; }
     .compte b { color: #2d5a37; }
@@ -121,6 +144,7 @@ foreach ($champs as $cle => $champ) {
     tr:hover td { background: #fafcfb; }
     .vide { color: #b8b8b8; font-style: italic; }
     .rien { padding: 40px; text-align: center; color: #888; }
+    .badge-lien { text-decoration: none; font-size: 1.05rem; }
 </style>
 </head>
 <body>
@@ -128,6 +152,7 @@ foreach ($champs as $cle => $champ) {
 <div class="bandeau">
     <h1>Base des collaborateurs</h1>
     <div>
+        <a class="pill" href="admin_champs.php">⚙️ Libellés</a>
         <a class="pill" href="index.php">Ma carte</a>
         <a class="pill" href="<?= e(famicardSiteUrl('index.php')) ?>">FamiFormation</a>
     </div>
@@ -138,7 +163,7 @@ foreach ($champs as $cle => $champ) {
     <form class="filtres" method="get">
         <div>
             <label for="q">Recherche</label>
-            <input type="text" id="q" name="q" value="<?= e($fTexte) ?>" placeholder="nom, identifiant, e-mail">
+            <input type="text" id="q" name="q" value="<?= e($fTexte) ?>" placeholder="nom, identifiant, email">
         </div>
         <div>
             <label for="role">Profil</label>
@@ -150,9 +175,9 @@ foreach ($champs as $cle => $champ) {
             </select>
         </div>
         <div>
-            <label for="site">Magasin</label>
+            <label for="site">Lieu de travail</label>
             <select id="site" name="site">
-                <option value="">Tous les magasins</option>
+                <option value="">Tous les lieux</option>
                 <?php foreach ($magasins as $id => $nom): ?>
                     <option value="<?= (int) $id ?>"<?= $fSite === (string) $id ? ' selected' : '' ?>><?= e($nom) ?></option>
                 <?php endforeach; ?>
@@ -160,8 +185,8 @@ foreach ($champs as $cle => $champ) {
         </div>
         <button class="bouton bouton-plein" type="submit">Filtrer</button>
         <a class="bouton bouton-vide" href="admin.php">Réinitialiser</a>
-        <!-- L'export lira ces mêmes filtres : voir l'en-tête du fichier. -->
-        <span class="bouton bouton-attente" title="Étape suivante">📊 Exporter en Excel</span>
+        <!-- L'export repart avec les MÊMES filtres : le fichier dira ce que dit l'écran. -->
+        <a class="bouton bouton-vide" href="export.php<?= $filtresUrl !== '' ? '?' . e($filtresUrl) : '' ?>">📊 Exporter en Excel</a>
     </form>
 
     <p class="compte"><b><?= count($lignes) ?></b> collaborateur<?= count($lignes) > 1 ? 's' : '' ?><?= ($fRole !== '' || $fSite !== '' || $fTexte !== '') ? ' pour ces critères' : ' au total' ?>.</p>
@@ -172,19 +197,23 @@ foreach ($champs as $cle => $champ) {
         <?php else: ?>
             <table>
                 <thead>
-                    <tr><?php foreach ($colonnesTableau as $champ): ?><th><?= e($champ['libelle']) ?></th><?php endforeach; ?></tr>
+                    <tr>
+                        <?php foreach ($colonnesTableau as $champ): ?><th><?= e($champ['libelle']) ?></th><?php endforeach; ?>
+                        <th>Badge</th>
+                    </tr>
                 </thead>
                 <tbody>
                 <?php foreach ($lignes as $ligne): ?>
+                    <?php $libres = $libresParUser[(int) $ligne['id']] ?? []; ?>
                     <tr>
                         <?php foreach ($colonnesTableau as $cle => $champ): ?>
-                            <?php
-                            $valeur = ($cle === 'role')
-                                ? famicardLibelleRole($ligne['role'] ?? '')
-                                : famicardValeurAffichee($cle, $champ, $ligne, $magasins);
-                            ?>
+                            <?php $valeur = famicardValeurAffichee($cle, $champ, $ligne, $magasins, $libres); ?>
                             <td><?= $valeur === '' ? '<span class="vide">—</span>' : e($valeur) ?></td>
                         <?php endforeach; ?>
+                        <td>
+                            <a class="badge-lien" href="badge.php?id=<?= (int) $ligne['id'] ?>"
+                               title="Imprimer le badge de <?= e($ligne['prenom'] ?? '') ?>">🖨️</a>
+                        </td>
                     </tr>
                 <?php endforeach; ?>
                 </tbody>

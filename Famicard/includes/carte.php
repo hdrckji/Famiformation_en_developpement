@@ -2,38 +2,46 @@
 // ============================================================
 // FAMICARD — LE MODÈLE DE LA CARTE.
 //
-// C'est le SEUL endroit où l'on décrit ce que contient la carte d'identité
-// d'un collaborateur. Tout le reste (affichage, badge imprimé, export Excel,
-// registre RGPD) lit cette liste au lieu de redéfinir ses propres colonnes.
+// Seul endroit qui décrit ce que contient la carte d'identité d'un
+// collaborateur. Tout le reste (carte, base admin, badge imprimé, export Excel)
+// lit cette description au lieu de refaire ses propres colonnes.
 //
-// POURQUOI CENTRALISER : un champ ajouté ici apparaît partout d'un coup, et —
-// surtout — un champ marqué « personnel » ne peut pas se retrouver par
-// inadvertance dans un export ou sur un badge affiché en magasin. La règle de
-// confidentialité voyage AVEC le champ, elle n'est pas réécrite à chaque page.
+// DEUX SOURCES DE CHAMPS, volontairement distinctes :
 //
-// ⚠️ ÉTAT : liste de DÉPART, à valider avec Jimmy. Les champs marqués
-// 'colonne' => null n'existent PAS encore en base : ils sont affichés comme
-// « à définir » et ignorés par les exports. Aucune colonne n'est créée
-// automatiquement — ce sera une décision explicite, pas un effet de bord.
+//   1. les champs SOCLE, adossés aux colonnes de `utilisateurs`. Ils existent
+//      déjà, FamiFormation et FamiJob s'en servent, et les LIBELLÉS SONT CEUX
+//      DE FAMIFORMATION (« Ville de résidence », « Lieu de travail »...) pour
+//      qu'un même champ ne porte pas deux noms selon l'écran ;
+//
+//   2. les champs LIBRES, créés par un administrateur depuis Famicard. Ils
+//      vivent dans deux tables à part (famicard_champs / famicard_valeurs).
+//
+// POURQUOI LES CHAMPS LIBRES NE SONT PAS DES COLONNES : ajouter une colonne à
+// `utilisateurs` à chaque libellé créé, c'est modifier la table dont dépendent
+// FamiFormation, FamiJob et le quiz — pour un besoin d'affichage. Une table de
+// valeurs ne peut casser personne, et un libellé supprimé ne laisse pas une
+// colonne morte derrière lui.
+//
+// La règle de confidentialité voyage AVEC le champ : un champ marqué
+// « personnel » ne peut pas atterrir par distraction dans un export ou sur un
+// badge. Les vues ne décident pas, elles demandent à famicardPeutVoir().
 // ============================================================
 
-if (!function_exists('famicardChamps')) {
+if (!function_exists('famicardChampsSocle')) {
     /**
-     * Description de tous les champs de la carte.
+     * Champs adossés à `utilisateurs`.
      *
-     * Clés de chaque champ :
-     *   libelle / libelle_nl : intitulé affiché (le site est bilingue FR/NL).
-     *   colonne  : colonne de `utilisateurs`, ou null si le champ reste à créer.
+     * Clés :
+     *   libelle / libelle_nl : intitulé affiché (le site est bilingue).
+     *   colonne  : colonne de `utilisateurs`.
      *   groupe   : regroupement d'affichage.
-     *   requis   : true = sans lui la carte n'a pas de sens (accès aux services).
-     *   nature   : 'service'  → nécessaire au fonctionnement (base légale : contrat)
-     *              'personnel'→ donnée personnelle, à ne montrer qu'à qui de droit
-     *              'sensible' → ne doit jamais sortir en export ni sur un badge
-     *   visible  : qui a le droit de voir la valeur — 'tous', 'soi', 'admin'
-     *              ('soi' = le collaborateur concerné, plus les admins)
-     *   badge    : true si le champ peut figurer sur le badge imprimé.
+     *   requis   : true = la fiche est incomplète sans lui.
+     *   nature   : 'service'   → nécessaire au fonctionnement (base légale : contrat)
+     *              'personnel' → donnée personnelle, réservée à qui de droit
+     *   visible  : 'tous' | 'soi' (le collaborateur + les admins) | 'admin'
+     *   badge    : le champ a-t-il le droit de figurer sur le badge imprimé.
      */
-    function famicardChamps()
+    function famicardChampsSocle()
     {
         return [
             // ── IDENTITÉ ───────────────────────────────────────────────────
@@ -45,50 +53,41 @@ if (!function_exists('famicardChamps')) {
             'nom' => [
                 'libelle' => 'Nom', 'libelle_nl' => 'Naam',
                 'colonne' => 'nom', 'groupe' => 'identite',
-                'requis' => true, 'nature' => 'service', 'visible' => 'tous', 'badge' => true,
+                'requis' => true, 'nature' => 'service', 'visible' => 'tous', 'badge' => false,
             ],
+            // OBLIGATOIRE (décision Jimmy). C'est le seul champ requis que le
+            // collaborateur dépose lui-même : la carte le signale tant qu'il
+            // manque, via profil.php qui gère déjà l'envoi.
             'photo_profil' => [
                 'libelle' => 'Photo', 'libelle_nl' => 'Foto',
                 'colonne' => 'photo_profil', 'groupe' => 'identite',
-                'requis' => false, 'nature' => 'personnel', 'visible' => 'tous', 'badge' => false,
+                'requis' => true, 'nature' => 'personnel', 'visible' => 'tous', 'badge' => false,
             ],
-            // La date de naissance est DÉJÀ utilisée par le site (thème
-            // d'anniversaire). Elle reste facultative et n'apparaît ni sur le
-            // badge ni dans un export : une date de naissance affichée en
-            // magasin, c'est une donnée personnelle exposée sans raison.
+            // Libellé repris de admin_user.php (« Date d'anniversaire ») : le
+            // site s'en sert pour le thème d'anniversaire, pas pour l'état civil.
             'date_naissance' => [
-                'libelle' => 'Date de naissance', 'libelle_nl' => 'Geboortedatum',
+                'libelle' => "Date d'anniversaire", 'libelle_nl' => 'Verjaardag',
                 'colonne' => 'date_naissance', 'groupe' => 'identite',
                 'requis' => false, 'nature' => 'personnel', 'visible' => 'soi', 'badge' => false,
             ],
 
             // ── CONTACT ────────────────────────────────────────────────────
             'email' => [
-                'libelle' => 'Adresse e-mail', 'libelle_nl' => 'E-mailadres',
+                'libelle' => 'Email', 'libelle_nl' => 'E-mail',
                 'colonne' => 'email', 'groupe' => 'contact',
                 'requis' => true, 'nature' => 'service', 'visible' => 'soi', 'badge' => false,
             ],
             'ville' => [
-                'libelle' => 'Ville', 'libelle_nl' => 'Woonplaats',
+                'libelle' => 'Ville de résidence', 'libelle_nl' => 'Woonplaats',
                 'colonne' => 'ville', 'groupe' => 'contact',
-                'requis' => false, 'nature' => 'personnel', 'visible' => 'soi', 'badge' => false,
-            ],
-            'telephone' => [
-                'libelle' => 'Téléphone', 'libelle_nl' => 'Telefoon',
-                'colonne' => null, 'groupe' => 'contact',
                 'requis' => false, 'nature' => 'personnel', 'visible' => 'soi', 'badge' => false,
             ],
 
             // ── RATTACHEMENT ───────────────────────────────────────────────
             'site_id' => [
-                'libelle' => 'Magasin', 'libelle_nl' => 'Winkel',
+                'libelle' => 'Lieu de travail', 'libelle_nl' => 'Werkplaats',
                 'colonne' => 'site_id', 'groupe' => 'rattachement',
-                'requis' => false, 'nature' => 'service', 'visible' => 'tous', 'badge' => true,
-            ],
-            'departement' => [
-                'libelle' => 'Département', 'libelle_nl' => 'Afdeling',
-                'colonne' => null, 'groupe' => 'rattachement',
-                'requis' => false, 'nature' => 'service', 'visible' => 'tous', 'badge' => true,
+                'requis' => false, 'nature' => 'service', 'visible' => 'tous', 'badge' => false,
             ],
             'interim' => [
                 'libelle' => 'Agence intérim', 'libelle_nl' => 'Interimkantoor',
@@ -105,7 +104,7 @@ if (!function_exists('famicardChamps')) {
             'role' => [
                 'libelle' => 'Profil', 'libelle_nl' => 'Profiel',
                 'colonne' => 'role', 'groupe' => 'compte',
-                'requis' => true, 'nature' => 'service', 'visible' => 'tous', 'badge' => true,
+                'requis' => true, 'nature' => 'service', 'visible' => 'tous', 'badge' => false,
             ],
             'statut' => [
                 'libelle' => 'Statut', 'libelle_nl' => 'Status',
@@ -129,41 +128,140 @@ if (!function_exists('famicardGroupes')) {
             'contact'      => ['libelle' => 'Contact',      'libelle_nl' => 'Contact'],
             'rattachement' => ['libelle' => 'Rattachement', 'libelle_nl' => 'Toewijzing'],
             'compte'       => ['libelle' => 'Compte',       'libelle_nl' => 'Account'],
+            'libre'        => ['libelle' => 'Informations complémentaires', 'libelle_nl' => 'Aanvullende informatie'],
         ];
     }
 }
 
-if (!function_exists('famicardChampsDisponibles')) {
+// ─────────────────────────────────────────────────────────────────────────────
+// CHAMPS LIBRES (créés par un administrateur)
+// ─────────────────────────────────────────────────────────────────────────────
+
+if (!function_exists('famicardAssureTables')) {
     /**
-     * Les champs réellement adossés à une colonne existante. C'est cette liste
-     * que les exports et les écrans doivent parcourir : elle ne peut pas
-     * produire de requête SQL sur une colonne absente.
+     * Crée les deux tables si elles manquent.
+     *
+     * ⚠️ À N'APPELER QUE depuis la page d'administration des libellés. Le site
+     * a déjà fait le ménage une fois pour « retirer la DDL du chemin chaud » :
+     * on ne remet pas un CREATE TABLE sur chaque affichage de page.
      */
-    function famicardChampsDisponibles()
+    function famicardAssureTables(PDO $db)
     {
-        return array_filter(famicardChamps(), static function ($c) {
-            return !empty($c['colonne']);
-        });
+        $db->exec(
+            "CREATE TABLE IF NOT EXISTS famicard_champs (
+                id INT NOT NULL AUTO_INCREMENT,
+                libelle VARCHAR(120) NOT NULL,
+                libelle_nl VARCHAR(120) NULL,
+                groupe VARCHAR(30) NOT NULL DEFAULT 'libre',
+                requis TINYINT(1) NOT NULL DEFAULT 0,
+                nature VARCHAR(20) NOT NULL DEFAULT 'personnel',
+                visible VARCHAR(10) NOT NULL DEFAULT 'soi',
+                ordre INT NOT NULL DEFAULT 0,
+                actif TINYINT(1) NOT NULL DEFAULT 1,
+                cree_le DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+        );
+
+        // ON DELETE CASCADE : un libellé supprimé emporte ses valeurs. Sans ça,
+        // on garderait des données personnelles rattachées à un champ qui
+        // n'existe plus — invisibles, donc impossibles à corriger ou à effacer.
+        $db->exec(
+            "CREATE TABLE IF NOT EXISTS famicard_valeurs (
+                user_id INT NOT NULL,
+                champ_id INT NOT NULL,
+                valeur TEXT NULL,
+                maj_le DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                PRIMARY KEY (user_id, champ_id),
+                CONSTRAINT fk_famicard_valeur_champ FOREIGN KEY (champ_id)
+                    REFERENCES famicard_champs (id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+        );
     }
 }
 
-if (!function_exists('famicardChampsManquants')) {
-    /** Les champs décidés mais pas encore en base — l'état d'avancement. */
-    function famicardChampsManquants()
+if (!function_exists('famicardChampsLibres')) {
+    /**
+     * Les libellés créés par les administrateurs, sous la même forme que les
+     * champs socle — pour que les écrans n'aient qu'un seul type d'objet à
+     * manipuler. Table absente = tableau vide, aucune page ne casse.
+     */
+    function famicardChampsLibres(PDO $db)
     {
-        return array_filter(famicardChamps(), static function ($c) {
-            return empty($c['colonne']);
-        });
+        static $cache = null;
+        if ($cache !== null) {
+            return $cache;
+        }
+
+        $cache = [];
+        try {
+            $lignes = $db->query(
+                "SELECT id, libelle, libelle_nl, groupe, requis, nature, visible
+                 FROM famicard_champs WHERE actif = 1 ORDER BY ordre ASC, id ASC"
+            )->fetchAll(PDO::FETCH_ASSOC);
+        } catch (Exception $e) {
+            return $cache; // tables pas encore créées
+        }
+
+        foreach ($lignes as $l) {
+            $cache['libre_' . (int) $l['id']] = [
+                'libelle'    => (string) $l['libelle'],
+                'libelle_nl' => (string) ($l['libelle_nl'] ?? ''),
+                'colonne'    => null,
+                'champ_id'   => (int) $l['id'],
+                'groupe'     => (string) ($l['groupe'] ?: 'libre'),
+                'requis'     => (bool) $l['requis'],
+                'nature'     => (string) $l['nature'],
+                'visible'    => (string) $l['visible'],
+                // Le badge ne porte que le prénom et une mention : aucun champ
+                // libre n'y a sa place. Voir badge.php.
+                'badge'      => false,
+            ];
+        }
+
+        return $cache;
     }
 }
+
+if (!function_exists('famicardChamps')) {
+    /** Socle + libres. La liste complète, dans l'ordre d'affichage. */
+    function famicardChamps(PDO $db = null)
+    {
+        $champs = famicardChampsSocle();
+        if ($db instanceof PDO) {
+            $champs += famicardChampsLibres($db);
+        }
+        return $champs;
+    }
+}
+
+if (!function_exists('famicardValeursLibres')) {
+    /** champ_id => valeur, pour un collaborateur. */
+    function famicardValeursLibres(PDO $db, $userId)
+    {
+        $valeurs = [];
+        try {
+            $st = $db->prepare("SELECT champ_id, valeur FROM famicard_valeurs WHERE user_id = ?");
+            $st->execute([(int) $userId]);
+            foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $v) {
+                $valeurs[(int) $v['champ_id']] = (string) $v['valeur'];
+            }
+        } catch (Exception $e) {
+            // tables pas encore créées
+        }
+        return $valeurs;
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LECTURE
+// ─────────────────────────────────────────────────────────────────────────────
 
 if (!function_exists('famicardPeutVoir')) {
     /**
      * Le regardeur a-t-il le droit de voir ce champ sur cette fiche ?
-     *
-     * Un seul point de décision, appelé par TOUTES les vues. Le jour où une
-     * page oublie de filtrer, elle n'expose rien : elle ne peut afficher que
-     * ce que cette fonction autorise.
+     * Un seul point de décision, appelé par TOUTES les vues : une page qui
+     * oublierait de filtrer ne peut afficher que ce qu'on l'autorise à afficher.
      */
     function famicardPeutVoir(array $champ, $estAdmin, $estSaPropreFiche)
     {
@@ -182,11 +280,17 @@ if (!function_exists('famicardPeutVoir')) {
 if (!function_exists('famicardValeurAffichee')) {
     /**
      * Valeur lisible d'un champ pour une ligne `utilisateurs`.
-     * Les identifiants techniques (magasin) sont traduits en nom lisible :
-     * « Famiflora Mouscron » et pas « 1 ».
+     * Les identifiants techniques sont traduits : « Famiflora Mouscron », pas « 1 ».
+     *
+     * @param array $libres champ_id => valeur (voir famicardValeursLibres)
      */
-    function famicardValeurAffichee($cle, array $champ, array $ligne, array $magasins = [])
+    function famicardValeurAffichee($cle, array $champ, array $ligne, array $magasins = [], array $libres = [])
     {
+        // Champ libre : la valeur ne vient pas de `utilisateurs`.
+        if (!empty($champ['champ_id'])) {
+            return (string) ($libres[(int) $champ['champ_id']] ?? '');
+        }
+
         $colonne = $champ['colonne'] ?? null;
         if (!$colonne || !array_key_exists($colonne, $ligne)) {
             return '';
@@ -197,8 +301,12 @@ if (!function_exists('famicardValeurAffichee')) {
             return '';
         }
 
+        if ($cle === 'role') {
+            return famicardLibelleRole($valeur);
+        }
+
         if ($cle === 'site_id') {
-            return $magasins[(int) $valeur] ?? ('Magasin #' . (int) $valeur);
+            return $magasins[(int) $valeur] ?? ('Lieu #' . (int) $valeur);
         }
 
         if ($cle === 'date_naissance') {
@@ -219,8 +327,29 @@ if (!function_exists('famicardValeurAffichee')) {
     }
 }
 
+if (!function_exists('famicardChampsManquants')) {
+    /**
+     * Les champs OBLIGATOIRES encore vides sur une fiche. C'est ce qui permet
+     * de dire « ta carte est incomplète » sans lister à la main, dans chaque
+     * écran, ce qui compte comme complet.
+     */
+    function famicardChampsManquants(array $champs, array $ligne, array $libres = [], array $magasins = [])
+    {
+        $manquants = [];
+        foreach ($champs as $cle => $champ) {
+            if (empty($champ['requis'])) {
+                continue;
+            }
+            if (famicardValeurAffichee($cle, $champ, $ligne, $magasins, $libres) === '') {
+                $manquants[$cle] = $champ;
+            }
+        }
+        return $manquants;
+    }
+}
+
 if (!function_exists('famicardMagasins')) {
-    /** id => nom des magasins (table widget_sites, déjà utilisée par le widget). */
+    /** id => nom des lieux de travail (widget_sites, déjà utilisée par le widget). */
     function famicardMagasins(PDO $db)
     {
         static $cache = null;
@@ -233,7 +362,7 @@ if (!function_exists('famicardMagasins')) {
                 $cache[(int) $s['id']] = (string) $s['nom'];
             }
         } catch (Exception $e) {
-            // Table absente sur une base incomplète : on affichera l'identifiant brut.
+            // Table absente : on affichera l'identifiant brut.
         }
         return $cache;
     }
@@ -256,5 +385,27 @@ if (!function_exists('famicardLibelleRole')) {
         ];
         $role = (string) $role;
         return $libelles[$role] ?? $role;
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BADGE
+// ─────────────────────────────────────────────────────────────────────────────
+
+if (!function_exists('famicardMentionBadge')) {
+    /**
+     * La mention imprimée sous le prénom, en français ET en néerlandais.
+     *
+     * Un étudiant porte « Étudiant / Student » : il n'est pas là pour renseigner
+     * le client de la même façon, et l'annoncer évite qu'on lui pose des
+     * questions auxquelles il n'a pas à répondre. Tout le reste du personnel
+     * porte « À votre disposition / Tot uw dienst ».
+     */
+    function famicardMentionBadge($role)
+    {
+        if ((string) $role === 'etudiant') {
+            return ['fr' => 'Étudiant', 'nl' => 'Student'];
+        }
+        return ['fr' => 'À votre disposition', 'nl' => 'Tot uw dienst'];
     }
 }
