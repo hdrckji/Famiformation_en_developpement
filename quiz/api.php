@@ -2719,11 +2719,16 @@ switch ($action) {
         }
         if ($nb >= $JARDIN_CASES && count($lotus) >= count($LOTUS_REQUIS)) {
           $p = $parNom[$cle] ?? ['name' => $cle];
-          $jardin[] = $ligne($p, $cle) + ['remis' => !empty($remisJardin[$cle])];
+          // 🧪 Le compte d'essai apparaît ici aussi — marqué, comme au podium.
+          $jardin[] = $ligne($p, $cle) + ['remis' => !empty($remisJardin[$cle]),
+                                          'test' => estCompteTest($cle)];
         }
       }
     }
     usort($jardin, function ($a, $b) {
+      // Les comptes d'essai toujours EN DERNIER : ce ne sont pas des gagnants,
+      // ils n'ont rien à faire au milieu de la liste des récompenses à remettre.
+      if (!empty($a['test']) !== !empty($b['test'])) { return !empty($a['test']) ? 1 : -1; }
       $na = trim($a['prenom'] . ' ' . $a['nom']); if ($na === '') { $na = $a['name']; }
       $nb = trim($b['prenom'] . ' ' . $b['nom']); if ($nb === '') { $nb = $b['name']; }
       return strcasecmp($na, $nb);
@@ -2806,13 +2811,19 @@ switch ($action) {
     });
     $rang = 1;
     foreach (array_slice($joueurs, 0, 3) as $p) { $cibles[mb_strtolower((string) $p['name'])] = ['type' => 'podium', 'rang' => $rang]; $rang++; }
+    // 🧪 Le jardin terminé du compte d'essai va dans une liste À PART.
+    // Sans cette séparation, « admin_ » se retrouvait parmi les vrais gagnants
+    // du jardin : un envoi groupé lui écrivait aussi, alors qu'il n'est là que
+    // pour tester. Le tri du podium, lui, l'écartait déjà.
+    $ciblesTest = [];
     if (is_array($jardins)) {
       foreach ($jardins as $cle => $cases) {
         if (!is_array($cases)) { continue; }
         $nb = count($cases); $lotus = [];
         foreach ($cases as $c) { $pl = is_array($c) ? (string) ($c['plante'] ?? '') : ''; if (in_array($pl, $LOTUS_REQUIS, true)) { $lotus[$pl] = true; } }
         if ($nb >= $JARDIN_CASES && count($lotus) >= count($LOTUS_REQUIS) && !isset($cibles[$cle])) {
-          $cibles[$cle] = ['type' => 'jardin'];
+          if (estCompteTest($cle)) { $ciblesTest[$cle] = ['type' => 'jardin']; }
+          else { $cibles[$cle] = ['type' => 'jardin']; }
         }
       }
     }
@@ -2828,15 +2839,16 @@ switch ($action) {
       function ($x) { return mb_strtolower(trim((string) $x)); },
       (array) ($input['ids'] ?? [])
     )));
-    // 🧪 Les comptes de test (admin_…) peuvent recevoir le mail, pour l'essayer
-    // en vrai. Ils ne sont ajoutés QUE si on les a explicitement cochés : sans
-    // ça, un envoi « à tout le monde » leur écrirait aussi.
-    $ciblesTest = [];
+    // 🧪 Le compte d'essai peut recevoir le mail, pour le voir en vrai. Il n'est
+    // ajouté QUE si on l'a explicitement coché : sans ça, un envoi « à tout le
+    // monde » lui écrirait aussi. On complète ici la liste commencée au jardin
+    // — un compte d'essai qui a fait le quiz reçoit la version « podium ».
     foreach ((is_array($board) ? $board : []) as $p) {
       if (!is_array($p) || ($p['quiz_fait'] ?? true) === false) { continue; }
       if (!estCompteTest($p)) { continue; }
+      $cleT = mb_strtolower((string) $p['name']);
       // Rang 1 : le mail d'essai doit ressembler à celui d'un vrai gagnant.
-      $ciblesTest[mb_strtolower((string) $p['name'])] = ['type' => 'podium', 'rang' => 1];
+      if (!isset($ciblesTest[$cleT])) { $ciblesTest[$cleT] = ['type' => 'podium', 'rang' => 1]; }
     }
 
     // Sans liste explicite, on garde l'ancien comportement : tous les gagnants
