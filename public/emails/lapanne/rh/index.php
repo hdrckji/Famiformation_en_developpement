@@ -6,15 +6,82 @@
 // e-mail, Ticket remis) et permet de cocher les tickets remis au fur et à
 // mesure. Un export CSV est fourni pour continuer à travailler dans Excel.
 //
-// Accès réservé à l'administration et aux teamcoachs : la page réutilise la
-// session du site, il n'y a donc pas de second mot de passe à retenir.
+// Accès par mot de passe dédié, indépendant des comptes du site : la page est
+// utilisable par le personnel de La Panne sans compte Famiformation.
 // ============================================================
 
 require_once __DIR__ . '/../_lapanne.php';
 
+// --- Connexion / déconnexion -------------------------------------------------
+$erreurConnexion = '';
+
+if (isset($_GET['deconnexion'])) {
+    lapanneRhDeconnecter();
+    header('Location: index.php');
+    exit();
+}
+
+if (!lapanneAccesRh() && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['connexion'])) {
+    requireValidCSRF();
+    if (lapanneRhVerifier($_POST['motdepasse'] ?? '')) {
+        lapanneRhConnecter();
+        header('Location: index.php');
+        exit();
+    }
+    lapanneRhFreiner();
+    $erreurConnexion = 'Mot de passe incorrect.';
+}
+
 if (!lapanneAccesRh()) {
-    // Non connecté ou rôle insuffisant : on renvoie vers la connexion du site.
-    header('Location: ../../../login.php');
+    ?>
+    <!DOCTYPE html>
+    <html lang="fr">
+    <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>La Panne — accès RH</title>
+    <link rel="shortcut icon" type="image/x-icon" href="../../../favicon.ico">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+    :root{--green:#2e7d46;--deep:#1f5c34;--mint:#eef6ec;--mint-line:#d7e8d2;--ink:#243027;--muted:#5c6f60;--red:#a8341f;}
+    *{margin:0;padding:0;box-sizing:border-box;font-family:'Inter',system-ui,sans-serif;}
+    body{background:#eef4ea;color:var(--ink);min-height:100vh;min-height:100dvh;margin:0;}
+    .wrap{display:flex;justify-content:center;min-height:100vh;min-height:100dvh;padding:18px;}
+    .card{background:#fff;border-radius:22px;box-shadow:0 14px 44px rgba(20,55,38,.16);
+          padding:30px 26px;max-width:400px;width:100%;margin:auto;}
+    h1{color:var(--deep);font-weight:900;font-size:21px;text-align:center;}
+    p.sub{color:var(--muted);font-size:13.5px;text-align:center;margin-top:7px;line-height:1.5;}
+    label{display:block;margin-top:20px;font-weight:700;font-size:13.5px;color:var(--deep);}
+    input{width:100%;margin-top:6px;padding:12px 13px;border:1px solid var(--mint-line);
+          border-radius:12px;font-size:16px;background:var(--mint);}
+    input:focus{outline:2px solid var(--green);outline-offset:1px;background:#fff;}
+    button{width:100%;margin-top:20px;padding:13px;border:0;border-radius:12px;background:var(--green);
+           color:#fff;font-size:15.5px;font-weight:800;cursor:pointer;}
+    button:hover{background:var(--deep);}
+    .err{margin-top:16px;background:#fdecea;border:1px solid #f6cdc7;color:var(--red);
+         padding:11px 13px;border-radius:12px;font-size:14px;font-weight:600;text-align:center;}
+    </style>
+    </head>
+    <body>
+    <div class="wrap">
+        <div class="card">
+            <h1>🔒 La Panne — accès RH</h1>
+            <p class="sub">Liste des adresses collectées et suivi des tickets remis.</p>
+            <?php if ($erreurConnexion !== ''): ?>
+                <div class="err"><?= e($erreurConnexion) ?></div>
+            <?php endif; ?>
+            <form method="POST">
+                <?= csrfField() ?>
+                <label for="motdepasse">Mot de passe</label>
+                <input id="motdepasse" name="motdepasse" type="password" required autofocus
+                       autocomplete="current-password">
+                <button type="submit" name="connexion" value="1">Entrer</button>
+            </form>
+        </div>
+    </div>
+    </body>
+    </html>
+    <?php
     exit();
 }
 
@@ -120,7 +187,7 @@ td.mail{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;}
         <div class="actions">
             <a class="btn" href="../index.php">Voir la page d'inscription</a>
             <a class="btn primary" href="?csv=1">Exporter en Excel (CSV)</a>
-            <a class="btn" href="../../../index.php">Retour au site</a>
+            <a class="btn" href="?deconnexion=1">Se déconnecter</a>
         </div>
     </div>
 

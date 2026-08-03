@@ -148,11 +148,74 @@ if (!function_exists('lapanneSupprimer')) {
     }
 }
 
+// ------------------------------------------------------------------
+// Accès à la page RH — mot de passe dédié, indépendant des comptes du site.
+//
+// Le mot de passe n'est pas écrit en clair : le dépôt est versionné sur GitHub
+// et un mot de passe en clair y resterait dans l'historique même après
+// correction. On stocke son empreinte bcrypt, que password_verify() contrôle.
+//
+// Pour le changer sans redéployer : poser la variable LAPANNE_RH_PASSWORD dans
+// Railway. Elle prend alors le pas sur l'empreinte ci-dessous.
+// ------------------------------------------------------------------
+
+if (!defined('LAPANNE_RH_HASH')) {
+    define('LAPANNE_RH_HASH', '$2y$10$bCbmsNvROnAMt2QpQgH9yuc8s1AVyGzdgyhRVL.h72rwr9rnmFpa.');
+}
+
+if (!function_exists('lapanneRhVerifier')) {
+    function lapanneRhVerifier($saisi)
+    {
+        $saisi = (string) $saisi;
+        if ($saisi === '') {
+            return false;
+        }
+
+        $depuisEnv = (string) famiGetEnv('LAPANNE_RH_PASSWORD', '');
+        if ($depuisEnv !== '') {
+            // hash_equals compare en temps constant : la durée de la réponse ne
+            // renseigne pas sur le nombre de caractères corrects.
+            return hash_equals($depuisEnv, $saisi);
+        }
+
+        return password_verify($saisi, LAPANNE_RH_HASH);
+    }
+}
+
 if (!function_exists('lapanneAccesRh')) {
-    /** Seuls l'administration et les teamcoachs voient la liste des adresses. */
+    /** La session porte-t-elle une connexion RH valide ? */
     function lapanneAccesRh()
     {
-        return isset($_SESSION['user_id'])
-            && in_array((string) ($_SESSION['role'] ?? ''), ['admin', 'teamcoach'], true);
+        return !empty($_SESSION['lapanne_rh_ok']);
+    }
+}
+
+if (!function_exists('lapanneRhConnecter')) {
+    /** Ouvre la session RH. L'identifiant de session est renouvelé pour éviter
+     *  qu'un identifiant connu d'avance ne devienne une session authentifiée. */
+    function lapanneRhConnecter()
+    {
+        session_regenerate_id(true);
+        $_SESSION['lapanne_rh_ok'] = true;
+        unset($_SESSION['lapanne_rh_essais']);
+    }
+}
+
+if (!function_exists('lapanneRhDeconnecter')) {
+    function lapanneRhDeconnecter()
+    {
+        unset($_SESSION['lapanne_rh_ok']);
+    }
+}
+
+if (!function_exists('lapanneRhFreiner')) {
+    /** Ralentit les tentatives répétées : une seconde d'attente par essai raté,
+     *  plafonnée à cinq. Suffisant pour décourager un test automatisé de mots de
+     *  passe sans gêner quelqu'un qui se trompe une fois. */
+    function lapanneRhFreiner()
+    {
+        $essais = (int) ($_SESSION['lapanne_rh_essais'] ?? 0);
+        $_SESSION['lapanne_rh_essais'] = $essais + 1;
+        sleep(min($essais, 5));
     }
 }
