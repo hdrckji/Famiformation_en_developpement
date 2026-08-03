@@ -112,6 +112,14 @@
 		@emailsIndex path /emails/
 		rewrite @emailsIndex /emails/index.html
 
+		# Sous-site La Panne : collecte des adresses e-mail du personnel.
+		# Ses pages sont des index.php, php_server les sert donc tout seul —
+		# aucune reecriture n'est necessaire. Le slash final, lui, est impose :
+		# sans lui, les chemins relatifs (../../favicon.ico) se resolvent un cran
+		# trop haut et la page perd ses ressources. Meme raison que /volontaire.
+		redir /emails/lapanne /emails/lapanne/ 308
+		redir /emails/lapanne/rh /emails/lapanne/rh/ 308
+
 		# Bloque les fichiers caches (.env, .htaccess, .gitignore, ...)
 		@dotfiles path_regexp dotfiles /\.[^/]+$
 		respond @dotfiles 403
