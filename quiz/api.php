@@ -981,6 +981,52 @@ function pousseVersForm($prenom, $nom, $email) {
   return $code === 200 && $rep !== false;
 }
 
+// 📧 COLLECTE DES ADRESSES DE LA PANNE, DEPUIS LE QUIZ.
+//
+// La table lapanne_emails est celle de public/emails/lapanne/_lapanne.php, qui
+// fait foi pour le schéma. On ne peut PAS inclure ce fichier ici : il charge
+// config.php, et le commentaire de famiDb() explique pourquoi c'est exclu —
+// config.php ouvre une session, peut émettre des redirections et injecte du
+// HTML, trois choses qui détruiraient une réponse JSON. On refait donc l'insert
+// à l'identique, en gardant les mêmes règles (adresse en minuscules, doublon
+// toléré grâce à la clé unique).
+//
+// Volontairement NON BLOQUANT : à ce stade le compte est créé et le mail
+// d'activation est parti. Hors de question de faire échouer une inscription
+// réussie parce que le tableau RH est momentanément indisponible.
+function lapanneCollecte($db, $prenom, $nom, $email) {
+  if (!($db instanceof PDO)) { return false; }
+  $nom    = trim(preg_replace('/\s+/u', ' ', (string) $nom));
+  $prenom = trim(preg_replace('/\s+/u', ' ', (string) $prenom));
+  $email  = trim(mb_strtolower((string) $email, 'UTF-8'));
+  if ($nom === '' || $prenom === '' || $email === '') { return false; }
+  if (!filter_var($email, FILTER_VALIDATE_EMAIL)) { return false; }
+  if (mb_strlen($nom) > 120 || mb_strlen($prenom) > 120 || mb_strlen($email) > 190) { return false; }
+  try {
+    // Même création que du côté RH : la toute première inscription peut très
+    // bien venir de la borne, avant que quiconque n'ait ouvert /emails/lapanne/.
+    $db->exec(
+      "CREATE TABLE IF NOT EXISTS lapanne_emails (
+         id INT AUTO_INCREMENT PRIMARY KEY,
+         nom VARCHAR(120) NOT NULL,
+         prenom VARCHAR(120) NOT NULL,
+         email VARCHAR(190) NOT NULL,
+         ticket_remis TINYINT(1) NOT NULL DEFAULT 0,
+         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+         updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+         UNIQUE KEY uniq_lapanne_email (email),
+         INDEX idx_lapanne_created (created_at)
+       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci"
+    );
+    $st = $db->prepare('INSERT INTO lapanne_emails (nom, prenom, email) VALUES (?, ?, ?)');
+    $st->execute([$nom, $prenom, $email]);
+    return true;
+  } catch (Throwable $e) {
+    // 23000 = adresse déjà présente : c'est un succès, pas une erreur.
+    return (string) $e->getCode() === '23000';
+  }
+}
+
 // 🔐 IDENTIFIANTS ADMIN ET RH — JAMAIS DANS LE CODE.
 //
 // Ce dépôt est PUBLIC : tout mot de passe écrit ici est lisible par n'importe
@@ -2655,6 +2701,14 @@ switch ($action) {
     // Google (contrôle tickets glace). Comme l'e-mail existe déjà en base, si la
     // soumission déclenche l'envoi auto, il verra « déjà présent » → aucun 2e mail.
     if ($aPousserVersForm) { pousseVersForm($prenom, $nom, $email); }
+
+    // 📧 LA PANNE : la collecte des adresses ne passe PAS par le Google Form,
+    // mais par la table lapanne_emails que /emails/lapanne/rh/ affiche aux RH
+    // (avec le suivi des tickets remis). Une inscription faite depuis la BORNE
+    // ou le TÉLÉPHONE doit donc y atterrir elle aussi — sans ça, les RH ne
+    // verraient que les saisies faites sur /emails/lapanne/ et rateraient tous
+    // ceux qui se sont inscrits par le quiz.
+    if ($SITE === 'lapanne') { lapanneCollecte(famiDb(), $prenom, $nom, $email); }
 
     // Compte créé + mail envoyé (le seul cas « déjà donné ton mail » vient de la
     // base : compte en attente → on renvoie le lien, géré plus haut).
