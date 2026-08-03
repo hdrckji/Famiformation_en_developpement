@@ -15,8 +15,8 @@ RewriteCond %{REQUEST_URI} !^/maintenance_rapide\.html$
 # Tout le reste renvoie un 503
 RewriteRule ^ - [R=503,L]
 
-# Si 404 : essayer /sousdomaine/maintenance.html
-ErrorDocument 503 /maintenance.html
+# Si 404 : essayer /sousdomaine/maintenance_rapide.html
+ErrorDocument 503 /maintenance_rapide.html
 
 <IfModule mod_headers.c>
   Header always set Retry-After "3600"
