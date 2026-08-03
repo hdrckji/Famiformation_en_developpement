@@ -1848,6 +1848,25 @@ function tuilesAccessibles() {
   if (tuilesDebloquees) return true;
   return !(SITE === "lapanne" && VERROU_TUILES);
 }
+
+// 🔎 INDICES « où chercher les codes » — déblocage local par le mot « indice ».
+//
+// Ils s'ouvrent normalement la VEILLE du lancement (voir zonesDispo). Taper
+// « indice » les affiche tout de suite sur CET appareil, de quoi vérifier ce que
+// verront les joueurs — et surtout relire les emplacements saisis dans l'admin —
+// sans attendre le 13/08. Retaper « indice » les remasque.
+//
+// Drapeau séparé de celui des tuiles : on veut pouvoir regarder les indices sans
+// rouvrir « J'ai trouvé un code » ni « Je ne suis pas encore inscrit ».
+let indicesDebloques = (() => {
+  try { return localStorage.getItem("fj_indices_ok") === "1"; } catch (e) { return false; }
+})();
+function basculeIndices() {
+  indicesDebloques = !indicesDebloques;
+  try { localStorage.setItem("fj_indices_ok", indicesDebloques ? "1" : "0"); } catch (e) {}
+  toastAdmin(indicesDebloques ? "🔓 Indices affichés" : "🔒 Indices masqués");
+  render();
+}
 // Clic sur une tuile verrouillée : on explique, SANS annoncer de date. Le verrou
 // est manuel : promettre une ouverture qu'on ne tiendrait pas serait pire que de
 // rester vague.
@@ -3611,7 +3630,10 @@ function labelMoment(ts) {
 }
 // Les indices sont-ils dispo ? À partir de la veille du lancement, OU tout de
 // suite en mode aperçu (compte de test admin_/testeur, ou simulation) pour prévisualiser.
-function zonesDispo() { return (Date.now() >= zonesDispoLe()) || toutOuvert(); }
+// Les indices s'ouvrent la veille du lancement — ou tout de suite sur un appareil
+// où l'on a tapé « indice » (voir basculeIndices), pour vérifier ce que verront
+// les joueurs sans attendre.
+function zonesDispo() { return indicesDebloques || (Date.now() >= zonesDispoLe()) || toutOuvert(); }
 function zonesHintHtml() {
   // 🔎 TOUJOURS un bouton : au clic, une fenêtre modale s'ouvre avec les indices
   // (zones + nombre de codes). Verrouillé avant J-1 → la modale dit quand ça arrive.
@@ -4768,7 +4790,9 @@ const EGG = (() => {
   // « 0000 » : (dé)verrouille les tuiles « J'ai trouvé un code » et « Je ne suis
   // pas encore inscrit » sur CET appareil, pendant que le verrou de La Panne les
   // tient fermées pour tout le monde. Voir VERROU_TUILES.
-  const MOTS = { "graine": grainePluie, "famiflora": famiflora, "2026": badge, "admin": basculeEspaceAdmin, "0000": basculeTuiles };
+  // « indice » : affiche tout de suite les indices « où chercher les codes »,
+  // qui n'ouvrent normalement que la veille du lancement.
+  const MOTS = { "graine": grainePluie, "famiflora": famiflora, "2026": badge, "admin": basculeEspaceAdmin, "0000": basculeTuiles, "indice": basculeIndices };
 
   // Clavier (ordinateur) : on retient les dernières frappes.
   let buf = "";
