@@ -1037,14 +1037,35 @@ function siteDe($input, $sites, $defaut) {
 // après lecture de la requête, car ils dépendent du site. Ne pas les utiliser avant.
 
 // ⏱ Dates de l'événement, modifiables depuis l'admin (onglet Compte à rebours).
-// Par défaut : lancement le 29/07 à 12h30, clôture le 30/08, annonce des vainqueurs le 31 août à 12h30.
-function ladConfig($fichier) {
+//
+// 🏬 LES DÉFAUTS SONT PROPRES À CHAQUE MAGASIN. Les deux sites ne vivent pas le
+// même événement : Mouscron a ouvert le 29/07, La Panne ouvre le 14/08 et se
+// clôture le 10/09. Ces valeurs ne servent que TANT QU'AUCUNE date n'a été
+// saisie dans l'admin pour le site concerné (le fichier config-<site>.json prime
+// toujours). Sans cette table, La Panne héritait des dates de Mouscron : son
+// compte à rebours visait une échéance déjà passée, et la télé basculait
+// directement sur le classement au lieu du décompte.
+function ladConfig($fichier, $site = 'mouscron') {
+  $parSite = [
+    'mouscron' => [
+      'lancement' => '2026-07-29T12:30',
+      'cloture'   => '2026-08-30T23:59',
+      'resultats' => '31 août à 12h30',
+    ],
+    'lapanne' => [
+      'lancement' => '2026-08-14T12:30',
+      'cloture'   => '2026-09-10T12:30',
+      'resultats' => '10 septembre à 12h30',
+    ],
+  ];
+  $d = $parSite[$site] ?? $parSite['mouscron'];
+
   $c = is_file($fichier) ? json_decode((string)@file_get_contents($fichier), true) : null;
   if (!is_array($c)) { $c = []; }
   return [
-    'lancement' => $c['lancement'] ?? '2026-07-29T12:30',
-    'cloture'   => $c['cloture']   ?? '2026-08-30T23:59',
-    'resultats' => $c['resultats'] ?? '31 août à 12h30',
+    'lancement' => $c['lancement'] ?? $d['lancement'],
+    'cloture'   => $c['cloture']   ?? $d['cloture'],
+    'resultats' => $c['resultats'] ?? $d['resultats'],
     // Zones du magasin où des codes ont été cachés (indice affiché à J-1) :
     // liste de { nom, nb }.
     'zones'     => (isset($c['zones']) && is_array($c['zones'])) ? array_values($c['zones']) : [],
@@ -3275,7 +3296,7 @@ switch ($action) {
   // la télé, qui reste allumée des jours entiers, s'en sert pour se recharger
   // toute seule après une mise en ligne au lieu de garder l'ancienne page.
   case 'config_get': {
-    $conf = ladConfig($configFile);
+    $conf = ladConfig($configFile, $SITE);
     $conf['version'] = (string) (@filemtime(__DIR__ . '/index.html') ?: 0);
     echo json_encode($conf, JSON_UNESCAPED_UNICODE);
     break;
@@ -3297,7 +3318,7 @@ switch ($action) {
       echo json_encode(['ok' => false, 'reason' => 'date_cloture_invalide']);
       break;
     }
-    $actuel = ladConfig($configFile);
+    $actuel = ladConfig($configFile, $SITE);
     // Zones (facultatif) : liste { nom, nb }. On nettoie et on plafonne à 30.
     $zones = $actuel['zones'];
     if (isset($input['zones']) && is_array($input['zones'])) {
@@ -3810,7 +3831,7 @@ switch ($action) {
       'questions' => lesQuestions($questionsFile, $QUESTIONS_DEFAUT),
       'jardin'    => ['cases' => (object)($j['cases'] ?? []), 'total' => $JARDIN_CASES],
       'plantes'   => $PLANTES,
-      'config'    => ladConfig($configFile),
+      'config'    => ladConfig($configFile, $SITE),
     ], JSON_UNESCAPED_UNICODE);
     break;
   }
