@@ -9,16 +9,21 @@ RewriteEngine On
 # --- REMPLACE PAR TON IP PUBLIQUE (curl ifconfig.me) ---
 RewriteCond %{REMOTE_ADDR} !^123\.45\.67\.89$
 
-# La page de maintenance reste accessible (evite la boucle infinie)
-RewriteCond %{REQUEST_URI} !^/maintenance_rapide\.html$
+# Les pages de maintenance restent accessibles (evite la boucle infinie).
+# Les DEUX sont exclues, pas seulement celle qui est active : sinon, basculer
+# d'une page a l'autre obligerait a penser a modifier aussi cette ligne, et
+# l'oubli produirait une boucle de redirection au pire moment.
+RewriteCond %{REQUEST_URI} !^/maintenance(_rapide)?\.html$
 
 # Tout le reste renvoie un 503
 RewriteRule ^ - [R=503,L]
 
-# Si 404 : essayer /sousdomaine/maintenance_rapide.html
+# La page servie pendant la coupure. Pour revenir a la version longue,
+# remettre /maintenance.html ici : c'est la SEULE ligne a changer.
 ErrorDocument 503 /maintenance_rapide.html
 
 <IfModule mod_headers.c>
   Header always set Retry-After "3600"
   Header always set Cache-Control "no-store, no-cache, must-revalidate"
 </IfModule>
+
