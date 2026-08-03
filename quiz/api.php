@@ -2268,8 +2268,40 @@ switch ($action) {
     $reels = array_values(array_filter($BONUS_CODES, fn($c) => $c !== $CODE_TEST_OK && $c !== $CODE_TEST_USED));
     $total = count($reels);
     $pris = 0;
-    foreach ($reels as $c) { if (isset($claimed[$c])) $pris++; }
-    echo json_encode(['total' => $total, 'restants' => max(0, $total - $pris), 'pris' => $pris]);
+
+    // 🎯 RÉPARTITION PAR LIEU, calculée sur les codes ENCORE À TROUVER.
+    //
+    // Le lieu de chaque code est saisi dans l'admin (action code_indice) et rangé
+    // dans codes-indices-<site>.json. On regroupe ici les codes NON réclamés par
+    // lieu : dès que quelqu'un récupère un code, le compteur de son emplacement
+    // baisse tout seul, et l'emplacement disparaît de la liste quand son dernier
+    // code est parti. Plus rien à tenir à jour à la main.
+    //
+    // Un code sans lieu renseigné n'apparaît nulle part : mieux vaut ne rien
+    // annoncer qu'envoyer les gens fouiller une zone déjà vidée.
+    $indices = readJson($indicesFile);
+    if (!is_array($indices)) { $indices = []; }
+    $parLieu = [];
+    foreach ($reels as $c) {
+      if (isset($claimed[$c])) { $pris++; continue; }
+      $lieu = trim((string) ($indices[$c] ?? ''));
+      if ($lieu === '') { continue; }
+      $parLieu[$lieu] = ($parLieu[$lieu] ?? 0) + 1;
+    }
+    // Les emplacements les mieux fournis d'abord ; à égalité, ordre alphabétique.
+    $zones = [];
+    foreach ($parLieu as $nom => $nb) { $zones[] = ['nom' => $nom, 'nb' => $nb]; }
+    usort($zones, function ($a, $b) {
+      if ($a['nb'] !== $b['nb']) { return $b['nb'] - $a['nb']; }
+      return strcasecmp($a['nom'], $b['nom']);
+    });
+
+    echo json_encode([
+      'total'    => $total,
+      'restants' => max(0, $total - $pris),
+      'pris'     => $pris,
+      'zones'    => $zones,
+    ], JSON_UNESCAPED_UNICODE);
     break;
   }
 

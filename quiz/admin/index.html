@@ -1353,10 +1353,14 @@ function vueCodes() {
       pas dans les 20 codes du magasin.</em></p>
       <div style="overflow-x:auto">
       <table>
-        <tr><th>Code</th><th>État</th><th>Récupéré par</th><th>Quand</th><th></th></tr>
+        <tr><th>Code</th><th>Où je l'ai caché</th><th>État</th><th>Récupéré par</th><th>Quand</th><th></th></tr>
         ${data.codes.map((x) => `
           <tr>
             <td><strong>${esc(x.code)}</strong></td>
+            <td><input class="lieu-input" data-lieu="${esc(x.code)}" value="${esc(x.indice || "")}"
+                       placeholder="ex. Rayon plantes d'intérieur" maxlength="300"
+                       ${x.pris ? "disabled" : ""}
+                       title="${x.pris ? "Code déjà pris : l'emplacement n'est plus affiché aux joueurs." : "Tape l'emplacement puis clique ailleurs pour enregistrer."}"></td>
             <td class="${x.pris ? "pris" : "libre"}">${x.pris ? (x.par === "Organisateur" ? "Bloqué" : "Pris") : "Libre"}</td>
             <td>${x.par ? esc(x.par) : "—"}</td>
             <td>${x.date ? esc(new Date(x.date).toLocaleString("fr-BE")) : "—"}</td>
@@ -1366,6 +1370,39 @@ function vueCodes() {
           </tr>`).join("")}
       </table></div>
     </div>`;
+
+  // 📍 EMPLACEMENT D'UN CODE — enregistré à la sortie du champ.
+  //
+  // Ce lieu ne sert pas qu'à s'y retrouver : le serveur s'en sert pour bâtir
+  // l'indice « où chercher » montré aux joueurs, en ne comptant QUE les codes
+  // encore à trouver. Quand un code part, sa zone perd un cran toute seule, et
+  // disparaît de l'indice quand son dernier code est parti.
+  //
+  // Enregistrement sur « change » (donc à la sortie du champ) plutôt qu'à chaque
+  // touche : sinon on enverrait une requête par lettre tapée. Pas de rechargement
+  // du tableau après coup — cela ferait perdre le focus si on remplit les
+  // emplacements à la chaîne.
+  c.querySelectorAll("[data-lieu]").forEach((champ) => {
+    let dernier = champ.value;
+    champ.addEventListener("change", async () => {
+      const valeur = champ.value.trim();
+      if (valeur === dernier) { return; }
+      champ.style.opacity = ".5";
+      const r = await post("code_indice", { code: champ.dataset.lieu, indice: valeur });
+      champ.style.opacity = "1";
+      if (r.ok && r.data && r.data.ok) {
+        dernier = valeur;
+        champ.style.borderColor = "#2e7d32";
+        setTimeout(() => { champ.style.borderColor = ""; }, 1200);
+      } else {
+        // On remet la valeur d'avant : un champ qui affiche autre chose que ce
+        // qui est réellement enregistré est pire que pas de champ du tout.
+        champ.value = dernier;
+        champ.style.borderColor = "#c0392b";
+        setTimeout(() => { champ.style.borderColor = ""; }, 2000);
+      }
+    });
+  });
 
   c.querySelectorAll("[data-blo]").forEach((b) => b.addEventListener("click", () => {
     const code = b.dataset.blo;

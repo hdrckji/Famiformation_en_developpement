@@ -3618,8 +3618,16 @@ function modaleIndices() {
 
 // 🎯 Modale des INDICES : au clic sur le bloc, on ouvre cette fenêtre avec les
 // zones du magasin où des codes sont cachés (et combien dans chacune).
-function modaleZones() {
-  const zones = (CONFIG.zones || []).filter((z) => z.nom && z.nb > 0);
+async function modaleZones() {
+  // 🎯 Les emplacements viennent du SERVEUR et ne comptent que les codes ENCORE
+  // À TROUVER : quand quelqu'un récupère un code, le compteur de sa zone baisse
+  // tout seul, et la zone disparaît de la liste dès que son dernier code est
+  // parti. Personne n'est plus envoyé fouiller un rayon déjà vidé.
+  // Repli sur la liste saisie à la main (CONFIG.zones) tant qu'aucun lieu n'a
+  // été renseigné code par code : l'ancien fonctionnement reste donc valable.
+  const cr = await apiCodesRestants().catch(() => null);
+  const auto = (cr && Array.isArray(cr.zones)) ? cr.zones : [];
+  const zones = (auto.length ? auto : (CONFIG.zones || [])).filter((z) => z.nom && z.nb > 0);
   const corps = zones.length
     ? `<div style="margin:6px 0 4px; text-align:left;">${zones.map((z) =>
         `<div style="display:flex; justify-content:space-between; gap:16px; padding:11px 14px; border-bottom:1px solid #eef2ec;">
