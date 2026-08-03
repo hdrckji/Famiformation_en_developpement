@@ -1819,8 +1819,26 @@ function basculeEspaceAdmin() {
 // 🌱 L'espace (quiz, jardin, classement) est-il accessible ? Oui à partir du
 // lancement (29/07 12h30). Avant, il reste verrouillé pour tout le monde — sauf
 // si l'organisateur l'a débloqué à la main (mot secret « admin ») pour tester.
+// 🔒 VERROU MANUEL DE LA PANNE — à repasser à false pour ouvrir le module.
+//
+// Tant que ceci vaut true, « Quiz & mon espace jardin » reste FERMÉ à La Panne,
+// y compris après la date de lancement : le magasin ne veut pas que les gens
+// entrent dans le jeu avant que tout soit prêt de leur côté.
+//
+// Deux façons de contourner le verrou, sans toucher aux autres :
+//   • sur UN appareil, taper « 0000 » (ou « admin ») ouvre l'accès localement,
+//     pour vérifier le jeu sans l'ouvrir au public. Sur la borne, qui n'a pas de
+//     clavier, le même effet s'obtient par 5 tapes rapides sur le logo.
+//   • pour TOUT LE MONDE, repasser cette constante à false et remettre en ligne.
+//
+// Mouscron n'est pas concerné : son événement suit ses dates, comme avant.
+const VERROU_LAPANNE = true;
+
 function espaceAccessible() {
   if (espaceDebloque) return true;
+  // Le verrou passe AVANT la règle des dates : c'est tout son intérêt, sinon le
+  // module s'ouvrirait tout seul le 14/08 à 12h30.
+  if (SITE === "lapanne" && VERROU_LAPANNE) return false;
   try { return phaseNow() !== "avant"; } catch (e) { return false; }
 }
 // 🔓 GESTE CACHÉ (téléphone/tactile) : 5 tapes rapides sur le logo « Famiformation »
@@ -4059,7 +4077,12 @@ function renderHome() {
         <span class="bm-titre">${t("Quiz &amp; mon espace jardin", "Quiz &amp; mijn tuin")}</span>
         <span class="bm-desc">${espaceAccessible()
           ? t("Réponds au quiz, récolte des graines, fais pousser ton jardin", "Beantwoord de quiz, verzamel zaadjes en laat je tuin groeien")
-          : t("🔒 Ouvre le " + labelLancement() + " pour le lancement", "🔒 Opent op " + labelLancement() + " voor de lancering")}</span>
+          : (SITE === "lapanne" && VERROU_LAPANNE)
+            // 🔒 Verrou manuel : surtout NE PAS annoncer la date de lancement, elle
+            // ne sera pas tenue tant que le magasin n'a pas donné son feu vert.
+            // Promettre une ouverture qui n'arrive pas serait pire que de rester vague.
+            ? t("🔒 Bientôt disponible", "🔒 Binnenkort beschikbaar")
+            : t("🔒 Ouvre le " + labelLancement() + " pour le lancement", "🔒 Opent op " + labelLancement() + " voor de lancering")}</span>
       </button>
       <button class="borne-mod" data-go="code">
         <span class="bm-emo">🎁</span>
@@ -4705,7 +4728,10 @@ const EGG = (() => {
   }
 
   // « admin » : mot secret de l'organisateur — (dé)verrouille le module quiz & jardin.
-  const MOTS = { "graine": grainePluie, "famiflora": famiflora, "2026": badge, "admin": basculeEspaceAdmin };
+  // « 0000 » fait la même chose qu'« admin » : c'est le code convenu pour ouvrir
+  // le module sur UN appareil pendant que le verrou de La Panne le tient fermé
+  // pour tout le monde (voir VERROU_LAPANNE).
+  const MOTS = { "graine": grainePluie, "famiflora": famiflora, "2026": badge, "admin": basculeEspaceAdmin, "0000": basculeEspaceAdmin };
 
   // Clavier (ordinateur) : on retient les dernières frappes.
   let buf = "";
