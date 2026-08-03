@@ -857,10 +857,6 @@ body.mode-tele .tv-url   { font-size: min(1.05rem, 2.2vh); }
   padding: 12px 20px; margin-bottom: 10px; font-family: 'Fredoka', sans-serif; font-weight: 600;
   font-size: clamp(1rem, 2.2vw, 1.5rem); box-shadow: 0 3px 12px rgba(14,59,36,.1); }
 .tv-qr { flex: 0 0 auto; text-align: center; width: min(280px, 62vw); margin-top: clamp(40px, 11vh, 150px); }
-/* 📺 Le même QR, mais sur l'écran de COMPTE À REBOURS : il est centré sous les
-   chiffres, sans la grande marge haute de .tv-qr — celle-ci sert à aligner le
-   QR sur le classement, elle le pousserait hors de l'écran ici. */
-.cd-qr { width: min(240px, 52vw); margin: clamp(18px, 3.5vh, 40px) auto 0; text-align: center; }
 .tv-qr-box { background: #fff; padding: 14px; border-radius: 18px; box-shadow: 0 8px 24px rgba(14,59,36,.18);
   width: 100%; }
 .tv-qr-box svg { width: 100%; height: auto; display: block; }
@@ -2065,27 +2061,8 @@ function renderCountdown() {
       </div>` : ""}
       <div class="cd-sprout" id="cd-sprout">${cdPousse(CONFIG.dateLancement.getTime() - Date.now())}</div>
       <div class="cd-info">${info}</div>
-      ${ECRAN === "tele" && phase === "avant" ? `<div class="cd-qr" id="cd-qr"></div>` : ""}
       ${top5Html}
     </div>`;
-
-  // 📺 QR SUR LA TÉLÉ PENDANT LE COMPTE À REBOURS.
-  // Il n'existait que sur le classement en direct (renderTeleBoard) et sur
-  // l'écran des vainqueurs : pendant toute l'attente — plusieurs jours — la télé
-  // n'offrait AUCUN moyen d'entrer dans le quiz. Or c'est justement le moment où
-  // les gens ont le temps de créer leur compte.
-  // Injection APRÈS le rendu : qrQuiz() est asynchrone (elle charge la
-  // librairie QR à la demande) alors que renderCountdown est synchrone. Un
-  // échec de chargement laisse simplement l'emplacement vide, sans rien casser.
-  if (ECRAN === "tele" && phase === "avant") {
-    qrQuiz().then((q) => {
-      const cible = document.getElementById("cd-qr");
-      if (!cible || !q) { return; }
-      cible.innerHTML = `<div class="tv-qr-box">${q.svg}</div>
-        <div class="tv-scan">${t("📱 Scanne pour créer ton compte&nbsp;!", "📱 Scan om je account aan te maken!")}</div>
-        <div class="tv-url">${esc(q.url)}</div>`;
-    }).catch(() => { /* pas de QR : l'écran reste lisible, on n'interrompt rien */ });
-  }
 
   clearInterval(tickTimer);
   if (phase !== "termine") {
