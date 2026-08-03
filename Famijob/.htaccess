@@ -10,7 +10,7 @@ RewriteEngine On
 RewriteCond %{REMOTE_ADDR} !^123\.45\.67\.89$
 
 # La page de maintenance reste accessible (evite la boucle infinie)
-RewriteCond %{REQUEST_URI} !^/maintenance\.html$
+RewriteCond %{REQUEST_URI} !^/maintenance_rapide\.html$
 
 # Tout le reste renvoie un 503
 RewriteRule ^ - [R=503,L]
