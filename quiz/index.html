@@ -5,6 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light">
 <meta name="supported-color-schemes" content="light">
+<!-- 🌐 PAS DE TRADUCTION AUTOMATIQUE. Le quiz est bilingue et gère lui-même le
+     FR/NL : laisser Edge (ou Chrome) retraduire la page par-dessus abîme les
+     textes déjà traduits et casse les libellés du jeu. La balise <html lang>
+     est tenue à jour par majLangSwitch() à chaque rendu — sans quoi la page
+     annoncerait « fr » tout en affichant du néerlandais, ce qui est justement
+     ce qui déclenche la proposition de traduction. -->
+<meta name="google" content="notranslate">
 <title>Famiformation — Le grand quiz de lancement</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -1764,6 +1771,17 @@ function setLang(l) {
 }
 // Crée (une fois) et met à jour le petit sélecteur FR / NL en haut à gauche.
 function majLangSwitch() {
+  // 🌐 <html lang> SUIT LA LANGUE AFFICHÉE.
+  // Elle était figée à « fr » dans le fichier : en néerlandais, la page
+  // annonçait donc du français tout en affichant du néerlandais. C'est
+  // exactement ce décalage qui pousse Edge à proposer — ou à imposer — sa
+  // traduction automatique, laquelle réécrit par-dessus des textes déjà
+  // traduits et casse les libellés du jeu.
+  // Ici plutôt que dans setLang() : majLangSwitch() est appelée au début de
+  // chaque render(), donc la balise est juste au premier affichage comme après
+  // un changement de langue, sans qu'on ait à y penser ailleurs.
+  document.documentElement.lang = LANG;
+
   let s = document.getElementById("lang-switch");
   if (!s) {
     s = document.createElement("div");
