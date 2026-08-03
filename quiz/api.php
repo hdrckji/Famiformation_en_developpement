@@ -981,15 +981,47 @@ function pousseVersForm($prenom, $nom, $email) {
   return $code === 200 && $rep !== false;
 }
 
-// 🔐 Identifiants admin (accès au mode admin + réinitialisation des scores)
-$ADMIN_ID  = "admin";
-$ADMIN_PWD = "a";
+// 🔐 IDENTIFIANTS ADMIN ET RH — JAMAIS DANS LE CODE.
+//
+// Ce dépôt est PUBLIC : tout mot de passe écrit ici est lisible par n'importe
+// qui sur GitHub, et le restera dans l'historique même après correction. Les
+// mots de passe viennent donc de variables d'environnement Railway, comme
+// FORM_FEED_SECRET plus bas :
+//
+//   QUIZ_ADMIN_PWD = le mot de passe du mode admin du quiz   (obligatoire)
+//   QUIZ_RH_PWD    = le mot de passe de la page /quiz/rh     (obligatoire)
+//   QUIZ_ADMIN_ID  = l'identifiant admin, « admin » par défaut  (facultatif)
+//   QUIZ_RH_ID     = l'identifiant RH, « rh » par défaut        (facultatif)
+//
+// ⚠️ ON ÉCHOUE FERMÉ : tant que le mot de passe n'est pas défini dans
+// l'environnement, l'accès est REFUSÉ. Prévoir une valeur de repli reviendrait
+// à remettre un mot de passe dans le code — donc à ne rien avoir corrigé. Les
+// identifiants, eux, ne sont pas des secrets : ils gardent un défaut.
+function quizEnv($nom, $defaut = '') {
+  $v = getenv($nom);
+  if ($v === false || $v === '') { $v = $_SERVER[$nom] ?? ''; }
+  return (string) ($v !== '' ? $v : $defaut);
+}
+
+// 🛡️ Comparaison d'un secret, à temps constant, qui REFUSE TOUJOURS un secret
+// attendu vide. Sans ce garde-fou, hash_equals('', '') vaudrait VRAI : le jour
+// où la variable d'environnement manque, n'importe qui entrerait en envoyant un
+// mot de passe vide. Autrement dit, une simple erreur de configuration ouvrirait
+// l'admin en grand — exactement l'inverse de ce qu'on cherche ici.
+function secretOk($attendu, $fourni) {
+  $attendu = (string) $attendu;
+  if ($attendu === '') { return false; }
+  return hash_equals($attendu, (string) $fourni);
+}
+
+$ADMIN_ID  = quizEnv('QUIZ_ADMIN_ID', 'admin');
+$ADMIN_PWD = quizEnv('QUIZ_ADMIN_PWD');            // vide = accès impossible
 $ADMIN_PIN = $ADMIN_PWD;   // compat : ancien lien api.php?action=reset&pin=...
 
 // 🎁 Accès RH (page /quiz/rh) : voir/cocher les récompenses remises. Séparé de
 // l'admin, pour confier la remise des récompenses aux RH sans donner l'admin.
-$RH_ID  = "rh";
-$RH_PWD = "Fami2026";
+$RH_ID  = quizEnv('QUIZ_RH_ID', 'rh');
+$RH_PWD = quizEnv('QUIZ_RH_PWD');                  // vide = accès impossible
 
 // 📄 FLUX DU FORMULAIRE GOOGLE (onglet « recolte de mail »).
 // Le site lit la feuille via un mini-script Google (Apps Script) déployé en
@@ -1212,7 +1244,7 @@ function exigeAdmin($input) {
   global $ADMIN_ID, $ADMIN_PWD;
   $id  = trim($input['id'] ?? '');
   $pwd = (string)($input['pwd'] ?? '');
-  if (!hash_equals($ADMIN_ID, $id) || !hash_equals($ADMIN_PWD, $pwd)) {
+  if (!hash_equals($ADMIN_ID, $id) || !secretOk($ADMIN_PWD, $pwd)) {
     http_response_code(401);
     echo json_encode(['error' => 'Acces refuse']);
     exit;
@@ -1223,8 +1255,8 @@ function exigeRh($input) {
   global $RH_ID, $RH_PWD, $ADMIN_ID, $ADMIN_PWD;
   $id  = trim($input['id'] ?? '');
   $pwd = (string)($input['pwd'] ?? '');
-  $okRh    = hash_equals($RH_ID, $id) && hash_equals($RH_PWD, $pwd);
-  $okAdmin = hash_equals($ADMIN_ID, $id) && hash_equals($ADMIN_PWD, $pwd);
+  $okRh    = hash_equals($RH_ID, $id) && secretOk($RH_PWD, $pwd);
+  $okAdmin = hash_equals($ADMIN_ID, $id) && secretOk($ADMIN_PWD, $pwd);
   if (!$okRh && !$okAdmin) {
     http_response_code(401);
     echo json_encode(['error' => 'Acces refuse']);
@@ -3571,7 +3603,7 @@ switch ($action) {
   case 'login': {
     $id  = trim($input['id'] ?? '');
     $pwd = (string)($input['pwd'] ?? '');
-    $ok = hash_equals($ADMIN_ID, $id) && hash_equals($ADMIN_PWD, $pwd);
+    $ok = hash_equals($ADMIN_ID, $id) && secretOk($ADMIN_PWD, $pwd);
     if (!$ok) {
       http_response_code(401);
       echo json_encode(['ok' => false]);
@@ -3943,7 +3975,7 @@ switch ($action) {
 
   // 🧹 Réinitialiser (tests) : api.php?action=reset&pin=XXXX
   case 'reset': {
-    if (!hash_equals($ADMIN_PIN, (string)($_GET['pin'] ?? ''))) {
+    if (!secretOk($ADMIN_PIN, (string)($_GET['pin'] ?? ''))) {
       http_response_code(403);
       echo json_encode(['error' => 'PIN incorrect']);
       break;

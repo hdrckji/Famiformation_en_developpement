@@ -10,8 +10,12 @@
 // ============================================================
 header('Content-Type: text/html; charset=UTF-8');
 
-$ADMIN_PWD = 'a';   // même valeur que dans api.php
-if ((string) ($_GET['pwd'] ?? '') !== $ADMIN_PWD) {
+// 🔐 Mot de passe repris de la variable d'environnement QUIZ_ADMIN_PWD, comme
+// api.php — jamais écrit ici : ce dépôt est public.
+// Le test refuse aussi le cas « variable absente » : sinon, une configuration
+// oubliée laisserait entrer n'importe qui avec ?pwd= vide.
+$ADMIN_PWD = (string) (getenv('QUIZ_ADMIN_PWD') ?: ($_SERVER['QUIZ_ADMIN_PWD'] ?? ''));
+if ($ADMIN_PWD === '' || !hash_equals($ADMIN_PWD, (string) ($_GET['pwd'] ?? ''))) {
     http_response_code(403);
     exit('Acces refuse. Ajoute ?pwd=... a l\'adresse.');
 }
