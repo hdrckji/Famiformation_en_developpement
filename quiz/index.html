@@ -1816,29 +1816,62 @@ function basculeEspaceAdmin() {
   toastAdmin(espaceDebloque ? "🔓 Quiz & jardin débloqué" : "🔒 Quiz & jardin verrouillé");
   render();   // rafraîchit l'écran courant (l'accueil montre alors le cadenas ou non)
 }
+/* ============================================================
+   🔒 VERROU DES DEUX TUILES « J'ai trouvé un code » ET
+      « Je ne suis pas encore inscrit sur Famiformation ».
+
+   À La Panne, ces deux entrées restent fermées tant que le magasin n'a pas donné
+   son feu vert : on ne veut ni récolter d'adresses ni distribuer de graines bonus
+   avant que tout soit en place. Verrou VOLONTAIRE, indépendant des dates de
+   l'événement : il ne se lève jamais tout seul.
+
+   Deux façons de l'ouvrir :
+     • sur UN appareil, taper « 0000 » (voir la table MOTS plus bas) — de quoi
+       vérifier le parcours sans l'ouvrir au public. Retaper « 0000 » reverrouille,
+       et le choix est mémorisé sur l'appareil.
+     • pour TOUT LE MONDE, repasser VERROU_TUILES à false et remettre en ligne.
+
+   Le module « Quiz & mon espace jardin » n'est PAS concerné : il garde sa règle
+   liée aux dates. Mouscron non plus.
+   ============================================================ */
+const VERROU_TUILES = true;
+let tuilesDebloquees = (() => {
+  try { return localStorage.getItem("fj_tuiles_ok") === "1"; } catch (e) { return false; }
+})();
+function basculeTuiles() {
+  tuilesDebloquees = !tuilesDebloquees;
+  try { localStorage.setItem("fj_tuiles_ok", tuilesDebloquees ? "1" : "0"); } catch (e) {}
+  toastAdmin(tuilesDebloquees ? "🔓 Code & inscription débloqués" : "🔒 Code & inscription verrouillés");
+  render();
+}
+function tuilesAccessibles() {
+  if (tuilesDebloquees) return true;
+  return !(SITE === "lapanne" && VERROU_TUILES);
+}
+// Clic sur une tuile verrouillée : on explique, SANS annoncer de date. Le verrou
+// est manuel : promettre une ouverture qu'on ne tiendrait pas serait pire que de
+// rester vague.
+function modaleTuileBloquee() {
+  if (document.querySelector(".modal-fond")) return;
+  const o = document.createElement("div");
+  o.className = "modal-fond";
+  o.innerHTML = `<div class="modal code-modal">
+    <div class="cm-emoji">🔒</div>
+    <h2 class="cm-titre">${t("Bientôt disponible", "Binnenkort beschikbaar")}</h2>
+    <p class="cm-sous">${t("Cette partie n'est pas encore ouverte. Reviens un peu plus tard&nbsp;! 🌱", "Dit onderdeel is nog niet open. Kom straks nog eens terug! 🌱")}</p>
+    <button class="btn" id="cm-ok" style="min-width:180px;">${t("D'accord", "Oké")}</button>
+  </div>`;
+  document.body.appendChild(o);
+  const ferme = () => o.remove();
+  o.querySelector("#cm-ok").addEventListener("click", ferme);
+  o.addEventListener("click", (e) => { if (e.target === o) ferme(); });
+}
+
 // 🌱 L'espace (quiz, jardin, classement) est-il accessible ? Oui à partir du
 // lancement (29/07 12h30). Avant, il reste verrouillé pour tout le monde — sauf
 // si l'organisateur l'a débloqué à la main (mot secret « admin ») pour tester.
-// 🔒 VERROU MANUEL DE LA PANNE — à repasser à false pour ouvrir le module.
-//
-// Tant que ceci vaut true, « Quiz & mon espace jardin » reste FERMÉ à La Panne,
-// y compris après la date de lancement : le magasin ne veut pas que les gens
-// entrent dans le jeu avant que tout soit prêt de leur côté.
-//
-// Deux façons de contourner le verrou, sans toucher aux autres :
-//   • sur UN appareil, taper « 0000 » (ou « admin ») ouvre l'accès localement,
-//     pour vérifier le jeu sans l'ouvrir au public. Sur la borne, qui n'a pas de
-//     clavier, le même effet s'obtient par 5 tapes rapides sur le logo.
-//   • pour TOUT LE MONDE, repasser cette constante à false et remettre en ligne.
-//
-// Mouscron n'est pas concerné : son événement suit ses dates, comme avant.
-const VERROU_LAPANNE = true;
-
 function espaceAccessible() {
   if (espaceDebloque) return true;
-  // Le verrou passe AVANT la règle des dates : c'est tout son intérêt, sinon le
-  // module s'ouvrirait tout seul le 14/08 à 12h30.
-  if (SITE === "lapanne" && VERROU_LAPANNE) return false;
   try { return phaseNow() !== "avant"; } catch (e) { return false; }
 }
 // 🔓 GESTE CACHÉ (téléphone/tactile) : 5 tapes rapides sur le logo « Famiformation »
@@ -4077,22 +4110,21 @@ function renderHome() {
         <span class="bm-titre">${t("Quiz &amp; mon espace jardin", "Quiz &amp; mijn tuin")}</span>
         <span class="bm-desc">${espaceAccessible()
           ? t("Réponds au quiz, récolte des graines, fais pousser ton jardin", "Beantwoord de quiz, verzamel zaadjes en laat je tuin groeien")
-          : (SITE === "lapanne" && VERROU_LAPANNE)
-            // 🔒 Verrou manuel : surtout NE PAS annoncer la date de lancement, elle
-            // ne sera pas tenue tant que le magasin n'a pas donné son feu vert.
-            // Promettre une ouverture qui n'arrive pas serait pire que de rester vague.
-            ? t("🔒 Bientôt disponible", "🔒 Binnenkort beschikbaar")
-            : t("🔒 Ouvre le " + labelLancement() + " pour le lancement", "🔒 Opent op " + labelLancement() + " voor de lancering")}</span>
+          : t("🔒 Ouvre le " + labelLancement() + " pour le lancement", "🔒 Opent op " + labelLancement() + " voor de lancering")}</span>
       </button>
-      <button class="borne-mod" data-go="code">
-        <span class="bm-emo">🎁</span>
+      <button class="borne-mod${tuilesAccessibles() ? "" : " mod-inactif"}" data-go="code">
+        <span class="bm-emo">${tuilesAccessibles() ? "🎁" : "🔒"}</span>
         <span class="bm-titre">${t("J'ai trouvé un code", "Ik heb een code gevonden")}</span>
-        <span class="bm-desc">${t("Récupère tes graines bonus", "Haal je bonuszaadjes op")}</span>
+        <span class="bm-desc">${tuilesAccessibles()
+          ? t("Récupère tes graines bonus", "Haal je bonuszaadjes op")
+          : t("🔒 Bientôt disponible", "🔒 Binnenkort beschikbaar")}</span>
       </button>
-      <button class="borne-mod" data-go="mail">
+      <button class="borne-mod${tuilesAccessibles() ? "" : " mod-inactif"}" data-go="mail">
         <span class="bm-ticket">${ticketGlaceSvg()}</span>
         <span class="bm-titre">${t("Je ne suis pas encore inscrit sur Famiformation", "Ik ben nog niet ingeschreven op Famiformation")}</span>
-        <span class="bm-desc">${t("Ticket glace à gagner 🎁", "IJsjesticket te winnen 🎁")}</span>
+        <span class="bm-desc">${tuilesAccessibles()
+          ? t("Ticket glace à gagner 🎁", "IJsjesticket te winnen 🎁")
+          : t("🔒 Bientôt disponible", "🔒 Binnenkort beschikbaar")}</span>
       </button>
     </div>
     ${SITE === "mouscron" ? `<button class="home-event" id="home-event">
@@ -4166,6 +4198,11 @@ function renderHome() {
       else ouvreConnexionFami();
       return;
     }
+    // 🔒 « J'ai trouvé un code » et « Je ne suis pas encore inscrit » : fermés tant
+    // que le verrou de La Panne tient (déblocage local en tapant « 0000 »).
+    // On coupe AVANT toute navigation : une tuile grisée ne doit pas être une
+    // simple décoration qu'un appui insistant finirait par ouvrir.
+    if ((go === "mail" || go === "code") && !tuilesAccessibles()) { modaleTuileBloquee(); return; }
     // Module « mail » : inscription intégrée (prénom, nom, e-mail) → mail immédiat.
     if (go === "mail") { userView = "inscription"; quiz = null; render(); return; }
     if (go === "code") { codeAReclamer = null; userView = "reclamer"; quiz = null; render(); return; }
@@ -4728,10 +4765,10 @@ const EGG = (() => {
   }
 
   // « admin » : mot secret de l'organisateur — (dé)verrouille le module quiz & jardin.
-  // « 0000 » fait la même chose qu'« admin » : c'est le code convenu pour ouvrir
-  // le module sur UN appareil pendant que le verrou de La Panne le tient fermé
-  // pour tout le monde (voir VERROU_LAPANNE).
-  const MOTS = { "graine": grainePluie, "famiflora": famiflora, "2026": badge, "admin": basculeEspaceAdmin, "0000": basculeEspaceAdmin };
+  // « 0000 » : (dé)verrouille les tuiles « J'ai trouvé un code » et « Je ne suis
+  // pas encore inscrit » sur CET appareil, pendant que le verrou de La Panne les
+  // tient fermées pour tout le monde. Voir VERROU_TUILES.
+  const MOTS = { "graine": grainePluie, "famiflora": famiflora, "2026": badge, "admin": basculeEspaceAdmin, "0000": basculeTuiles };
 
   // Clavier (ordinateur) : on retient les dernières frappes.
   let buf = "";
