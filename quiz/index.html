@@ -3621,7 +3621,14 @@ function modaleJardinVerrouille() {
 // 🎯 Indice « où chercher » : les zones où l'orga a caché des codes. Affiché à
 // partir de la VEILLE DU LANCEMENT (dernières 24 h du compte à rebours), puis il
 // reste visible pendant l'événement pour aider à dénicher les codes.
-function zonesDispoLe() { return CONFIG.dateLancement.getTime() - 86400000; }   // veille du lancement
+// 🔎 QUAND LES INDICES S'OUVRENT : une SEMAINE avant le lancement.
+// Pour La Panne (lancement le 14/08 à 12h30), cela tombe sur le 07/08 à 12h30.
+// La date se déduit du lancement plutôt que d'être écrite en dur : si le magasin
+// décale son ouverture, les indices suivent sans qu'on ait à y penser.
+// Mouscron n'est pas affecté — son lancement est passé, ses indices sont déjà
+// visibles quel que soit le décalage.
+const INDICES_AVANCE_MS = 7 * 86400000;   // 7 jours
+function zonesDispoLe() { return CONFIG.dateLancement.getTime() - INDICES_AVANCE_MS; }
 // Moment lisible, ex. « 28/07 à 12h ».
 function labelMoment(ts) {
   const d = new Date(ts);
@@ -3662,7 +3669,7 @@ function ouvreExplicationCodes() {
       <div class="explik-step"><span class="explik-ico">🔒</span><span class="explik-txt"><b class="eh">${t(CONFIG.maxCodes + " codes maximum par personne", "Maximaal " + CONFIG.maxCodes + " codes per persoon")}</b>${t("Et c'est <b>premier arrivé, premier servi</b> : un code déjà récupéré par quelqu'un d'autre ne vaut plus rien. Ne le laisse pas traîner !", "En het is <b>wie eerst komt, eerst maalt</b>: een code die al door iemand anders is opgehaald, is niets meer waard. Laat hem niet liggen!")}</span></div>
       <div class="explik-step"><span class="explik-ico">👤</span><span class="explik-txt"><b class="eh">${t("Il te faut un compte", "Je hebt een account nodig")}</b>${t("Crée ton compte (ou connecte-toi) pour que les graines soient créditées. Ça prend 30 secondes.", "Maak je account aan (of meld je aan) zodat de zaadjes worden bijgeschreven. Dat duurt 30 seconden.")}</span></div>
       <div class="explik-step"><span class="explik-ico">⏳</span><span class="explik-txt"><b class="eh">${t("Même après le quiz !", "Zelfs na de quiz!")}</b>${t("Tu as déjà fait le quiz ? Tu peux <b>toujours</b> récupérer des codes : ils s'ajoutent à ta récolte et te font remonter au classement.", "Heb je de quiz al gedaan? Je kan <b>nog steeds</b> codes ophalen: ze worden bij je oogst geteld en doen je stijgen in de ranking.")}</span></div>
-      <div class="explik-step"><span class="explik-ico">🎯</span><span class="explik-txt"><b class="eh">${t("Des indices arrivent", "Er komen tips aan")}</b>${t("À partir de la veille du lancement, cette page t'indiquera <b>dans quelles zones du magasin</b> des codes sont cachés (et combien).", "Vanaf de dag voor de start toont deze pagina je <b>in welke zones van de winkel</b> codes verstopt zijn (en hoeveel).")}</span></div>
+      <div class="explik-step"><span class="explik-ico">🎯</span><span class="explik-txt"><b class="eh">${t("Des indices arrivent", "Er komen tips aan")}</b>${t("À partir du <b>" + labelMoment(zonesDispoLe()) + "</b>, cette page t'indiquera <b>dans quelles zones du magasin</b> des codes sont cachés (et combien).", "Vanaf <b>" + labelMoment(zonesDispoLe()) + "</b> toont deze pagina je <b>in welke zones van de winkel</b> codes verstopt zijn (en hoeveel).")}</span></div>
     </div>
     <button class="btn" id="explik-ok" style="width:100%;">${t("Compris, je pars à la chasse ! 🔎", "Begrepen, ik ga op jacht! 🔎")}</button>
   </div>`;

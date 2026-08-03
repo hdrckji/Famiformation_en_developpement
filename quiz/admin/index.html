@@ -1175,9 +1175,12 @@ function vueCountdown() {
     <div class="card">
       <h2>🎯 Zones où j'ai caché des codes</h2>
       <p class="hint">Indique combien de codes tu as placés dans chaque zone du magasin. Cet indice
-      s'affichera aux joueurs sur la page « J'ai un code » <strong>à partir de la veille du lancement</strong>
-      (dernières 24 h du compte à rebours), puis restera visible pendant l'événement pour les aider à
-      dénicher les codes.</p>
+      s'affichera aux joueurs sur la page « J'ai un code » <strong>une semaine avant le lancement</strong>
+      (soit le 07/08 à 12h30 pour La Panne), puis restera visible pendant l'événement pour les aider à
+      dénicher les codes.<br>
+      Cette liste manuelle ne sert plus que de repli : dès qu'un emplacement est saisi <strong>par code</strong>
+      dans le tableau ci-dessous, c'est lui qui s'affiche, avec des compteurs qui baissent tout seuls
+      quand les codes sont trouvés.</p>
       <div id="zones-liste">${zoneRowsHtml()}</div>
       <button class="btn ghost" id="zone-add" style="margin-top:8px;">＋ Ajouter une zone</button>
       <div id="zones-msg" style="margin-top:8px;"></div>
