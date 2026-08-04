@@ -1897,7 +1897,9 @@ function basculeEspaceAdmin() {
    Le module « Quiz & mon espace jardin » n'est PAS concerné : il garde sa règle
    liée aux dates. Mouscron non plus.
    ============================================================ */
-const VERROU_TUILES = true;
+// 🔓 OUVERT depuis le 04/08 : les deux tuiles sont accessibles à tout le monde,
+// le code « 0000 » n'est plus nécessaire. Remettre true pour les refermer.
+const VERROU_TUILES = false;
 let tuilesDebloquees = (() => {
   try { return localStorage.getItem("fj_tuiles_ok") === "1"; } catch (e) { return false; }
 })();
