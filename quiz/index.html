@@ -3407,7 +3407,13 @@ function renderInscription() {
           ? t("En t'inscrivant, tu reçois un ticket gourmand <span class=\"it-gratuit\">GRATUIT</span> ! 🍦", "Bij inschrijving krijg je een <span class=\"it-gratuit\">GRATIS</span> lekkerbekticket! 🍦")
           : t("En t'inscrivant, tu reçois un ticket glace <span class=\"it-gratuit\">GRATUIT</span> ! 🍦", "Bij inschrijving krijg je een <span class=\"it-gratuit\">GRATIS</span> ijsjesticket! 🍦")}</b>
         <span>${t("Un cadeau de bienvenue, à retirer à l'accueil du magasin.", "Een welkomstcadeau, af te halen aan het onthaal van de winkel.")}</span>
-        <button type="button" class="ticket-quoi" id="insc-quoi">${t("C'est quoi un " + motTicket() + " ?", "Wat is een " + motTicket() + "?")}</button>
+        ${estGourmand()
+          // 🏬 UNIQUEMENT À LA PANNE. Le « ticket gourmand » est un nom nouveau
+          // là-bas, d'où le besoin de l'expliquer. À Mouscron, le ticket glace
+          // est connu depuis le lancement : ajouter la question sur cet écran
+          // reviendrait à modifier un parcours qui tourne déjà.
+          ? `<button type="button" class="ticket-quoi" id="insc-quoi">${t("C'est quoi un " + motTicket() + " ?", "Wat is een " + motTicket() + "?")}</button>`
+          : ""}
       </div>
     </div>
 
