@@ -21,6 +21,19 @@ if (!isset($_SESSION['user_id']) || !in_array((string) ($_SESSION['role'] ?? '')
 $SITES = ['mouscron' => 'Famiflora Mouscron', 'lapanne' => 'Famiflora La Panne'];
 $ECRANS = ['borne' => 'Borne', 'tele' => 'Télé', 'code' => 'Code bonus', 'user' => 'Téléphone'];
 
+// ------------------------------------------------------------------
+// Le repère historique affiché en haut de page.
+//
+// Les chiffres ne peuvent pas remonter avant la mise en service : l'écran
+// n'était pas transmis au serveur auparavant, il n'y a donc rien à retrouver.
+// Le dire est plus honnête que de laisser croire à un total depuis toujours.
+//
+// AVANT_TELEPHONE est une estimation donnée à la main, volontairement EXCLUE
+// des totaux : elle sert de contexte, pas de mesure.
+// ------------------------------------------------------------------
+$DEBUT_COMPTAGE   = '2026-08-04';
+$AVANT_TELEPHONE  = 71;
+
 // La table est créée par le quiz au premier événement. On la crée aussi ici
 // pour que la page s'affiche normalement avant la première participation.
 try {
@@ -181,6 +194,12 @@ h1{color:var(--deep);font-weight:900;font-size:23px;}
 .filtres a.on{background:var(--deep);color:#fff;}
 .flash{background:var(--mint);border:1px solid var(--mint-line);color:var(--deep);padding:11px 14px;
        border-radius:12px;margin-bottom:14px;font-size:14px;font-weight:600;}
+.repere{display:flex;gap:11px;align-items:flex-start;background:#fff;border-left:4px solid var(--green);
+        border-radius:12px;padding:13px 16px;margin-bottom:16px;box-shadow:0 3px 12px rgba(20,55,38,.07);
+        font-size:14px;line-height:1.5;color:var(--ink);}
+.repere .cal{font-size:17px;line-height:1.3;}
+.repere b{color:var(--deep);}
+.repere .avant{display:block;margin-top:3px;font-size:12.5px;color:var(--muted);}
 .cartes{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:18px;}
 .carte{background:#fff;border-radius:18px;padding:16px 18px;box-shadow:0 5px 18px rgba(20,55,38,.08);}
 .carte .t{font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;}
@@ -221,6 +240,15 @@ td.date{color:var(--muted);font-size:12.5px;white-space:nowrap;}
   </div>
 
   <?php if ($message !== ''): ?><div class="flash"><?= e($message) ?></div><?php endif; ?>
+
+  <div class="repere">
+    <span class="cal">📅</span>
+    <div>
+      Comptabilisé depuis le <b><?= e(date('d/m/Y', strtotime($DEBUT_COMPTAGE))) ?></b>
+      <span class="avant">(<?= (int) $AVANT_TELEPHONE ?> participations par téléphone avant cette date —
+      estimation, <b>non comptées</b> ci-dessous)</span>
+    </div>
+  </div>
 
   <div class="filtres">
     <?php foreach (['all' => 'Les deux magasins'] + $SITES as $cle => $lib): ?>
