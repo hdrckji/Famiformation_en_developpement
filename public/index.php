@@ -18,10 +18,15 @@ if ($role === 'evaluateur') {
 }
 // 🧪 VERSION BETA : le profil « beta » a son propre accueil minimal (Onboarding +
 // Magasin), en attendant que le parcours complet soit défini après le 29/07.
-// « betalapanne » = les inscrits du quiz de La Panne. Même page d'accueil que la
-// bêta, qui n'y montre que la tuile « Quiz & mon espace jardin ».
-if ($role === 'beta' || $role === 'betalapanne') {
+if ($role === 'beta') {
     header('Location: beta.php');
+    exit();
+}
+// 🏬 « betalapanne » = les inscrits du quiz de La Panne. Parcours DISTINCT de la
+// bêta de Mouscron, donc page distincte : ils n'ont accès qu'au quiz et à leur
+// jardin, et ne doivent pas voir le bandeau bêta destiné à Mouscron.
+if ($role === 'betalapanne') {
+    header('Location: lapanne.php');
     exit();
 }
 
