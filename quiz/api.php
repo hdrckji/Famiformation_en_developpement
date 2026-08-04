@@ -1158,7 +1158,7 @@ function lapanneCollecte($db, $prenom, $nom, $email) {
   if (mb_strlen($nom) > 120 || mb_strlen($prenom) > 120 || mb_strlen($email) > 190) { return false; }
   try {
     // Même création que du côté RH : la toute première inscription peut très
-    // bien venir de la borne, avant que quiconque n'ait ouvert /emails/lapanne/.
+    // bien venir de la borne, avant que quiconque n'ait ouvert la page RH.
     $db->exec(
       "CREATE TABLE IF NOT EXISTS lapanne_emails (
          id INT AUTO_INCREMENT PRIMARY KEY,
@@ -2908,10 +2908,10 @@ switch ($action) {
     if ($aPousserVersForm) { pousseVersForm($prenom, $nom, $email); }
 
     // 📧 LA PANNE : la collecte des adresses ne passe PAS par le Google Form,
-    // mais par la table lapanne_emails que /emails/lapanne/rh/ affiche aux RH
+    // mais par la table lapanne_emails que /emails/lapanne/ affiche aux RH
     // (avec le suivi des tickets remis). Une inscription faite depuis la BORNE
     // ou le TÉLÉPHONE doit donc y atterrir elle aussi — sans ça, les RH ne
-    // verraient que les saisies faites sur /emails/lapanne/ et rateraient tous
+    // verraient que les saisies faites a la main et rateraient tous
     // ceux qui se sont inscrits par le quiz.
     if ($SITE === 'lapanne') { lapanneCollecte(famiDb(), $prenom, $nom, $email); }
 
