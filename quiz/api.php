@@ -1060,6 +1060,12 @@ function recompenseCodesEnsure($db) {
          INDEX idx_libre (attribue_a, id)
        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci"
     );
+    // Le magasin est ajouté après coup : le stock est commun aux deux, mais
+    // savoir d'où part chaque bon aide les RH à s'y retrouver.
+    $c = $db->query("SHOW COLUMNS FROM recompense_codes LIKE 'site'");
+    if ($c && !$c->fetch()) {
+      $db->exec("ALTER TABLE recompense_codes ADD COLUMN site VARCHAR(20) NULL AFTER motif");
+    }
     return true;
   } catch (Throwable $e) { return false; }
 }
@@ -1088,6 +1094,7 @@ function recompenseCodeExistant($db, $cle) {
 // lancés en même temps par les RH liraient la même ligne « libre » et
 // repartiraient avec le MÊME code. Le verrou fait attendre le second.
 function recompenseAttribue($db, $cle, $nom, $email, $motif) {
+  global $SITE;
   if (!($db instanceof PDO)) { return null; }
   recompenseCodesEnsure($db);
   try {
@@ -1098,9 +1105,10 @@ function recompenseAttribue($db, $cle, $nom, $email, $motif) {
     if (!$code) { $db->rollBack(); return null; }   // stock épuisé
     $db->prepare(
       'UPDATE recompense_codes
-          SET attribue_a = ?, attribue_nom = ?, attribue_email = ?, attribue_le = NOW(), motif = ?
+          SET attribue_a = ?, attribue_nom = ?, attribue_email = ?, attribue_le = NOW(), motif = ?, site = ?
         WHERE id = ?'
-    )->execute([(string) $cle, (string) $nom, (string) $email, (string) $motif, (int) $code['id']]);
+    )->execute([(string) $cle, (string) $nom, (string) $email, (string) $motif,
+                (string) ($SITE ?? ''), (int) $code['id']]);
     $db->commit();
     return $code;
   } catch (Throwable $e) {
@@ -3216,7 +3224,62 @@ switch ($action) {
     break;
   }
 
-  case 'rh_mail': {
+  // 🎟️ L'ÉTAT DU STOCK ET LES BONS DÉJÀ DONNÉS.
+//
+// Action séparée de rh_liste, volontairement : rh_liste sert AUSSI à valider le
+// mot de passe RH, et tout ce qui peut échouer dedans empêche d'ENTRER. Ici, une
+// base indisponible ne prive que d'un onglet.
+//
+// Pas de filtre par magasin : le stock est commun aux deux, et un bon donné à
+// Mouscron reste un bon en moins pour La Panne. Le magasin est affiché sur
+// chaque ligne, pour s'y retrouver sans découper les chiffres.
+case 'rh_recompenses': {
+  exigeRh($input);
+  $dbr = famiDb();
+  if (!($dbr instanceof PDO)) {
+    echo json_encode(['ok' => false, 'reason' => 'base_indisponible']);
+    break;
+  }
+  recompenseCodesEnsure($dbr);
+  $libres = 0; $donnes = 0; $lignes = [];
+  try {
+    $libres = (int) $dbr->query('SELECT COUNT(*) FROM recompense_codes WHERE attribue_a IS NULL')->fetchColumn();
+    $donnes = (int) $dbr->query('SELECT COUNT(*) FROM recompense_codes WHERE attribue_a IS NOT NULL')->fetchColumn();
+    $lignes = $dbr->query(
+      'SELECT id, code_id, barcode, attribue_a, attribue_nom, attribue_email, attribue_le, motif, site
+         FROM recompense_codes
+        WHERE attribue_a IS NOT NULL
+        ORDER BY attribue_le DESC, id DESC
+        LIMIT 500'
+    )->fetchAll(PDO::FETCH_ASSOC);
+  } catch (Throwable $e) { /* onglet vide plutôt qu'une erreur */ }
+  echo json_encode(['ok' => true, 'libres' => $libres, 'donnes' => $donnes, 'lignes' => $lignes], JSON_UNESCAPED_UNICODE);
+  break;
+}
+
+// 🎟️ Remet un bon dans le stock (attribué par erreur, mail jamais reçu…).
+// La personne redevient éligible : c'est le SEUL moyen de lui renvoyer le mail,
+// puisqu'un code déjà attribué bloque tout second envoi.
+case 'rh_code_liberer': {
+  exigeRh($input);
+  $dbr = famiDb();
+  $id = (int) ($input['id'] ?? 0);
+  if (!($dbr instanceof PDO) || $id <= 0) { echo json_encode(['ok' => false]); break; }
+  try {
+    $dbr->prepare(
+      'UPDATE recompense_codes
+          SET attribue_a = NULL, attribue_nom = NULL, attribue_email = NULL,
+              attribue_le = NULL, motif = NULL, site = NULL
+        WHERE id = ?'
+    )->execute([$id]);
+    echo json_encode(['ok' => true]);
+  } catch (Throwable $e) {
+    echo json_encode(['ok' => false]);
+  }
+  break;
+}
+
+case 'rh_mail': {
     exigeRh($input);
     $db = famiDb();
     if (!$db) { http_response_code(503); echo json_encode(['ok' => false, 'reason' => 'base_indisponible']); break; }
