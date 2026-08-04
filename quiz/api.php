@@ -2286,23 +2286,28 @@ function mailRecompense(PDO $db, $cle, $info, $modele = 'attente', $origine = 'a
     $sujet = msgTexte($estPodium ? 'mail_prete_podium_sujet' : 'mail_prete_jardin_sujet');
     $corps = msgTexte($estPodium ? 'mail_prete_podium_corps' : 'mail_prete_jardin_corps');
 
-    // 🎟️ UN CODE, UNE PERSONNE.
+    // 🎟️ LE BON CADEAU NE CONCERNE QUE LE JARDIN TERMINÉ.
     //
-    // Si cette personne a déjà reçu son code, on n'envoie RIEN : le mail
-    // contiendrait un second bon cadeau, et le premier resterait valable.
-    // Le compte de test échappe à la règle, il sert à vérifier l'envoi.
-    $dejaCode = recompenseCodeExistant($db, $cle);
-    if ($dejaCode && !estCompteAdminTest($cle)) {
-      return false;
-    }
+    // Le stock de codes est réservé aux jardins ; le podium a ses propres lots,
+    // remis en main propre. Un mail de podium part donc SANS code, exactement
+    // comme avant — et n'est pas bloqué par la règle du code unique.
+    if (!$estPodium) {
+      // Un code, une personne : si elle a déjà le sien, on n'envoie RIEN. Le
+      // mail contiendrait un second bon alors que le premier reste valable.
+      // Le compte de test échappe à la règle, il sert à vérifier l'envoi.
+      $dejaCode = recompenseCodeExistant($db, $cle);
+      if ($dejaCode && !estCompteAdminTest($cle)) {
+        return false;
+      }
 
-    $code = recompenseAttribue($db, $cle, $bonjour, $email, $estPodium ? 'podium' : 'jardin');
-    if (!$code) {
-      // Stock épuisé : on n'envoie pas un mail « c'est prêt » sans le bon.
-      // Mieux vaut que les RH voient l'envoi échouer et rechargent des codes.
-      return false;
+      $code = recompenseAttribue($db, $cle, $bonjour, $email, 'jardin');
+      if (!$code) {
+        // Stock épuisé : on n'envoie pas un mail « c'est prêt » sans le bon.
+        // Mieux vaut que les RH voient l'envoi échouer et rechargent des codes.
+        return false;
+      }
+      $codeRecompense = $code;
     }
-    $codeRecompense = $code;
   }
 
   // Une ligne du message = un paragraphe. Les lignes vides sont ignorées, pour
