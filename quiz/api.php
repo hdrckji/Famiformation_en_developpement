@@ -1033,6 +1033,92 @@ function borneEvenement($db, $site, $ecran, $type, $joueur = null, $score = null
   }
 }
 
+// 🎟️ CODES RÉCOMPENSE (bons cadeaux).
+//
+// Le stock vient de recompense-codes.sql (importé de Test_Enlyson.xlsx). Un code
+// part avec le mail « ta récompense est prête » et devient définitivement celui
+// de cette personne : UN code par personne, jamais deux.
+//
+// Le compte de test fait exception — voir estCompteAdminTest().
+
+function recompenseCodesEnsure($db) {
+  if (!($db instanceof PDO)) { return false; }
+  try {
+    $db->exec(
+      "CREATE TABLE IF NOT EXISTS recompense_codes (
+         id INT AUTO_INCREMENT PRIMARY KEY,
+         code_id VARCHAR(30) NOT NULL,
+         barcode VARCHAR(60) NOT NULL,
+         attribue_a VARCHAR(80) NULL,
+         attribue_nom VARCHAR(120) NULL,
+         attribue_email VARCHAR(190) NULL,
+         attribue_le DATETIME NULL,
+         motif VARCHAR(20) NULL,
+         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+         UNIQUE KEY uniq_barcode (barcode),
+         INDEX idx_attribue (attribue_a),
+         INDEX idx_libre (attribue_a, id)
+       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci"
+    );
+    return true;
+  } catch (Throwable $e) { return false; }
+}
+
+// Le compte de test peut recevoir plusieurs codes : il sert justement à
+// vérifier l'envoi. Tous les autres sont limités à un seul.
+function estCompteAdminTest($cle) {
+  return stripos(trim((string) $cle), 'admin_') === 0;
+}
+
+// Le code déjà attribué à quelqu'un, ou null. C'est ce qui bloque un second
+// envoi : si la personne a déjà son code, il n'y a plus rien à envoyer.
+function recompenseCodeExistant($db, $cle) {
+  if (!($db instanceof PDO)) { return null; }
+  try {
+    $st = $db->prepare('SELECT * FROM recompense_codes WHERE attribue_a = ? ORDER BY id DESC LIMIT 1');
+    $st->execute([(string) $cle]);
+    $r = $st->fetch(PDO::FETCH_ASSOC);
+    return $r ?: null;
+  } catch (Throwable $e) { return null; }
+}
+
+// Réserve le plus ancien code libre pour cette personne.
+//
+// SELECT ... FOR UPDATE dans une transaction : sans ce verrou, deux envois
+// lancés en même temps par les RH liraient la même ligne « libre » et
+// repartiraient avec le MÊME code. Le verrou fait attendre le second.
+function recompenseAttribue($db, $cle, $nom, $email, $motif) {
+  if (!($db instanceof PDO)) { return null; }
+  recompenseCodesEnsure($db);
+  try {
+    $db->beginTransaction();
+    $st = $db->prepare('SELECT * FROM recompense_codes WHERE attribue_a IS NULL ORDER BY id ASC LIMIT 1 FOR UPDATE');
+    $st->execute();
+    $code = $st->fetch(PDO::FETCH_ASSOC);
+    if (!$code) { $db->rollBack(); return null; }   // stock épuisé
+    $db->prepare(
+      'UPDATE recompense_codes
+          SET attribue_a = ?, attribue_nom = ?, attribue_email = ?, attribue_le = NOW(), motif = ?
+        WHERE id = ?'
+    )->execute([(string) $cle, (string) $nom, (string) $email, (string) $motif, (int) $code['id']]);
+    $db->commit();
+    return $code;
+  } catch (Throwable $e) {
+    try { if ($db->inTransaction()) { $db->rollBack(); } } catch (Throwable $e2) {}
+    return null;
+  }
+}
+
+// L'adresse publique de l'image code-barres, pour le mail. Les clients mail
+// n'affichent pas de SVG : code-barre.php renvoie un PNG.
+function recompenseUrlCodeBarre($barcode) {
+  $hote = (string) ($_SERVER['HTTP_HOST'] ?? '');
+  // Les envois automatiques n'ont pas de requête HTTP : on retombe sur le
+  // domaine public, sinon l'image du mail pointerait dans le vide.
+  if ($hote === '' || strpos($hote, 'localhost') !== false) { $hote = 'www.famiformation.com'; }
+  return 'https://' . $hote . '/quiz/code-barre.php?c=' . rawurlencode((string) $barcode);
+}
+
 // 📧 COLLECTE DES ADRESSES DE LA PANNE, DEPUIS LE QUIZ.
 //
 // La table lapanne_emails est celle de public/emails/lapanne/_lapanne.php, qui
@@ -2191,6 +2277,24 @@ function mailRecompense(PDO $db, $cle, $info, $modele = 'attente', $origine = 'a
     // c'est qu'elle est prête et où la chercher.
     $sujet = msgTexte($estPodium ? 'mail_prete_podium_sujet' : 'mail_prete_jardin_sujet');
     $corps = msgTexte($estPodium ? 'mail_prete_podium_corps' : 'mail_prete_jardin_corps');
+
+    // 🎟️ UN CODE, UNE PERSONNE.
+    //
+    // Si cette personne a déjà reçu son code, on n'envoie RIEN : le mail
+    // contiendrait un second bon cadeau, et le premier resterait valable.
+    // Le compte de test échappe à la règle, il sert à vérifier l'envoi.
+    $dejaCode = recompenseCodeExistant($db, $cle);
+    if ($dejaCode && !estCompteAdminTest($cle)) {
+      return false;
+    }
+
+    $code = recompenseAttribue($db, $cle, $bonjour, $email, $estPodium ? 'podium' : 'jardin');
+    if (!$code) {
+      // Stock épuisé : on n'envoie pas un mail « c'est prêt » sans le bon.
+      // Mieux vaut que les RH voient l'envoi échouer et rechargent des codes.
+      return false;
+    }
+    $codeRecompense = $code;
   }
 
   // Une ligne du message = un paragraphe. Les lignes vides sont ignorées, pour
@@ -2202,9 +2306,28 @@ function mailRecompense(PDO $db, $cle, $info, $modele = 'attente', $origine = 'a
     $paragraphes .= '<p style="font-size:16px;line-height:1.6;">' . $ligne . '</p>';
   }
 
+  // 🎟️ LE BON CADEAU. Le code est écrit EN TOUTES LETTRES en plus du
+  // code-barres : la plupart des clients mail bloquent les images distantes par
+  // défaut, et un bon illisible ne sert à rien. La caisse peut donc le saisir à
+  // la main si l'image ne s'affiche pas.
+  $blocCode = '';
+  if (!empty($codeRecompense)) {
+    $bar = (string) $codeRecompense['barcode'];
+    $blocCode =
+      '<div style="margin:24px 0;padding:20px;border:2px dashed #d6a21a;border-radius:14px;background:#fffbf0;text-align:center;">'
+      . '<div style="font-size:13px;font-weight:bold;color:#8a6d1a;letter-spacing:.06em;text-transform:uppercase;">Ton bon cadeau</div>'
+      . '<div style="margin:12px 0 6px;"><img src="' . htmlspecialchars(recompenseUrlCodeBarre($bar), ENT_QUOTES, 'UTF-8')
+      . '" alt="' . htmlspecialchars($bar, ENT_QUOTES, 'UTF-8') . '" width="300" style="max-width:100%;height:auto;"></div>'
+      . '<div style="font-family:monospace;font-size:19px;font-weight:bold;color:#244230;letter-spacing:.04em;">'
+      . htmlspecialchars($bar, ENT_QUOTES, 'UTF-8') . '</div>'
+      . '<div style="margin-top:10px;font-size:13px;color:#617268;">Présente ce code en caisse. Il est personnel et utilisable une seule fois.</div>'
+      . '</div>';
+  }
+
   $body = '<div style="font-family:Arial,sans-serif;color:#244230;max-width:560px;margin:0 auto;padding:24px;">'
     . '<p style="font-size:16px;">Bonjour ' . htmlspecialchars($bonjour, ENT_QUOTES, 'UTF-8') . ',</p>'
     . $paragraphes
+    . $blocCode
     . '<p style="font-size:16px;line-height:1.6;">Une question&nbsp;? Écris à <a href="mailto:admin@famiformation.com">admin@famiformation.com</a>.</p>'
     . '<p style="font-size:15px;color:#617268;">Merci d\'avoir joué, et à bientôt&nbsp;! 🌱<br>L\'équipe Famiflora · Famiformation</p></div>';
   $ok = function_exists('sendMail') ? sendMail($email, $sujet, $body, true) : false;
