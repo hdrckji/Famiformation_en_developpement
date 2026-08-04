@@ -981,6 +981,58 @@ function pousseVersForm($prenom, $nom, $email) {
   return $code === 200 && $rep !== false;
 }
 
+// 📊 STATISTIQUES D'USAGE PAR ÉCRAN (borne, télé, code, téléphone).
+//
+// Le client calcule déjà l'écran depuis l'URL (/quiz/mouscron/borne → « borne »)
+// et le transmet désormais à chaque appel. On enregistre ici les deux moments
+// qui comptent : une inscription et une participation au quiz.
+//
+// Pourquoi la base et pas les fichiers du quiz : ces chiffres se croisent avec
+// utilisateurs et widget_sites (qui travaille où, quel magasin), ce qu'un
+// fichier JSON ne permet pas. La page /admin_borne.php les lit directement.
+//
+// Volontairement NON BLOQUANT, comme lapanneCollecte() : une statistique
+// perdue est sans conséquence, une inscription perdue non.
+
+function ecranDe($input) {
+  $connus = ['borne', 'tele', 'code', 'user'];
+  $e = strtolower(trim((string)($input['ecran'] ?? $_GET['ecran'] ?? '')));
+  // Écran inconnu ou absent (ancienne version du client encore en cache sur une
+  // borne) : on retient « user » plutôt que de refuser l'enregistrement.
+  return in_array($e, $connus, true) ? $e : 'user';
+}
+
+function borneEvenement($db, $site, $ecran, $type, $joueur = null, $score = null) {
+  if (!($db instanceof PDO)) { return false; }
+  try {
+    $db->exec(
+      "CREATE TABLE IF NOT EXISTS quiz_borne_events (
+         id INT AUTO_INCREMENT PRIMARY KEY,
+         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+         site VARCHAR(20) NOT NULL,
+         ecran VARCHAR(10) NOT NULL,
+         type VARCHAR(20) NOT NULL,
+         joueur VARCHAR(60) NULL,
+         score DECIMAL(6,1) NULL,
+         INDEX idx_borne_date (created_at),
+         INDEX idx_borne_site (site, ecran)
+       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci"
+    );
+    $st = $db->prepare(
+      'INSERT INTO quiz_borne_events (site, ecran, type, joueur, score) VALUES (?, ?, ?, ?, ?)'
+    );
+    return $st->execute([
+      (string) $site,
+      (string) $ecran,
+      (string) $type,
+      $joueur !== null ? mb_substr((string) $joueur, 0, 60) : null,
+      $score !== null ? (float) $score : null,
+    ]);
+  } catch (Throwable $e) {
+    return false;
+  }
+}
+
 // 📧 COLLECTE DES ADRESSES DE LA PANNE, DEPUIS LE QUIZ.
 //
 // La table lapanne_emails est celle de public/emails/lapanne/_lapanne.php, qui
@@ -2421,6 +2473,15 @@ switch ($action) {
       echo json_encode(['error' => 'nom_pris']);
       break;
     }
+
+    // 📊 Trace de la participation, avec l'écran d'où elle vient.
+    // Volontairement APRÈS le test de conflit et hors du cas « deja » : on ne
+    // compte que les parties réellement enregistrées, sinon un joueur qui
+    // rouvre sa page gonflerait les chiffres à chaque fois.
+    if (empty($res['deja'])) {
+      borneEvenement(famiDb(), $SITE, ecranDe($input), 'participation', $name, $entree['score']);
+    }
+
     echo json_encode($res['board'], JSON_UNESCAPED_UNICODE);
     break;
   }
@@ -2709,6 +2770,9 @@ switch ($action) {
     // verraient que les saisies faites sur /emails/lapanne/ et rateraient tous
     // ceux qui se sont inscrits par le quiz.
     if ($SITE === 'lapanne') { lapanneCollecte(famiDb(), $prenom, $nom, $email); }
+
+    // 📊 Trace de l'inscription, avec l'écran d'où elle vient.
+    borneEvenement(famiDb(), $SITE, ecranDe($input), 'inscription', $prenom . ' ' . $nom);
 
     // Compte créé + mail envoyé (le seul cas « déjà donné ton mail » vient de la
     // base : compte en attente → on renvoie le lien, géré plus haut).

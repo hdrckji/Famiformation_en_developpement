@@ -1276,7 +1276,7 @@ let QUESTIONS = [
 // et la borne peuvent rester bloquées sur d'anciennes données (classement, codes
 // restants, questions…) alors que l'admin vient de changer quelque chose.
 function fetchFrais(action) {
-  return fetch(`${CONFIG.api}?site=${SITE}&action=${action}&_=${Date.now()}`, { cache: "no-store" });
+  return fetch(`${CONFIG.api}?site=${SITE}&ecran=${ECRAN}&action=${action}&_=${Date.now()}`, { cache: "no-store" });
 }
 async function apiGetBoard() {
   // En simulation : on lit le vrai classement UNE fois (pour un décor réaliste),
@@ -1292,7 +1292,7 @@ async function apiGetBoard() {
 }
 async function apiCheckName(name) {
   if (SIMULATION) return board.some((p) => p.name.toLowerCase() === name.toLowerCase());
-  const r = await fetch(`${CONFIG.api}?site=${SITE}&action=check`, {
+  const r = await fetch(`${CONFIG.api}?site=${SITE}&ecran=${ECRAN}&action=check`, {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name }),
   });
@@ -1302,7 +1302,7 @@ async function apiClaimCode(code, name) {
   if (SIMULATION) {
     return code === "FAMI-TEST" ? { ok: true } : { ok: false, reason: "inconnu" };
   }
-  const r = await fetch(`${CONFIG.api}?site=${SITE}&action=claim`, {
+  const r = await fetch(`${CONFIG.api}?site=${SITE}&ecran=${ECRAN}&action=claim`, {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ code, name }),
   });
@@ -1364,7 +1364,7 @@ async function apiSubmit(entry) {
   for (let essai = 0; essai < attentes.length; essai++) {
     if (attentes[essai]) { await new Promise((r) => setTimeout(r, attentes[essai])); }
     try {
-      const r = await fetch(`${CONFIG.api}?site=${SITE}&action=submit`, {
+      const r = await fetch(`${CONFIG.api}?site=${SITE}&ecran=${ECRAN}&action=submit`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         // Le jeton prouve que c'est bien MON compte (les comptes Famiformation n'ont
         // pas de code jardinier : sans jeton, le serveur refuse d'écrire sous ce nom).
@@ -1383,7 +1383,7 @@ async function apiSubmit(entry) {
 // 🔑 SE CONNECTER avec son compte Famiformation (identifiant OU email + mot de
 // passe). Renvoie un jeton de session + l'état de jeu du joueur.
 async function apiLoginFami(identifiant, mdp) {
-  const r = await fetch(`${CONFIG.api}?site=${SITE}&action=login_fami`, {
+  const r = await fetch(`${CONFIG.api}?site=${SITE}&ecran=${ECRAN}&action=login_fami`, {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ identifiant, mdp }),
   });
@@ -1391,7 +1391,7 @@ async function apiLoginFami(identifiant, mdp) {
 }
 // 👤 Reprendre sa session à partir du jeton mémorisé (au chargement de la page).
 async function apiMoi(jeton) {
-  const r = await fetch(`${CONFIG.api}?site=${SITE}&action=moi`, {
+  const r = await fetch(`${CONFIG.api}?site=${SITE}&ecran=${ECRAN}&action=moi`, {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ jeton }),
   });
@@ -1401,7 +1401,7 @@ async function apiMoi(jeton) {
 // lien de connexion tout de suite, ET recopie l'inscription dans le Google Form
 // (côté serveur) pour que l'accueil garde sa feuille.
 async function apiInscriptionFami(prenom, nom, email) {
-  const r = await fetch(`${CONFIG.api}?site=${SITE}&action=inscription_fami`, {
+  const r = await fetch(`${CONFIG.api}?site=${SITE}&ecran=${ECRAN}&action=inscription_fami`, {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ prenom, nom, email }),
   });
@@ -1418,7 +1418,7 @@ async function apiLoginJoueur(name, code) {
     if ((p.code || "") !== code) return { exists: true, mauvais_code: true };
     return { exists: true, name: p.name, recoltees: p.score, solde: p.score + (p.bonus || 0) - (p.depensees || 0), nbCodes: (p.codes_pris || []).length, quiz_fait: p.quiz_fait !== false };
   }
-  const r = await fetch(`${CONFIG.api}?site=${SITE}&action=login_joueur`, {
+  const r = await fetch(`${CONFIG.api}?site=${SITE}&ecran=${ECRAN}&action=login_joueur`, {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, code }),
   });
   return await r.json();
@@ -1434,7 +1434,7 @@ async function apiRegister(name, code, nom, prenom) {
     board.push({ name, code, nom: nom || "", prenom: prenom || "", score: 0, bonus: 0, depensees: 0, correct: 0, codes: 0, codes_pris: [], time: 0, quiz_fait: false, date: new Date().toISOString() });
     return { ok: true, exist: false, name, quiz_fait: false, recoltees: 0, solde: 0, nbCodes: 0 };
   }
-  const r = await fetch(`${CONFIG.api}?site=${SITE}&action=register`, {
+  const r = await fetch(`${CONFIG.api}?site=${SITE}&ecran=${ECRAN}&action=register`, {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, code, nom: nom || "", prenom: prenom || "" }),
   });
   if (r.status === 409) return { pris: true };
@@ -1450,7 +1450,7 @@ async function apiCodeStatus(bonuscode, name) {
     return { connu: /^FAMI-/i.test(bonuscode), pris: (window.__simCodes || new Set()).has(bc),
              parMoi: !!(p && (p.codes_pris || []).includes(bc)) };
   }
-  const r = await fetch(`${CONFIG.api}?site=${SITE}&action=code_status`, {
+  const r = await fetch(`${CONFIG.api}?site=${SITE}&ecran=${ECRAN}&action=code_status`, {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ bonuscode, name: name || "" }),
   });
   return await r.json();
@@ -1470,7 +1470,7 @@ async function apiCodeClaim(name, code, bonuscode) {
     window.__simCodes.add(bc); p.codes_pris.push(bc); p.codes = p.codes_pris.length; p.score += CONFIG.pointsParCodeBonus;
     return { ok: true, gagne: CONFIG.pointsParCodeBonus, recoltees: p.score, solde: p.score + (p.bonus || 0) - (p.depensees || 0), nbCodes: p.codes };
   }
-  const r = await fetch(`${CONFIG.api}?site=${SITE}&action=code_claim`, {
+  const r = await fetch(`${CONFIG.api}?site=${SITE}&ecran=${ECRAN}&action=code_claim`, {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name, code, bonuscode, jeton: (joueur && joueur.jeton) || "" }),
   });
@@ -1479,7 +1479,7 @@ async function apiCodeClaim(name, code, bonuscode) {
 // 🌼 Le jardin collectif
 async function apiPlantes() {
   try {
-    const r = await fetch(`${CONFIG.api}?site=${SITE}&action=plantes`);
+    const r = await fetch(`${CONFIG.api}?site=${SITE}&ecran=${ECRAN}&action=plantes`);
     return r.ok ? await r.json() : null;
   } catch { return null; }
 }
@@ -1496,7 +1496,7 @@ async function apiJardin() {
   if (SIMULATION) return jardin || {};   // en simu, la grille en mémoire du joueur courant
   const name = joueur ? joueur.name : "";
   try {
-    const r = await fetch(`${CONFIG.api}?site=${SITE}&action=jardin`, {
+    const r = await fetch(`${CONFIG.api}?site=${SITE}&ecran=${ECRAN}&action=jardin`, {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }),
     });
     return r.ok ? ((await r.json()).cases || {}) : {};
@@ -1509,7 +1509,7 @@ async function apiSolde(name) {
       ? { exists: true, name: p.name, recoltees: p.score, depensees: p.depensees || 0, solde: p.score + (p.bonus || 0) - (p.depensees || 0) }
       : { exists: false };
   }
-  const r = await fetch(`${CONFIG.api}?site=${SITE}&action=solde`, {
+  const r = await fetch(`${CONFIG.api}?site=${SITE}&ecran=${ECRAN}&action=solde`, {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name }),
   });
@@ -1528,7 +1528,7 @@ async function apiPlanter(name, caseIdx, plante) {
     p.depensees = (p.depensees || 0) + cout;
     return { ok: true, solde: solde - cout };
   }
-  const r = await fetch(`${CONFIG.api}?site=${SITE}&action=planter`, {
+  const r = await fetch(`${CONFIG.api}?site=${SITE}&ecran=${ECRAN}&action=planter`, {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name, case: caseIdx, plante }),
   });
@@ -1546,7 +1546,7 @@ async function apiRevendre(name, caseIdx) {
     delete jardin[caseIdx];
     return { ok: true, rendu: cout, solde: p ? p.score + (p.bonus || 0) - (p.depensees || 0) : null };
   }
-  const r = await fetch(`${CONFIG.api}?site=${SITE}&action=revendre`, {
+  const r = await fetch(`${CONFIG.api}?site=${SITE}&ecran=${ECRAN}&action=revendre`, {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name, case: caseIdx }),
   });
@@ -1564,7 +1564,7 @@ async function apiRecolteHerbes(name, herbes) {
     p.bonus = (p.bonus || 0) + gain;
     return { ok: true, gain, solde: p.score + (p.bonus || 0) - (p.depensees || 0) };
   }
-  const r = await fetch(`${CONFIG.api}?site=${SITE}&action=recolte_herbes`, {
+  const r = await fetch(`${CONFIG.api}?site=${SITE}&ecran=${ECRAN}&action=recolte_herbes`, {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name, herbes }),
   });
@@ -1579,7 +1579,7 @@ async function apiQuizJardin(correct) {
     if (p) { p.bonus = (p.bonus || 0) + gain; return { ok: true, gain, solde: p.score + (p.bonus || 0) - (p.depensees || 0) }; }
     return { ok: true, gain, solde: (joueur ? joueur.solde : 0) + gain };
   }
-  const r = await fetch(`${CONFIG.api}?site=${SITE}&action=quiz_jardin`, {
+  const r = await fetch(`${CONFIG.api}?site=${SITE}&ecran=${ECRAN}&action=quiz_jardin`, {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ jeton: (joueur && joueur.jeton) || "", correct }),
   });
