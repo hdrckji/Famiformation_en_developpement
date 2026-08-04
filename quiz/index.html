@@ -501,6 +501,29 @@ body.mode-tele .lang-switch { display: none; }   /* pas sur la télé */
   text-align: left; padding: 14px 18px; border-radius: 18px;
   background: linear-gradient(135deg, #FFF4D6 0%, #FFE7C2 100%);
   border: 2px dashed #E9A93C; box-shadow: 0 6px 20px rgba(233,169,60,.18); }
+/* 🎟️ « C'est quoi un ticket gourmand ? » — petit bouton sous l'encart, qui
+   frémit doucement pour attirer l'œil sans distraire du formulaire. Le
+   tremblement s'arrête au survol et au focus : on ne lit pas confortablement une
+   cible qui bouge quand on s'apprête à cliquer dessus. */
+.ticket-quoi {
+  display: inline-block; margin-top: 8px; align-self: flex-start;
+  font: inherit; font-size: .82rem; font-weight: 800; cursor: pointer;
+  color: var(--foret); background: #FFF3C9; border: 2px solid var(--soleil);
+  border-radius: 999px; padding: 6px 13px;
+  box-shadow: 0 3px 10px rgba(232,196,107,.5);
+  animation: tqFremit 2.6s ease-in-out infinite;
+}
+@keyframes tqFremit {
+  0%, 84%, 100% { transform: rotate(0) scale(1); }
+  87%  { transform: rotate(-3deg) scale(1.05); }
+  91%  { transform: rotate(3deg) scale(1.05); }
+  95%  { transform: rotate(-2deg) scale(1.03); }
+}
+.ticket-quoi:hover, .ticket-quoi:focus-visible { animation-play-state: paused; background: #FFE9A3; }
+/* ♿ Animation coupée pour qui la refuse : le bouton reste visible par sa
+   couleur, il n'a pas besoin de bouger pour se faire remarquer. */
+@media (prefers-reduced-motion: reduce) { .ticket-quoi { animation: none; } }
+
 .insc-ticket-vis { flex: 0 0 auto; width: clamp(58px, 15vw, 78px); }
 .insc-ticket-vis svg { width: 100%; height: auto; display: block; }
 .insc-ticket-txt { display: flex; flex-direction: column; gap: 3px; }
@@ -2731,39 +2754,55 @@ function ticketGlaceSvg(cls = "") {
 }
 
 /* ============================================================
-   🧇 LE TICKET DE LA PANNE — GOURMAND, PAS GLACE.
-   Mouscron offre un ticket glace ; La Panne offre un ticket gourmand. Ce n'est
-   pas qu'une question de mot : le visuel change aussi. On garde la MÊME
-   silhouette de ticket (même cadre, même souche « 1x GRATUIT ») pour qu'il reste
-   immédiatement reconnaissable comme un bon à retirer, mais dans des tons chauds
-   — ambre et caramel plutôt que bleu — avec une gaufre à la place du cornet.
+   🎟️ LE TICKET DE LA PANNE — MÊME DESSIN, AUTRE COULEUR.
+   Mouscron offre un ticket glace, La Panne un ticket gourmand : seul le NOM
+   change, pas le dessin. Le cornet est conservé, il parle tout de suite.
+   La couleur, elle, suit le vrai ticket imprimé du magasin (Ticket gourmand.png,
+   à la racine du dépôt) : VERT, et non le bleu de Mouscron. Teintes relevées
+   directement sur ce fichier — fond #3A9E5C→#1F7A42, contour #0F5B2A.
    ============================================================ */
-// Gaufre : un rectangle arrondi doré, son quadrillage, et une
-// noisette de crème avec une fraise — lisible même réduit à 30 px de large.
-const GAUFRE = `<rect x="120" y="34" width="40" height="40" rx="7" fill="#f0b862" stroke="#5b3218" stroke-width="1.8"></rect>`
-  + `<path d="M133 35 V73 M147 35 V73 M121 47 H159 M121 61 H159" stroke="#a9662a" stroke-width="1.6" stroke-linecap="round"></path>`
-  + `<path d="M123 35 q5 -12 17 -12 q12 0 17 12 Z" fill="#fff6e8" stroke="#5b3218" stroke-width="1.5"></path>`
-  + `<circle cx="140" cy="20" r="5.5" fill="#e05252" stroke="#5b3218" stroke-width="1.5"></circle>`
-  + `<path d="M137 15.5 q3 -4 6 0" stroke="#2f7d32" stroke-width="2" fill="none" stroke-linecap="round"></path>`;
-
 function ticketGourmandSvg(cls = "") {
   return `<svg class="ticket-glace ${cls}" viewBox="0 0 170 104" xmlns="http://www.w3.org/2000/svg">
-    <defs><linearGradient id="gourmTgJ" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f6c26b"/><stop offset="1" stop-color="#b5651d"/></linearGradient></defs>
-    <rect x="2" y="2" width="166" height="100" rx="12" fill="url(#gourmTgJ)" stroke="#5b3218" stroke-width="3"></rect>
-    <rect x="10" y="12" width="106" height="80" rx="7" fill="#fff" stroke="#5b3218" stroke-width="1.6"></rect>
+    <defs><linearGradient id="gourmTgJ" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5BC37E"/><stop offset="1" stop-color="#1F7A42"/></linearGradient></defs>
+    <rect x="2" y="2" width="166" height="100" rx="12" fill="url(#gourmTgJ)" stroke="#0F5B2A" stroke-width="3"></rect>
+    <rect x="10" y="12" width="106" height="80" rx="7" fill="#fff" stroke="#0F5B2A" stroke-width="1.6"></rect>
     <text x="24" y="52" font-family="Arial,sans-serif" font-size="34" font-weight="900" fill="#1c1c1c" font-style="italic">1x</text>
     <text x="18" y="72" font-family="Arial,sans-serif" font-size="15" font-weight="900" fill="#1c1c1c" font-style="italic">GRATUIT</text>
-    ${GAUFRE}</svg>`;
+    <path d="M118 60 L152 60 L135 98 Z" fill="#e8a94a" stroke="#0F5B2A" stroke-width="1.5"></path>
+    <path d="M116 58 C110 40 118 26 128 24 C126 12 146 8 150 20 C160 18 166 30 158 38 C166 44 158 58 150 56 Z" fill="#fdf6e6" stroke="#0F5B2A" stroke-width="1.6"></path></svg>`;
 }
 
 // 🏬 Le bon ticket selon le magasin. Tout ce qui affiche un ticket passe par ici,
 // pour qu'on n'ait jamais un visuel de glace d'un côté et un mot « gourmand » de
 // l'autre.
 function estGourmand() { return SITE === "lapanne"; }
+
+// 🎟️ « C'est quoi un ticket gourmand ? » — la question que les gens posent à
+// l'accueil. Y répondre AVANT l'inscription évite d'avoir à l'expliquer vingt
+// fois par jour au comptoir.
+function modaleTicketQuoi() {
+  if (document.querySelector(".modal-fond")) return;
+  const o = document.createElement("div");
+  o.className = "modal-fond";
+  o.innerHTML = `<div class="modal code-modal">
+    <div class="cm-emoji">😃</div>
+    <h2 class="cm-titre">${t("C'est quoi un " + motTicket() + " ?", "Wat is een " + motTicket() + "?")}</h2>
+    <div style="margin:4px auto 14px; width:min(190px,60%);">${ticketSvg()}</div>
+    <p class="cm-sous">${t("Il te permet de prendre <b>une glace</b> ou <b>une gaufre</b> au food truck <b>Fami Resto</b>, offert par la maison 🍦🧇", "Ermee krijg je <b>een ijsje</b> of <b>een wafel</b> bij de foodtruck <b>Fami Resto</b>, van het huis 🍦🧇")}</p>
+    <p class="cm-sous">${t("Tu le retires à l'accueil du magasin après ton inscription.", "Je haalt het op aan het onthaal van de winkel na je inschrijving.")}</p>
+    <button class="btn" id="cm-ok" style="min-width:180px;">${t("Super, merci ! 😋", "Top, bedankt! 😋")}</button>
+  </div>`;
+  document.body.appendChild(o);
+  const ferme = () => o.remove();
+  o.querySelector("#cm-ok").addEventListener("click", ferme);
+  o.addEventListener("click", (e) => { if (e.target === o) ferme(); });
+}
 function ticketSvg(cls = "") { return estGourmand() ? ticketGourmandSvg(cls) : ticketGlaceSvg(cls); }
 // Le nom du ticket, décliné pour les phrases où il apparaît.
 function motTicket() { return estGourmand() ? t("ticket gourmand", "lekkerbekticket") : t("ticket glace", "ijsjesticket"); }
-function emojiTicket() { return estGourmand() ? "🧇" : "🍦"; }
+// Le même emoji partout : le dessin du ticket est un cornet dans les deux
+// magasins, un 🧇 à côté d'un cornet donnerait deux messages différents.
+function emojiTicket() { return "🍦"; }
 
 // Ce qui s'affiche dans une case : fleur métallique (rares), arbre à tickets glace,
 // sinon l'emoji de la plante.
@@ -3270,7 +3309,7 @@ const INFOS = {
         <div class="info-steps">
           <div class="info-step"><div class="is-num">📇</div><div class="is-txt"><b>Prénom, nom, e-mail</b> — pour créer ton accès Famiformation, t'envoyer ton lien de connexion, et pouvoir te remettre ta récompense si tu gagnes.</div></div>
           <div class="info-step"><div class="is-num">🔑</div><div class="is-txt"><b>Identifiant et mot de passe</b> — pour te connecter. Ton mot de passe est <b>chiffré (haché)</b> : personne ne peut le lire.</div></div>
-          <div class="info-step"><div class="is-num">🌰</div><div class="is-txt"><b>Résultats du quiz, jardin, pseudo éventuel</b> — pour faire fonctionner le jeu et le classement.</div></div>
+          <div class="info-step"><div class="is-num">🌰</div><div class="is-txt"><b>Résultats des épreuves, jardin, pseudo éventuel</b> — pour faire fonctionner le jeu et le classement.</div></div>
         </div>
         <h3 class="info-h2">À qui elles sont transmises</h3>
         <div class="info-note">${estGourmand()
@@ -3365,9 +3404,10 @@ function renderInscription() {
       <div class="insc-ticket-vis">${ticketSvg()}</div>
       <div class="insc-ticket-txt">
         <b>${estGourmand()
-          ? t("En t'inscrivant, tu reçois un ticket gourmand <span class=\"it-gratuit\">GRATUIT</span> ! 🧇", "Bij inschrijving krijg je een <span class=\"it-gratuit\">GRATIS</span> lekkerbekticket! 🧇")
+          ? t("En t'inscrivant, tu reçois un ticket gourmand <span class=\"it-gratuit\">GRATUIT</span> ! 🍦", "Bij inschrijving krijg je een <span class=\"it-gratuit\">GRATIS</span> lekkerbekticket! 🍦")
           : t("En t'inscrivant, tu reçois un ticket glace <span class=\"it-gratuit\">GRATUIT</span> ! 🍦", "Bij inschrijving krijg je een <span class=\"it-gratuit\">GRATIS</span> ijsjesticket! 🍦")}</b>
         <span>${t("Un cadeau de bienvenue, à retirer à l'accueil du magasin.", "Een welkomstcadeau, af te halen aan het onthaal van de winkel.")}</span>
+        <button type="button" class="ticket-quoi" id="insc-quoi">${t("C'est quoi un " + motTicket() + " ?", "Wat is een " + motTicket() + "?")}</button>
       </div>
     </div>
 
@@ -3411,6 +3451,10 @@ function renderInscription() {
       <a href="#" class="lien-explik" id="ci-retour">${t("◂ Retour à l'accueil", "◂ Terug naar het beginscherm")}</a>
     </div>
   </div>`;
+
+  // « C'est quoi un ticket … ? » — la petite pastille sous l'encart du ticket.
+  const bq = $("#insc-quoi");
+  if (bq) bq.addEventListener("click", modaleTicketQuoi);
 
   const err = (txt) => { $("#ci-err").innerHTML = `<div class="alert">${esc(txt)}</div>`; };
   const go = async () => {
