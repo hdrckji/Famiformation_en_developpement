@@ -10,7 +10,15 @@ verifierConnexion($db);
 require_once 'includes/widget.php';   // widget du ruban (météo/date/phrases qui défilent)
 
 $role = function_exists('getCurrentRole') ? getCurrentRole() : ($_SESSION['role'] ?? '');
-if ($role !== 'beta') {
+// 🏬 DEUX BÊTAS SUR CETTE PAGE.
+//   • « beta »        : la bêta d'origine — Onboarding, Magasin, et le quiz.
+//   • « betalapanne » : les inscrits du quiz de La Panne. MÊME page, mais
+//     UNIQUEMENT la tuile « Quiz & mon espace jardin » : les modules de la bêta
+//     classique ne les concernent pas.
+// On partage la page plutôt que d'en dupliquer une : le ruban, le thème et
+// l'en-tête sont identiques, et une copie aurait divergé au premier changement.
+$betaLaPanne = ($role === 'betalapanne');
+if ($role !== 'beta' && !$betaLaPanne) {
     header('Location: index.php');
     exit();
 }
@@ -163,6 +171,9 @@ $userPhoto = $_SESSION['photo_profil'] ?? null;
     </div>
 
     <div class="tiles-container">
+        <?php // 🏬 Modules de la bêta CLASSIQUE : masqués pour « betalapanne »,
+              // qui ne doit voir que le quiz et son jardin. ?>
+        <?php if (!$betaLaPanne): ?>
         <a href="<?= $idOnboarding ? 'module.php?id=' . $idOnboarding : 'gestion-beta.php' ?>" class="tile">
             <span class="tile-icon">🚀</span>
             <div class="tile-title"><?= t('Onboarding', 'Onboarding') ?></div>
@@ -174,6 +185,7 @@ $userPhoto = $_SESSION['photo_profil'] ?? null;
             <div class="tile-title"><?= t('Magasin', 'Winkel') ?></div>
             <div class="tile-desc"><?= t("Les rayons du magasin — commence par la Caisse.", "De afdelingen van de winkel — begin bij de kassa.") ?></div>
         </a>
+        <?php endif; ?>
 
         <?php // 🌱 Le jeu est ouvert à TOUT LE MONDE, profil beta compris : les
               // beta ne passent jamais par index.php, la tuile doit donc être ici

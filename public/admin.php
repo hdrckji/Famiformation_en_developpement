@@ -446,6 +446,7 @@ $users = $db->query($query_str)->fetchAll();
                 <input type="password" name="new_password" placeholder="Mot de passe (optionnel)" class="input-mini">
                 <select name="new_role" id="new_role" class="input-mini" required>
                     <option value="beta" <?php if ($createForm['new_role'] === 'beta') echo 'selected'; ?>>Beta 🧪</option>
+                    <option value="betalapanne" <?php if ($createForm['new_role'] === 'betalapanne') echo 'selected'; ?>>Beta La Panne 🌊</option>
                     <option value="etudiant" <?php if ($createForm['new_role'] === 'etudiant') echo 'selected'; ?>>Étudiant</option>
                     <option value="employe_magasin" <?php if ($createForm['new_role'] === 'employe_magasin') echo 'selected'; ?>>Magasin</option>
                     <option value="teamcoach" <?php if ($createForm['new_role'] === 'teamcoach') echo 'selected'; ?>>Teamcoach</option>
@@ -481,6 +482,7 @@ $users = $db->query($query_str)->fetchAll();
                         <select id="filter_role" name="filter_role" class="filter-select" style="height:32px; min-width:120px; font-size:1em; margin-right:18px;" onchange="document.getElementById('filterForm').submit()">
                             <option value="">Tous les profils</option>
                             <option value="beta" <?php if($role_filter == 'beta') echo 'selected'; ?>>Beta 🧪</option>
+                            <option value="betalapanne" <?php if($role_filter == 'betalapanne') echo 'selected'; ?>>Beta La Panne 🌊</option>
                             <option value="etudiant" <?php if($role_filter == 'etudiant') echo 'selected'; ?>>Étudiant</option>
                             <option value="employe_magasin" <?php if($role_filter == 'employe_magasin') echo 'selected'; ?>>Magasin</option>
                             <option value="teamcoach" <?php if($role_filter == 'teamcoach') echo 'selected'; ?>>Teamcoach</option>
@@ -574,6 +576,9 @@ $users = $db->query($query_str)->fetchAll();
                                 <input type="hidden" name="nouveau_interim" value="<?php echo htmlspecialchars($u['interim'] ?? ''); ?>">
                                 <select name="nouveau_role" class="input-mini" data-original="<?php echo htmlspecialchars($u['role']); ?>">
                                     <option value="beta" <?php if($u['role']=='beta') echo 'selected'; ?>>Beta 🧪</option>
+                                    <?php // 🏬 Sans cette option, éditer un compte « betalapanne » le ferait
+                                          // basculer en silence sur le premier rôle de la liste. ?>
+                                    <option value="betalapanne" <?php if($u['role']=='betalapanne') echo 'selected'; ?>>Beta La Panne 🌊</option>
                                     <option value="etudiant" <?php if($u['role']=='etudiant') echo 'selected'; ?>>Étudiant</option>
                                     <option value="employe_magasin" <?php if($u['role']=='employe_magasin') echo 'selected'; ?>>Magasin</option>
                                     <option value="teamcoach" <?php if($u['role']=='teamcoach') echo 'selected'; ?>>Teamcoach</option>

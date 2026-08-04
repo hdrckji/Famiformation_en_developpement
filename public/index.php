@@ -18,7 +18,9 @@ if ($role === 'evaluateur') {
 }
 // 🧪 VERSION BETA : le profil « beta » a son propre accueil minimal (Onboarding +
 // Magasin), en attendant que le parcours complet soit défini après le 29/07.
-if ($role === 'beta') {
+// « betalapanne » = les inscrits du quiz de La Panne. Même page d'accueil que la
+// bêta, qui n'y montre que la tuile « Quiz & mon espace jardin ».
+if ($role === 'beta' || $role === 'betalapanne') {
     header('Location: beta.php');
     exit();
 }

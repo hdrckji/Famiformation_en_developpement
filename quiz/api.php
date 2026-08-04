@@ -149,6 +149,14 @@ $FAVORIS_TEXTES = [
  * avant cette heure, tout le monde reste en beta comme prévu.
  */
 function roleInscription($prenom, $nom) {
+  global $SITE;
+  // 🏬 LA PANNE : tous les inscrits du quiz — borne comme téléphone — reçoivent
+  // le profil « betalapanne ». C'est une bêta À PART : elle n'ouvre que
+  // « Quiz & mon espace jardin », sans les modules de la bêta classique
+  // (Onboarding, Magasin), qui ne concernent pas ce magasin pour l'instant.
+  // Volontairement AVANT la reconnaissance du personnel : à La Panne, même
+  // quelqu'un présent dans la liste du personnel entre par cette porte-là.
+  if ($SITE === 'lapanne') { return 'betalapanne'; }
   if (!function_exists('personnelTrouve') || !function_exists('personnelRegleActive')) { return 'beta'; }
   if (!personnelRegleActive()) { return 'beta'; }
   return personnelTrouve($nom, $prenom) ? personnelRoleCible() : 'beta';
