@@ -2723,17 +2723,43 @@ function fleurRareSvg(tier) {
     <ellipse class="glint" cx="43" cy="42" rx="6" ry="4" fill="rgba(255,255,255,.85)"/>
   </svg>`;
 }
-// 🍦 L'ARBRE À TICKETS GLACE : le vrai arbre que la fée fait pousser, avec les
-// tickets glace BLEUS pendus aux branches (pas un emoji). Repris du dessin de la fée.
-const TICKET_GLACE = `<rect x="2" y="2" width="166" height="100" rx="12" fill="url(#glaceTgJ)" stroke="#152c6b" stroke-width="3"></rect><rect x="10" y="12" width="106" height="80" rx="7" fill="#fff" stroke="#152c6b" stroke-width="1.6"></rect><text x="24" y="52" font-family="Arial,sans-serif" font-size="34" font-weight="900" fill="#1c1c1c" font-style="italic">1x</text><text x="18" y="72" font-family="Arial,sans-serif" font-size="15" font-weight="900" fill="#1c1c1c" font-style="italic">GRATUIT</text><path d="M118 60 L152 60 L135 98 Z" fill="#e8a94a" stroke="#152c6b" stroke-width="1.5"></path><path d="M116 58 C110 40 118 26 128 24 C126 12 146 8 150 20 C160 18 166 30 158 38 C166 44 158 58 150 56 Z" fill="#fdf6e6" stroke="#152c6b" stroke-width="1.6"></path>`;
+/* ============================================================
+   🎟️ LE TICKET — UN SEUL DESSIN, DEUX COULEURS.
+   Le ticket apparaît à trois endroits : seul (module d'inscription), suspendu
+   aux branches de l'arbre à tickets, et en petite icône dans les messages du
+   jardin. Il était écrit une fois en BLEU en dur, ce qui laissait des tickets
+   bleus dans l'arbre de La Panne alors que le vrai ticket du magasin est vert.
+   Le dessin est donc défini UNE fois, et seules les couleurs changent selon le
+   magasin. Teintes de La Panne relevées sur Ticket gourmand.png.
+   ============================================================ */
+function couleursTicket() {
+  return estGourmand()
+    ? { haut: "#5BC37E", bas: "#1F7A42", trait: "#0F5B2A" }   // La Panne — vert
+    : { haut: "#5b9bf5", bas: "#1e40af", trait: "#152c6b" };  // Mouscron — bleu
+}
+// Le dégradé, à poser dans les <defs> de chaque SVG qui affiche un ticket.
+function degradeTicket(id) {
+  const c = couleursTicket();
+  return `<linearGradient id="${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${c.haut}"/><stop offset="1" stop-color="${c.bas}"/></linearGradient>`;
+}
+// Le ticket lui-même. `id` est celui du dégradé déclaré juste au-dessus.
+function dessinTicket(id) {
+  const t = couleursTicket().trait;
+  return `<rect x="2" y="2" width="166" height="100" rx="12" fill="url(#${id})" stroke="${t}" stroke-width="3"></rect>`
+    + `<rect x="10" y="12" width="106" height="80" rx="7" fill="#fff" stroke="${t}" stroke-width="1.6"></rect>`
+    + `<text x="24" y="52" font-family="Arial,sans-serif" font-size="34" font-weight="900" fill="#1c1c1c" font-style="italic">1x</text>`
+    + `<text x="18" y="72" font-family="Arial,sans-serif" font-size="15" font-weight="900" fill="#1c1c1c" font-style="italic">GRATUIT</text>`
+    + `<path d="M118 60 L152 60 L135 98 Z" fill="#e8a94a" stroke="${t}" stroke-width="1.5"></path>`
+    + `<path d="M116 58 C110 40 118 26 128 24 C126 12 146 8 150 20 C160 18 166 30 158 38 C166 44 158 58 150 56 Z" fill="#fdf6e6" stroke="${t}" stroke-width="1.6"></path>`;
+}
 function arbreGlaceSvg() {
   // 🍦 EXACTEMENT l'arbre à tickets glace que la fée fait pousser : un pot en
   // terre cuite + l'arbre avec ses tickets bleus « 1x GRATUIT ».
-  const T = (x, y) => `<g transform="translate(${x},${y}) scale(0.3)">${TICKET_GLACE}</g>`;
+  const T = (x, y) => `<g transform="translate(${x},${y}) scale(0.3)">${dessinTicket("glaceTgJ")}</g>`;
   return `<svg class="arbre-glace" viewBox="40 24 140 236" xmlns="http://www.w3.org/2000/svg">
     <defs>
       <linearGradient id="feePotJ" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#C97B4A"/><stop offset="1" stop-color="#9C5730"/></linearGradient>
-      <linearGradient id="glaceTgJ" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5b9bf5"/><stop offset="1" stop-color="#1e40af"/></linearGradient>
+      ${degradeTicket("glaceTgJ")}
     </defs>
     <rect x="102" y="98" width="16" height="74" rx="5" fill="#8A5B36"/>
     <circle cx="110" cy="60" r="40" fill="#2E7D3B"/><circle cx="76" cy="80" r="27" fill="#3C9147"/>
@@ -2749,28 +2775,10 @@ function arbreGlaceSvg() {
 // les petits messages (là où l'arbre entier serait trop gros).
 function ticketGlaceSvg(cls = "") {
   return `<svg class="ticket-glace ${cls}" viewBox="0 0 170 104" xmlns="http://www.w3.org/2000/svg">
-    <defs><linearGradient id="glaceTgJ" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5b9bf5"/><stop offset="1" stop-color="#1e40af"/></linearGradient></defs>
-    ${TICKET_GLACE}</svg>`;
+    <defs>${degradeTicket("glaceTgJ")}</defs>
+    ${dessinTicket("glaceTgJ")}</svg>`;
 }
 
-/* ============================================================
-   🎟️ LE TICKET DE LA PANNE — MÊME DESSIN, AUTRE COULEUR.
-   Mouscron offre un ticket glace, La Panne un ticket gourmand : seul le NOM
-   change, pas le dessin. Le cornet est conservé, il parle tout de suite.
-   La couleur, elle, suit le vrai ticket imprimé du magasin (Ticket gourmand.png,
-   à la racine du dépôt) : VERT, et non le bleu de Mouscron. Teintes relevées
-   directement sur ce fichier — fond #3A9E5C→#1F7A42, contour #0F5B2A.
-   ============================================================ */
-function ticketGourmandSvg(cls = "") {
-  return `<svg class="ticket-glace ${cls}" viewBox="0 0 170 104" xmlns="http://www.w3.org/2000/svg">
-    <defs><linearGradient id="gourmTgJ" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5BC37E"/><stop offset="1" stop-color="#1F7A42"/></linearGradient></defs>
-    <rect x="2" y="2" width="166" height="100" rx="12" fill="url(#gourmTgJ)" stroke="#0F5B2A" stroke-width="3"></rect>
-    <rect x="10" y="12" width="106" height="80" rx="7" fill="#fff" stroke="#0F5B2A" stroke-width="1.6"></rect>
-    <text x="24" y="52" font-family="Arial,sans-serif" font-size="34" font-weight="900" fill="#1c1c1c" font-style="italic">1x</text>
-    <text x="18" y="72" font-family="Arial,sans-serif" font-size="15" font-weight="900" fill="#1c1c1c" font-style="italic">GRATUIT</text>
-    <path d="M118 60 L152 60 L135 98 Z" fill="#e8a94a" stroke="#0F5B2A" stroke-width="1.5"></path>
-    <path d="M116 58 C110 40 118 26 128 24 C126 12 146 8 150 20 C160 18 166 30 158 38 C166 44 158 58 150 56 Z" fill="#fdf6e6" stroke="#0F5B2A" stroke-width="1.6"></path></svg>`;
-}
 
 // 🏬 Le bon ticket selon le magasin. Tout ce qui affiche un ticket passe par ici,
 // pour qu'on n'ait jamais un visuel de glace d'un côté et un mot « gourmand » de
@@ -2797,7 +2805,9 @@ function modaleTicketQuoi() {
   o.querySelector("#cm-ok").addEventListener("click", ferme);
   o.addEventListener("click", (e) => { if (e.target === o) ferme(); });
 }
-function ticketSvg(cls = "") { return estGourmand() ? ticketGourmandSvg(cls) : ticketGlaceSvg(cls); }
+// Un seul rendu : ticketGlaceSvg() prend déjà les couleurs du magasin courant
+// (voir couleursTicket). On garde ce nom pour les appels existants.
+function ticketSvg(cls = "") { return ticketGlaceSvg(cls); }
 // Le nom du ticket, décliné pour les phrases où il apparaît.
 function motTicket() { return estGourmand() ? t("ticket gourmand", "lekkerbekticket") : t("ticket glace", "ijsjesticket"); }
 // Le même emoji partout : le dessin du ticket est un cornet dans les deux
