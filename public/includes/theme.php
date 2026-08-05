@@ -231,8 +231,13 @@ if (!function_exists('welcomeTheme')) {
             'nom' => ['Bienvenue 🌿', 'Welkom 🌿'],
             'accent' => '#2d5a37', 'accent2' => '#d4af37',
             'particles' => ['✨', '🌟', '🌿', '⭐'],
-            'page_bg' => 'radial-gradient(circle at 50% 28%, #35794a, #10251a 78%)',
-            'dark' => true,
+            // Fond CLAIR : le texte du site est sombre, et l'immense majorité
+            // vit dans des cartes blanches. Un fond presque noir rendait
+            // illisible tout ce qui héritait de la couleur claire du thème.
+            // (L'animation d'accueil, elle, garde son fond sombre : elle a ses
+            // propres couleurs et son texte est écrit clair exprès.)
+            'page_bg' => 'radial-gradient(circle at 50% 28%, #FBF7EA, #EAF1E2 78%)',
+            'dark' => false,
         ];
     }
 }
@@ -307,6 +312,24 @@ if (!function_exists('famiThemeChoisi')) {
         return (string) widgetUserGet($db, (int) ($_SESSION['user_id'] ?? 0), 'theme_choisi', '');
     }
 
+    /**
+     * 🔒 CE THÈME EST-IL AUTORISÉ PAR L'ADMINISTRATION ?
+     *
+     * Un thème coupé dans les paramètres doit disparaître POUR TOUT LE MONDE.
+     * Ce contrôle manquait sur le chemin du choix personnel : quelqu'un qui
+     * avait choisi « Noël » dans ses préférences continuait de le voir même
+     * après que l'admin l'ait désactivé — la coupure ne semblait donc marcher
+     * que pour ceux qui n'avaient rien choisi.
+     */
+    function famiThemeAutorise(PDO $db, $cle)
+    {
+        $cle = (string) $cle;
+        if ($cle === '' || $cle === 'aucun') { return true; }   // « aucun » n'est pas un thème
+        if (function_exists('eventEnabled') && !eventEnabled($db, $cle)) { return false; }
+        if (function_exists('widgetGet') && widgetGet($db, 'theme_' . $cle . '_on', '1') !== '1') { return false; }
+        return true;
+    }
+
     /** Le thème correspondant à une clé, ou null si la clé est inconnue. */
     function famiThemeParCle($cle)
     {
@@ -347,7 +370,12 @@ if (!function_exists('activePageTheme')) {
             if ($__choisi === 'aucun') {
                 return null;
             }
-            if ($__choisi !== '') {
+            // ⚠️ Le choix personnel ne passe PAS avant l'administration. Si le
+            // thème choisi a été coupé dans les paramètres, on l'ignore et on
+            // retombe sur le comportement automatique — sinon une désactivation
+            // n'aurait aucun effet sur les gens qui avaient choisi ce thème-là,
+            // et l'admin croirait l'avoir coupé pour tout le monde.
+            if ($__choisi !== '' && famiThemeAutorise($db, $__choisi)) {
                 $__th = famiThemeParCle($__choisi);
                 if ($__th !== null) {
                     return $__th;
