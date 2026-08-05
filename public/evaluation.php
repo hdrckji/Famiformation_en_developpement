@@ -301,7 +301,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </style>
 </head>
 <body>
-<?php require_once __DIR__ . '/includes/retour.php'; echo barreRetour(); ?>
+<?php
+    // ⬅️ Pas de bouton « Retour » pour les évaluateurs : cette page EST leur
+    // accueil, le lien ne mènerait nulle part (index.php les renverrait ici).
+    // Les autres — admin, compte Accueil — arrivent d'ailleurs et doivent
+    // pouvoir y retourner. Ils gardent donc le lien.
+    if (($_SESSION['role'] ?? '') !== 'evaluateur') {
+        require_once __DIR__ . '/includes/retour.php';
+        echo barreRetour();
+    }
+?>
 <?php require_once __DIR__ . '/includes/modules.php'; echo apercuBanner($db ?? null); ?>
     <?php
         // 🚪 Qui est connecté, et le bouton pour partir. Le lien pointe sur
