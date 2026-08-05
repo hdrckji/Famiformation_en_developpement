@@ -1859,7 +1859,7 @@ function majLangSwitch() {
   if (tag) tag.textContent = t("Le grand lancement", "De grote lancering");
 }
 
-// 🔒 Module « Quiz & mon espace jardin » de l'accueil : VERROUILLÉ pour tout le
+// 🔒 Module « Épreuves & mon espace jardin » de l'accueil : VERROUILLÉ pour tout le
 // monde par défaut. Se débloque (ou se re-verrouille) en tapant « admin » au
 // clavier — fonction cachée réservée à l'organisateur. Mémorisé sur l'appareil.
 let espaceDebloque = (() => { try { return localStorage.getItem("fj_espace_ok") === "1"; } catch (e) { return false; } })();
@@ -1894,7 +1894,7 @@ function basculeEspaceAdmin() {
        et le choix est mémorisé sur l'appareil.
      • pour TOUT LE MONDE, repasser VERROU_TUILES à false et remettre en ligne.
 
-   Le module « Quiz & mon espace jardin » n'est PAS concerné : il garde sa règle
+   Le module « Épreuves & mon espace jardin » n'est PAS concerné : il garde sa règle
    liée aux dates. Mouscron non plus.
    ============================================================ */
 // 🔓 OUVERT depuis le 04/08 : les deux tuiles sont accessibles à tout le monde,
@@ -4295,7 +4295,7 @@ function renderHome() {
     <div class="borne-modules">
       <button class="borne-mod bm-primaire${espaceAccessible() ? "" : " mod-inactif"}" data-go="espace">
         <span class="bm-emo">${espaceAccessible() ? "🌱" : "🔒"}</span>
-        <span class="bm-titre">${t("Quiz &amp; mon espace jardin", "Quiz &amp; mijn tuin")}</span>
+        <span class="bm-titre">${t("Épreuves &amp; mon espace jardin", "Proeven &amp; mijn tuin")}</span>
         <span class="bm-desc">${espaceAccessible()
           ? t("Réponds au quiz, récolte des graines, fais pousser ton jardin", "Beantwoord de quiz, verzamel zaadjes en laat je tuin groeien")
           : t("🔒 Ouvre le " + labelLancement() + " pour le lancement", "🔒 Opent op " + labelLancement() + " voor de lancering")}</span>
@@ -4379,7 +4379,7 @@ function renderHome() {
     // que sur le téléphone. La borne reste donc sur /quiz/<ville>/borne : elle ne
     // bascule JAMAIS dans l'interface téléphone. Chaque vue a son propre « retour »
     // qui ramène à l'accueil de la borne.
-    // « Quiz & mon espace jardin » : déjà connecté → tableau de bord ; sinon on
+    // « Épreuves & mon espace jardin » : déjà connecté → tableau de bord ; sinon on
     // ouvre la modale de connexion Famiformation PAR-DESSUS l'accueil courant.
     if (go === "espace") {
       // 🔒 Verrouillé pour tout le monde avant le lancement (sauf déblocage « admin »).
@@ -4435,7 +4435,7 @@ function modaleEvenements() {
   o.addEventListener("click", (e) => { if (e.target === o) ferme(); });
 }
 
-// 🔒 Message affiché quand on clique le module « Quiz & mon espace jardin »
+// 🔒 Message affiché quand on clique le module « Épreuves & mon espace jardin »
 // pendant qu'il est verrouillé pour tout le monde.
 function modaleEspaceBloque(extra) {
   if (document.querySelector(".modal-fond")) return;
@@ -5405,7 +5405,7 @@ function retourNav() {
   // toute façon désactivée plus bas (appareil partagé).
   if (ECRAN === "code") { codeAReclamer = null; userView = "reclamer"; }
 
-  // 🌱 Depuis la borne, « Quiz & mon espace jardin » ouvre /quiz?espace=1 : on
+  // 🌱 Depuis la borne, « Épreuves & mon espace jardin » ouvre /quiz?espace=1 : on
   // entre direct dans l'espace (connexion/création → tableau de bord).
   if (SIM_PARAMS.get("espace")) userView = "espace";
   else if (SIM_PARAMS.get("play")) userView = "quiz";
@@ -5414,7 +5414,7 @@ function retourNav() {
   // session sans redemander le mot de passe. Sur une borne, jamais (chargeJeton
   // renvoie "" sur borne). Un jeton périmé/invalide est simplement ignoré.
   // 🔗 ARRIVÉE DEPUIS FAMIFORMATION (?jeton=…). La personne vient de cliquer sur
-  // la tuile « Quiz & mon espace jardin » : elle est déjà authentifiée là-bas, on
+  // la tuile « Épreuves & mon espace jardin » : elle est déjà authentifiée là-bas, on
   // ne lui redemande rien. Le jeton est signé par le serveur — un jeton bricolé
   // est rejeté par l'API, il n'y a donc rien à vérifier ici.
   //
@@ -5457,7 +5457,7 @@ function retourNav() {
     if (res && res.exists && !res.mauvais_code) {
       joueur = { name: res.name, code: moi.code, solde: res.solde, recoltees: res.recoltees, nbCodes: res.nbCodes, quizFait: res.quiz_fait !== false };
       // Reconnu : on reste sur l'accueil (userView "auto" → home). Entrer dans
-      // « Quiz & mon espace jardin » ira droit au tableau de bord (déjà connecté).
+      // « Épreuves & mon espace jardin » ira droit au tableau de bord (déjà connecté).
       const m = await reclamerEnAttente();      // un code mis de côté ?
       if (m) jardinMsg = m;
     } else if (res && res.mauvais_code) {
