@@ -496,3 +496,47 @@ if (isset($db) && $db instanceof PDO) {
         // Sans droit sur time_zone, on garde le fuseau serveur par defaut.
     }
 }
+
+// ============================================================
+// 🇳🇱 TRADUCTION NÉERLANDAISE DE FAMIJOB.
+//
+// FamiJob n'avait aucun mécanisme de langue : tout était figé en français.
+// On réutilise le dictionnaire du site principal (includes/nl_dict.php) plutôt
+// que d'en tenir un second : une correction profite alors aux deux.
+//
+// Le choix de langue est mémorisé en session, et se change par ?lang=nl ou
+// ?lang=fr — comme sur le site principal. Sur le sous-domaine étudiant, la
+// session n'est pas partagée avec FamiFormation : chacun garde donc son
+// réglage, ce qui est sans conséquence puisque le lien est visible des deux
+// côtés.
+//
+// Le remplacement est EXACT et les zones <script>/<style>/<textarea>/<pre>
+// sont protégées : une phrase absente du dictionnaire reste en français, rien
+// ne peut casser.
+// ============================================================
+if (isset($_GET['lang']) && in_array($_GET['lang'], ['fr', 'nl'], true)) {
+    $_SESSION['lang'] = $_GET['lang'];
+}
+if (!function_exists('famijobLangue')) {
+    function famijobLangue()
+    {
+        return (($_SESSION['lang'] ?? 'fr') === 'nl') ? 'nl' : 'fr';
+    }
+}
+if (famijobLangue() === 'nl' && PHP_SAPI !== 'cli') {
+    // Deux dispositions possibles : dans le conteneur, famijob/ est DANS public/
+    // (Dockerfile) ; dans le dépôt, Famijob/ et public/ sont côte à côte.
+    foreach ([__DIR__ . '/../includes/nl_dict.php', __DIR__ . '/../public/includes/nl_dict.php'] as $__piste) {
+        if (is_file($__piste)) { require_once $__piste; break; }
+    }
+    if (function_exists('nlDictApply')) {
+        ob_start(function ($html) {
+            foreach (headers_list() as $h) {
+                if (stripos($h, 'content-type:') === 0 && stripos($h, 'text/html') === false) {
+                    return $html;   // PDF, Excel, JSON… : on ne touche pas
+                }
+            }
+            return nlDictApply($html);
+        });
+    }
+}

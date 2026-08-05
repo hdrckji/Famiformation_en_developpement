@@ -470,6 +470,28 @@ if (!function_exists('famiInjectPageTheme')) {
                 return $buffer; // réponse non-HTML (PDF, xlsx, JSON...) : on ne touche pas
             }
         }
+
+        // 🇳🇱 TRADUCTION NÉERLANDAISE DE L'INTERFACE.
+        //
+        // Le dictionnaire (includes/nl_dict.php) existait depuis longtemps, avec sa
+        // fonction d'application — mais rien ne l'appelait : il ne traduisait donc
+        // rien du tout. On le branche ICI, sur le tampon de sortie déjà en place :
+        // une seule accroche traduit TOUTES les pages du site, y compris celles qui
+        // n'utilisent pas t(), au lieu de devoir modifier 112 fichiers.
+        //
+        // Le remplacement est EXACT (un texte entier entre deux balises, jamais un
+        // fragment), les zones <script>/<style>/<textarea>/<pre> sont protégées, et
+        // seuls les attributs visibles sont touchés — jamais « value », qui repart
+        // au serveur. Une phrase absente du dictionnaire reste simplement en
+        // français : on peut donc enrichir le dictionnaire progressivement sans
+        // jamais casser une page.
+        if (function_exists('currentLang') && currentLang() === 'nl') {
+            if (!function_exists('nlDictApply')) {
+                $dico = __DIR__ . '/nl_dict.php';
+                if (is_file($dico)) { require_once $dico; }
+            }
+            if (function_exists('nlDictApply')) { $buffer = nlDictApply($buffer); }
+        }
         // On cherche la balise d'ouverture du corps de page APRES </head>. Sans ce
         // decalage, la recherche tombait sur la premiere mention textuelle de cette
         // balise — une simple citation dans un commentaire CSS suffisait — et tout etait
