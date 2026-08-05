@@ -117,6 +117,7 @@ $currentPhoto = $currentUser['photo_profil'] ?? null;
     </style>
 </head>
 <body>
+<?php require_once __DIR__ . '/includes/retour.php'; echo barreRetour(); ?>
 <?php
     require_once __DIR__ . '/includes/topbar.php';
     famiTopbar($db, ['back' => 'index.php', 'title' => t('Mon profil', 'Mijn profiel')]);

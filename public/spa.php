@@ -21,6 +21,7 @@ verifierConnexion($db);
     </style>
 </head>
 <body>
+<?php require_once __DIR__ . '/includes/retour.php'; echo barreRetour(); ?>
     <div class="header">
         <img src="logo.png" alt="Famiflora" class="logo"><br>
         <h1>Spa</h1>

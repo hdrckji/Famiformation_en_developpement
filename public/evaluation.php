@@ -134,8 +134,24 @@ if (!function_exists('saveEvaluationToDatabase')) {
     }
 }
 
-// Vérifier si l'utilisateur connecté est 'Accueil'
-if ($_SESSION['username'] !== 'Accueil') {
+// 🔐 QUI PEUT ÉVALUER.
+//
+// La règle était « l'identifiant doit être exactement Accueil » — un seul
+// compte, nommé en dur. Les profils « évaluateur » étaient donc refusés, alors
+// que c'est précisément leur métier.
+//
+// ⚠️ ET CE REFUS CRÉAIT UNE BOUCLE. index.php envoie les évaluateurs ici, et
+// cette page les renvoyait à index.php : un compte évaluateur rebondissait
+// indéfiniment entre les deux et ne pouvait accéder à RIEN sur le site.
+//
+// On raisonne maintenant par PROFIL. Le compte « Accueil » reste accepté par
+// son identifiant, quel que soit son profil : il fonctionne depuis toujours,
+// il n'y a aucune raison de le casser au passage.
+$roleEval  = (string) ($_SESSION['role'] ?? '');
+$identEval = (string) ($_SESSION['username'] ?? '');
+$peutEvaluer = in_array($roleEval, ['evaluateur', 'admin'], true)
+            || strcasecmp($identEval, 'Accueil') === 0;
+if (!$peutEvaluer) {
     header('Location: index.php');
     exit();
 }
@@ -285,6 +301,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </style>
 </head>
 <body>
+<?php require_once __DIR__ . '/includes/retour.php'; echo barreRetour(); ?>
 <?php require_once __DIR__ . '/includes/modules.php'; echo apercuBanner($db ?? null); ?>
     <?php
         // 🚪 Qui est connecté, et le bouton pour partir. Le lien pointe sur
@@ -292,9 +309,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // quand on quitte l'onglet.
         $evalQui = trim(($_SESSION['prenom'] ?? '') . ' ' . ($_SESSION['nom'] ?? ''));
         if ($evalQui === '') { $evalQui = (string) ($_SESSION['username'] ?? 'Évaluateur'); }
+        // ⚠️ On affiche le VRAI profil du compte connecté, pas « évaluateur »
+        // écrit en dur : si quelqu'un n'arrive pas à ouvrir cette page, la
+        // première chose à savoir est le profil qu'il a réellement.
+        $evalRoles = ['admin' => 'Admin', 'teamcoach' => 'Teamcoach', 'mentor' => 'Mentor',
+                      'evaluateur' => 'Évaluateur', 'etudiant' => 'Étudiant',
+                      'employe_magasin' => 'Magasin', 'employe_logistique' => 'Logistique',
+                      'beta' => 'Bêta'];
+        $evalRoleBrut = (string) ($_SESSION['role'] ?? '');
+        $evalRole = $evalRoles[$evalRoleBrut] ?? ($evalRoleBrut !== '' ? $evalRoleBrut : 'profil inconnu');
     ?>
     <div class="eval-bar">
-        <span class="eval-qui">👤 <?= htmlspecialchars($evalQui, ENT_QUOTES, 'UTF-8') ?><span> · évaluateur</span></span>
+        <span class="eval-qui">👤 <?= htmlspecialchars($evalQui, ENT_QUOTES, 'UTF-8') ?><span> · <?= htmlspecialchars($evalRole, ENT_QUOTES, 'UTF-8') ?></span></span>
         <a href="logout.php" class="btn-logout" id="eval-logout">🚪 Déconnexion</a>
     </div>
     <div class="container" style="max-width:1100px;">

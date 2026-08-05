@@ -28,6 +28,7 @@ verifierConnexion($db);
     </style>
 </head>
 <body>
+<?php require_once __DIR__ . '/includes/retour.php'; echo barreRetour(); ?>
     <div id="successModal" class="modal-overlay">
         <div class="modal-content">
             <h2 style="color: #2d5a37; margin-top: 0;">Félicitations !</h2>

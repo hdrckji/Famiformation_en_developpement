@@ -21,6 +21,7 @@ $presences = $stmt->fetchAll(PDO::FETCH_ASSOC);
     </style>
 </head>
 <body>
+<?php require_once __DIR__ . '/includes/retour.php'; echo barreRetour(); ?>
     <h1>Présences enregistrées</h1>
     <table>
         <thead>

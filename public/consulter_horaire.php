@@ -29,6 +29,7 @@ $horaires = $stmt->fetchAll(PDO::FETCH_ASSOC);
     </style>
 </head>
 <body>
+<?php require_once __DIR__ . '/includes/retour.php'; echo barreRetour(); ?>
     <h1>Mon horaire</h1>
     <p>Nom recherché : <b><?= htmlspecialchars($nomComplet) ?></b></p>
     <?php if (count($horaires) === 0): ?>
