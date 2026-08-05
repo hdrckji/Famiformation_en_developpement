@@ -10,7 +10,7 @@
 // D'où une page à part plutôt qu'une variante de beta.php : les deux parcours
 // évolueront séparément, et rien de Mouscron ne doit fuir ici par accident.
 //
-// Pour l'instant, une seule porte : « Épreuves & mon espace jardin ».
+// Pour l'instant, une seule porte : « Quiz & mon espace jardin ».
 // ============================================================
 require_once 'config.php';
 verifierConnexion($db);
@@ -137,8 +137,8 @@ $userPhoto = $_SESSION['photo_profil'] ?? null;
         <a href="quiz_acces.php" class="tile tile-jardin">
             <span class="badge-jardin">🎁 <?= t('NOUVEAU', 'NIEUW') ?></span>
             <span class="tile-icon">🌱</span>
-            <div class="tile-title"><?= t('Épreuves & mon espace jardin', 'Proeven & mijn tuin') ?></div>
-            <div class="tile-desc"><?= t("Réponds aux épreuves, récolte tes graines et fais pousser ton jardin.", "Doe de quiz, oogst je zaadjes en laat je tuin groeien.") ?></div>
+            <div class="tile-title"><?= t('Quiz & mon espace jardin', 'Quiz & mijn tuin') ?></div>
+            <div class="tile-desc"><?= t("Réponds au quiz, récolte tes graines et fais pousser ton jardin.", "Doe de quiz, oogst je zaadjes en laat je tuin groeien.") ?></div>
         </a>
     </div>
 </body>

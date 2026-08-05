@@ -1633,7 +1633,7 @@ async function apiRecolteHerbes(name, herbes) {
   });
   return await r.json();
 }
-// 🎯 Épreuve du jardin : crédite des graines de JARDIN (bonus) selon le nombre de
+// 🎯 Quiz du jardin : crédite des graines de JARDIN (bonus) selon le nombre de
 // bonnes réponses. Authentifié par le jeton (le serveur ignore un nom trafiqué).
 async function apiQuizJardin(correct) {
   if (SIMULATION) {
@@ -1859,7 +1859,7 @@ function majLangSwitch() {
   if (tag) tag.textContent = t("Le grand lancement", "De grote lancering");
 }
 
-// 🔒 Module « Épreuves & mon espace jardin » de l'accueil : VERROUILLÉ pour tout le
+// 🔒 Module « Quiz & mon espace jardin » de l'accueil : VERROUILLÉ pour tout le
 // monde par défaut. Se débloque (ou se re-verrouille) en tapant « admin » au
 // clavier — fonction cachée réservée à l'organisateur. Mémorisé sur l'appareil.
 let espaceDebloque = (() => { try { return localStorage.getItem("fj_espace_ok") === "1"; } catch (e) { return false; } })();
@@ -1876,7 +1876,7 @@ function toastAdmin(msg) {
 function basculeEspaceAdmin() {
   espaceDebloque = !espaceDebloque;
   try { localStorage.setItem("fj_espace_ok", espaceDebloque ? "1" : "0"); } catch (e) {}
-  toastAdmin(espaceDebloque ? "🔓 Épreuves & jardin débloqué" : "🔒 Épreuves & jardin verrouillé");
+  toastAdmin(espaceDebloque ? "🔓 Quiz & jardin débloqué" : "🔒 Quiz & jardin verrouillé");
   render();   // rafraîchit l'écran courant (l'accueil montre alors le cadenas ou non)
 }
 /* ============================================================
@@ -1894,7 +1894,7 @@ function basculeEspaceAdmin() {
        et le choix est mémorisé sur l'appareil.
      • pour TOUT LE MONDE, repasser VERROU_TUILES à false et remettre en ligne.
 
-   Le module « Épreuves & mon espace jardin » n'est PAS concerné : il garde sa règle
+   Le module « Quiz & mon espace jardin » n'est PAS concerné : il garde sa règle
    liée aux dates. Mouscron non plus.
    ============================================================ */
 // 🔓 OUVERT depuis le 04/08 : les deux tuiles sont accessibles à tout le monde,
@@ -2089,7 +2089,7 @@ function ouvreExplication() {
     <div class="explik-steps">
       <div class="explik-step explik-star"><span class="explik-ico">🏆</span><span class="explik-txt"><b class="eh">${t("Un seul classement ⭐", "Eén enkele ranking ⭐")}</b>${t("Les <b>3 meilleures récoltes repartent avec de très belles récompenses</b> — de quoi viser le podium&nbsp;! Annonce des vainqueurs le " + esc(CONFIG.dateResultats) + ".", "De <b>3 beste oogsten winnen heel mooie prijzen</b> — mik dus op het podium&nbsp;! Bekendmaking van de winnaars op " + esc(CONFIG.dateResultats) + ".")}</span></div>
       <div class="explik-step explik-star"><span class="explik-ico">🌼</span><span class="explik-txt"><b class="eh">${t("Pas sur le podium ? Tu peux gagner quand même ⭐", "Niet op het podium? Je kan toch winnen ⭐")}</b>${t("Le podium n'est pas la seule façon de repartir avec une récompense : <b>termine ton jardin</b> (toutes les cases + les <b>3 lotus</b>) et <b>tu gagnes toi aussi</b>, quel que soit ton classement. Ta récompense est alors préparée et tu reçois un mail dès qu'elle est prête. Et si tu fais les deux, <b>ça se cumule</b> 🌼🏆", "Het podium is niet de enige manier om een beloning te winnen: <b>werk je tuin af</b> (alle vakjes + de <b>3 lotussen</b>) en <b>jij wint ook</b>, wat je plaats ook is. Je beloning wordt dan klaargemaakt en je krijgt een mail zodra ze klaar is. En doe je beide, dan <b>is dat cumuleerbaar</b> 🌼🏆")}</span></div>
-      <div class="explik-step"><span class="explik-ico">🎯</span><span class="explik-txt"><b class="eh">${t("Réponds aux épreuves", "Beantwoord de proeven")}</b>${t("<b>" + QUIZ_TOTAL + " questions</b> tirées au hasard dans un grand réservoir : <b>" + QUIZ_THEMES.entreprise + " sur l'entreprise et le magasin</b>, <b>" + QUIZ_THEMES.culture + " de culture générale</b> (jardinage) et <b>" + QUIZ_THEMES.fun + " questions fun</b>. Deux personnes n'ont donc pas le même questionnaire !", "<b>" + QUIZ_TOTAL + " vragen</b> willekeurig getrokken uit een grote pot: <b>" + QUIZ_THEMES.entreprise + " over het bedrijf en de winkel</b>, <b>" + QUIZ_THEMES.culture + " algemene kennis</b> (tuinieren) en <b>" + QUIZ_THEMES.fun + " fun-vragen</b>. Twee mensen hebben dus niet dezelfde vragenlijst!")}</span></div>
+      <div class="explik-step"><span class="explik-ico">🎯</span><span class="explik-txt"><b class="eh">${t("Réponds au quiz", "Beantwoord de quiz")}</b>${t("<b>" + QUIZ_TOTAL + " questions</b> tirées au hasard dans un grand réservoir : <b>" + QUIZ_THEMES.entreprise + " sur l'entreprise et le magasin</b>, <b>" + QUIZ_THEMES.culture + " de culture générale</b> (jardinage) et <b>" + QUIZ_THEMES.fun + " questions fun</b>. Deux personnes n'ont donc pas le même questionnaire !", "<b>" + QUIZ_TOTAL + " vragen</b> willekeurig getrokken uit een grote pot: <b>" + QUIZ_THEMES.entreprise + " over het bedrijf en de winkel</b>, <b>" + QUIZ_THEMES.culture + " algemene kennis</b> (tuinieren) en <b>" + QUIZ_THEMES.fun + " fun-vragen</b>. Twee mensen hebben dus niet dezelfde vragenlijst!")}</span></div>
       <div class="explik-step"><span class="explik-ico">🌰</span><span class="explik-txt"><b class="eh">${t("Comment on gagne des graines", "Hoe je zaadjes wint")}</b>${t("Chaque bonne réponse rapporte <b>" + BAREME.base + " graines</b>, avec deux bonus.", "Elk juist antwoord levert <b>" + BAREME.base + " zaadjes</b> op, met twee bonussen.")}
         <span class="explik-liste">
           <span>${t("⚡ <b>Rapidité</b> — jusqu'à +" + BAREME.vitesseMax + ", plus tu réponds vite (mesuré en douce, sans chrono stressant à l'écran 😌)", "⚡ <b>Snelheid</b> — tot +" + BAREME.vitesseMax + ", hoe sneller je antwoordt (discreet gemeten, zonder stresserende chrono op het scherm 😌)")}</span>
@@ -2097,9 +2097,9 @@ function ouvreExplication() {
         </span>
         ${t("Une mauvaise réponse ne retire rien. Les codes bonus rapportent aussi des graines.", "Een fout antwoord kost niets. Bonuscodes leveren ook zaadjes op.")}</span></div>
       <div class="explik-step"><span class="explik-ico">👤</span><span class="explik-txt"><b class="eh">${t("Ton compte = ton compte Famiformation", "Je account = je Famiformation-account")}</b>${t("Pour jouer et garder ta récolte, tu te connectes avec ton <b>compte Famiformation</b> (ton <b>identifiant</b> + ton <b>mot de passe</b>). <b>Pas encore de compte ?</b> Inscris-toi en 2 minutes (prénom, nom, e-mail) : tu reçois ton <b>lien de connexion par mail</b> et ton <b>" + motTicket() + "</b> à l'accueil " + emojiTicket() + ". Ensuite tu te reconnectes depuis n'importe quel appareil avec les mêmes identifiants.", "Om te spelen en je oogst te bewaren, meld je je aan met je <b>Famiformation-account</b> (je <b>gebruikersnaam</b> + je <b>wachtwoord</b>). <b>Nog geen account?</b> Schrijf je in op 2 minuten (voornaam, naam, e-mail): je ontvangt je <b>aanmeldlink per mail</b> en je <b>" + motTicket() + "</b> aan het onthaal " + emojiTicket() + ". Daarna meld je je aan op eender welk toestel met dezelfde gegevens.")}</span></div>
-      <div class="explik-step"><span class="explik-ico">📅</span><span class="explik-txt"><b class="eh">${t("Les dates à retenir", "De data om te onthouden")}</b>${t("Les épreuves <b>ouvrent le " + texteLancement("fr") + "</b> et <b>ferme le " + texteCloture("fr") + "</b>. Ton <b>quiz du classement compte une seule fois</b> (le 1er essai fige ton score), mais tu peux <b>chercher des codes bonus autant que tu veux</b> jusqu'à la clôture. Annonce des vainqueurs le <b>" + esc(CONFIG.dateResultats) + "</b>.", "De proeven <b>openen op " + texteLancement("nl") + "</b> en <b>sluit op " + texteCloture("nl") + "</b>. Je <b>quiz voor de ranking telt één keer</b> (je eerste poging bepaalt je score), maar je kan <b>zoveel bonuscodes zoeken als je wil</b> tot de sluiting. Bekendmaking van de winnaars op <b>" + esc(CONFIG.dateResultats) + "</b>.")}</span></div>
+      <div class="explik-step"><span class="explik-ico">📅</span><span class="explik-txt"><b class="eh">${t("Les dates à retenir", "De data om te onthouden")}</b>${t("Le quiz <b>ouvre le " + texteLancement("fr") + "</b> et <b>ferme le " + texteCloture("fr") + "</b>. Ton <b>quiz du classement compte une seule fois</b> (le 1er essai fige ton score), mais tu peux <b>chercher des codes bonus autant que tu veux</b> jusqu'à la clôture. Annonce des vainqueurs le <b>" + esc(CONFIG.dateResultats) + "</b>.", "De quiz <b>opent op " + texteLancement("nl") + "</b> en <b>sluit op " + texteCloture("nl") + "</b>. Je <b>quiz voor de ranking telt één keer</b> (je eerste poging bepaalt je score), maar je kan <b>zoveel bonuscodes zoeken als je wil</b> tot de sluiting. Bekendmaking van de winnaars op <b>" + esc(CONFIG.dateResultats) + "</b>.")}</span></div>
       <div class="explik-step"><span class="explik-ico">🎁</span><span class="explik-txt"><b class="eh">${t("Traque les codes bonus", "Jaag op de bonuscodes")}</b>${t("Des codes sont cachés en magasin : chacun te rapporte <b>+" + CONFIG.pointsParCodeBonus + " graines</b>. Tu peux en accumuler <b>" + CONFIG.maxCodes + " au maximum</b> (soit +" + (CONFIG.pointsParCodeBonus * CONFIG.maxCodes) + " graines), et elles comptent au classement. <b>Même après avoir fait le quiz</b>, tu peux encore en récupérer : ça te fait remonter ! Ouvre l'œil 👀", "Er liggen codes verstopt in de winkel: elk levert je <b>+" + CONFIG.pointsParCodeBonus + " zaadjes</b> op. Je kan er <b>maximaal " + CONFIG.maxCodes + "</b> verzamelen (dus +" + (CONFIG.pointsParCodeBonus * CONFIG.maxCodes) + " zaadjes), en ze tellen mee in de ranking. <b>Zelfs na de quiz</b> kan je er nog ophalen: zo stijg je! Hou je ogen open 👀")}</span></div>
-      <div class="explik-step"><span class="explik-ico">🌼</span><span class="explik-txt"><b class="eh">${t("Ton jardin — après les épreuves", "Je tuin — na de proeven")}</b>${t("Une fois ton quiz terminé, <b>ton jardin s'ouvre</b> : chacun a le sien. Tu y dépenses tes graines pour planter des fleurs, des arbres, des variétés rares… Tu les verras diminuer, <b>c'est normal, ça ne concerne que le jardin</b> : <b>ton score au classement ne bouge pas</b>.", "Zodra je quiz klaar is, <b>opent je tuin</b>: iedereen heeft de zijne. Je geeft er je zaadjes uit om bloemen, bomen en zeldzame soorten te planten… Je ziet ze dalen, <b>dat is normaal, het geldt enkel voor de tuin</b>: <b>je score in de ranking verandert niet</b>.")}</span></div>
+      <div class="explik-step"><span class="explik-ico">🌼</span><span class="explik-txt"><b class="eh">${t("Ton jardin — après le quiz", "Je tuin — na de quiz")}</b>${t("Une fois ton quiz terminé, <b>ton jardin s'ouvre</b> : chacun a le sien. Tu y dépenses tes graines pour planter des fleurs, des arbres, des variétés rares… Tu les verras diminuer, <b>c'est normal, ça ne concerne que le jardin</b> : <b>ton score au classement ne bouge pas</b>.", "Zodra je quiz klaar is, <b>opent je tuin</b>: iedereen heeft de zijne. Je geeft er je zaadjes uit om bloemen, bomen en zeldzame soorten te planten… Je ziet ze dalen, <b>dat is normaal, het geldt enkel voor de tuin</b>: <b>je score in de ranking verandert niet</b>.")}</span></div>
     </div>
     <button class="btn" id="explik-ok" style="width:100%;">${t("J'ai tout compris, à moi de jouer ! 🌱", "Alles begrepen, ik ga spelen! 🌱")}</button>
   </div>`;
@@ -2186,14 +2186,14 @@ function renderCountdown() {
   const phase = phaseNow();
   const target = phase === "avant" ? CONFIG.dateLancement : CONFIG.dateCloture;
   const phaseLabel = phase === "avant" ? t("🚀 Lancement dans...", "🚀 Start over...")
-    : phase === "ouvert" ? t("⏳ Fin des épreuves dans...", "⏳ Einde van de proeven over...")
+    : phase === "ouvert" ? t("⏳ Fin du quiz dans...", "⏳ Einde van de quiz over...")
     : t("🏆 Résultats le " + CONFIG.dateResultats + " !", "🏆 Resultaten op " + CONFIG.dateResultats + "!");
   const info = phase === "avant"
     ? t("Quelque chose se prépare... rendez-vous le " + texteLancement("fr") + " !",
         "Er staat iets op til... afspraak op " + texteLancement("nl") + "!")
     : phase === "ouvert"
-      ? t("Les épreuves sont ouvertes ! Joue depuis ton téléphone et grimpe au classement.", "De proeven zijn open! Speel via je telefoon en klim in de ranking.")
-      : t("Les épreuves sont terminées. Merci à tous les participants ! 🎉", "De proeven zijn afgelopen. Bedankt aan alle deelnemers! 🎉");
+      ? t("Le quiz est ouvert ! Joue depuis ton téléphone et grimpe au classement.", "De quiz is open! Speel via je telefoon en klim in de ranking.")
+      : t("Le quiz est terminé. Merci à tous les participants ! 🎉", "De quiz is afgelopen. Bedankt aan alle deelnemers! 🎉");
 
   const top5 = board.slice(0, 5);
   const top5Html = (phase !== "avant" && top5.length)
@@ -2524,7 +2524,7 @@ function renderQuiz() {
         ${t("Tu as maintenant <b>" + affG(joueur.solde) + " 🌰</b> à planter. Rejoue autant que tu veux pour finir ton jardin&nbsp;! 🌱", "Je hebt nu <b>" + affG(joueur.solde) + " 🌰</b> om te planten. Speel zoveel je wil om je tuin af te werken&nbsp;! 🌱")}</p>
       <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:center;">
         <button class="btn" id="qj-jardin">${t("🌼 Retour au jardin", "🌼 Terug naar de tuin")}</button>
-        <button class="btn ghost" id="qj-rejouer">${t("🎯 Rejouer une épreuve", "🎯 Opnieuw een proef")}</button>
+        <button class="btn ghost" id="qj-rejouer">${t("🎯 Rejouer un quiz", "🎯 Opnieuw een quiz")}</button>
       </div>
     </div>`;
     $("#qj-jardin").addEventListener("click", async () => { jardin = await apiJardin(); userView = "jardin"; quiz = null; render(); });
@@ -2599,7 +2599,7 @@ function modaleQuizFini(graines) {
   o.className = "modal-fond";
   o.innerHTML = `<div class="modal code-modal">
     <div class="cm-emoji">🎉</div>
-    <h2 class="cm-titre">${msg("quiz_fini_titre", "Épreuve terminée !", "Proef voltooid!")}</h2>
+    <h2 class="cm-titre">${msg("quiz_fini_titre", "Quiz terminé !", "Quiz voltooid!")}</h2>
     <p class="cm-sous">${msg("quiz_fini_corps",
       "Tu as récolté <b>{graines} 🌰</b> graines.\n<b>Ton jardin est maintenant ouvert</b> 🌼 : plantes-y tes graines. Elles vont diminuer — <b>c'est normal, ça ne concerne que le jardin</b>, <b>ton score au classement ne bougera pas</b>.\n🎁 Et surtout : <b>va au bout de ton jardin et tu gagnes une récompense toi aussi</b>, même sans être sur le podium !",
       "Je hebt <b>{graines} 🌰</b> zaadjes geoogst.\n<b>Je tuin is nu open</b> 🌼: plant er je zaadjes. Ze zullen afnemen — <b>dat is normaal, het geldt enkel voor de tuin</b>, <b>je score in de ranking verandert niet</b>.\n🎁 En vooral: <b>werk je tuin af en jij wint ook een beloning</b>, ook zonder op het podium te staan!",
@@ -2678,7 +2678,7 @@ function renderBoard() {
   const lignes = board.filter((p) => p.quiz_fait !== false && !estNomTest(p.name));
   if (!lignes.length) {
     app.innerHTML = `${pillsHtml("board")}<div class="card center">${titre}
-      <p class="hint">${fini ? t("Les épreuves sont terminées.", "De proeven zijn afgelopen.") : t("Sois le premier ou la première à jouer ! 🌱", "Wees de eerste om te spelen! 🌱")}</p></div>`;
+      <p class="hint">${fini ? t("Le quiz est terminé.", "De quiz is afgelopen.") : t("Sois le premier ou la première à jouer ! 🌱", "Wees de eerste om te spelen! 🌱")}</p></div>`;
     bindPills();
     return;
   }
@@ -2900,7 +2900,7 @@ function renderJardin() {
     app.innerHTML = `${pillsHtml("jardin")}<div class="card center">
       <div style="font-size:2.6rem;">🌼</div>
       <h2 class="q-text" style="margin:8px 0;">${t("Ton jardin t'attend", "Je tuin wacht op je")}</h2>
-      <p class="hint">${t("Crée ta carte de jardinier aux épreuves, ou retrouve-la avec ton pseudo + ton code.", "Maak je tuinierskaart aan via de proeven, of vind ze terug met je gebruikersnaam + code.")}</p>
+      <p class="hint">${t("Crée ta carte de jardinier au quiz, ou retrouve-la avec ton pseudo + ton code.", "Maak je tuinierskaart aan via de quiz, of vind ze terug met je gebruikersnaam + code.")}</p>
       <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:center;">
         <button class="btn" id="j-jouer">${t("Créer ma carte 🌱", "Mijn kaart aanmaken 🌱")}</button>
         <button class="btn ghost" id="j-retrouver">${t("J'ai déjà une carte", "Ik heb al een kaart")}</button>
@@ -2959,7 +2959,7 @@ function renderJardin() {
       <span class="je-rassure">${t("💚 En plantant, ton nombre de graines à planter diminue : <b>c'est normal, ça ne concerne que le jardin</b>. <b>Ton score au classement ne bouge pas</b> — va voir dans « Classement », il sera toujours le même.", "💚 Bij het planten daalt je aantal zaadjes om te planten: <b>dat is normaal, het geldt enkel voor de tuin</b>. <b>Je score in de ranking verandert niet</b> — kijk maar in « Ranking », die blijft dezelfde.")}</span>
     </div>
     ${JARDIN_LIBRE ? "" : `<div class="j-gagner">
-      <button class="btn" id="j-quiz">${t("🎯 Épreuve du jardin", "🎯 Tuinproef")}</button>
+      <button class="btn" id="j-quiz">${t("🎯 Quiz du jardin", "🎯 Tuinquiz")}</button>
       <button class="btn ghost" id="j-herbes">${t("🌿 Chasse aux herbes", "🌿 Onkruid vangen")}</button>
       <span>${t("Deux façons de récolter des graines pour le jardin (jamais le classement). Le <b>quiz</b> en rapporte le plus, et chaque bonne réponse compte&nbsp;!", "Twee manieren om zaadjes voor de tuin te oogsten (nooit voor de ranking). De <b>quiz</b> levert het meeste op, en elk juist antwoord telt&nbsp;!")}</span>
     </div>`}
@@ -3681,13 +3681,13 @@ function renderDashboard() {
     <div class="borne-modules dash-modules">
       <button class="borne-mod${quizOuvert && !quizFait ? "" : " mod-inactif"}" id="dash-quiz">
         <span class="bm-emo">🎯</span>
-        <span class="bm-titre">${t("Faire les épreuves", "De proeven doen")}</span>
-        <span class="bm-desc">${quizFait ? t("✅ Épreuves déjà faites", "✅ Proeven al gedaan") : (quizOuvert ? t("Réponds et récolte tes graines", "Antwoord en oogst je zaadjes") : t("🔒 Dispo le ", "🔒 Beschikbaar op ") + labelLancement())}</span>
+        <span class="bm-titre">${t("Faire le quiz", "De quiz doen")}</span>
+        <span class="bm-desc">${quizFait ? t("✅ Quiz déjà fait", "✅ Quiz al gedaan") : (quizOuvert ? t("Réponds et récolte tes graines", "Antwoord en oogst je zaadjes") : t("🔒 Dispo le ", "🔒 Beschikbaar op ") + labelLancement())}</span>
       </button>
       <button class="borne-mod${jardinOk ? "" : " mod-inactif"}" id="dash-jardin">
         <span class="bm-emo">🌼</span>
         <span class="bm-titre">${t("Mon espace jardin", "Mijn tuin")}</span>
-        <span class="bm-desc">${jardinOk ? t("Plante tes graines — va au bout et gagne une récompense 🌼", "Plant je zaadjes — werk je tuin af en win een beloning 🌼") : t("🔒 Fais les épreuves d'abord", "🔒 Doe eerst de proeven")}</span>
+        <span class="bm-desc">${jardinOk ? t("Plante tes graines — va au bout et gagne une récompense 🌼", "Plant je zaadjes — werk je tuin af en win een beloning 🌼") : t("🔒 Fais le quiz d'abord", "🔒 Doe eerst de quiz")}</span>
       </button>
       <button class="borne-mod" id="dash-board">
         <span class="bm-emo">🏆</span>
@@ -3702,7 +3702,7 @@ function renderDashboard() {
     </div>
   </div>`;
   $("#dash-quiz").addEventListener("click", () => {
-    if (quizFait) { jardinMsg = t("Tu as déjà fait les épreuves 🌱 Direction ton jardin !", "Je hebt de proeven al gedaan 🌱 Op naar je tuin!"); userView = "jardin"; ouvreJardinDepuisDash(); return; }
+    if (quizFait) { jardinMsg = t("Tu as déjà fait le quiz 🌱 Direction ton jardin !", "Je hebt de quiz al gedaan 🌱 Op naar je tuin!"); userView = "jardin"; ouvreJardinDepuisDash(); return; }
     if (!quizOuvert) { modaleQuizVerrouille(); return; }
     ouvrePseudoPuisQuiz();
   });
@@ -3765,7 +3765,7 @@ function modaleJardinVerrouille() {
   o.innerHTML = `<div class="modal code-modal">
     <div class="cm-emoji">🌱</div>
     <h2 class="cm-titre">${t("Ton jardin t'attend !", "Je tuin wacht op je!")}</h2>
-    <p class="cm-sous">${t("Fais d'abord les épreuves pour récolter tes premières graines — ensuite tu pourras planter 🌼", "Doe eerst de proeven om je eerste zaadjes te oogsten — daarna kan je planten 🌼")}</p>
+    <p class="cm-sous">${t("Fais d'abord le quiz pour récolter tes premières graines — ensuite tu pourras planter 🌼", "Doe eerst de quiz om je eerste zaadjes te oogsten — daarna kan je planten 🌼")}</p>
     <button class="btn" id="cm-ok" style="min-width:180px;">${t("Compris !", "Begrepen!")}</button>
   </div>`;
   document.body.appendChild(o);
@@ -3827,7 +3827,7 @@ function ouvreExplicationCodes() {
       <div class="explik-step explik-star"><span class="explik-ico">🌰</span><span class="explik-txt"><b class="eh">${t("Chacun rapporte +" + CONFIG.pointsParCodeBonus + " graines ⭐", "Elk levert +" + CONFIG.pointsParCodeBonus + " zaadjes op ⭐")}</b>${t("Et ces graines <b>comptent au classement</b> : un code trouvé, c'est de l'avance sur les autres.", "En deze zaadjes <b>tellen mee in de ranking</b>: een gevonden code is een voorsprong op de anderen.")}</span></div>
       <div class="explik-step"><span class="explik-ico">🔒</span><span class="explik-txt"><b class="eh">${t(CONFIG.maxCodes + " codes maximum par personne", "Maximaal " + CONFIG.maxCodes + " codes per persoon")}</b>${t("Et c'est <b>premier arrivé, premier servi</b> : un code déjà récupéré par quelqu'un d'autre ne vaut plus rien. Ne le laisse pas traîner !", "En het is <b>wie eerst komt, eerst maalt</b>: een code die al door iemand anders is opgehaald, is niets meer waard. Laat hem niet liggen!")}</span></div>
       <div class="explik-step"><span class="explik-ico">👤</span><span class="explik-txt"><b class="eh">${t("Il te faut un compte", "Je hebt een account nodig")}</b>${t("Crée ton compte (ou connecte-toi) pour que les graines soient créditées. Ça prend 30 secondes.", "Maak je account aan (of meld je aan) zodat de zaadjes worden bijgeschreven. Dat duurt 30 seconden.")}</span></div>
-      <div class="explik-step"><span class="explik-ico">⏳</span><span class="explik-txt"><b class="eh">${t("Même après les épreuves !", "Zelfs na de proeven!")}</b>${t("Tu as déjà fait le quiz ? Tu peux <b>toujours</b> récupérer des codes : ils s'ajoutent à ta récolte et te font remonter au classement.", "Heb je de quiz al gedaan? Je kan <b>nog steeds</b> codes ophalen: ze worden bij je oogst geteld en doen je stijgen in de ranking.")}</span></div>
+      <div class="explik-step"><span class="explik-ico">⏳</span><span class="explik-txt"><b class="eh">${t("Même après le quiz !", "Zelfs na de quiz!")}</b>${t("Tu as déjà fait le quiz ? Tu peux <b>toujours</b> récupérer des codes : ils s'ajoutent à ta récolte et te font remonter au classement.", "Heb je de quiz al gedaan? Je kan <b>nog steeds</b> codes ophalen: ze worden bij je oogst geteld en doen je stijgen in de ranking.")}</span></div>
       <div class="explik-step"><span class="explik-ico">🎯</span><span class="explik-txt"><b class="eh">${t("Des indices arrivent", "Er komen tips aan")}</b>${t("À partir du <b>" + labelMoment(zonesDispoLe()) + "</b>, cette page t'indiquera <b>dans quelles zones du magasin</b> des codes sont cachés (et combien).", "Vanaf <b>" + labelMoment(zonesDispoLe()) + "</b> toont deze pagina je <b>in welke zones van de winkel</b> codes verstopt zijn (en hoeveel).")}</span></div>
     </div>
     <button class="btn" id="explik-ok" style="width:100%;">${t("Compris, je pars à la chasse ! 🔎", "Begrepen, ik ga op jacht! 🔎")}</button>
@@ -4267,8 +4267,8 @@ function renderChoixSite() {
   document.body.classList.remove("mode-borne");
   app.innerHTML = `<div class="home" style="text-align:center;">
     <div style="font-size:3rem; line-height:1; margin-bottom:6px;">🌱</div>
-    <h2 class="borne-titre">${t("Les épreuves Famiflora", "De Famiflora-proeven")}</h2>
-    <p class="borne-sous">${t("Ces épreuves s'ouvrent depuis le lien ou le QR code de ton magasin.", "Deze proeven openen via de link of QR-code van je winkel.")}</p>
+    <h2 class="borne-titre">${t("Le quiz Famiflora", "De Famiflora-quiz")}</h2>
+    <p class="borne-sous">${t("Ce quiz s'ouvre depuis le lien ou le QR code de ton magasin.", "Deze quiz opent via de link of QR-code van je winkel.")}</p>
   </div>`;
 }
 
@@ -4282,7 +4282,7 @@ function renderHome() {
 
   app.innerHTML = `<div class="home">
     ${cd ? `<div class="home-cd" id="home-cd">
-        <div class="hcd-lab">${t("🚀 Lancement dans", "🚀 Start over")}</div>
+        <div class="hcd-lab">${t("🚀 Lancement du quiz dans", "🚀 De quiz start over")}</div>
         <div class="hcd-digits">
           <div class="hcd-cell"><b id="hcd-j">--</b><span>${t("Jours", "Dagen")}</span></div>
           <div class="hcd-cell"><b id="hcd-h">--</b><span>${t("Heures", "Uren")}</span></div>
@@ -4295,9 +4295,9 @@ function renderHome() {
     <div class="borne-modules">
       <button class="borne-mod bm-primaire${espaceAccessible() ? "" : " mod-inactif"}" data-go="espace">
         <span class="bm-emo">${espaceAccessible() ? "🌱" : "🔒"}</span>
-        <span class="bm-titre">${t("Épreuves &amp; mon espace jardin", "Proeven &amp; mijn tuin")}</span>
+        <span class="bm-titre">${t("Quiz &amp; mon espace jardin", "Quiz &amp; mijn tuin")}</span>
         <span class="bm-desc">${espaceAccessible()
-          ? t("Réponds aux épreuves, récolte des graines, fais pousser ton jardin", "Beantwoord de proeven, verzamel zaadjes en laat je tuin groeien")
+          ? t("Réponds au quiz, récolte des graines, fais pousser ton jardin", "Beantwoord de quiz, verzamel zaadjes en laat je tuin groeien")
           : t("🔒 Ouvre le " + labelLancement() + " pour le lancement", "🔒 Opent op " + labelLancement() + " voor de lancering")}</span>
       </button>
       <button class="borne-mod${tuilesAccessibles() ? "" : " mod-inactif"}" data-go="code">
@@ -4379,7 +4379,7 @@ function renderHome() {
     // que sur le téléphone. La borne reste donc sur /quiz/<ville>/borne : elle ne
     // bascule JAMAIS dans l'interface téléphone. Chaque vue a son propre « retour »
     // qui ramène à l'accueil de la borne.
-    // « Épreuves & mon espace jardin » : déjà connecté → tableau de bord ; sinon on
+    // « Quiz & mon espace jardin » : déjà connecté → tableau de bord ; sinon on
     // ouvre la modale de connexion Famiformation PAR-DESSUS l'accueil courant.
     if (go === "espace") {
       // 🔒 Verrouillé pour tout le monde avant le lancement (sauf déblocage « admin »).
@@ -4435,7 +4435,7 @@ function modaleEvenements() {
   o.addEventListener("click", (e) => { if (e.target === o) ferme(); });
 }
 
-// 🔒 Message affiché quand on clique le module « Épreuves & mon espace jardin »
+// 🔒 Message affiché quand on clique le module « Quiz & mon espace jardin »
 // pendant qu'il est verrouillé pour tout le monde.
 function modaleEspaceBloque(extra) {
   if (document.querySelector(".modal-fond")) return;
@@ -4445,7 +4445,7 @@ function modaleEspaceBloque(extra) {
     <div class="cm-emoji">🚀</div>
     ${extra ? `<p class="cm-sous" style="margin:0 0 10px; font-weight:800; color:var(--pousse);">${esc(extra)}</p>` : ""}
     <h2 class="cm-titre">${t("Ouverture le " + labelLancement() + " !", "Opening op " + labelLancement() + "!")}</h2>
-    <p class="cm-sous">${t("Les épreuves, ton jardin et le classement ouvrent le <b>" + labelLancement() + "</b>, pile pour le <b>lancement</b> 🎉 Reviens à ce moment-là pour jouer et récolter tes graines 🌱", "De proeven, je tuin en de ranking openen op <b>" + labelLancement() + "</b>, precies voor de <b>lancering</b> 🎉 Kom dan terug om te spelen en zaadjes te oogsten 🌱")}</p>
+    <p class="cm-sous">${t("Le quiz, ton jardin et le classement ouvrent le <b>" + labelLancement() + "</b>, pile pour le <b>lancement</b> 🎉 Reviens à ce moment-là pour jouer et récolter tes graines 🌱", "De quiz, je tuin en de ranking openen op <b>" + labelLancement() + "</b>, precies voor de <b>lancering</b> 🎉 Kom dan terug om te spelen en zaadjes te oogsten 🌱")}</p>
     <button class="btn" id="cm-ok" style="min-width:180px;">${t("J'ai hâte ! 🌱", "Ik kijk ernaar uit! 🌱")}</button>
   </div>`;
   document.body.appendChild(o);
@@ -4469,7 +4469,7 @@ function modaleQuizVerrouille() {
   o.className = "modal-fond";
   o.innerHTML = `<div class="modal code-modal">
     <div class="cm-emoji">🔒</div>
-    <h2 class="cm-titre">${t("Les épreuves ne sont pas encore ouvertes", "De proeven zijn nog niet open")}</h2>
+    <h2 class="cm-titre">${t("Le quiz n'est pas encore ouvert", "De quiz is nog niet open")}</h2>
     <p class="cm-sous">${t("Rendez-vous le <b>" + labelLancement() + "</b> pour jouer et récolter tes graines 🌱", "Afspraak op <b>" + labelLancement() + "</b> om te spelen en zaadjes te oogsten 🌱")}</p>
     <button class="btn" id="cm-ok" style="min-width:180px;">${t("J'ai hâte ! 🌱", "Ik kijk ernaar uit! 🌱")}</button>
   </div>`;
@@ -5405,7 +5405,7 @@ function retourNav() {
   // toute façon désactivée plus bas (appareil partagé).
   if (ECRAN === "code") { codeAReclamer = null; userView = "reclamer"; }
 
-  // 🌱 Depuis la borne, « Épreuves & mon espace jardin » ouvre /quiz?espace=1 : on
+  // 🌱 Depuis la borne, « Quiz & mon espace jardin » ouvre /quiz?espace=1 : on
   // entre direct dans l'espace (connexion/création → tableau de bord).
   if (SIM_PARAMS.get("espace")) userView = "espace";
   else if (SIM_PARAMS.get("play")) userView = "quiz";
@@ -5414,7 +5414,7 @@ function retourNav() {
   // session sans redemander le mot de passe. Sur une borne, jamais (chargeJeton
   // renvoie "" sur borne). Un jeton périmé/invalide est simplement ignoré.
   // 🔗 ARRIVÉE DEPUIS FAMIFORMATION (?jeton=…). La personne vient de cliquer sur
-  // la tuile « Épreuves & mon espace jardin » : elle est déjà authentifiée là-bas, on
+  // la tuile « Quiz & mon espace jardin » : elle est déjà authentifiée là-bas, on
   // ne lui redemande rien. Le jeton est signé par le serveur — un jeton bricolé
   // est rejeté par l'API, il n'y a donc rien à vérifier ici.
   //
@@ -5457,7 +5457,7 @@ function retourNav() {
     if (res && res.exists && !res.mauvais_code) {
       joueur = { name: res.name, code: moi.code, solde: res.solde, recoltees: res.recoltees, nbCodes: res.nbCodes, quizFait: res.quiz_fait !== false };
       // Reconnu : on reste sur l'accueil (userView "auto" → home). Entrer dans
-      // « Épreuves & mon espace jardin » ira droit au tableau de bord (déjà connecté).
+      // « Quiz & mon espace jardin » ira droit au tableau de bord (déjà connecté).
       const m = await reclamerEnAttente();      // un code mis de côté ?
       if (m) jardinMsg = m;
     } else if (res && res.mauvais_code) {

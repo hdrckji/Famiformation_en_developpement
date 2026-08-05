@@ -79,7 +79,7 @@ $userPhoto = $_SESSION['photo_profil'] ?? null;
         .tile-title { font-size: 1.4rem; font-weight: 700; color: #2d5a37; margin-bottom: 8px; }
         .tile-desc { font-size: .95rem; color: #666; line-height: 1.4; }
 
-        /* 🌱 MISE EN AVANT DE LA TUILE « Épreuves & mon espace jardin ».
+        /* 🌱 MISE EN AVANT DE LA TUILE « Quiz & mon espace jardin ».
            Classes DÉDIÉES et animations préfixées « jd » : les deux autres tuiles
            de cette page ne changent pas d'un pixel. Le « position: relative » est
            ici INDISPENSABLE — contrairement à l'accueil normal, le .tile de cette
@@ -116,7 +116,7 @@ $userPhoto = $_SESSION['photo_profil'] ?? null;
         }
 
         /* 💻 Tablette ou fenêtre réduite : à cette largeur, 3 colonnes rendraient
-           les titres illisibles (« Épreuves & mon espace jardin » se couperait en
+           les titres illisibles (« Quiz & mon espace jardin » se couperait en
            quatre lignes). On repasse à 2, puis à 1 sur téléphone juste en dessous.
            Ce bloc doit rester AVANT celui des 560px, qui doit gagner sur lui. */
         @media (max-width: 900px) {
@@ -186,8 +186,8 @@ $userPhoto = $_SESSION['photo_profil'] ?? null;
         <a href="quiz_acces.php" class="tile tile-jardin">
             <span class="badge-jardin">🎁 <?= t('NOUVEAU', 'NIEUW') ?></span>
             <span class="tile-icon">🌱</span>
-            <div class="tile-title"><?= t('Épreuves & mon espace jardin', 'Proeven & mijn tuin') ?></div>
-            <div class="tile-desc"><?= t("Réponds aux épreuves, récolte tes graines et fais pousser ton jardin.", "Doe de quiz, oogst je zaadjes en laat je tuin groeien.") ?></div>
+            <div class="tile-title"><?= t('Quiz & mon espace jardin', 'Quiz & mijn tuin') ?></div>
+            <div class="tile-desc"><?= t("Réponds au quiz, récolte tes graines et fais pousser ton jardin.", "Doe de quiz, oogst je zaadjes en laat je tuin groeien.") ?></div>
         </a>
     </div>
 </body>
