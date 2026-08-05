@@ -1043,11 +1043,13 @@ function borneEvenement($db, $site, $ecran, $type, $joueur = null, $score = null
 
 // 🎟️ CODES RÉCOMPENSE (bons cadeaux).
 //
-// Le stock vient de recompense-codes.sql (importé de Test_Enlyson.xlsx). Un code
-// part avec le mail « ta récompense est prête » et devient définitivement celui
-// de cette personne : UN code par personne, jamais deux.
+// Le stock, ce sont les 200 bons Lollyland : remplacer-codes-lollyland.sql,
+// généré depuis FAMIFORMATION_Bon Lollyland.xlsx. (Les codes de
+// Test_Enlyson.xlsx étaient erronés et ont été retirés.) Un code part avec le
+// mail « ta récompense est prête » et devient définitivement celui de cette
+// personne : UN code par personne, jamais deux.
 //
-// Le compte de test fait exception — voir estCompteAdminTest().
+// Le compte de test ne pioche PAS dans ce stock — voir recompenseCodeTest().
 
 function recompenseCodesEnsure($db) {
   if (!($db instanceof PDO)) { return false; }
@@ -1082,6 +1084,24 @@ function recompenseCodesEnsure($db) {
 // vérifier l'envoi. Tous les autres sont limités à un seul.
 function estCompteAdminTest($cle) {
   return stripos(trim((string) $cle), 'admin_') === 0;
+}
+
+// 🧪 LE BON DE TEST DU COMPTE admin_.
+//
+// Tester l'envoi ne doit RIEN coûter : chaque bon tiré du stock est un bon en
+// moins pour un client, et il n'y en a que 200. Le compte de test reçoit donc
+// un code fabriqué à la volée, jamais écrit en base. Conséquences voulues :
+//   — le stock ne bouge pas ;
+//   — admin_ n'apparaît jamais dans « Récompenses données » ;
+//   — le mail est identique à un vrai, code-barres compris, donc le test est
+//     fidèle.
+// Le préfixe FAMITEST- le rend reconnaissable au premier coup d'œil et la
+// caisse le refusera : c'est exactement ce qu'on veut d'un faux bon.
+function recompenseCodeTest() {
+  return [
+    'code_id' => 'test',
+    'barcode' => 'FAMITEST-' . strtoupper(bin2hex(random_bytes(4))),
+  ];
 }
 
 // Le code déjà attribué à quelqu'un, ou null. C'est ce qui bloque un second
@@ -2300,21 +2320,25 @@ function mailRecompense(PDO $db, $cle, $info, $modele = 'attente', $origine = 'a
     // remis en main propre. Un mail de podium part donc SANS code, exactement
     // comme avant — et n'est pas bloqué par la règle du code unique.
     if (!$estPodium) {
-      // Un code, une personne : si elle a déjà le sien, on n'envoie RIEN. Le
-      // mail contiendrait un second bon alors que le premier reste valable.
-      // Le compte de test échappe à la règle, il sert à vérifier l'envoi.
-      $dejaCode = recompenseCodeExistant($db, $cle);
-      if ($dejaCode && !estCompteAdminTest($cle)) {
-        return false;
-      }
+      if (estCompteAdminTest($cle)) {
+        // 🧪 Compte de test : faux bon, stock intact. Autant de fois qu'on veut.
+        $codeRecompense = recompenseCodeTest();
+      } else {
+        // Un code, une personne : si elle a déjà le sien, on n'envoie RIEN. Le
+        // mail contiendrait un second bon alors que le premier reste valable.
+        $dejaCode = recompenseCodeExistant($db, $cle);
+        if ($dejaCode) {
+          return false;
+        }
 
-      $code = recompenseAttribue($db, $cle, $bonjour, $email, 'jardin');
-      if (!$code) {
-        // Stock épuisé : on n'envoie pas un mail « c'est prêt » sans le bon.
-        // Mieux vaut que les RH voient l'envoi échouer et rechargent des codes.
-        return false;
+        $code = recompenseAttribue($db, $cle, $bonjour, $email, 'jardin');
+        if (!$code) {
+          // Stock épuisé : on n'envoie pas un mail « c'est prêt » sans le bon.
+          // Mieux vaut que les RH voient l'envoi échouer et rechargent des codes.
+          return false;
+        }
+        $codeRecompense = $code;
       }
-      $codeRecompense = $code;
     }
   }
 
@@ -3255,13 +3279,23 @@ case 'rh_recompenses': {
   }
   recompenseCodesEnsure($dbr);
   $libres = 0; $donnes = 0; $lignes = [];
+  // 🧪 Le compte de test est exclu du décompte ET de la liste : ce ne sont pas
+  // des personnes à qui on a remis un bon. Depuis recompenseCodeTest() il ne
+  // consomme plus de code du tout, ce filtre ne sert donc qu'aux lignes de
+  // tests laissées par l'ancienne version.
+  // LEFT(...) = 'admin_' plutôt que LIKE : dans un LIKE, le « _ » est un
+  // joker qui matcherait « admin7 », « adminX »… La comparaison est
+  // insensible à la casse par la collation, comme le stripos côté PHP.
+  $saufTest = "LEFT(attribue_a, 6) <> 'admin_'";
   try {
     $libres = (int) $dbr->query('SELECT COUNT(*) FROM recompense_codes WHERE attribue_a IS NULL')->fetchColumn();
-    $donnes = (int) $dbr->query('SELECT COUNT(*) FROM recompense_codes WHERE attribue_a IS NOT NULL')->fetchColumn();
+    $donnes = (int) $dbr->query(
+      'SELECT COUNT(*) FROM recompense_codes WHERE attribue_a IS NOT NULL AND ' . $saufTest
+    )->fetchColumn();
     $lignes = $dbr->query(
       'SELECT id, code_id, barcode, attribue_a, attribue_nom, attribue_email, attribue_le, motif, site
          FROM recompense_codes
-        WHERE attribue_a IS NOT NULL
+        WHERE attribue_a IS NOT NULL AND ' . $saufTest . '
         ORDER BY attribue_le DESC, id DESC
         LIMIT 500'
     )->fetchAll(PDO::FETCH_ASSOC);

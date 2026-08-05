@@ -59,20 +59,29 @@ if ($code === '' || !preg_match('/^[\x20-\x7E]{1,60}$/', $code)) {
     refuse('Code invalide');
 }
 
-// Le code doit exister dans le stock.
-$connu = false;
-try {
-    $db = codeBarreDb();
-    if ($db instanceof PDO) {
-        $st = $db->prepare('SELECT 1 FROM recompense_codes WHERE barcode = ? LIMIT 1');
-        $st->execute([$code]);
-        $connu = (bool) $st->fetchColumn();
-    }
-} catch (Throwable $e) {
+// 🧪 Les faux bons du compte admin_ (recompenseCodeTest() dans api.php) ne sont
+// PAS en base : c'est tout l'intérêt, ils ne consomment pas le stock. On les
+// dessine donc sans interroger la base. Ça n'ouvre pas la porte au générateur
+// public que le commentaire d'en-tête redoute : un code FAMITEST- ne vaut rien
+// en caisse, il n'existe dans aucun système de bons.
+$estTest = (stripos($code, 'FAMITEST-') === 0);
+
+// Tout le reste doit exister dans le stock.
+if (!$estTest) {
     $connu = false;
-}
-if (!$connu) {
-    refuse('Code inconnu');
+    try {
+        $db = codeBarreDb();
+        if ($db instanceof PDO) {
+            $st = $db->prepare('SELECT 1 FROM recompense_codes WHERE barcode = ? LIMIT 1');
+            $st->execute([$code]);
+            $connu = (bool) $st->fetchColumn();
+        }
+    } catch (Throwable $e) {
+        $connu = false;
+    }
+    if (!$connu) {
+        refuse('Code inconnu');
+    }
 }
 
 // --- Code 128 : les 107 motifs, en largeurs de barres/espaces ---------------
