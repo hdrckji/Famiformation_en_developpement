@@ -57,6 +57,9 @@ try {
 }
 
 $formationId = (int) ($_REQUEST['formation_id'] ?? 0);
+// 👥 Le public visé. Par défaut le plus étroit : on n'élargit qu'en le
+// choisissant sciemment, jamais par inadvertance.
+$public = (($_REQUEST['public'] ?? '') === 'sans_date') ? 'sans_date' : 'inscrits';
 $formation = null;
 foreach ($formations as $f) { if ((int) $f['id'] === $formationId) { $formation = $f; } }
 
@@ -72,13 +75,34 @@ if ($formation) {
     $st->execute([$formationId]);
     $creneaux = $st->fetchAll(PDO::FETCH_ASSOC);
 
-    // Les intéressés : inscription SANS créneau choisi.
-    $st = $db->prepare("SELECT DISTINCT u.id, u.prenom, u.nom, u.email
-                          FROM utilisateurs u
-                          JOIN formations_inscriptions i ON i.utilisateur_id = u.id
-                         WHERE i.formation_id = ? AND i.creneau_id IS NULL
-                           AND u.role = 'etudiant'
-                      ORDER BY u.prenom, u.nom");
+    // 👥 LE PUBLIC. Le message est générique — il annonce des créneaux, sans
+    // rien supposer de la personne — donc il peut viser plus large que les
+    // seuls inscrits. Trois périmètres, du plus étroit au plus large.
+    //
+    // Dans TOUS les cas, ceux qui ont DÉJÀ réservé une date sont exclus : leur
+    // annoncer des créneaux à réserver serait au mieux inutile, au pire
+    // inquiétant (« ma réservation a sauté ? »).
+    if ($public === 'sans_date') {
+        // TOUS les étudiants qui n'ont pas de date pour cette formation, qu'ils
+        // se soient inscrits ou non. C'est le public d'un message générique :
+        // on annonce des créneaux, celui qui est concerné réserve.
+        $sql = "SELECT u.id, u.prenom, u.nom, u.email
+                  FROM utilisateurs u
+                 WHERE u.role = 'etudiant'
+                   AND u.id NOT IN (SELECT utilisateur_id FROM formations_inscriptions
+                                     WHERE formation_id = ? AND creneau_id IS NOT NULL)
+              ORDER BY u.prenom, u.nom";
+    } else {
+        // 'inscrits' — ceux qui se sont inscrits à la formation SANS choisir de
+        // date. Le public le plus étroit, et le choix par défaut.
+        $sql = "SELECT DISTINCT u.id, u.prenom, u.nom, u.email
+                  FROM utilisateurs u
+                  JOIN formations_inscriptions i ON i.utilisateur_id = u.id
+                 WHERE i.formation_id = ? AND i.creneau_id IS NULL
+                   AND u.role = 'etudiant'
+              ORDER BY u.prenom, u.nom";
+    }
+    $st = $db->prepare($sql);
     $st->execute([$formationId]);
     foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $u) {
         if (filter_var(trim((string) $u['email']), FILTER_VALIDATE_EMAIL)) { $interesses[] = $u; }
@@ -265,16 +289,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['envoyer']) && $format
   <form method="POST">
     <?= csrfField() ?>
     <input type="hidden" name="formation_id" value="<?= (int) $formationId ?>">
+    <?php // Le public doit suivre l'envoi : sans ça, valider rebasculerait sur
+          // le public par défaut et la liste cochée ne correspondrait plus à
+          // celle qu'on vient de relire à l'écran. ?>
+    <input type="hidden" name="public" value="<?= $e($public) ?>">
 
     <div class="card">
       <h2>3. Qui sera prévenu ?</h2>
+
+      <form method="GET" style="margin-bottom:14px;">
+        <input type="hidden" name="formation_id" value="<?= (int) $formationId ?>">
+        <label class="pers" style="border:none;padding:6px 4px;">
+          <input type="radio" name="public" value="inscrits" <?= $public === 'inscrits' ? 'checked' : '' ?>
+                 onchange="this.form.submit()">
+          <span><b>Ceux qui se sont inscrits sans choisir de date</b>
+            <span class="mail">— le public le plus étroit</span></span>
+        </label>
+        <label class="pers" style="border:none;padding:6px 4px;">
+          <input type="radio" name="public" value="sans_date" <?= $public === 'sans_date' ? 'checked' : '' ?>
+                 onchange="this.form.submit()">
+          <span><b>Tous les étudiants sans date pour cette formation</b>
+            <span class="mail">— pour un message générique, envoyé largement</span></span>
+        </label>
+        <noscript><button class="btn ghost" type="submit">Appliquer</button></noscript>
+      </form>
+
       <div class="chips">
-        <span class="chip"><b><?= count($interesses) ?></b> intéressé(s) joignable(s)</span>
+        <span class="chip"><b><?= count($interesses) ?></b> destinataire(s) joignable(s)</span>
         <?php if ($sansMail): ?><span class="chip warn"><b><?= $sansMail ?></b> sans adresse e-mail</span><?php endif; ?>
-        <?php if ($dejaInscrits): ?><span class="chip"><b><?= $dejaInscrits ?></b> ont déjà choisi une date — non contactés</span><?php endif; ?>
+        <?php if ($dejaInscrits): ?><span class="chip"><b><?= $dejaInscrits ?></b> ont déjà leur date — jamais contactés</span><?php endif; ?>
       </div>
-      <p class="sub">Sont « intéressés » ceux qui se sont inscrits à la formation <b>sans choisir de date</b>.
-      Ceux qui ont déjà leur créneau ne sont pas recontactés : ça ne ferait que semer le doute.</p>
+      <p class="sub">Quel que soit le public choisi, <b>ceux qui ont déjà réservé une date sont toujours exclus</b> :
+      leur annoncer des créneaux à réserver serait au mieux inutile, au pire inquiétant.</p>
 
       <?php if (!$interesses): ?>
         <p class="vide">Personne à prévenir pour cette formation.</p>
