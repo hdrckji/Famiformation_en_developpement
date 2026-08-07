@@ -148,7 +148,7 @@ if (isset($_POST['add_creneau'])) {
                 <h2 style="color:#1976d2;margin-bottom:18px;">Nouvelle date de formation</h2>
                 <p style="font-size:1.1em;margin-bottom:18px;">Bonjour <strong>' . htmlspecialchars($u['prenom']) . '</strong>,</p>
                 <p style="margin-bottom:18px;">Une date vient d&#39;être programmée pour la formation à laquelle vous avez manifesté votre intérêt.</p>
-                <p style="margin-bottom:18px;">Vous pouvez vous inscrire directement depuis votre espace <a href="https://famiformation.fr" style="color:#1976d2;text-decoration:underline;">FamiFormation</a>.</p>
+                <p style="margin-bottom:18px;">Vous pouvez vous inscrire directement depuis votre espace <a href="' . htmlspecialchars(famiBuildAppUrl('formation.php'), ENT_QUOTES, 'UTF-8') . '" style="color:#1976d2;text-decoration:underline;">FamiFormation</a>.</p>
                 <div style="margin:28px 0 0 0;font-size:0.95em;color:#888;">À bientôt,<br>L&#39;équipe Famiflora</div>
             </div>';
             sendMail($u['email'], $subject, $body);
