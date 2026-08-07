@@ -131,17 +131,23 @@ function corpsMailCreneaux($prenom, $titreFormation, array $creneaux, array $JOU
 
     $lien = function_exists('famiBuildAppUrl') ? famiBuildAppUrl('formation.php') : 'formation.php';
 
+    // ✉️ MESSAGE VOLONTAIREMENT COURT. On annonce, on donne les dates, on donne
+    // le bouton. Rien de plus : un mail long est un mail qu'on ne lit pas.
+    //
+    // ⚠️ On ne dit PAS « à laquelle vous avez manifesté votre intérêt ». C'est
+    // la façon dont on choisit les destinataires, pas une information utile à
+    // la personne — et ça oblige à se souvenir de ce qu'on a coché il y a des
+    // semaines pour comprendre pourquoi on reçoit ce mail.
     return '<div style="font-family:Arial,sans-serif;color:#244230;max-width:560px;margin:0 auto;padding:24px;">'
         . '<p style="font-size:16px;">Bonjour ' . $bonjour . ',</p>'
-        . '<p style="font-size:16px;line-height:1.6;">De <b>nouvelles dates</b> viennent d\'être ouvertes pour la formation '
-        . '<b>' . $e($titreFormation) . '</b>, à laquelle tu avais manifesté ton intérêt.</p>'
+        . '<p style="font-size:16px;line-height:1.6;">De <b>nouveaux créneaux</b> ont été ajoutés pour la formation '
+        . '<b>' . $e($titreFormation) . '</b>.</p>'
         . '<ul style="font-size:16px;line-height:1.5;padding-left:20px;margin:0 0 18px;">' . $liste . '</ul>'
         . $suite
-        . '<p style="font-size:16px;line-height:1.6;">Les places sont limitées et attribuées dans l\'ordre des inscriptions : '
-        . '<b>choisis ta date dès maintenant</b> depuis ton espace.</p>'
+        . '<p style="font-size:16px;line-height:1.6;">Rends-toi sur <b>FamiFormation</b> pour réserver ton créneau.</p>'
         . '<p style="margin:24px 0;"><a href="' . $e($lien) . '" '
         . 'style="background:#2d5a37;color:#ffffff;text-decoration:none;font-weight:bold;'
-        . 'padding:13px 26px;border-radius:6px;display:inline-block;">Choisir ma date</a></p>'
+        . 'padding:13px 26px;border-radius:6px;display:inline-block;">Réserver mon créneau</a></p>'
         . '<p style="font-size:15px;line-height:1.6;">Si le bouton ne fonctionne pas, copie ce lien dans ton navigateur :<br>'
         . '<span style="color:#2d5a37;">' . $e($lien) . '</span></p>'
         . '<p style="font-size:15px;color:#617268;">Une question ? Écris à '
@@ -154,7 +160,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['envoyer']) && $format
     requireValidCSRF();
     $choisis = array_map('intval', (array) ($_POST['destinataires'] ?? []));
     $envoye = 0; $echecs = 0; $detail = [];
-    $sujet = '🎓 De nouvelles dates pour la formation ' . $formation['titre'];
+    $sujet = '🎓 Nouveaux créneaux — ' . $formation['titre'];
 
     foreach ($interesses as $u) {
         if (!in_array((int) $u['id'], $choisis, true)) { continue; }
@@ -290,7 +296,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['envoyer']) && $format
 
     <div class="card">
       <h2>4. Le mail, exactement tel qu'il partira</h2>
-      <p class="sub"><b>Objet :</b> 🎓 De nouvelles dates pour la formation <?= $e($formation['titre']) ?></p>
+      <p class="sub"><b>Objet :</b> 🎓 Nouveaux créneaux — <?= $e($formation['titre']) ?></p>
       <div class="apercu">
         <?= corpsMailCreneaux('Prénom', $formation['titre'], $creneaux, $JOURS, $MOIS) ?>
       </div>
