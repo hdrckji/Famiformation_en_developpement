@@ -220,9 +220,17 @@ function setLang(l) {
 }
 
 // ============================================================
-//  DONNÉES — 100 articles réels du catalogue Hermie, relevés le 08/08/2026.
-//  Images redimensionnées et hébergées ici : la borne ne dépend pas du site
-//  de Hermie pour afficher une manche.
+//  DONNÉES — les MEILLEURES VENTES Famiflora, quatre rayons confondus :
+//  déco, animalerie, famigarden et food. Le prix est le prix de vente réel
+//  (colonne PV de l'export), et les articles sont classés par quantité vendue.
+//
+//  Chaque article a été retrouvé PAR SON CODE EAN, chez Hermie (société sœur,
+//  son propre catalogue) ou dans Open Food Facts (photos sous licence libre).
+//  Ceux dont l'EAN n'est indexé nulle part n'ont pas de photo fiable : ils ont
+//  été écartés plutôt que d'être illustrés au hasard.
+//
+//  Images redimensionnées et hébergées ici : la borne ne dépend d'aucun site
+//  extérieur pour afficher une manche.
 // ============================================================
 const DATE_RELEVE = "08/08/2026";
 let ARTICLES = [];
@@ -388,7 +396,7 @@ function vueAccueil() {
       <div style="margin:16px 0 0"><button class="btn" id="go">${t("C'est parti !", "We gaan ervoor!")}</button></div>
 
       <div style="margin-top:18px;font-size:.76rem;color:var(--doux);">
-        ${t("Prix relevés sur hermie.com le", "Prijzen opgehaald op hermie.com op")} ${DATE_RELEVE}.
+        ${t("Meilleures ventes Famiflora — prix de vente au", "Best verkochte artikelen Famiflora — verkoopprijs op")} ${DATE_RELEVE}.
       </div>
     </div>`;
   brancheLangues();
@@ -619,7 +627,7 @@ function vueVerdict() {
                     : t("Voir mon score", "Bekijk mijn score"))
             : t("Article suivant", "Volgend artikel")}</button>
       </div>
-      <div style="margin-top:10px"><a class="lien" href="${esc(a.url)}" target="_blank" rel="noopener">${t("Voir l'article sur hermie.com ↗", "Bekijk het artikel op hermie.com ↗")}</a></div>
+      <div style="margin-top:10px"><a class="lien" href="${esc(a.url)}" target="_blank" rel="noopener">${t("Voir la fiche du produit ↗", "Bekijk de productfiche ↗")}</a></div>
     </div>`;
 
   $("#suite").addEventListener("click", () => {
