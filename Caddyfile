@@ -75,6 +75,16 @@
 		@quizRh path /quiz/rh/
 		rewrite @quizRh /quiz/rh/index.html
 
+		# 🏷️ LE JUSTE PRIX — VERSION D'ESSAI (/quiz/justeprix/).
+		# Page a part, qui ne parle NI a l'api NI a la base : elle sert a juger le
+		# jeu avant de decider s'il rejoint le quiz. Elle n'est liee depuis aucune
+		# autre page, il faut connaitre l'adresse. Le / final est impose parce que
+		# la page charge "articles.json" et "img/..." en relatif : sans lui, ils
+		# seraient cherches dans /quiz/ et pas dans /quiz/justeprix/.
+		redir /quiz/justeprix /quiz/justeprix/ 308
+		@quizJustePrix path /quiz/justeprix/
+		rewrite @quizJustePrix /quiz/justeprix/index.html
+
 		# Ecrans dedies : /quiz/tele (affichage TV), /quiz/borne (borne) et
 		# /quiz/code (recuperation d'un code bonus). Ils servent la MEME page que
 		# /quiz ; c'est la page qui detecte le mode selon l'URL. On garde la forme

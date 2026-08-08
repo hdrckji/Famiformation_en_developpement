@@ -1,0 +1,467 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>Le Juste Prix — version d'essai</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito+Sans:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   LE JUSTE PRIX — VERSION D'ESSAI, ISOLÉE DU QUIZ EN LIGNE.
+   Aucune écriture en base, aucun classement, aucun jardin : cette page ne
+   parle à personne. Elle sert à juger le RESSENTI du jeu (rythme, barème,
+   difficulté) avant de décider quoi que ce soit.
+   Palette et polices reprises du quiz pour que la comparaison soit honnête.
+   ============================================================ */
+:root {
+  color-scheme: light;
+  --pousse: #1E7A46;
+  --foret: #0E3B24;
+  --brume: #EAF4EC;
+  --soleil: #FFC53D;
+  --craie: #FFFFFF;
+  --corail: #FF6B5E;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: 'Nunito Sans', system-ui, sans-serif;
+  color: var(--foret);
+  background: var(--brume);
+  min-height: 100dvh;
+  display: flex; flex-direction: column;
+}
+h1, h2, h3, .chiffre { font-family: 'Fredoka', sans-serif; }
+
+/* Bandeau d'essai : impossible de confondre cette page avec le vrai jeu. */
+.essai {
+  background: repeating-linear-gradient(45deg, #2b2b2b, #2b2b2b 14px, #3a3a3a 14px, #3a3a3a 28px);
+  color: #fff; text-align: center; font-weight: 900; font-size: .78rem;
+  letter-spacing: .1em; text-transform: uppercase; padding: 7px 10px;
+}
+.wrap { flex: 1; width: 100%; max-width: 620px; margin: 0 auto; padding: 16px 16px 32px; }
+
+/* ---------- Accueil ---------- */
+.accueil { text-align: center; padding-top: 14px; }
+.accueil h1 { font-size: clamp(2rem, 9vw, 2.9rem); margin: 10px 0 4px; color: var(--pousse); }
+.accueil .sous { font-size: 1.05rem; margin-bottom: 22px; }
+.regles {
+  background: var(--craie); border-radius: 18px; padding: 18px;
+  box-shadow: 0 6px 22px rgba(14,59,36,.10); text-align: left; margin-bottom: 22px;
+}
+.regle { display: flex; gap: 12px; align-items: flex-start; margin: 12px 0; font-size: .96rem; }
+.regle .ico { font-size: 1.5rem; line-height: 1; flex: none; width: 30px; text-align: center; }
+.bareme { margin-top: 14px; border-top: 2px dashed #d8e6dc; padding-top: 12px; }
+.bareme table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+.bareme td { padding: 4px 0; }
+.bareme td:last-child { text-align: right; font-weight: 900; color: var(--pousse); white-space: nowrap; }
+
+.btn {
+  font-family: 'Fredoka', sans-serif; font-size: 1.15rem; font-weight: 600;
+  background: var(--pousse); color: #fff; border: 0; border-radius: 999px;
+  padding: 14px 34px; cursor: pointer;
+  box-shadow: 0 5px 0 #145c34; transition: transform .08s, box-shadow .08s;
+}
+.btn:active { transform: translateY(3px); box-shadow: 0 2px 0 #145c34; }
+.btn:disabled { opacity: .5; cursor: default; transform: none; }
+.btn.secondaire { background: var(--craie); color: var(--foret); box-shadow: 0 5px 0 #cddcd2; }
+.btn.secondaire:active { box-shadow: 0 2px 0 #cddcd2; }
+
+/* ---------- Barre du haut pendant la partie ---------- */
+.hud { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.hud .manche { font-family: 'Fredoka', sans-serif; font-weight: 600; font-size: 1.05rem; }
+.hud .pts {
+  margin-left: auto; background: var(--foret); color: #fff; border-radius: 999px;
+  padding: 6px 14px; font-weight: 900; font-size: .98rem;
+}
+.hud .serie {
+  background: #FFF3C9; color: #8a6d1a; border: 2px solid var(--soleil);
+  border-radius: 999px; padding: 4px 11px; font-weight: 900; font-size: .88rem;
+}
+.jauge { height: 9px; background: #d6e6da; border-radius: 999px; overflow: hidden; margin-bottom: 16px; }
+.jauge > i { display: block; height: 100%; background: var(--pousse); border-radius: 999px; transition: width .25s linear; }
+.jauge.presse > i { background: var(--corail); }
+
+/* ---------- La carte produit ---------- */
+.carte {
+  background: var(--craie); border-radius: 22px; padding: 18px;
+  box-shadow: 0 8px 26px rgba(14,59,36,.12); text-align: center;
+}
+.photo {
+  width: 100%; height: min(46vh, 300px); object-fit: contain;
+  background: #fff; border-radius: 14px; display: block;
+}
+.nom { font-size: 1.06rem; font-weight: 700; margin: 14px 0 4px; line-height: 1.35; }
+
+/* ---------- La saisie du prix ---------- */
+.saisie { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 18px 0 6px; }
+.saisie input {
+  font-family: 'Fredoka', sans-serif; font-size: 2.1rem; font-weight: 700;
+  width: 100%; max-width: 220px; text-align: right;
+  border: 3px solid #d6e6da; border-radius: 14px; padding: 8px 12px;
+  color: var(--foret); background: #fff; outline: none;
+}
+.saisie input:focus { border-color: var(--pousse); }
+.saisie .eur { font-family: 'Fredoka', sans-serif; font-size: 2rem; font-weight: 700; }
+.aide { font-size: .84rem; color: #5d7566; min-height: 1.2em; }
+
+/* ---------- Le verdict ---------- */
+.verdict { text-align: center; }
+.verdict .titre { font-family: 'Fredoka', sans-serif; font-size: 1.8rem; margin: 6px 0; }
+.verdict .prixreel { font-family: 'Fredoka', sans-serif; font-size: 2.6rem; color: var(--pousse); margin: 4px 0; }
+.verdict .ecart { font-size: 1rem; margin-bottom: 12px; }
+.detail { background: var(--brume); border-radius: 14px; padding: 12px 14px; text-align: left; font-size: .93rem; }
+.detail .l { display: flex; justify-content: space-between; padding: 3px 0; }
+.detail .l.total { border-top: 2px solid #cddcd2; margin-top: 6px; padding-top: 8px; font-weight: 900; font-size: 1.05rem; }
+.gagne { color: var(--pousse); font-weight: 900; }
+.rien { color: #93a89a; }
+
+/* ---------- Fin de partie ---------- */
+.fin { text-align: center; }
+.fin .score { font-family: 'Fredoka', sans-serif; font-size: 3.4rem; color: var(--pousse); line-height: 1; }
+.recap { margin: 18px 0; text-align: left; }
+.recap .ligne {
+  display: flex; align-items: center; gap: 10px; background: var(--craie);
+  border-radius: 12px; padding: 8px 12px; margin-bottom: 6px; font-size: .9rem;
+}
+.recap .ligne img { width: 38px; height: 38px; object-fit: contain; border-radius: 8px; flex: none; }
+.recap .ligne .t { flex: 1; min-width: 0; }
+.recap .ligne .t b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.recap .ligne .p { font-weight: 900; white-space: nowrap; }
+.lien { color: var(--pousse); font-size: .82rem; }
+
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+
+<div class="essai">⚠️ Version d'essai — rien n'est enregistré</div>
+<div class="wrap" id="app"></div>
+
+<script>
+// ============================================================
+//  DONNÉES
+//  100 articles réels du catalogue Hermie, relevés le 08/08/2026.
+//  Images redimensionnées et hébergées ici : la borne ne dépend donc pas du
+//  site de Hermie pour afficher une manche.
+// ============================================================
+const DATE_RELEVE = "08/08/2026";
+let ARTICLES = [];
+
+// ============================================================
+//  BARÈME
+//
+//  Calé sur celui du quiz pour que les deux épreuves pèsent pareil :
+//  10 points de base + 5 de rapidité + 5 de série = 20 au maximum par manche,
+//  soit 200 sur une partie de 10 — exactement le plafond du quiz.
+//
+//  La différence : au quiz on a juste ou faux, ici on est plus ou moins près.
+//  La base varie donc avec la PRÉCISION. Les paliers sont en pourcentage et
+//  non en euros, sinon se tromper de 5 € sur un sécateur à 12 € compterait
+//  comme se tromper de 5 € sur un parasol à 300 €.
+// ============================================================
+const BAREME = {
+  paliers: [
+    { ecart: 0.02, pts: 10, titre: "Pile poil !",      emoji: "🎯" },
+    { ecart: 0.05, pts: 8,  titre: "Excellent !",      emoji: "🌟" },
+    { ecart: 0.10, pts: 6,  titre: "Très bien",        emoji: "👏" },
+    { ecart: 0.20, pts: 4,  titre: "Pas mal",          emoji: "🙂" },
+    { ecart: 0.35, pts: 2,  titre: "Un peu loin",      emoji: "😅" },
+    { ecart: 0.60, pts: 1,  titre: "Loin",             emoji: "😬" },
+  ],
+  vitesseMax: 5,      // bonus si on répond quasi instantanément
+  vitesseT: 20,       // au-delà de 20 s, plus de bonus rapidité
+  serieMax: 5,        // plafond du bonus de série
+  serieSeuil: 0.20,   // une estimation « réussie » = moins de 20 % d'écart
+  secondes: 30,       // temps par manche
+  manches: 10,
+};
+
+// L'écart RELATIF entre la proposition et le vrai prix.
+function ecartDe(propose, reel) { return Math.abs(propose - reel) / reel; }
+
+function palierDe(ecart) {
+  for (const p of BAREME.paliers) { if (ecart <= p.ecart) return p; }
+  return { ecart: 1, pts: 0, titre: "Raté", emoji: "🌧️" };
+}
+
+// Gain d'une manche : base (précision) + rapidité + série.
+// La rapidité et la série ne récompensent QUE les estimations qui rapportent
+// déjà : répondre n'importe quoi en une seconde ne doit rien donner.
+function gainManche(ecart, tSec, serie) {
+  const pal = palierDe(ecart);
+  if (pal.pts === 0) return { pal, base: 0, vitesse: 0, serie: 0, total: 0 };
+  const vitesse = BAREME.vitesseMax * Math.max(0, 1 - tSec / BAREME.vitesseT);
+  const bonusSerie = serie >= 2 ? Math.min(serie - 1, BAREME.serieMax) : 0;
+  return {
+    pal, base: pal.pts,
+    vitesse: Math.round(vitesse * 10) / 10,
+    serie: bonusSerie,
+    total: Math.round((pal.pts + vitesse + bonusSerie) * 10) / 10,
+  };
+}
+
+const aff = (n) => Math.round(Number(n) || 0);
+const euro = (n) => Number(n).toFixed(2).replace(".", ",") + " €";
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+// ============================================================
+//  ÉTAT DE LA PARTIE
+// ============================================================
+let etat = null;
+let minuteur = null;
+
+function tirage() {
+  // 10 articles au hasard, mais UN SEUL par tranche de prix proche : sans ça
+  // on peut tomber sur cinq articles à 3 € et la partie n'apprend rien.
+  const copie = ARTICLES.slice();
+  for (let i = copie.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copie[i], copie[j]] = [copie[j], copie[i]];
+  }
+  const choisis = [];
+  const tranches = new Set();
+  for (const a of copie) {
+    const t = Math.floor(Math.log10(Math.max(1, a.prix)) * 2);   // ~demi-décade
+    if (choisis.length < BAREME.manches && !tranches.has(t)) { tranches.add(t); choisis.push(a); }
+  }
+  for (const a of copie) {
+    if (choisis.length >= BAREME.manches) break;
+    if (!choisis.includes(a)) choisis.push(a);
+  }
+  return choisis.slice(0, BAREME.manches);
+}
+
+function nouvellePartie() {
+  etat = { articles: tirage(), idx: 0, score: 0, serie: 0, histo: [], phase: "manche", debut: 0, reste: BAREME.secondes };
+  rendre();
+}
+
+// ============================================================
+//  ÉCRANS
+// ============================================================
+function rendre() {
+  if (!etat) return vueAccueil();
+  if (etat.phase === "manche") return vueManche();
+  if (etat.phase === "verdict") return vueVerdict();
+  if (etat.phase === "fin") return vueFin();
+}
+
+function vueAccueil() {
+  arreteMinuteur();
+  $("#app").innerHTML = `
+    <div class="accueil">
+      <div style="font-size:3.4rem;line-height:1">🏷️</div>
+      <h1>Le Juste Prix</h1>
+      <div class="sous">${BAREME.manches} articles du magasin. À toi de deviner leur prix.</div>
+
+      <div class="regles">
+        <div class="regle"><span class="ico">⌨️</span><span>Tu tapes le prix que tu crois juste, en euros. Pas de choix multiple : c'est toi qui décides.</span></div>
+        <div class="regle"><span class="ico">🎯</span><span>Plus tu es <b>près du vrai prix</b>, plus tu marques. On compte en pourcentage, donc un petit et un gros article sont aussi difficiles l'un que l'autre.</span></div>
+        <div class="regle"><span class="ico">⚡</span><span>Tu as <b>${BAREME.secondes} secondes</b> par article. Répondre vite rapporte jusqu'à <b>+${BAREME.vitesseMax}</b>.</span></div>
+        <div class="regle"><span class="ico">🔥</span><span>Deux bonnes estimations d'affilée et la <b>série</b> démarre : jusqu'à <b>+${BAREME.serieMax}</b>. La moindre erreur la remet à zéro.</span></div>
+
+        <div class="bareme">
+          <div style="font-weight:900;margin-bottom:6px;">Ce que rapporte la précision</div>
+          <table>
+            ${BAREME.paliers.map(p => `<tr><td>${p.emoji} à moins de ${Math.round(p.ecart * 100)} % du prix</td><td>${p.pts} pts</td></tr>`).join("")}
+            <tr><td class="rien">🌧️ au-delà de ${Math.round(BAREME.paliers[BAREME.paliers.length - 1].ecart * 100)} %</td><td class="rien">0 pt</td></tr>
+          </table>
+          <div style="margin-top:8px;font-size:.85rem;color:#5d7566;">
+            Maximum : ${BAREME.paliers[0].pts + BAREME.vitesseMax + BAREME.serieMax} points par article,
+            soit <b>${(BAREME.paliers[0].pts + BAREME.vitesseMax + BAREME.serieMax) * BAREME.manches}</b> sur la partie — le même plafond que le quiz.
+          </div>
+        </div>
+      </div>
+
+      <button class="btn" id="go">C'est parti !</button>
+      <div style="margin-top:16px;font-size:.78rem;color:#7c9184;">
+        Prix relevés sur hermie.com le ${DATE_RELEVE}.
+      </div>
+    </div>`;
+  $("#go").addEventListener("click", nouvellePartie);
+}
+
+function vueManche() {
+  const a = etat.articles[etat.idx];
+  etat.debut = Date.now();
+  etat.reste = BAREME.secondes;
+  $("#app").innerHTML = `
+    ${hudHtml()}
+    <div class="jauge" id="jauge"><i style="width:100%"></i></div>
+    <div class="carte">
+      <img class="photo" src="img/${esc(a.img)}" alt="" loading="eager">
+      <div class="nom">${esc(a.nom)}</div>
+      <div class="saisie">
+        <input id="prix" type="text" inputmode="decimal" autocomplete="off" placeholder="0,00" aria-label="Ton prix en euros">
+        <span class="eur">€</span>
+      </div>
+      <div class="aide" id="aide">Tape ton prix puis valide</div>
+      <button class="btn" id="valider" style="margin-top:10px" disabled>Valider</button>
+    </div>`;
+
+  const champ = $("#prix"), bouton = $("#valider");
+  champ.focus();
+  champ.addEventListener("input", () => {
+    // On accepte la virgule ET le point : personne ne doit se demander lequel taper.
+    champ.value = champ.value.replace(/[^\d.,]/g, "").replace(/[.,]/g, (m, i, s) => s.indexOf(m) === i ? "," : "");
+    bouton.disabled = !lirePrix(champ.value);
+  });
+  champ.addEventListener("keydown", (e) => { if (e.key === "Enter" && !bouton.disabled) valider(); });
+  bouton.addEventListener("click", valider);
+  lanceMinuteur();
+}
+
+function lirePrix(v) {
+  const n = parseFloat(String(v).replace(",", "."));
+  return isFinite(n) && n > 0 ? n : null;
+}
+
+function hudHtml() {
+  return `<div class="hud">
+    <span class="manche">Article ${etat.idx + 1}<span style="opacity:.5"> / ${BAREME.manches}</span></span>
+    ${etat.serie >= 2 ? `<span class="serie">🔥 ${etat.serie}</span>` : ""}
+    <span class="pts">${aff(etat.score)} pts</span>
+  </div>`;
+}
+
+function lanceMinuteur() {
+  arreteMinuteur();
+  minuteur = setInterval(() => {
+    const ecoule = (Date.now() - etat.debut) / 1000;
+    etat.reste = Math.max(0, BAREME.secondes - ecoule);
+    const j = $("#jauge");
+    if (j) {
+      j.firstElementChild.style.width = (etat.reste / BAREME.secondes * 100) + "%";
+      j.classList.toggle("presse", etat.reste <= 8);
+    }
+    if (etat.reste <= 0) valider(true);
+  }, 200);
+}
+function arreteMinuteur() { if (minuteur) { clearInterval(minuteur); minuteur = null; } }
+
+function valider(tempsEcoule) {
+  arreteMinuteur();
+  const a = etat.articles[etat.idx];
+  const champ = $("#prix");
+  const propose = champ ? lirePrix(champ.value) : null;
+  const tSec = Math.min(BAREME.secondes, (Date.now() - etat.debut) / 1000);
+
+  let ecart, gain;
+  if (!propose) {
+    // Rien de saisi (ou temps écoulé les mains vides) : manche perdue, série cassée.
+    ecart = 1;
+    etat.serie = 0;
+    gain = { pal: { titre: tempsEcoule === true ? "Temps écoulé" : "Raté", emoji: "⏳", pts: 0 },
+             base: 0, vitesse: 0, serie: 0, total: 0 };
+  } else {
+    ecart = ecartDe(propose, a.prix);
+    // ⚠️ La série se calcule AVANT le gain, pas après : une estimation qui
+    // rapporte des points sans être vraiment bonne (par exemple 30 % d'écart)
+    // casse la série. Si on incrémentait après coup, elle toucherait quand
+    // même le bonus de série de la manche qu'elle vient de casser.
+    etat.serie = (ecart <= BAREME.serieSeuil) ? etat.serie + 1 : 0;
+    gain = gainManche(ecart, tSec, etat.serie);
+  }
+
+  etat.score = Math.round((etat.score + gain.total) * 10) / 10;
+  etat.histo.push({ a, propose, ecart, gain, tSec });
+  etat.phase = "verdict";
+  rendre();
+}
+
+function vueVerdict() {
+  const h = etat.histo[etat.histo.length - 1];
+  const a = h.a;
+  const dernier = etat.idx >= BAREME.manches - 1;
+  const sur = h.propose ? (h.propose > a.prix ? "au-dessus" : "en dessous") : null;
+
+  $("#app").innerHTML = `
+    ${hudHtml()}
+    <div class="carte verdict">
+      <img class="photo" style="height:min(30vh,190px)" src="img/${esc(a.img)}" alt="">
+      <div class="titre">${h.gain.pal.emoji} ${esc(h.gain.pal.titre)}</div>
+      <div style="font-size:.9rem;color:#5d7566;">Le vrai prix était</div>
+      <div class="prixreel">${euro(a.prix)}</div>
+      <div class="ecart">
+        ${h.propose
+          ? `Tu as dit <b>${euro(h.propose)}</b> — ${Math.round(h.ecart * 100)} % ${esc(sur)}`
+          : `<span class="rien">Pas de réponse</span>`}
+      </div>
+      <div class="detail">
+        <div class="l"><span>Précision</span><span class="${h.gain.base ? "gagne" : "rien"}">+${h.gain.base}</span></div>
+        <div class="l"><span>Rapidité <span style="opacity:.6">(${h.tSec.toFixed(1)} s)</span></span><span class="${h.gain.vitesse ? "gagne" : "rien"}">+${h.gain.vitesse}</span></div>
+        <div class="l"><span>Série</span><span class="${h.gain.serie ? "gagne" : "rien"}">+${h.gain.serie}</span></div>
+        <div class="l total"><span>Cette manche</span><span class="gagne">+${h.gain.total}</span></div>
+      </div>
+      <button class="btn" id="suite" style="margin-top:16px">${dernier ? "Voir mon score" : "Article suivant"}</button>
+      <div style="margin-top:10px"><a class="lien" href="${esc(a.url)}" target="_blank" rel="noopener">Voir l'article sur hermie.com ↗</a></div>
+    </div>`;
+
+  $("#suite").addEventListener("click", () => {
+    if (dernier) { etat.phase = "fin"; }
+    else { etat.idx++; etat.phase = "manche"; }
+    rendre();
+  });
+}
+
+function vueFin() {
+  arreteMinuteur();
+  const max = (BAREME.paliers[0].pts + BAREME.vitesseMax + BAREME.serieMax) * BAREME.manches;
+  const bonnes = etat.histo.filter(h => h.ecart <= BAREME.serieSeuil).length;
+  const parfaits = etat.histo.filter(h => h.ecart <= BAREME.paliers[0].ecart).length;
+
+  let mot = "Il y a de la marge !";
+  if (etat.score >= max * 0.75) mot = "Impressionnant — tu connais la maison 🏆";
+  else if (etat.score >= max * 0.5) mot = "Très bon flair 👏";
+  else if (etat.score >= max * 0.28) mot = "Pas mal du tout 🙂";
+
+  $("#app").innerHTML = `
+    <div class="fin">
+      <div style="font-size:2.6rem">🏁</div>
+      <div class="score">${aff(etat.score)}</div>
+      <div style="font-size:.95rem;color:#5d7566;margin-bottom:6px;">points sur ${max}</div>
+      <div style="font-size:1.1rem;font-weight:700;margin-bottom:4px;">${mot}</div>
+      <div style="font-size:.92rem;color:#5d7566;">
+        ${bonnes} bonne${bonnes > 1 ? "s" : ""} estimation${bonnes > 1 ? "s" : ""} sur ${BAREME.manches}${parfaits ? ` · ${parfaits} pile poil 🎯` : ""}
+      </div>
+
+      <div class="recap">
+        ${etat.histo.map(h => `
+          <div class="ligne">
+            <img src="img/${esc(h.a.img)}" alt="">
+            <div class="t">
+              <b>${esc(h.a.nom)}</b>
+              <span style="color:#5d7566;font-size:.85rem;">
+                ${h.propose ? `toi ${euro(h.propose)} · ` : `pas de réponse · `}vrai ${euro(h.a.prix)}
+              </span>
+            </div>
+            <span class="p ${h.gain.total ? "gagne" : "rien"}">+${h.gain.total}</span>
+          </div>`).join("")}
+      </div>
+
+      <button class="btn" id="rejouer">Rejouer</button>
+      <button class="btn secondaire" id="retour" style="margin-top:10px">Revoir les règles</button>
+    </div>`;
+
+  $("#rejouer").addEventListener("click", nouvellePartie);
+  $("#retour").addEventListener("click", () => { etat = null; rendre(); });
+}
+
+// ============================================================
+//  DÉMARRAGE
+// ============================================================
+fetch("articles.json", { cache: "no-store" })
+  .then(r => r.json())
+  .then(d => { ARTICLES = d; rendre(); })
+  .catch(() => {
+    $("#app").innerHTML = `<div class="accueil"><h1>Oups</h1>
+      <div class="sous">Les articles n'ont pas pu être chargés.</div></div>`;
+  });
+</script>
+</body>
+</html>
