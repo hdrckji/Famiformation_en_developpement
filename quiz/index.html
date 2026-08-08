@@ -1231,7 +1231,10 @@ const PROGRAMME = [
   { cle: "quiz", pret: true, emoji: "🎯",  date: "2026-07-29", fr: "Le quiz",        nl: "De quiz",
     dfr: "Réponds aux questions et récolte tes premières graines.",
     dnl: "Beantwoord de vragen en oogst je eerste zaadjes." },
-  { cle: "justeprix", pret: true, emoji: "🏷️", date: "2026-08-08", fr: "Le Juste Prix",  nl: "De Juiste Prijs",
+  // 🚦 Mets « pret: true » le jour où l'épreuve doit s'ouvrir aux joueurs.
+  //    Tant qu'il est à false, la tuile reste inactive ET le serveur refuse
+  //    d'enregistrer un score (voir $JUSTEPRIX_OUVERT dans api.php).
+  { cle: "justeprix", pret: false, emoji: "🏷️", date: "2026-08-08", fr: "Le Juste Prix",  nl: "De Juiste Prijs",
     dfr: "Devine le prix de 10 articles du magasin.",
     dnl: "Raad de prijs van 10 artikelen uit de winkel." },
   { cle: "a3",        emoji: "🎁",  date: "2026-08-13", fr: "Épreuve surprise", nl: "Verrassingsproef",
@@ -3066,10 +3069,12 @@ function renderJardin() {
     ${JARDIN_LIBRE ? "" : `<div class="j-gagner">
       <button class="btn" id="j-quiz">${t("🎯 Quiz du jardin", "🎯 Tuinquiz")}</button>
       <button class="btn ghost" id="j-herbes">${t("🌿 Chasse aux herbes", "🌿 Onkruid vangen")}</button>
-      ${epreuveDateOk(PROGRAMME[1]) ? `<button class="btn ghost" id="j-justeprix">${t("🏷️ Le Juste Prix", "🏷️ De Juiste Prijs")}</button>` : ""}
-      <span>${t(
-        "Trois façons de récolter des graines pour ton jardin. Le <b>quiz du jardin</b> en rapporte le plus, et c'est <b>voulu</b> : il reste l'épreuve la plus généreuse. Le <b>Juste Prix</b> rapporte plus que les herbes, mais il est <b>plafonné à " + JUSTEPRIX_REJEU_MAX + " graines par partie</b> — le jardin ne se remplit pas avec lui seul, il faudra passer par le quiz. Le quiz du jardin et les herbes ne comptent <b>jamais</b> pour le classement.",
-        "Drie manieren om zaadjes voor je tuin te oogsten. De <b>tuinquiz</b> levert het meeste op, en dat is <b>bewust zo</b>: hij blijft de meest gulle proef. De <b>Juiste Prijs</b> levert meer op dan het onkruid, maar is <b>beperkt tot " + JUSTEPRIX_REJEU_MAX + " zaadjes per partij</b> — je vult je tuin niet met hem alleen, de quiz blijft nodig. De tuinquiz en het onkruid tellen <b>nooit</b> mee voor de ranking.")}</span>
+      ${(PROGRAMME[1].pret && epreuveDateOk(PROGRAMME[1])) ? `<button class="btn ghost" id="j-justeprix">${t("🏷️ Le Juste Prix", "🏷️ De Juiste Prijs")}</button>` : ""}
+      <span>${(PROGRAMME[1].pret && epreuveDateOk(PROGRAMME[1]))
+        ? t("Trois façons de récolter des graines pour ton jardin. Le <b>quiz du jardin</b> en rapporte le plus, et c'est <b>voulu</b> : il reste l'épreuve la plus généreuse. Le <b>Juste Prix</b> rapporte plus que les herbes, mais il est <b>plafonné à " + JUSTEPRIX_REJEU_MAX + " graines par partie</b> — le jardin ne se remplit pas avec lui seul, il faudra passer par le quiz. Le quiz du jardin et les herbes ne comptent <b>jamais</b> pour le classement.",
+            "Drie manieren om zaadjes voor je tuin te oogsten. De <b>tuinquiz</b> levert het meeste op, en dat is <b>bewust zo</b>: hij blijft de meest gulle proef. De <b>Juiste Prijs</b> levert meer op dan het onkruid, maar is <b>beperkt tot " + JUSTEPRIX_REJEU_MAX + " zaadjes per partij</b> — je vult je tuin niet met hem alleen, de quiz blijft nodig. De tuinquiz en het onkruid tellen <b>nooit</b> mee voor de ranking.")
+        : t("Deux façons de récolter des graines pour le jardin (jamais le classement). Le <b>quiz</b> en rapporte le plus, et chaque bonne réponse compte&nbsp;!",
+            "Twee manieren om zaadjes voor de tuin te oogsten (nooit voor de ranking). De <b>quiz</b> levert het meeste op, en elk juist antwoord telt&nbsp;!")}</span>
     </div>`}
     <div class="catalogue">
       ${Object.entries(PLANTES).map(([cle, p]) => `
@@ -4601,23 +4606,22 @@ function retourAccueilVerrou() {
 function etatEpreuve(i) {
   const e = PROGRAMME[i];
   const dateOk = epreuveDateOk(e);
-  if (e.cle === "quiz") {
-    if (joueur && joueur.quizFait) return "faite";
-    return dateOk ? "ouverte" : "avenir";
-  }
-  if (e.cle === "justeprix") {
-    if (joueur && joueur.justePrixFait) return "faite";
-    if (!dateOk) return "avenir";
-    return (joueur && joueur.quizFait) ? "ouverte" : "bloquee";
-  }
-  // ⚠️ Les épreuves encore à écrire. Sans ce test, passé le 13 août la tuile
-  // afficherait « Épreuve surprise » comme disponible et le clic tomberait
-  // dans le vide. On la garde donc INACTIVE tant qu'elle n'existe pas, quelle
-  // que soit la date.
+
+  // Déjà jouée : elle reste « faite » quoi qu'il arrive, même si on referme
+  // l'épreuve derrière — on ne retire pas à quelqu'un ce qu'il a accompli.
+  if (e.cle === "quiz" && joueur && joueur.quizFait) return "faite";
+  if (e.cle === "justeprix" && joueur && joueur.justePrixFait) return "faite";
+
+  // 🚦 `pret` est l'INTERRUPTEUR : une épreuve pas encore écrite, ou écrite mais
+  // qu'on ne veut pas encore ouvrir, reste inactive quelle que soit sa date.
+  // Sans lui, une épreuve s'ouvrirait toute seule le jour dit — y compris une
+  // qui n'existe pas, dont le clic tomberait dans le vide.
   if (!e.pret) return dateOk ? "bientot" : "avenir";
-  const precedenteOk = !!(joueur && joueur.justePrixFait);
+
   if (!dateOk) return "avenir";
-  return precedenteOk ? "ouverte" : "bloquee";
+  if (e.cle === "quiz") return "ouverte";
+  // Toutes les autres suivent l'ordre : la précédente doit être terminée.
+  return (etatEpreuve(i - 1) === "faite") ? "ouverte" : "bloquee";
 }
 
 /* 🎯 LA PREMIÈRE TUILE PORTE L'ÉPREUVE DU MOMENT.

@@ -827,6 +827,9 @@ function afficheVerse(r) {
       : raison === "quiz_dabord"
         ? "🔒 " + t("Fais d'abord le quiz : les épreuves se suivent dans l'ordre.",
                     "Doe eerst de quiz: de proeven volgen elkaar in volgorde op.")
+      : raison === "ferme"
+        ? "🗓 " + t("L'épreuve n'est pas encore ouverte, ta partie ne compte donc pas — mais tu peux déjà t'entraîner&nbsp;! Reviens très bientôt.",
+                    "De proef is nog niet open, je partij telt dus niet mee — maar je kan al oefenen! Kom heel binnenkort terug.")
         : "⚠️ " + t("Score non enregistré — réessaie depuis ton espace jardin.",
                     "Score niet opgeslagen — probeer opnieuw via je tuin.");
     return;

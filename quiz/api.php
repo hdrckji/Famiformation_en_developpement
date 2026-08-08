@@ -1393,6 +1393,13 @@ $QUIZ_JARDIN_MAX_BONNES = 20;  // plafond par partie (anti-triche bon enfant)
 $JUSTEPRIX_MAX_PARTIE = 200;   // score maximum d'une partie (10 manches × 20 pts)
 $JUSTEPRIX_REJEU_MAX  = 50;    // graines de jardin créditées par partie rejouée
 
+// 🚦 L'INTERRUPTEUR DE L'ÉPREUVE. À false, aucun score n'est enregistré, même
+// si quelqu'un connaît l'adresse directe de /quiz/justeprix/ — cacher la tuile
+// ne suffit pas, l'API doit refuser elle aussi.
+// ⚠️ À basculer EN MÊME TEMPS que « pret » sur la ligne justeprix de PROGRAMME,
+// dans quiz/index.html : l'un ferme la porte, l'autre cache le bouton.
+$JUSTEPRIX_OUVERT = false;
+
 /**
  * Solde de graines DISPONIBLES pour planter :
  *   récoltées au quiz (score) + gagnées au mini-jeu (bonus) − déjà dépensées.
@@ -3732,6 +3739,8 @@ case 'rh_mail': {
   // peut se donner 200 points au premier essai. Le plafond garantit au moins
   // qu'il ne peut pas s'en donner 10 000.
   case 'justeprix': {
+    // L'épreuve n'est pas encore ouverte : on refuse AVANT tout le reste.
+    if (!$JUSTEPRIX_OUVERT) { echo json_encode(['ok' => false, 'reason' => 'ferme']); break; }
     $auth = litJeton($input['jeton'] ?? '');
     if (!$auth) { http_response_code(401); echo json_encode(['ok' => false, 'reason' => 'auth']); break; }
     $points = max(0, min($JUSTEPRIX_MAX_PARTIE, round(floatval($input['points'] ?? 0), 1)));
