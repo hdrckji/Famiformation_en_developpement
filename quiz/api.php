@@ -1376,6 +1376,23 @@ $HERBE_MAX_GAIN = 15;         // gain maximum crédité en une partie (des miett
 $QUIZ_JARDIN_PAR_BONNE = 10;   // graines de jardin par bonne réponse
 $QUIZ_JARDIN_MAX_BONNES = 20;  // plafond par partie (anti-triche bon enfant)
 
+// 🏷️ LE JUSTE PRIX (2e épreuve). Deux régimes, exactement comme le quiz :
+//
+//   • La PREMIÈRE partie compte pour le CLASSEMENT. Son score s'ajoute à
+//     « score », qui alimente à la fois le podium et le solde du jardin. Une
+//     seule fois, jamais rejouable — même règle que le quiz, donc rien de
+//     nouveau à expliquer aux joueurs.
+//   • Les parties SUIVANTES ne nourrissent que le JARDIN : elles créditent
+//     « bonus », plafonné par partie.
+//
+// Le plafond du rejeu est placé ENTRE la chasse aux herbes (15, des miettes)
+// et le quiz du jardin (200, la voie efficace). On gagne donc nettement plus
+// qu'en tapant des herbes, mais remplir les ~1 800 graines du jardin
+// uniquement au Juste Prix demanderait une trentaine de parties. C'est VOULU :
+// le quiz reste la voie courte.
+$JUSTEPRIX_MAX_PARTIE = 200;   // score maximum d'une partie (10 manches × 20 pts)
+$JUSTEPRIX_REJEU_MAX  = 50;    // graines de jardin créditées par partie rejouée
+
 /**
  * Solde de graines DISPONIBLES pour planter :
  *   récoltées au quiz (score) + gagnées au mini-jeu (bonus) − déjà dépensées.
@@ -2689,7 +2706,7 @@ switch ($action) {
         if (mb_strtolower($p['name'] ?? '') === mb_strtolower($name)) {
           if ((string)($p['code'] ?? '') === $code4) {
             return ['ok' => true, 'exist' => true, 'name' => $p['name'],
-                    'quiz_fait' => ($p['quiz_fait'] ?? true), 'recoltees' => round(floatval($p['score'] ?? 0), 1),
+                    'quiz_fait' => ($p['quiz_fait'] ?? true), 'justeprix_fait' => !empty($p['justeprix_fait']), 'recoltees' => round(floatval($p['score'] ?? 0), 1),
                     'solde' => soldeDe($p), 'nbCodes' => intval($p['codes'] ?? 0)];
           }
           return ['pris' => true];
@@ -2760,7 +2777,7 @@ switch ($action) {
           $p['uid'] = (int) $u['id'];
           $p['prenom'] = $u['prenom']; $p['nom'] = $u['nom'];
           $write = true;
-          return ['quiz_fait' => ($p['quiz_fait'] ?? true), 'recoltees' => round(floatval($p['score'] ?? 0), 1),
+          return ['quiz_fait' => ($p['quiz_fait'] ?? true), 'justeprix_fait' => !empty($p['justeprix_fait']), 'recoltees' => round(floatval($p['score'] ?? 0), 1),
                   'solde' => soldeDe($p), 'nbCodes' => intval($p['codes'] ?? 0), 'pseudo' => ($p['pseudo'] ?? '')];
         }
       }
@@ -2789,7 +2806,7 @@ switch ($action) {
         echo json_encode(['ok' => true, 'joueur' => [
           'name' => $p['name'], 'uid' => intval($p['uid'] ?? 0),
           'prenom' => $p['prenom'] ?? '', 'nom' => $p['nom'] ?? '', 'pseudo' => $p['pseudo'] ?? '',
-          'quiz_fait' => ($p['quiz_fait'] ?? true), 'recoltees' => round(floatval($p['score'] ?? 0), 1),
+          'quiz_fait' => ($p['quiz_fait'] ?? true), 'justeprix_fait' => !empty($p['justeprix_fait']), 'recoltees' => round(floatval($p['score'] ?? 0), 1),
           'solde' => soldeDe($p), 'nbCodes' => intval($p['codes'] ?? 0),
         ]], JSON_UNESCAPED_UNICODE);
         exit;
@@ -2826,7 +2843,7 @@ switch ($action) {
       // créer deux fiches pour la même personne.
       foreach ($board as &$p) {
         if (mb_strtolower((string) ($p['name'] ?? '')) === mb_strtolower((string) $uMoi['identifiant'])) {
-          return ['quiz_fait' => ($p['quiz_fait'] ?? true), 'recoltees' => round(floatval($p['score'] ?? 0), 1),
+          return ['quiz_fait' => ($p['quiz_fait'] ?? true), 'justeprix_fait' => !empty($p['justeprix_fait']), 'recoltees' => round(floatval($p['score'] ?? 0), 1),
                   'solde' => soldeDe($p), 'nbCodes' => intval($p['codes'] ?? 0), 'pseudo' => ($p['pseudo'] ?? '')];
         }
       }
@@ -3699,6 +3716,64 @@ case 'rh_mail': {
           return ['ok' => true, 'gain' => $gain, 'solde' => soldeDe($p),
                   'recoltees' => round(floatval($p['score'] ?? 0), 1), 'nbCodes' => intval($p['codes'] ?? 0)];
         }
+      }
+      return ['ok' => false, 'reason' => 'inconnu'];
+    });
+    echo json_encode($res, JSON_UNESCAPED_UNICODE);
+    break;
+  }
+
+  // 🏷️ LE JUSTE PRIX. Authentifié par le JETON : le nom vient du jeton, jamais
+  // du client, sinon n'importe qui pourrait créditer n'importe quel compte.
+  //
+  // ⚠️ Le score est RECALCULÉ nulle part : contrairement au mini-jeu des herbes,
+  // le barème du Juste Prix vit dans la page. On ne peut donc que le PLAFONNER.
+  // C'est assumé pour un jeu bon enfant, mais ça veut dire qu'un joueur décidé
+  // peut se donner 200 points au premier essai. Le plafond garantit au moins
+  // qu'il ne peut pas s'en donner 10 000.
+  case 'justeprix': {
+    $auth = litJeton($input['jeton'] ?? '');
+    if (!$auth) { http_response_code(401); echo json_encode(['ok' => false, 'reason' => 'auth']); break; }
+    $points = max(0, min($JUSTEPRIX_MAX_PARTIE, round(floatval($input['points'] ?? 0), 1)));
+    $name = $auth['identifiant'];
+
+    $res = withLock($scoresFile, function (&$board, &$write) use ($name, $points, $JUSTEPRIX_REJEU_MAX) {
+      for ($i = 0; $i < count($board); $i++) {
+        if (mb_strtolower($board[$i]['name'] ?? '') !== mb_strtolower($name)) { continue; }
+
+        // L'ordre des épreuves est une règle du jeu, pas seulement de l'affichage :
+        // sans le quiz, pas de Juste Prix — même si quelqu'un appelait l'API à la main.
+        if (empty($board[$i]['quiz_fait']) && !estCompteTest($board[$i])) {
+          return ['ok' => false, 'reason' => 'quiz_dabord'];
+        }
+
+        // Le compte de test rejoue indéfiniment en 1re partie : il sert à vérifier.
+        $premiere = empty($board[$i]['justeprix_fait']) || estCompteTest($board[$i]);
+
+        if ($premiere) {
+          // Classement + jardin : « score » alimente les deux.
+          $board[$i]['score'] = round(floatval($board[$i]['score'] ?? 0) + $points, 1);
+          if (!estCompteTest($board[$i])) { $board[$i]['justeprix_fait'] = true; }
+          $gain = $points;
+          $type = 'classement';
+          sortBoard($board);   // le podium a pu bouger
+        } else {
+          // Rejeu : jardin seulement, et plafonné.
+          $gain = min($JUSTEPRIX_REJEU_MAX, (int) floor($points));
+          if ($gain > 0) { $board[$i]['bonus'] = intval($board[$i]['bonus'] ?? 0) + $gain; }
+          $type = 'jardin';
+        }
+
+        $write = true;
+        // Après sortBoard, l'index a pu changer : on relit par le nom.
+        foreach ($board as $q) {
+          if (mb_strtolower($q['name'] ?? '') === mb_strtolower($name)) {
+            return ['ok' => true, 'type' => $type, 'gain' => $gain,
+                    'plafond' => $JUSTEPRIX_REJEU_MAX,
+                    'solde' => soldeDe($q), 'recoltees' => round(floatval($q['score'] ?? 0), 1)];
+          }
+        }
+        return ['ok' => true, 'type' => $type, 'gain' => $gain, 'plafond' => $JUSTEPRIX_REJEU_MAX];
       }
       return ['ok' => false, 'reason' => 'inconnu'];
     });

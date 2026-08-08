@@ -1232,6 +1232,11 @@ const PROGRAMME = [
     dfr: "Dévoilée le jour même.", dnl: "Wordt die dag onthuld." },
 ];
 
+// 🌱 Plafond des graines de jardin gagnées en REJOUANT le Juste Prix.
+// ⚠️ Doit rester égal à $JUSTEPRIX_REJEU_MAX dans api.php : ici la valeur ne
+// sert qu'à l'affichage, c'est le serveur qui plafonne réellement.
+const JUSTEPRIX_REJEU_MAX = 50;
+
 // Une épreuve est OUVERTE quand sa date est passée. Elle reste ouverte
 // ensuite : c'est ce qui permet de tout enchaîner en arrivant en retard.
 function epreuveDateOk(e) {
@@ -3051,7 +3056,10 @@ function renderJardin() {
     ${JARDIN_LIBRE ? "" : `<div class="j-gagner">
       <button class="btn" id="j-quiz">${t("🎯 Quiz du jardin", "🎯 Tuinquiz")}</button>
       <button class="btn ghost" id="j-herbes">${t("🌿 Chasse aux herbes", "🌿 Onkruid vangen")}</button>
-      <span>${t("Deux façons de récolter des graines pour le jardin (jamais le classement). Le <b>quiz</b> en rapporte le plus, et chaque bonne réponse compte&nbsp;!", "Twee manieren om zaadjes voor de tuin te oogsten (nooit voor de ranking). De <b>quiz</b> levert het meeste op, en elk juist antwoord telt&nbsp;!")}</span>
+      ${epreuveDateOk(PROGRAMME[1]) ? `<button class="btn ghost" id="j-justeprix">${t("🏷️ Le Juste Prix", "🏷️ De Juiste Prijs")}</button>` : ""}
+      <span>${t(
+        "Trois façons de récolter des graines pour ton jardin. Le <b>quiz du jardin</b> en rapporte le plus, et c'est <b>voulu</b> : il reste l'épreuve la plus généreuse. Le <b>Juste Prix</b> rapporte plus que les herbes, mais il est <b>plafonné à " + JUSTEPRIX_REJEU_MAX + " graines par partie</b> — le jardin ne se remplit pas avec lui seul, il faudra passer par le quiz. Le quiz du jardin et les herbes ne comptent <b>jamais</b> pour le classement.",
+        "Drie manieren om zaadjes voor je tuin te oogsten. De <b>tuinquiz</b> levert het meeste op, en dat is <b>bewust zo</b>: hij blijft de meest gulle proef. De <b>Juiste Prijs</b> levert meer op dan het onkruid, maar is <b>beperkt tot " + JUSTEPRIX_REJEU_MAX + " zaadjes per partij</b> — je vult je tuin niet met hem alleen, de quiz blijft nodig. De tuinquiz en het onkruid tellen <b>nooit</b> mee voor de ranking.")}</span>
     </div>`}
     <div class="catalogue">
       ${Object.entries(PLANTES).map(([cle, p]) => `
@@ -3074,6 +3082,16 @@ function renderJardin() {
   // Aller au mini-jeu pour récolter des graines (absent en mode aperçu gratuit).
   const jh = $("#j-herbes");
   if (jh) jh.addEventListener("click", () => { userView = "herbes"; render(); });
+  // 🏷️ Le Juste Prix depuis le jardin. Même trajet que depuis la tuile : on
+  // emmène le jeton et le magasin, sinon la borne y arrive sans identité et la
+  // partie serait créditée au mauvais magasin.
+  const jjp = $("#j-justeprix");
+  if (jjp) jjp.addEventListener("click", () => {
+    const p = new URLSearchParams({ site: SITE });
+    const j = (joueur && joueur.jeton) || "";
+    if (j) p.set("jeton", j);
+    location.href = QUIZ_RACINE + "justeprix/?" + p.toString();
+  });
   const jq = $("#j-quiz");
   if (jq) jq.addEventListener("click", () => {
     // Quiz REJOUABLE pour le jardin : mêmes questions (tirage au hasard), mais
@@ -3384,7 +3402,8 @@ function ouvreConnexionFami() {
     // Connecté : on ouvre sa session de jeu et on garde le jeton (téléphone perso).
     const j = r.joueur || {};
     joueur = { name: j.name, code: "", jeton: r.jeton, uid: j.uid, prenom: j.prenom, nom: j.nom, pseudo: j.pseudo || "",
-               solde: j.solde || 0, recoltees: j.recoltees || 0, nbCodes: j.nbCodes || 0, quizFait: j.quiz_fait !== false };
+               solde: j.solde || 0, recoltees: j.recoltees || 0, nbCodes: j.nbCodes || 0, quizFait: j.quiz_fait !== false,
+                 justePrixFait: !!j.justeprix_fait };
     sauveJeton(r.jeton);
     const msg = await reclamerEnAttente();
     jardinMsg = msg || null;
@@ -3786,7 +3805,9 @@ function renderDashboard() {
         <span class="bm-desc">${
           !quizFait ? t("🔒 Fais le quiz d'abord", "🔒 Doe eerst de quiz")
           : !jpDateOk ? t("🔒 Dispo le ", "🔒 Beschikbaar op ") + epreuveDateTexte(PROGRAMME[1])
-          : t("Devine le prix de 10 articles du magasin", "Raad de prijs van 10 artikelen uit de winkel")}</span>
+          : joueur.justePrixFait
+            ? t("✅ Fait — rejoue pour ton jardin 🌱", "✅ Gedaan — speel opnieuw voor je tuin 🌱")
+            : t("Devine le prix de 10 articles du magasin", "Raad de prijs van 10 artikelen uit de winkel")}</span>
       </button>
       <button class="borne-mod${jardinOk ? "" : " mod-inactif"}" id="dash-jardin">
         <span class="bm-emo">🌼</span>
@@ -3821,7 +3842,15 @@ function renderDashboard() {
     // Le Juste Prix est une page à part (/quiz/justeprix/). Chemin ABSOLU :
     // depuis /quiz/mouscron, un relatif « justeprix/ » chercherait
     // /quiz/mouscron/justeprix/ et tomberait sur un 404.
-    location.href = QUIZ_RACINE + "justeprix/";
+    // On emmène le JETON et le MAGASIN.
+    // Le jeton parce que sur une borne il n'est jamais écrit dans le
+    // navigateur (appareil partagé) : sans lui, la page d'à côté ne saurait
+    // pas qui joue. Le magasin parce que les scores sont cloisonnés par site
+    // (scores-<site>.json) : sans lui, la partie serait créditée ailleurs.
+    const p = new URLSearchParams({ site: SITE });
+    const j = (joueur && joueur.jeton) || "";
+    if (j) p.set("jeton", j);
+    location.href = QUIZ_RACINE + "justeprix/?" + p.toString();
   });
   $("#dash-board").addEventListener("click", () => { userView = "board"; render(); });
   { const m = $("#dash-modalites"); if (m) m.addEventListener("click", ouvreModalites); }
@@ -4596,7 +4625,14 @@ function etatEpreuve(i) {
     if (joueur && joueur.quizFait) return "faite";
     return dateOk ? "ouverte" : "avenir";
   }
-  const precedenteOk = (i === 0) || (PROGRAMME[i - 1].cle === "quiz" ? !!(joueur && joueur.quizFait) : false);
+  if (e.cle === "justeprix") {
+    if (joueur && joueur.justePrixFait) return "faite";
+    if (!dateOk) return "avenir";
+    return (joueur && joueur.quizFait) ? "ouverte" : "bloquee";
+  }
+  // Les épreuves encore à écrire : elles resteront « à venir » jusqu'à leur
+  // date, puis « bloquée » tant que la précédente n'est pas terminée.
+  const precedenteOk = !!(joueur && joueur.justePrixFait);
   if (!dateOk) return "avenir";
   return precedenteOk ? "ouverte" : "bloquee";
 }
@@ -5672,7 +5708,8 @@ function retourNav() {
     if (r && r.ok && r.joueur) {
       const j = r.joueur;
       joueur = { name: j.name, code: "", jeton: jetonMemo, uid: j.uid, prenom: j.prenom, nom: j.nom, pseudo: j.pseudo || "",
-                 solde: j.solde || 0, recoltees: j.recoltees || 0, nbCodes: j.nbCodes || 0, quizFait: j.quiz_fait !== false };
+                 solde: j.solde || 0, recoltees: j.recoltees || 0, nbCodes: j.nbCodes || 0, quizFait: j.quiz_fait !== false,
+                 justePrixFait: !!j.justeprix_fait };
       const m = await reclamerEnAttente();
       if (m) jardinMsg = m;
     } else {

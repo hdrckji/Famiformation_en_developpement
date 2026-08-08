@@ -13,8 +13,9 @@
    LE JUSTE PRIX — 2e épreuve, ouverte depuis l'espace jardin.
    Page à part du quiz, mais même palette et mêmes polices : on doit sentir
    qu'on est toujours dans le même jeu.
-   ⚠️ Le score n'est PAS encore transmis au classement — voir la note en bas
-   de ce fichier.
+   Le score part vers api.php (action=justeprix) : la 1re partie compte pour le
+   CLASSEMENT et le jardin, les suivantes ne nourrissent que le jardin et sont
+   plafonnées. Le joueur est reconnu par son jeton, passé dans l'URL.
    ============================================================ */
 :root {
   color-scheme: light;
@@ -202,6 +203,17 @@ body.demo .carte { border: 3px dashed #4E9E72; }
 
 /* ---------- Fin ---------- */
 .fin { text-align: center; }
+/* Ce que devient le score : la question que tout le monde se pose en
+   finissant. Elle mérite donc d'être lisible, pas une note de bas de page. */
+.verse {
+  display: block; margin: 12px auto 10px; max-width: 30rem;
+  border-radius: 14px; padding: 11px 15px;
+  font-size: .95rem; line-height: 1.5; font-weight: 700;
+}
+.verse-attente     { background: var(--brume); color: var(--doux); }
+.verse-classement  { background: #FFF3C9; color: #7a5c12; border: 2px solid var(--soleil); }
+.verse-jardin      { background: #E7F6EC; color: #17603A; border: 2px solid #9AD3B0; }
+.verse-rate        { background: #FDECEA; color: #98342A; border: 2px solid #F3B7AF; }
 .fin .score { font-family: 'Fredoka', sans-serif; font-size: 3.4rem; color: var(--accent); line-height: 1; }
 .recap { margin: 18px 0; text-align: left; }
 .recap .ligne {
@@ -333,6 +345,60 @@ const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;
 const nomDe = (a) => (LANG === "nl" ? a.nl : a.fr);
 
 // ============================================================
+//  QUI JOUE — et où part le score
+//
+//  Le jeton arrive par « ?jeton=… », comme partout ailleurs dans le quiz.
+//  C'est indispensable sur la BORNE : là-bas le jeton n'est jamais écrit dans
+//  le navigateur (appareil partagé), il ne vit qu'en mémoire. Sans le passer
+//  dans l'URL, la borne arriverait ici sans savoir qui joue.
+//  On l'efface aussitôt de la barre d'adresse et on le garde en mémoire vive.
+// ============================================================
+// 🏬 Le magasin. Les scores sont cloisonnés par site côté serveur
+// (scores-<site>.json) : jouer sans le préciser créditerait le mauvais magasin.
+// Il arrive par « ?site=… », comme le jeton.
+let SITE = "mouscron";
+
+const JETON = (() => {
+  let j = "";
+  try {
+    const u = new URL(location.href);
+    j = u.searchParams.get("jeton") || "";
+    const s = (u.searchParams.get("site") || "").toLowerCase();
+    if (s === "mouscron" || s === "lapanne") { SITE = s; }
+    if (j || u.searchParams.get("site")) {
+      const propre = new URL(location.href);
+      propre.searchParams.delete("jeton");
+      propre.searchParams.delete("site");
+      history.replaceState(null, "", propre.pathname + (propre.search || "") + propre.hash);
+    }
+    // Téléphone perso : le quiz garde le jeton, on peut le relire directement.
+    if (!j) { j = localStorage.getItem("fj_jeton") || ""; }
+  } catch (e) { /* navigateur ancien : on jouera sans enregistrer */ }
+  return j;
+})();
+
+// Retour vers le quiz : on REND le jeton. Sans ça, la borne repartirait
+// déconnectée — son jeton n'existe que dans l'URL et en mémoire.
+// Le magasin est déjà dans le chemin (/quiz/mouscron), inutile de le répéter.
+function urlRetour() {
+  return "../" + SITE + (JETON ? "?jeton=" + encodeURIComponent(JETON) : "");
+}
+
+// Envoie le score. Ne bloque JAMAIS l'affichage : si l'envoi échoue, la partie
+// reste jouée et lisible, on le dit simplement à l'écran.
+async function envoyerScore(points) {
+  if (!JETON) return { ok: false, reason: "anonyme" };
+  try {
+    const r = await fetch("../api.php?site=" + encodeURIComponent(SITE) + "&ecran=user&action=justeprix", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ jeton: JETON, points }),
+    });
+    return await r.json();
+  } catch (e) { return { ok: false, reason: "reseau" }; }
+}
+
+// ============================================================
 //  ÉTAT
 // ============================================================
 let etat = null;
@@ -445,7 +511,7 @@ function vueAccueil() {
 // si elle est un jour servie sous /quiz/mouscron/justeprix/.
 function brancheRetour() {
   const b = $("#jp-retour");
-  if (b) b.addEventListener("click", () => { location.href = "../"; });
+  if (b) b.addEventListener("click", () => { location.href = urlRetour(); });
 }
 
 // ---------- La fenêtre des détails, pour qui veut savoir ----------
@@ -703,6 +769,7 @@ function vueFin() {
       <div class="score">${aff(etat.score)}</div>
       <div style="font-size:.95rem;color:var(--doux);margin-bottom:6px;">${t("points sur", "punten op")} ${max}</div>
       <div style="font-size:1.1rem;font-weight:700;margin-bottom:4px;">${mot}</div>
+      <div id="jp-verse" class="verse verse-attente">⏳ ${t("Enregistrement…", "Opslaan…")}</div>
       <div style="font-size:.92rem;color:var(--doux);">
         ${t(`${bonnes} bonne${bonnes > 1 ? "s" : ""} estimation${bonnes > 1 ? "s" : ""} sur ${BAREME.manches}`,
              `${bonnes} goede schatting${bonnes > 1 ? "en" : ""} op ${BAREME.manches}`)}${pile ? ` · ${pile} ${t("pile poil", "precies goed")} 🎯` : ""}
@@ -732,6 +799,50 @@ function vueFin() {
   $("#rejouer").addEventListener("click", nouvellePartie);
   $("#retour").addEventListener("click", () => { etat = null; rendre(); });
   brancheRetour();
+
+  // 📤 On envoie le score UNE FOIS par partie, après l'affichage. L'écran de
+  // fin ne doit pas attendre le réseau : on montre le résultat tout de suite
+  // et on complète la ligne dès que le serveur a répondu.
+  if (!etat.envoye) {
+    etat.envoye = true;
+    envoyerScore(etat.score).then((r) => afficheVerse(r));
+  } else {
+    afficheVerse(etat.verse);
+  }
+}
+
+// Ce que devient le score — dit clairement, parce que c'est la question que
+// tout le monde se pose en finissant.
+function afficheVerse(r) {
+  const el = $("#jp-verse");
+  if (!el) return;
+  if (etat) etat.verse = r;
+
+  if (!r || !r.ok) {
+    const raison = r && r.reason;
+    el.className = "verse verse-rate";
+    el.innerHTML = raison === "anonyme"
+      ? "👤 " + t("Tu n'es pas connecté : cette partie ne compte pas. Passe par ton espace jardin pour qu'elle soit enregistrée.",
+                  "Je bent niet aangemeld: deze partij telt niet mee. Ga via je tuin zodat ze meetelt.")
+      : raison === "quiz_dabord"
+        ? "🔒 " + t("Fais d'abord le quiz : les épreuves se suivent dans l'ordre.",
+                    "Doe eerst de quiz: de proeven volgen elkaar in volgorde op.")
+        : "⚠️ " + t("Score non enregistré — réessaie depuis ton espace jardin.",
+                    "Score niet opgeslagen — probeer opnieuw via je tuin.");
+    return;
+  }
+
+  if (r.type === "classement") {
+    el.className = "verse verse-classement";
+    el.innerHTML = "🏆 <b>+" + aff(r.gain) + "</b> " + t(
+      "graines — ajoutées à ton classement <u>et</u> à ton jardin&nbsp;!",
+      "zaadjes — toegevoegd aan je ranking <u>én</u> aan je tuin!");
+  } else {
+    el.className = "verse verse-jardin";
+    el.innerHTML = "🌱 <b>+" + aff(r.gain) + "</b> " + t(
+      "graines pour ton jardin. Ta partie classée est déjà jouée : les suivantes ne nourrissent que le jardin, dans la limite de " + r.plafond + " graines.",
+      "zaadjes voor je tuin. Je partij voor de ranking is al gespeeld: volgende partijen voeden alleen je tuin, tot maximaal " + r.plafond + " zaadjes.");
+  }
 }
 
 // ============================================================
