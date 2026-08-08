@@ -2,6 +2,20 @@
 require_once 'config.php';
 verifierConnexion($db);
 
+// famiLang() vient de FamiJob ; côté FamiFormation la langue passe par
+// currentLang() / t(). Cette page appelait famiLang() sans l'avoir : erreur
+// fatale dès la ligne suivante, donc page blanche au lieu du planning.
+// Même définition gardée que interim_horaires_demandes.php,
+// validation_demandes_horaires.php et admin_disponibilites_etudiants.php,
+// qui avaient déjà rencontré le problème.
+if (!function_exists('famiLang')) {
+    function famiLang()
+    {
+        $lang = strtolower(trim((string) ($_SESSION['fami_lang'] ?? 'fr')));
+        return in_array($lang, ['fr', 'nl'], true) ? $lang : 'fr';
+    }
+}
+
 $pageLang = famiLang();
 if (!function_exists('monHoraireT')) {
     function monHoraireT($fr, $nl = null)
