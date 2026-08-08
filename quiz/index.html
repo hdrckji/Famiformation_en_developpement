@@ -652,6 +652,47 @@ body.mode-tele .lang-switch { display: none; }   /* pas sur la télé */
 .bm-primaire { border-color: var(--pousse); background: #F1F8EF; }
 /* Espace (gate connexion/création) : 2 blocs centrés */
 .esp-modules { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); max-width: 760px; margin: 0 auto; }
+
+/* 📅 Bloc « Modalité des épreuves », sous les modules. Volontairement plus
+   sobre que les tuiles : c'est une information, pas une quatrième action. */
+.bloc-modalites {
+  display: flex; align-items: center; gap: 14px; width: 100%;
+  max-width: 760px; margin: 16px auto 0; padding: 14px 18px;
+  background: var(--craie); border: 2px solid #dceadf; border-radius: 18px;
+  cursor: pointer; text-align: left; font: inherit; color: var(--foret);
+  box-shadow: 0 4px 16px rgba(14,59,36,.07); transition: transform .1s, box-shadow .1s;
+}
+.bloc-modalites:hover { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(14,59,36,.12); }
+.bmod-ico { font-size: 1.7rem; line-height: 1; flex: none; }
+.bmod-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.bmod-txt b { font-family: 'Fredoka', sans-serif; font-size: 1.06rem; }
+.bmod-txt span { font-size: .88rem; color: #5a6b60; }
+.bmod-fleche { font-size: 1.6rem; color: var(--pousse); flex: none; font-weight: 700; }
+
+/* La fenêtre du programme */
+.modalites-modal { max-width: 520px; text-align: left; }
+.ep-liste { list-style: none; margin: 0 0 16px; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.ep-item {
+  display: flex; align-items: center; gap: 12px;
+  background: #f6faf7; border-radius: 14px; padding: 11px 13px;
+  border-left: 5px solid #cfe0d4;
+}
+.ep-item.ep-faite   { border-left-color: var(--pousse); background: #eef8f1; }
+.ep-item.ep-ouverte { border-left-color: #E9A93C; background: #fff8ea; }
+.ep-item.ep-bloquee,
+.ep-item.ep-avenir  { opacity: .72; }
+.ep-emo { font-size: 1.5rem; line-height: 1; flex: none; }
+.ep-corps { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.ep-corps b { font-size: .99rem; }
+.ep-desc { font-size: .82rem; color: #5a6b60; line-height: 1.35; }
+.ep-droite { flex: none; text-align: right; display: flex; flex-direction: column; gap: 2px; }
+.ep-date { font-family: 'Fredoka', sans-serif; font-weight: 600; font-size: .88rem; white-space: nowrap; }
+.ep-etat { font-size: .76rem; font-weight: 800; white-space: nowrap; color: #5a6b60; }
+.ep-notes p { font-size: .88rem; line-height: 1.5; margin: 0 0 9px; color: #3c5246; }
+@media (max-width: 420px) {
+  .ep-item { flex-wrap: wrap; }
+  .ep-droite { flex-direction: row; gap: 8px; width: 100%; text-align: left; }
+}
 /* Tableau de bord */
 .dash-hello { font-family: 'Fredoka', sans-serif; font-weight: 700; color: var(--foret);
   font-size: clamp(1.1rem, 2.8vw, 1.6rem); margin-bottom: 18px; }
@@ -1157,6 +1198,55 @@ const CONFIG = {
   // n'importe qui avec « afficher le code source ».
   api: "api.php",
 };
+
+/* ============================================================
+   📅 LE PROGRAMME DES ÉPREUVES
+   ============================================================
+   Une épreuve par semaine, le jeudi, jusqu'au 27/08. Chacune rapporte des
+   points et peut rebattre le classement.
+
+   Trois règles qui gouvernent l'affichage :
+     • ORDRE OBLIGATOIRE — on ne peut pas sauter une épreuve. Celle du dessous
+       ne s'ouvre que si celle du dessus est faite.
+     • RIEN NE SE PERD — une épreuve passée reste ouverte. Quelqu'un qui arrive
+       le 28/08 les enchaîne toutes d'affilée, sans rien rater.
+     • DATE + ORDRE — une épreuve s'ouvre à sa date ET une fois la précédente
+       terminée. Les deux conditions, pas l'une ou l'autre.
+
+   ⚠️ Ces dates sont celles de MOUSCRON. La Panne ouvre plus tard et aura son
+   propre calendrier : quand il sera connu, ce tableau devra être dédoublé par
+   magasin, comme CONFIG.dateLancement l'est déjà côté serveur.
+   ============================================================ */
+const PROGRAMME = [
+  { cle: "quiz",      emoji: "🎯",  date: "2026-07-29", fr: "Le quiz",        nl: "De quiz",
+    dfr: "Réponds aux questions et récolte tes premières graines.",
+    dnl: "Beantwoord de vragen en oogst je eerste zaadjes." },
+  { cle: "justeprix", emoji: "🏷️", date: "2026-08-08", fr: "Le Juste Prix",  nl: "De Juiste Prijs",
+    dfr: "Devine le prix de 10 articles du magasin.",
+    dnl: "Raad de prijs van 10 artikelen uit de winkel." },
+  { cle: "a3",        emoji: "🎁",  date: "2026-08-13", fr: "Épreuve surprise", nl: "Verrassingsproef",
+    dfr: "Dévoilée le jour même.", dnl: "Wordt die dag onthuld." },
+  { cle: "a4",        emoji: "🎁",  date: "2026-08-20", fr: "Épreuve surprise", nl: "Verrassingsproef",
+    dfr: "Dévoilée le jour même.", dnl: "Wordt die dag onthuld." },
+  { cle: "a5",        emoji: "🎁",  date: "2026-08-27", fr: "Épreuve surprise", nl: "Verrassingsproef",
+    dfr: "Dévoilée le jour même.", dnl: "Wordt die dag onthuld." },
+];
+
+// Une épreuve est OUVERTE quand sa date est passée. Elle reste ouverte
+// ensuite : c'est ce qui permet de tout enchaîner en arrivant en retard.
+function epreuveDateOk(e) {
+  if (toutOuvert()) return true;
+  return Date.now() >= new Date(e.date + "T00:00:00").getTime();
+}
+// La date affichée, en toutes lettres — « 13/08 » se lit mal dans une phrase.
+function epreuveDateTexte(e) {
+  const d = new Date(e.date + "T00:00:00");
+  const moisFr = ["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
+  const moisNl = ["januari","februari","maart","april","mei","juni","juli","augustus","september","oktober","november","december"];
+  return LANG === "nl"
+    ? d.getDate() + " " + moisNl[d.getMonth()]
+    : d.getDate() + " " + moisFr[d.getMonth()];
+}
 
 // 🛣️ api.php vit à la RACINE du quiz (/quiz/api.php), quelle que soit la
 // profondeur de l'URL affichée (/quiz, /quiz/mouscron, /quiz/mouscron/tele…).
@@ -3662,6 +3752,12 @@ function renderDashboard() {
   // essayer. En vrai, le quiz ne se fait qu'une fois et le jardin s'ouvre après.
   const quizFait = toutOuvert() ? false : !!joueur.quizFait;
   const jardinOk = toutOuvert() ? true : quizFait;
+  // 🏷️ LE JUSTE PRIX. Deux conditions, pas une : sa date doit être passée ET
+  // le quiz doit être fait. Les épreuves s'enchaînent dans l'ordre — c'est ce
+  // qui donne sa cohérence au parcours, et ça évite qu'on découvre la 2e sans
+  // avoir jamais joué la 1re.
+  const jpDateOk = epreuveDateOk(PROGRAMME[1]);
+  const jpAccessible = jpDateOk && (quizFait || toutOuvert());
   // 🏆 Vainqueur : quand l'événement est TERMINÉ, si le joueur connecté est dans
   // le top 3 du classement final, on l'en félicite et on l'oriente vers les RH.
   let rangFinal = 0;
@@ -3684,6 +3780,14 @@ function renderDashboard() {
         <span class="bm-titre">${t("Faire le quiz", "De quiz doen")}</span>
         <span class="bm-desc">${quizFait ? t("✅ Quiz déjà fait", "✅ Quiz al gedaan") : (quizOuvert ? t("Réponds et récolte tes graines", "Antwoord en oogst je zaadjes") : t("🔒 Dispo le ", "🔒 Beschikbaar op ") + labelLancement())}</span>
       </button>
+      <button class="borne-mod${jpAccessible ? "" : " mod-inactif"}" id="dash-justeprix">
+        <span class="bm-emo">${PROGRAMME[1].emoji}</span>
+        <span class="bm-titre">${t(PROGRAMME[1].fr, PROGRAMME[1].nl)}</span>
+        <span class="bm-desc">${
+          !quizFait ? t("🔒 Fais le quiz d'abord", "🔒 Doe eerst de quiz")
+          : !jpDateOk ? t("🔒 Dispo le ", "🔒 Beschikbaar op ") + epreuveDateTexte(PROGRAMME[1])
+          : t("Devine le prix de 10 articles du magasin", "Raad de prijs van 10 artikelen uit de winkel")}</span>
+      </button>
       <button class="borne-mod${jardinOk ? "" : " mod-inactif"}" id="dash-jardin">
         <span class="bm-emo">🌼</span>
         <span class="bm-titre">${t("Mon espace jardin", "Mijn tuin")}</span>
@@ -3695,6 +3799,7 @@ function renderDashboard() {
         <span class="bm-desc">${t("Le podium repart avec de très belles récompenses !", "Het podium wint heel mooie prijzen!")}</span>
       </button>
     </div>
+    ${blocModalitesHtml()}
     <div class="home-liens">
       <button class="lien-explik" id="dash-explik">${t("✨ Comment ça marche ?", "✨ Hoe werkt het?")}</button>
       <button class="lien-explik" id="dash-code">${t("🎁 J'ai un code", "🎁 Ik heb een code")}</button>
@@ -3710,7 +3815,16 @@ function renderDashboard() {
     if (!jardinOk) { modaleJardinVerrouille(); return; }
     ouvreJardinDepuisDash();
   });
+  $("#dash-justeprix").addEventListener("click", () => {
+    if (!quizFait && !toutOuvert()) { modaleEpreuveVerrouillee("ordre"); return; }
+    if (!jpDateOk) { modaleEpreuveVerrouillee("date"); return; }
+    // Le Juste Prix est une page à part (/quiz/justeprix/). Chemin ABSOLU :
+    // depuis /quiz/mouscron, un relatif « justeprix/ » chercherait
+    // /quiz/mouscron/justeprix/ et tomberait sur un 404.
+    location.href = QUIZ_RACINE + "justeprix/";
+  });
   $("#dash-board").addEventListener("click", () => { userView = "board"; render(); });
+  { const m = $("#dash-modalites"); if (m) m.addEventListener("click", ouvreModalites); }
   $("#dash-explik").addEventListener("click", ouvreExplication);
   $("#dash-code").addEventListener("click", () => { codeAReclamer = null; userView = "reclamer"; render(); });
   // Quitter son espace vers l'accueil = se déconnecter (sur la borne, le retour
@@ -4464,6 +4578,124 @@ function retourAccueilVerrou() {
 }
 
 // 🔒 Message affiché quand on tente « Participer au quiz » avant l'ouverture.
+/* ============================================================
+   📅 MODALITÉ DES ÉPREUVES
+   ============================================================
+   Le bloc sous les trois modules, et la fenêtre qu'il ouvre.
+   On y répond aux trois questions que les gens posent : c'est quoi le
+   programme, est-ce que je peux encore rattraper, et à quoi ça sert.
+   ============================================================ */
+
+// L'état d'une épreuve, pour l'affichage. On lit l'ordre en même temps que la
+// date : la 3e reste « à venir » tant que la 2e n'est pas faite, même si son
+// jour est arrivé.
+function etatEpreuve(i) {
+  const e = PROGRAMME[i];
+  const dateOk = epreuveDateOk(e);
+  if (e.cle === "quiz") {
+    if (joueur && joueur.quizFait) return "faite";
+    return dateOk ? "ouverte" : "avenir";
+  }
+  const precedenteOk = (i === 0) || (PROGRAMME[i - 1].cle === "quiz" ? !!(joueur && joueur.quizFait) : false);
+  if (!dateOk) return "avenir";
+  return precedenteOk ? "ouverte" : "bloquee";
+}
+
+function blocModalitesHtml() {
+  const prochaine = PROGRAMME.find((e) => !epreuveDateOk(e));
+  return `<button class="bloc-modalites" id="dash-modalites">
+    <span class="bmod-ico">📅</span>
+    <span class="bmod-txt">
+      <b>${t("Modalité des épreuves", "Verloop van de proeven")}</b>
+      <span>${prochaine
+        ? t("Prochaine épreuve le " + epreuveDateTexte(prochaine) + " — voir le programme",
+            "Volgende proef op " + epreuveDateTexte(prochaine) + " — bekijk het programma")
+        : t("Toutes les épreuves sont ouvertes — voir le programme",
+            "Alle proeven staan open — bekijk het programma")}</span>
+    </span>
+    <span class="bmod-fleche">›</span>
+  </button>`;
+}
+
+function ouvreModalites() {
+  const etiquette = {
+    faite:   { fr: "✅ Faite",     nl: "✅ Gedaan",     cl: "ep-faite" },
+    ouverte: { fr: "▶ À faire",   nl: "▶ Te doen",    cl: "ep-ouverte" },
+    bloquee: { fr: "🔒 Bloquée",  nl: "🔒 Geblokkeerd", cl: "ep-bloquee" },
+    avenir:  { fr: "🗓 À venir",  nl: "🗓 Binnenkort",  cl: "ep-avenir" },
+  };
+  const o = document.createElement("div");
+  o.className = "modal-fond";
+  o.innerHTML = `<div class="modal modalites-modal">
+    <h2 class="cm-titre" style="margin-bottom:2px;">${t("📅 Les épreuves", "📅 De proeven")}</h2>
+    <p class="cm-sous" style="margin-bottom:14px;">${t(
+      "Une <b>nouvelle épreuve chaque semaine</b>, le jeudi, jusqu'au 27 août.",
+      "Elke week een <b>nieuwe proef</b>, op donderdag, tot 27 augustus.")}</p>
+
+    <ol class="ep-liste">
+      ${PROGRAMME.map((e, i) => {
+        const st = etatEpreuve(i);
+        const et = etiquette[st];
+        return `<li class="ep-item ${et.cl}">
+          <span class="ep-emo">${e.emoji}</span>
+          <span class="ep-corps">
+            <b>${t(e.fr, e.nl)}</b>
+            <span class="ep-desc">${t(e.dfr, e.dnl)}</span>
+          </span>
+          <span class="ep-droite">
+            <span class="ep-date">${epreuveDateTexte(e)}</span>
+            <span class="ep-etat">${t(et.fr, et.nl)}</span>
+          </span>
+        </li>`;
+      }).join("")}
+    </ol>
+
+    <div class="ep-notes">
+      <p>🏆 ${t(
+        "Chaque épreuve rapporte des <b>points</b> et peut <b>chambouler le classement</b> — rien n'est joué avant la dernière.",
+        "Elke proef levert <b>punten</b> op en kan <b>de ranking omgooien</b> — niets ligt vast tot de laatste.")}</p>
+      <p>🔢 ${t(
+        "Les épreuves se font <b>dans l'ordre</b> : il faut avoir terminé la précédente pour ouvrir la suivante.",
+        "De proeven doe je <b>in volgorde</b>: je moet de vorige afgewerkt hebben om de volgende te openen.")}</p>
+      <p>⏱ ${t(
+        "<b>Rien ne se perd.</b> Une épreuve passée reste ouverte : si tu arrives le 28 août, tu peux toutes les enchaîner d'affilée.",
+        "<b>Er gaat niets verloren.</b> Een voorbije proef blijft open: kom je pas op 28 augustus, dan doe je ze gewoon allemaal na elkaar.")}</p>
+    </div>
+
+    <div style="text-align:center;">
+      <button class="btn" id="cm-ok" style="min-width:180px;">${t("J'ai compris 🌱", "Begrepen 🌱")}</button>
+    </div>
+  </div>`;
+  document.body.appendChild(o);
+  const ferme = () => o.remove();
+  o.querySelector("#cm-ok").addEventListener("click", ferme);
+  o.addEventListener("click", (e) => { if (e.target === o) ferme(); });
+}
+
+// Pourquoi une épreuve ne s'ouvre pas : l'ordre, ou la date. Deux raisons
+// différentes, deux messages différents — « c'est fermé » sans dire pourquoi
+// est la meilleure façon de faire revenir quelqu'un à l'accueil du magasin.
+function modaleEpreuveVerrouillee(raison) {
+  const o = document.createElement("div");
+  o.className = "modal-fond";
+  o.innerHTML = `<div class="modal code-modal">
+    <div class="cm-emoji">🔒</div>
+    <h2 class="cm-titre">${raison === "ordre"
+      ? t("Le quiz d'abord !", "Eerst de quiz!")
+      : t("Pas encore ouverte", "Nog niet open")}</h2>
+    <p class="cm-sous">${raison === "ordre"
+      ? t("Les épreuves se font <b>dans l'ordre</b>. Termine le quiz et celle-ci s'ouvrira 🌱",
+          "De proeven doe je <b>in volgorde</b>. Werk de quiz af en deze gaat open 🌱")
+      : t("Rendez-vous le <b>" + epreuveDateTexte(PROGRAMME[1]) + "</b> pour le Juste Prix 🏷️",
+          "Afspraak op <b>" + epreuveDateTexte(PROGRAMME[1]) + "</b> voor de Juiste Prijs 🏷️")}</p>
+    <button class="btn" id="cm-ok" style="min-width:180px;">${t("D'accord", "Oké")}</button>
+  </div>`;
+  document.body.appendChild(o);
+  const ferme = () => o.remove();
+  o.querySelector("#cm-ok").addEventListener("click", ferme);
+  o.addEventListener("click", (e) => { if (e.target === o) ferme(); });
+}
+
 function modaleQuizVerrouille() {
   const o = document.createElement("div");
   o.className = "modal-fond";
