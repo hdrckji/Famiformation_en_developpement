@@ -99,6 +99,7 @@ verifierConnexion($db);
     </style>
 </head>
 <body>
+<?php require_once __DIR__ . '/includes/retour.php'; echo barreRetour(); ?>
   <div id="successModal" class="modal-overlay">
     <div class="modal-content">
         <div class="modal-icon">🌿</div>

@@ -134,8 +134,24 @@ if (!function_exists('saveEvaluationToDatabase')) {
     }
 }
 
-// Vérifier si l'utilisateur connecté est 'Accueil'
-if ($_SESSION['username'] !== 'Accueil') {
+// 🔐 QUI PEUT ÉVALUER.
+//
+// La règle était « l'identifiant doit être exactement Accueil » — un seul
+// compte, nommé en dur. Les profils « évaluateur » étaient donc refusés, alors
+// que c'est précisément leur métier.
+//
+// ⚠️ ET CE REFUS CRÉAIT UNE BOUCLE. index.php envoie les évaluateurs ici, et
+// cette page les renvoyait à index.php : un compte évaluateur rebondissait
+// indéfiniment entre les deux et ne pouvait accéder à RIEN sur le site.
+//
+// On raisonne maintenant par PROFIL. Le compte « Accueil » reste accepté par
+// son identifiant, quel que soit son profil : il fonctionne depuis toujours,
+// il n'y a aucune raison de le casser au passage.
+$roleEval  = (string) ($_SESSION['role'] ?? '');
+$identEval = (string) ($_SESSION['username'] ?? '');
+$peutEvaluer = in_array($roleEval, ['evaluateur', 'admin'], true)
+            || strcasecmp($identEval, 'Accueil') === 0;
+if (!$peutEvaluer) {
     header('Location: index.php');
     exit();
 }
@@ -266,10 +282,56 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         textarea { min-height: 100px; resize: vertical; }
         .btn-submit { background: #2d5a37; color: white; border: none; padding: 12px 25px; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; font-size: 1rem; margin-top: 10px; }
         .alert.success { background: #d4edda; color: #155724; padding: 12px; border-radius: 6px; margin-bottom: 18px; text-align: center; }
+
+        /* 🚪 Barre du haut : qui est connecté, et de quoi se déconnecter.
+           Il n'y en avait aucune : la seule façon de fermer sa session était de
+           fermer l'onglet (la page se déconnecte toute seule en partant). Sur un
+           poste partagé, on ne pouvait donc pas passer la main proprement. */
+        .eval-bar { max-width: 1100px; margin: 0 auto 18px; display: flex; align-items: center;
+            justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+        .eval-qui { display: inline-flex; align-items: center; gap: 9px; background: #fff;
+            padding: 9px 18px; border-radius: 30px; box-shadow: 0 3px 10px rgba(0,0,0,0.07);
+            font-weight: 600; color: #2d5a37; font-size: .92rem; }
+        .eval-qui span { font-weight: 400; color: #6b7d70; }
+        .btn-logout { background: #fff; color: #d93025; text-decoration: none; padding: 10px 22px;
+            border-radius: 30px; font-weight: 700; font-size: .92rem;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.07); border: 2px solid #f3c4c0; }
+        .btn-logout:hover { background: #d93025; color: #fff; border-color: #d93025; }
+        @media (max-width: 520px) { .eval-bar { justify-content: center; } }
     </style>
 </head>
 <body>
+<?php
+    // ⬅️ Pas de bouton « Retour » pour les évaluateurs : cette page EST leur
+    // accueil, le lien ne mènerait nulle part (index.php les renverrait ici).
+    // Les autres — admin, compte Accueil — arrivent d'ailleurs et doivent
+    // pouvoir y retourner. Ils gardent donc le lien.
+    if (($_SESSION['role'] ?? '') !== 'evaluateur') {
+        require_once __DIR__ . '/includes/retour.php';
+        echo barreRetour();
+    }
+?>
 <?php require_once __DIR__ . '/includes/modules.php'; echo apercuBanner($db ?? null); ?>
+    <?php
+        // 🚪 Qui est connecté, et le bouton pour partir. Le lien pointe sur
+        // logout.php — la même page que la déconnexion automatique appelle déjà
+        // quand on quitte l'onglet.
+        $evalQui = trim(($_SESSION['prenom'] ?? '') . ' ' . ($_SESSION['nom'] ?? ''));
+        if ($evalQui === '') { $evalQui = (string) ($_SESSION['username'] ?? 'Évaluateur'); }
+        // ⚠️ On affiche le VRAI profil du compte connecté, pas « évaluateur »
+        // écrit en dur : si quelqu'un n'arrive pas à ouvrir cette page, la
+        // première chose à savoir est le profil qu'il a réellement.
+        $evalRoles = ['admin' => 'Admin', 'teamcoach' => 'Teamcoach', 'mentor' => 'Mentor',
+                      'evaluateur' => 'Évaluateur', 'etudiant' => 'Étudiant',
+                      'employe_magasin' => 'Magasin', 'employe_logistique' => 'Logistique',
+                      'beta' => 'Bêta'];
+        $evalRoleBrut = (string) ($_SESSION['role'] ?? '');
+        $evalRole = $evalRoles[$evalRoleBrut] ?? ($evalRoleBrut !== '' ? $evalRoleBrut : 'profil inconnu');
+    ?>
+    <div class="eval-bar">
+        <span class="eval-qui">👤 <?= htmlspecialchars($evalQui, ENT_QUOTES, 'UTF-8') ?><span> · <?= htmlspecialchars($evalRole, ENT_QUOTES, 'UTF-8') ?></span></span>
+        <a href="logout.php" class="btn-logout" id="eval-logout">🚪 Déconnexion</a>
+    </div>
     <div class="container" style="max-width:1100px;">
         <h1>Nouvelle évaluation</h1>
         <?php echo $message; ?>
@@ -388,8 +450,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </script>
     </div>
     <script>
-        window.addEventListener('unload', function() {
-            // Appel AJAX pour déconnecter
+        // 🚪 DÉCONNEXION EN QUITTANT LA PAGE (poste partagé : personne ne doit
+        // hériter de la session de l'évaluateur précédent).
+        //
+        // ⚠️ SAUF quand on part VOLONTAIREMENT — enregistrer une évaluation, ou
+        // cliquer sur « Déconnexion ». Le formulaire s'envoie sur CETTE page :
+        // sans cette précaution, soumettre déclenchait « unload », donc la
+        // déconnexion partait EN MÊME TEMPS que l'enregistrement. Les deux
+        // requêtes se disputaient la session, et si la déconnexion l'emportait,
+        // l'évaluation arrivait sans session — renvoyée vers la connexion, et
+        // le travail était perdu. Le bouton, lui, va déjà sur logout.php.
+        let departVolontaire = false;
+        const formEval = document.getElementById('evalForm');
+        if (formEval) { formEval.addEventListener('submit', function () { departVolontaire = true; }); }
+        const lienSortie = document.getElementById('eval-logout');
+        if (lienSortie) { lienSortie.addEventListener('click', function () { departVolontaire = true; }); }
+
+        window.addEventListener('unload', function () {
+            if (departVolontaire) { return; }
             navigator.sendBeacon('logout.php');
         });
     </script>

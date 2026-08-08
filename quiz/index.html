@@ -5,7 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light">
 <meta name="supported-color-schemes" content="light">
-<title>Famiformation — Le grand quiz de lancement</title>
+<!-- 🌐 PAS DE TRADUCTION AUTOMATIQUE. Le quiz est bilingue et gère lui-même le
+     FR/NL : laisser Edge (ou Chrome) retraduire la page par-dessus abîme les
+     textes déjà traduits et casse les libellés du jeu. La balise <html lang>
+     est tenue à jour par majLangSwitch() à chaque rendu — sans quoi la page
+     annoncerait « fr » tout en affichant du néerlandais, ce qui est justement
+     ce qui déclenche la proposition de traduction. -->
+<meta name="google" content="notranslate">
+<title>Famiformation — Le grand lancement</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -65,6 +72,18 @@ body.mode-tele .fami-magasin { font-size: clamp(1rem, 2.4vw, 1.4rem); }
 
 /* --- Compte à rebours --- */
 .cd-wrap { text-align: center; max-width: 900px; width: 100%; }
+/* 📺 SUR LA TÉLÉ, le compte à rebours occupe l'écran.
+   Les 900 px de large conviennent à un téléphone ou à un ordinateur, mais sur un
+   écran mural ils laissaient le décompte tassé au milieu, minuscule, avec du vide
+   tout autour. Les tailles internes sont déjà en vw : il suffit de lever le
+   plafond pour qu'elles s'expriment. Les cellules et les chiffres gagnent leurs
+   propres bornes, sans quoi le clamp d'origine les bloquait bien avant. */
+body.mode-tele .cd-wrap { max-width: min(1700px, 94vw); }
+body.mode-tele .cd-num { font-size: clamp(3rem, 11vw, 11rem); }
+body.mode-tele .cd-cell { min-width: clamp(90px, 18vw, 300px); padding: clamp(16px, 3.4vw, 46px) clamp(12px, 2.8vw, 40px); }
+body.mode-tele .cd-phase { font-size: clamp(1.1rem, 2.6vw, 2.2rem); padding: 10px 30px; margin-bottom: clamp(18px, 3vh, 40px); }
+body.mode-tele .cd-info { font-size: clamp(1rem, 2.2vw, 2rem); margin-top: clamp(16px, 3vh, 38px); }
+body.mode-tele .cd-sprout { font-size: clamp(2.4rem, 6vw, 6rem); margin-top: clamp(14px, 2.6vh, 34px); }
 .cd-phase {
   display: inline-block; font-family: 'Fredoka', sans-serif; font-weight: 600;
   background: var(--foret); color: var(--soleil);
@@ -494,6 +513,57 @@ body.mode-tele .lang-switch { display: none; }   /* pas sur la télé */
   text-align: left; padding: 14px 18px; border-radius: 18px;
   background: linear-gradient(135deg, #FFF4D6 0%, #FFE7C2 100%);
   border: 2px dashed #E9A93C; box-shadow: 0 6px 20px rgba(233,169,60,.18); }
+/* 🎟️ « C'est quoi un ticket gourmand ? » — petit bouton sous l'encart, qui
+   frémit doucement pour attirer l'œil sans distraire du formulaire. Le
+   tremblement s'arrête au survol et au focus : on ne lit pas confortablement une
+   cible qui bouge quand on s'apprête à cliquer dessus. */
+.ticket-quoi {
+  display: inline-block; margin-top: 8px; align-self: flex-start;
+  font: inherit; font-size: .82rem; font-weight: 800; cursor: pointer;
+  color: var(--foret); background: #FFF3C9; border: 2px solid var(--soleil);
+  border-radius: 999px; padding: 6px 13px;
+  box-shadow: 0 3px 10px rgba(232,196,107,.5);
+  animation: tqFremit 2.6s ease-in-out infinite;
+}
+@keyframes tqFremit {
+  0%, 84%, 100% { transform: rotate(0) scale(1); }
+  87%  { transform: rotate(-3deg) scale(1.05); }
+  91%  { transform: rotate(3deg) scale(1.05); }
+  95%  { transform: rotate(-2deg) scale(1.03); }
+}
+.ticket-quoi:hover, .ticket-quoi:focus-visible { animation-play-state: paused; background: #FFE9A3; }
+/* ♿ Animation coupée pour qui la refuse : le bouton reste visible par sa
+   couleur, il n'a pas besoin de bouger pour se faire remarquer. */
+@media (prefers-reduced-motion: reduce) { .ticket-quoi { animation: none; } }
+
+/* 📖 « En savoir plus » — bloc replié entre le formulaire et les deux modules.
+   Un <details> natif plutôt qu'un dépliant fait main : il s'ouvre au clavier,
+   les lecteurs d'écran annoncent son état, et la recherche du navigateur y
+   trouve le texte même replié. Aucun JavaScript à écrire ni à maintenir. */
+.insc-plus {
+  width: 100%; max-width: 560px; margin: 14px auto 0;
+  background: var(--craie); border: 2px solid #e3eee6; border-radius: 14px;
+  overflow: hidden; text-align: left;
+}
+.insc-plus > summary {
+  cursor: pointer; list-style: none; padding: 13px 16px;
+  font-weight: 800; font-size: .94rem; color: var(--foret);
+  display: flex; align-items: center; gap: 9px;
+}
+.insc-plus > summary::-webkit-details-marker { display: none; }
+/* Le chevron pivote à l'ouverture : le seul indice visuel qu'il reste à lire. */
+.insc-plus > summary::before {
+  content: "▸"; color: var(--pousse); font-size: 1.05rem; line-height: 1;
+  transition: transform .2s ease;
+}
+.insc-plus[open] > summary::before { transform: rotate(90deg); }
+.insc-plus > summary:hover { background: var(--brume); }
+.insc-plus > summary:focus-visible { outline: 3px solid var(--pousse); outline-offset: -3px; }
+.ip-corps { padding: 2px 16px 15px; font-size: .9rem; line-height: 1.55; color: #46584e; }
+.ip-corps p { margin: 0 0 10px; }
+.ip-corps p:last-child { margin-bottom: 0; }
+@media (prefers-reduced-motion: reduce) { .insc-plus > summary::before { transition: none; } }
+
 .insc-ticket-vis { flex: 0 0 auto; width: clamp(58px, 15vw, 78px); }
 .insc-ticket-vis svg { width: 100%; height: auto; display: block; }
 .insc-ticket-txt { display: flex; flex-direction: column; gap: 3px; }
@@ -582,6 +652,57 @@ body.mode-tele .lang-switch { display: none; }   /* pas sur la télé */
 .bm-primaire { border-color: var(--pousse); background: #F1F8EF; }
 /* Espace (gate connexion/création) : 2 blocs centrés */
 .esp-modules { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); max-width: 760px; margin: 0 auto; }
+
+/* « Épreuve 2/5 » dans la tuile : on voit qu'on avance dans un parcours, pas
+   qu'on tombe sur un jeu isolé. */
+.ep-num {
+  display: inline-block; margin-right: 8px; padding: 2px 9px;
+  background: rgba(30,122,70,.12); color: var(--pousse);
+  border-radius: 999px; font-size: .78em; font-weight: 800;
+  letter-spacing: .02em; white-space: nowrap;
+}
+.mod-inactif .ep-num { background: rgba(0,0,0,.08); color: inherit; opacity: .8; }
+
+/* 📅 Bloc « Modalité des épreuves », sous les modules. Volontairement plus
+   sobre que les tuiles : c'est une information, pas une quatrième action. */
+.bloc-modalites {
+  display: flex; align-items: center; gap: 14px; width: 100%;
+  max-width: 760px; margin: 16px auto 0; padding: 14px 18px;
+  background: var(--craie); border: 2px solid #dceadf; border-radius: 18px;
+  cursor: pointer; text-align: left; font: inherit; color: var(--foret);
+  box-shadow: 0 4px 16px rgba(14,59,36,.07); transition: transform .1s, box-shadow .1s;
+}
+.bloc-modalites:hover { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(14,59,36,.12); }
+.bmod-ico { font-size: 1.7rem; line-height: 1; flex: none; }
+.bmod-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.bmod-txt b { font-family: 'Fredoka', sans-serif; font-size: 1.06rem; }
+.bmod-txt span { font-size: .88rem; color: #5a6b60; }
+.bmod-fleche { font-size: 1.6rem; color: var(--pousse); flex: none; font-weight: 700; }
+
+/* La fenêtre du programme */
+.modalites-modal { max-width: 520px; text-align: left; }
+.ep-liste { list-style: none; margin: 0 0 16px; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.ep-item {
+  display: flex; align-items: center; gap: 12px;
+  background: #f6faf7; border-radius: 14px; padding: 11px 13px;
+  border-left: 5px solid #cfe0d4;
+}
+.ep-item.ep-faite   { border-left-color: var(--pousse); background: #eef8f1; }
+.ep-item.ep-ouverte { border-left-color: #E9A93C; background: #fff8ea; }
+.ep-item.ep-bloquee,
+.ep-item.ep-avenir  { opacity: .72; }
+.ep-emo { font-size: 1.5rem; line-height: 1; flex: none; }
+.ep-corps { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.ep-corps b { font-size: .99rem; }
+.ep-desc { font-size: .82rem; color: #5a6b60; line-height: 1.35; }
+.ep-droite { flex: none; text-align: right; display: flex; flex-direction: column; gap: 2px; }
+.ep-date { font-family: 'Fredoka', sans-serif; font-weight: 600; font-size: .88rem; white-space: nowrap; }
+.ep-etat { font-size: .76rem; font-weight: 800; white-space: nowrap; color: #5a6b60; }
+.ep-notes p { font-size: .88rem; line-height: 1.5; margin: 0 0 9px; color: #3c5246; }
+@media (max-width: 420px) {
+  .ep-item { flex-wrap: wrap; }
+  .ep-droite { flex-direction: row; gap: 8px; width: 100%; text-align: left; }
+}
 /* Tableau de bord */
 .dash-hello { font-family: 'Fredoka', sans-serif; font-weight: 700; color: var(--foret);
   font-size: clamp(1.1rem, 2.8vw, 1.6rem); margin-bottom: 18px; }
@@ -1064,7 +1185,7 @@ body.mode-tele .tv-url   { font-size: min(1.05rem, 2.2vh); }
 
 <header class="fami-head">
   <div class="fami-logo">Famiformation <span>●</span></div>
-  <div class="fami-tag" id="fami-tag">Le grand quiz de lancement</div>
+  <div class="fami-tag" id="fami-tag">Le grand lancement</div>
   <div class="fami-magasin" id="fami-magasin"></div>
 </header>
 
@@ -1087,6 +1208,63 @@ const CONFIG = {
   // n'importe qui avec « afficher le code source ».
   api: "api.php",
 };
+
+/* ============================================================
+   📅 LE PROGRAMME DES ÉPREUVES
+   ============================================================
+   Une épreuve par semaine, le jeudi, jusqu'au 27/08. Chacune rapporte des
+   points et peut rebattre le classement.
+
+   Trois règles qui gouvernent l'affichage :
+     • ORDRE OBLIGATOIRE — on ne peut pas sauter une épreuve. Celle du dessous
+       ne s'ouvre que si celle du dessus est faite.
+     • RIEN NE SE PERD — une épreuve passée reste ouverte. Quelqu'un qui arrive
+       le 28/08 les enchaîne toutes d'affilée, sans rien rater.
+     • DATE + ORDRE — une épreuve s'ouvre à sa date ET une fois la précédente
+       terminée. Les deux conditions, pas l'une ou l'autre.
+
+   ⚠️ Ces dates sont celles de MOUSCRON. La Panne ouvre plus tard et aura son
+   propre calendrier : quand il sera connu, ce tableau devra être dédoublé par
+   magasin, comme CONFIG.dateLancement l'est déjà côté serveur.
+   ============================================================ */
+const PROGRAMME = [
+  { cle: "quiz", pret: true, emoji: "🎯",  date: "2026-07-29", fr: "Le quiz",        nl: "De quiz",
+    dfr: "Réponds aux questions et récolte tes premières graines.",
+    dnl: "Beantwoord de vragen en oogst je eerste zaadjes." },
+  // 🚦 Mets « pret: true » le jour où l'épreuve doit s'ouvrir aux joueurs.
+  //    Tant qu'il est à false, la tuile reste inactive ET le serveur refuse
+  //    d'enregistrer un score (voir $JUSTEPRIX_OUVERT dans api.php).
+  { cle: "justeprix", pret: false, emoji: "🏷️", date: "2026-08-08", fr: "Le Juste Prix",  nl: "De Juiste Prijs",
+    dfr: "Devine le prix de 10 articles du magasin.",
+    dnl: "Raad de prijs van 10 artikelen uit de winkel." },
+  { cle: "a3",        emoji: "🎁",  date: "2026-08-13", fr: "Épreuve surprise", nl: "Verrassingsproef",
+    dfr: "Dévoilée le jour même.", dnl: "Wordt die dag onthuld." },
+  { cle: "a4",        emoji: "🎁",  date: "2026-08-20", fr: "Épreuve surprise", nl: "Verrassingsproef",
+    dfr: "Dévoilée le jour même.", dnl: "Wordt die dag onthuld." },
+  { cle: "a5",        emoji: "🎁",  date: "2026-08-27", fr: "Épreuve surprise", nl: "Verrassingsproef",
+    dfr: "Dévoilée le jour même.", dnl: "Wordt die dag onthuld." },
+];
+
+// 🌱 Plafond des graines de jardin gagnées en REJOUANT le Juste Prix.
+// ⚠️ Doit rester égal à $JUSTEPRIX_REJEU_MAX dans api.php : ici la valeur ne
+// sert qu'à l'affichage, c'est le serveur qui plafonne réellement.
+const JUSTEPRIX_REJEU_MAX = 50;
+
+// Une épreuve est OUVERTE quand sa date est passée. Elle reste ouverte
+// ensuite : c'est ce qui permet de tout enchaîner en arrivant en retard.
+function epreuveDateOk(e) {
+  if (toutOuvert()) return true;
+  return Date.now() >= new Date(e.date + "T00:00:00").getTime();
+}
+// La date affichée, en toutes lettres — « 13/08 » se lit mal dans une phrase.
+function epreuveDateTexte(e) {
+  const d = new Date(e.date + "T00:00:00");
+  const moisFr = ["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
+  const moisNl = ["januari","februari","maart","april","mei","juni","juli","augustus","september","oktober","november","december"];
+  return LANG === "nl"
+    ? d.getDate() + " " + moisNl[d.getMonth()]
+    : d.getDate() + " " + moisFr[d.getMonth()];
+}
 
 // 🛣️ api.php vit à la RACINE du quiz (/quiz/api.php), quelle que soit la
 // profondeur de l'URL affichée (/quiz, /quiz/mouscron, /quiz/mouscron/tele…).
@@ -1269,7 +1447,7 @@ let QUESTIONS = [
 // et la borne peuvent rester bloquées sur d'anciennes données (classement, codes
 // restants, questions…) alors que l'admin vient de changer quelque chose.
 function fetchFrais(action) {
-  return fetch(`${CONFIG.api}?site=${SITE}&action=${action}&_=${Date.now()}`, { cache: "no-store" });
+  return fetch(`${CONFIG.api}?site=${SITE}&ecran=${ECRAN}&action=${action}&_=${Date.now()}`, { cache: "no-store" });
 }
 async function apiGetBoard() {
   // En simulation : on lit le vrai classement UNE fois (pour un décor réaliste),
@@ -1285,7 +1463,7 @@ async function apiGetBoard() {
 }
 async function apiCheckName(name) {
   if (SIMULATION) return board.some((p) => p.name.toLowerCase() === name.toLowerCase());
-  const r = await fetch(`${CONFIG.api}?site=${SITE}&action=check`, {
+  const r = await fetch(`${CONFIG.api}?site=${SITE}&ecran=${ECRAN}&action=check`, {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name }),
   });
@@ -1295,7 +1473,7 @@ async function apiClaimCode(code, name) {
   if (SIMULATION) {
     return code === "FAMI-TEST" ? { ok: true } : { ok: false, reason: "inconnu" };
   }
-  const r = await fetch(`${CONFIG.api}?site=${SITE}&action=claim`, {
+  const r = await fetch(`${CONFIG.api}?site=${SITE}&ecran=${ECRAN}&action=claim`, {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ code, name }),
   });
@@ -1357,7 +1535,7 @@ async function apiSubmit(entry) {
   for (let essai = 0; essai < attentes.length; essai++) {
     if (attentes[essai]) { await new Promise((r) => setTimeout(r, attentes[essai])); }
     try {
-      const r = await fetch(`${CONFIG.api}?site=${SITE}&action=submit`, {
+      const r = await fetch(`${CONFIG.api}?site=${SITE}&ecran=${ECRAN}&action=submit`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         // Le jeton prouve que c'est bien MON compte (les comptes Famiformation n'ont
         // pas de code jardinier : sans jeton, le serveur refuse d'écrire sous ce nom).
@@ -1376,7 +1554,7 @@ async function apiSubmit(entry) {
 // 🔑 SE CONNECTER avec son compte Famiformation (identifiant OU email + mot de
 // passe). Renvoie un jeton de session + l'état de jeu du joueur.
 async function apiLoginFami(identifiant, mdp) {
-  const r = await fetch(`${CONFIG.api}?site=${SITE}&action=login_fami`, {
+  const r = await fetch(`${CONFIG.api}?site=${SITE}&ecran=${ECRAN}&action=login_fami`, {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ identifiant, mdp }),
   });
@@ -1384,7 +1562,7 @@ async function apiLoginFami(identifiant, mdp) {
 }
 // 👤 Reprendre sa session à partir du jeton mémorisé (au chargement de la page).
 async function apiMoi(jeton) {
-  const r = await fetch(`${CONFIG.api}?site=${SITE}&action=moi`, {
+  const r = await fetch(`${CONFIG.api}?site=${SITE}&ecran=${ECRAN}&action=moi`, {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ jeton }),
   });
@@ -1394,7 +1572,7 @@ async function apiMoi(jeton) {
 // lien de connexion tout de suite, ET recopie l'inscription dans le Google Form
 // (côté serveur) pour que l'accueil garde sa feuille.
 async function apiInscriptionFami(prenom, nom, email) {
-  const r = await fetch(`${CONFIG.api}?site=${SITE}&action=inscription_fami`, {
+  const r = await fetch(`${CONFIG.api}?site=${SITE}&ecran=${ECRAN}&action=inscription_fami`, {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ prenom, nom, email }),
   });
@@ -1411,7 +1589,7 @@ async function apiLoginJoueur(name, code) {
     if ((p.code || "") !== code) return { exists: true, mauvais_code: true };
     return { exists: true, name: p.name, recoltees: p.score, solde: p.score + (p.bonus || 0) - (p.depensees || 0), nbCodes: (p.codes_pris || []).length, quiz_fait: p.quiz_fait !== false };
   }
-  const r = await fetch(`${CONFIG.api}?site=${SITE}&action=login_joueur`, {
+  const r = await fetch(`${CONFIG.api}?site=${SITE}&ecran=${ECRAN}&action=login_joueur`, {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, code }),
   });
   return await r.json();
@@ -1427,7 +1605,7 @@ async function apiRegister(name, code, nom, prenom) {
     board.push({ name, code, nom: nom || "", prenom: prenom || "", score: 0, bonus: 0, depensees: 0, correct: 0, codes: 0, codes_pris: [], time: 0, quiz_fait: false, date: new Date().toISOString() });
     return { ok: true, exist: false, name, quiz_fait: false, recoltees: 0, solde: 0, nbCodes: 0 };
   }
-  const r = await fetch(`${CONFIG.api}?site=${SITE}&action=register`, {
+  const r = await fetch(`${CONFIG.api}?site=${SITE}&ecran=${ECRAN}&action=register`, {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, code, nom: nom || "", prenom: prenom || "" }),
   });
   if (r.status === 409) return { pris: true };
@@ -1443,7 +1621,7 @@ async function apiCodeStatus(bonuscode, name) {
     return { connu: /^FAMI-/i.test(bonuscode), pris: (window.__simCodes || new Set()).has(bc),
              parMoi: !!(p && (p.codes_pris || []).includes(bc)) };
   }
-  const r = await fetch(`${CONFIG.api}?site=${SITE}&action=code_status`, {
+  const r = await fetch(`${CONFIG.api}?site=${SITE}&ecran=${ECRAN}&action=code_status`, {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ bonuscode, name: name || "" }),
   });
   return await r.json();
@@ -1463,7 +1641,7 @@ async function apiCodeClaim(name, code, bonuscode) {
     window.__simCodes.add(bc); p.codes_pris.push(bc); p.codes = p.codes_pris.length; p.score += CONFIG.pointsParCodeBonus;
     return { ok: true, gagne: CONFIG.pointsParCodeBonus, recoltees: p.score, solde: p.score + (p.bonus || 0) - (p.depensees || 0), nbCodes: p.codes };
   }
-  const r = await fetch(`${CONFIG.api}?site=${SITE}&action=code_claim`, {
+  const r = await fetch(`${CONFIG.api}?site=${SITE}&ecran=${ECRAN}&action=code_claim`, {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name, code, bonuscode, jeton: (joueur && joueur.jeton) || "" }),
   });
@@ -1472,7 +1650,7 @@ async function apiCodeClaim(name, code, bonuscode) {
 // 🌼 Le jardin collectif
 async function apiPlantes() {
   try {
-    const r = await fetch(`${CONFIG.api}?site=${SITE}&action=plantes`);
+    const r = await fetch(`${CONFIG.api}?site=${SITE}&ecran=${ECRAN}&action=plantes`);
     return r.ok ? await r.json() : null;
   } catch { return null; }
 }
@@ -1489,7 +1667,7 @@ async function apiJardin() {
   if (SIMULATION) return jardin || {};   // en simu, la grille en mémoire du joueur courant
   const name = joueur ? joueur.name : "";
   try {
-    const r = await fetch(`${CONFIG.api}?site=${SITE}&action=jardin`, {
+    const r = await fetch(`${CONFIG.api}?site=${SITE}&ecran=${ECRAN}&action=jardin`, {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }),
     });
     return r.ok ? ((await r.json()).cases || {}) : {};
@@ -1502,7 +1680,7 @@ async function apiSolde(name) {
       ? { exists: true, name: p.name, recoltees: p.score, depensees: p.depensees || 0, solde: p.score + (p.bonus || 0) - (p.depensees || 0) }
       : { exists: false };
   }
-  const r = await fetch(`${CONFIG.api}?site=${SITE}&action=solde`, {
+  const r = await fetch(`${CONFIG.api}?site=${SITE}&ecran=${ECRAN}&action=solde`, {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name }),
   });
@@ -1521,7 +1699,7 @@ async function apiPlanter(name, caseIdx, plante) {
     p.depensees = (p.depensees || 0) + cout;
     return { ok: true, solde: solde - cout };
   }
-  const r = await fetch(`${CONFIG.api}?site=${SITE}&action=planter`, {
+  const r = await fetch(`${CONFIG.api}?site=${SITE}&ecran=${ECRAN}&action=planter`, {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name, case: caseIdx, plante }),
   });
@@ -1539,7 +1717,7 @@ async function apiRevendre(name, caseIdx) {
     delete jardin[caseIdx];
     return { ok: true, rendu: cout, solde: p ? p.score + (p.bonus || 0) - (p.depensees || 0) : null };
   }
-  const r = await fetch(`${CONFIG.api}?site=${SITE}&action=revendre`, {
+  const r = await fetch(`${CONFIG.api}?site=${SITE}&ecran=${ECRAN}&action=revendre`, {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name, case: caseIdx }),
   });
@@ -1557,7 +1735,7 @@ async function apiRecolteHerbes(name, herbes) {
     p.bonus = (p.bonus || 0) + gain;
     return { ok: true, gain, solde: p.score + (p.bonus || 0) - (p.depensees || 0) };
   }
-  const r = await fetch(`${CONFIG.api}?site=${SITE}&action=recolte_herbes`, {
+  const r = await fetch(`${CONFIG.api}?site=${SITE}&ecran=${ECRAN}&action=recolte_herbes`, {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name, herbes }),
   });
@@ -1572,7 +1750,7 @@ async function apiQuizJardin(correct) {
     if (p) { p.bonus = (p.bonus || 0) + gain; return { ok: true, gain, solde: p.score + (p.bonus || 0) - (p.depensees || 0) }; }
     return { ok: true, gain, solde: (joueur ? joueur.solde : 0) + gain };
   }
-  const r = await fetch(`${CONFIG.api}?site=${SITE}&action=quiz_jardin`, {
+  const r = await fetch(`${CONFIG.api}?site=${SITE}&ecran=${ECRAN}&action=quiz_jardin`, {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ jeton: (joueur && joueur.jeton) || "", correct }),
   });
@@ -1764,6 +1942,17 @@ function setLang(l) {
 }
 // Crée (une fois) et met à jour le petit sélecteur FR / NL en haut à gauche.
 function majLangSwitch() {
+  // 🌐 <html lang> SUIT LA LANGUE AFFICHÉE.
+  // Elle était figée à « fr » dans le fichier : en néerlandais, la page
+  // annonçait donc du français tout en affichant du néerlandais. C'est
+  // exactement ce décalage qui pousse Edge à proposer — ou à imposer — sa
+  // traduction automatique, laquelle réécrit par-dessus des textes déjà
+  // traduits et casse les libellés du jeu.
+  // Ici plutôt que dans setLang() : majLangSwitch() est appelée au début de
+  // chaque render(), donc la balise est juste au premier affichage comme après
+  // un changement de langue, sans qu'on ait à y penser ailleurs.
+  document.documentElement.lang = LANG;
+
   let s = document.getElementById("lang-switch");
   if (!s) {
     s = document.createElement("div");
@@ -1775,10 +1964,10 @@ function majLangSwitch() {
   s.querySelectorAll("[data-lang]").forEach((b) => b.classList.toggle("on", b.dataset.lang === LANG));
   // Le tag sous le logo (en-tête fixe) suit aussi la langue — y compris sur la télé.
   const tag = document.getElementById("fami-tag");
-  if (tag) tag.textContent = t("Le grand quiz de lancement", "De grote lanceringsquiz");
+  if (tag) tag.textContent = t("Le grand lancement", "De grote lancering");
 }
 
-// 🔒 Module « Quiz & mon espace jardin » de l'accueil : VERROUILLÉ pour tout le
+// 🔒 Module « Épreuves & mon espace jardin » de l'accueil : VERROUILLÉ pour tout le
 // monde par défaut. Se débloque (ou se re-verrouille) en tapant « admin » au
 // clavier — fonction cachée réservée à l'organisateur. Mémorisé sur l'appareil.
 let espaceDebloque = (() => { try { return localStorage.getItem("fj_espace_ok") === "1"; } catch (e) { return false; } })();
@@ -1798,6 +1987,78 @@ function basculeEspaceAdmin() {
   toastAdmin(espaceDebloque ? "🔓 Quiz & jardin débloqué" : "🔒 Quiz & jardin verrouillé");
   render();   // rafraîchit l'écran courant (l'accueil montre alors le cadenas ou non)
 }
+/* ============================================================
+   🔒 VERROU DES DEUX TUILES « J'ai trouvé un code » ET
+      « Je ne suis pas encore inscrit sur Famiformation ».
+
+   À La Panne, ces deux entrées restent fermées tant que le magasin n'a pas donné
+   son feu vert : on ne veut ni récolter d'adresses ni distribuer de graines bonus
+   avant que tout soit en place. Verrou VOLONTAIRE, indépendant des dates de
+   l'événement : il ne se lève jamais tout seul.
+
+   Deux façons de l'ouvrir :
+     • sur UN appareil, taper « 0000 » (voir la table MOTS plus bas) — de quoi
+       vérifier le parcours sans l'ouvrir au public. Retaper « 0000 » reverrouille,
+       et le choix est mémorisé sur l'appareil.
+     • pour TOUT LE MONDE, repasser VERROU_TUILES à false et remettre en ligne.
+
+   Le module « Épreuves & mon espace jardin » n'est PAS concerné : il garde sa règle
+   liée aux dates. Mouscron non plus.
+   ============================================================ */
+// 🔓 OUVERT depuis le 04/08 : les deux tuiles sont accessibles à tout le monde,
+// le code « 0000 » n'est plus nécessaire. Remettre true pour les refermer.
+const VERROU_TUILES = false;
+let tuilesDebloquees = (() => {
+  try { return localStorage.getItem("fj_tuiles_ok") === "1"; } catch (e) { return false; }
+})();
+function basculeTuiles() {
+  tuilesDebloquees = !tuilesDebloquees;
+  try { localStorage.setItem("fj_tuiles_ok", tuilesDebloquees ? "1" : "0"); } catch (e) {}
+  toastAdmin(tuilesDebloquees ? "🔓 Code & inscription débloqués" : "🔒 Code & inscription verrouillés");
+  render();
+}
+function tuilesAccessibles() {
+  if (tuilesDebloquees) return true;
+  return !(SITE === "lapanne" && VERROU_TUILES);
+}
+
+// 🔎 INDICES « où chercher les codes » — déblocage local par le mot « indice ».
+//
+// Ils s'ouvrent normalement la VEILLE du lancement (voir zonesDispo). Taper
+// « indice » les affiche tout de suite sur CET appareil, de quoi vérifier ce que
+// verront les joueurs — et surtout relire les emplacements saisis dans l'admin —
+// sans attendre le 13/08. Retaper « indice » les remasque.
+//
+// Drapeau séparé de celui des tuiles : on veut pouvoir regarder les indices sans
+// rouvrir « J'ai trouvé un code » ni « Je ne suis pas encore inscrit ».
+let indicesDebloques = (() => {
+  try { return localStorage.getItem("fj_indices_ok") === "1"; } catch (e) { return false; }
+})();
+function basculeIndices() {
+  indicesDebloques = !indicesDebloques;
+  try { localStorage.setItem("fj_indices_ok", indicesDebloques ? "1" : "0"); } catch (e) {}
+  toastAdmin(indicesDebloques ? "🔓 Indices affichés" : "🔒 Indices masqués");
+  render();
+}
+// Clic sur une tuile verrouillée : on explique, SANS annoncer de date. Le verrou
+// est manuel : promettre une ouverture qu'on ne tiendrait pas serait pire que de
+// rester vague.
+function modaleTuileBloquee() {
+  if (document.querySelector(".modal-fond")) return;
+  const o = document.createElement("div");
+  o.className = "modal-fond";
+  o.innerHTML = `<div class="modal code-modal">
+    <div class="cm-emoji">🔒</div>
+    <h2 class="cm-titre">${t("Bientôt disponible", "Binnenkort beschikbaar")}</h2>
+    <p class="cm-sous">${t("Cette partie n'est pas encore ouverte. Reviens un peu plus tard&nbsp;! 🌱", "Dit onderdeel is nog niet open. Kom straks nog eens terug! 🌱")}</p>
+    <button class="btn" id="cm-ok" style="min-width:180px;">${t("D'accord", "Oké")}</button>
+  </div>`;
+  document.body.appendChild(o);
+  const ferme = () => o.remove();
+  o.querySelector("#cm-ok").addEventListener("click", ferme);
+  o.addEventListener("click", (e) => { if (e.target === o) ferme(); });
+}
+
 // 🌱 L'espace (quiz, jardin, classement) est-il accessible ? Oui à partir du
 // lancement (29/07 12h30). Avant, il reste verrouillé pour tout le monde — sauf
 // si l'organisateur l'a débloqué à la main (mot secret « admin ») pour tester.
@@ -1932,7 +2193,7 @@ function ouvreExplication() {
   o.innerHTML = `<div class="modal explik">
     <button class="explik-x" id="explik-x" aria-label="${t("Fermer", "Sluiten")}">✕</button>
     <h2 class="explik-titre">${t("🌱 Comment ça marche ?", "🌱 Hoe werkt het?")}</h2>
-    <p class="explik-sous">${t("Le grand jeu Famiflora, de la graine au ticket glace.", "Het grote Famiflora-spel, van zaadje tot ijsjesticket.")}</p>
+    <p class="explik-sous">${t("Le grand jeu Famiflora, de la graine au " + motTicket() + ".", "Het grote Famiflora-spel, van zaadje tot " + motTicket() + ".")}</p>
     <div class="explik-steps">
       <div class="explik-step explik-star"><span class="explik-ico">🏆</span><span class="explik-txt"><b class="eh">${t("Un seul classement ⭐", "Eén enkele ranking ⭐")}</b>${t("Les <b>3 meilleures récoltes repartent avec de très belles récompenses</b> — de quoi viser le podium&nbsp;! Annonce des vainqueurs le " + esc(CONFIG.dateResultats) + ".", "De <b>3 beste oogsten winnen heel mooie prijzen</b> — mik dus op het podium&nbsp;! Bekendmaking van de winnaars op " + esc(CONFIG.dateResultats) + ".")}</span></div>
       <div class="explik-step explik-star"><span class="explik-ico">🌼</span><span class="explik-txt"><b class="eh">${t("Pas sur le podium ? Tu peux gagner quand même ⭐", "Niet op het podium? Je kan toch winnen ⭐")}</b>${t("Le podium n'est pas la seule façon de repartir avec une récompense : <b>termine ton jardin</b> (toutes les cases + les <b>3 lotus</b>) et <b>tu gagnes toi aussi</b>, quel que soit ton classement. Ta récompense est alors préparée et tu reçois un mail dès qu'elle est prête. Et si tu fais les deux, <b>ça se cumule</b> 🌼🏆", "Het podium is niet de enige manier om een beloning te winnen: <b>werk je tuin af</b> (alle vakjes + de <b>3 lotussen</b>) en <b>jij wint ook</b>, wat je plaats ook is. Je beloning wordt dan klaargemaakt en je krijgt een mail zodra ze klaar is. En doe je beide, dan <b>is dat cumuleerbaar</b> 🌼🏆")}</span></div>
@@ -1943,8 +2204,8 @@ function ouvreExplication() {
           <span>${t("🔥 <b>Série</b> — jusqu'à +" + BAREME.serieMax + " pour les bonnes réponses d'affilée, remis à zéro à la moindre erreur", "🔥 <b>Reeks</b> — tot +" + BAREME.serieMax + " voor juiste antwoorden op rij, terug naar nul bij de minste fout")}</span>
         </span>
         ${t("Une mauvaise réponse ne retire rien. Les codes bonus rapportent aussi des graines.", "Een fout antwoord kost niets. Bonuscodes leveren ook zaadjes op.")}</span></div>
-      <div class="explik-step"><span class="explik-ico">👤</span><span class="explik-txt"><b class="eh">${t("Ton compte = ton compte Famiformation", "Je account = je Famiformation-account")}</b>${t("Pour jouer et garder ta récolte, tu te connectes avec ton <b>compte Famiformation</b> (ton <b>identifiant</b> + ton <b>mot de passe</b>). <b>Pas encore de compte ?</b> Inscris-toi en 2 minutes (prénom, nom, e-mail) : tu reçois ton <b>lien de connexion par mail</b> et ton <b>ticket glace</b> à l'accueil 🍦. Ensuite tu te reconnectes depuis n'importe quel appareil avec les mêmes identifiants.", "Om te spelen en je oogst te bewaren, meld je je aan met je <b>Famiformation-account</b> (je <b>gebruikersnaam</b> + je <b>wachtwoord</b>). <b>Nog geen account?</b> Schrijf je in op 2 minuten (voornaam, naam, e-mail): je ontvangt je <b>aanmeldlink per mail</b> en je <b>ijsjesticket</b> aan het onthaal 🍦. Daarna meld je je aan op eender welk toestel met dezelfde gegevens.")}</span></div>
-      <div class="explik-step"><span class="explik-ico">📅</span><span class="explik-txt"><b class="eh">${t("Les dates à retenir", "De data om te onthouden")}</b>${t("Le quiz <b>ouvre le " + CONFIG.dateLancement.toLocaleDateString("fr-BE", { day: "numeric", month: "long" }) + " à 12h30</b> et <b>ferme le " + CONFIG.dateCloture.toLocaleDateString("fr-BE", { day: "numeric", month: "long" }) + " au soir</b>. Ton <b>quiz du classement compte une seule fois</b> (le 1er essai fige ton score), mais tu peux <b>chercher des codes bonus autant que tu veux</b> jusqu'à la clôture. Annonce des vainqueurs le <b>" + esc(CONFIG.dateResultats) + "</b>.", "De quiz <b>opent op " + CONFIG.dateLancement.toLocaleDateString("nl-BE", { day: "numeric", month: "long" }) + " om 12u30</b> en <b>sluit op " + CONFIG.dateCloture.toLocaleDateString("nl-BE", { day: "numeric", month: "long" }) + " 's avonds</b>. Je <b>quiz voor de ranking telt één keer</b> (je eerste poging bepaalt je score), maar je kan <b>zoveel bonuscodes zoeken als je wil</b> tot de sluiting. Bekendmaking van de winnaars op <b>" + esc(CONFIG.dateResultats) + "</b>.")}</span></div>
+      <div class="explik-step"><span class="explik-ico">👤</span><span class="explik-txt"><b class="eh">${t("Ton compte = ton compte Famiformation", "Je account = je Famiformation-account")}</b>${t("Pour jouer et garder ta récolte, tu te connectes avec ton <b>compte Famiformation</b> (ton <b>identifiant</b> + ton <b>mot de passe</b>). <b>Pas encore de compte ?</b> Inscris-toi en 2 minutes (prénom, nom, e-mail) : tu reçois ton <b>lien de connexion par mail</b> et ton <b>" + motTicket() + "</b> à l'accueil " + emojiTicket() + ". Ensuite tu te reconnectes depuis n'importe quel appareil avec les mêmes identifiants.", "Om te spelen en je oogst te bewaren, meld je je aan met je <b>Famiformation-account</b> (je <b>gebruikersnaam</b> + je <b>wachtwoord</b>). <b>Nog geen account?</b> Schrijf je in op 2 minuten (voornaam, naam, e-mail): je ontvangt je <b>aanmeldlink per mail</b> en je <b>" + motTicket() + "</b> aan het onthaal " + emojiTicket() + ". Daarna meld je je aan op eender welk toestel met dezelfde gegevens.")}</span></div>
+      <div class="explik-step"><span class="explik-ico">📅</span><span class="explik-txt"><b class="eh">${t("Les dates à retenir", "De data om te onthouden")}</b>${t("Le quiz <b>ouvre le " + texteLancement("fr") + "</b> et <b>ferme le " + texteCloture("fr") + "</b>. Ton <b>quiz du classement compte une seule fois</b> (le 1er essai fige ton score), mais tu peux <b>chercher des codes bonus autant que tu veux</b> jusqu'à la clôture. Annonce des vainqueurs le <b>" + esc(CONFIG.dateResultats) + "</b>.", "De quiz <b>opent op " + texteLancement("nl") + "</b> en <b>sluit op " + texteCloture("nl") + "</b>. Je <b>quiz voor de ranking telt één keer</b> (je eerste poging bepaalt je score), maar je kan <b>zoveel bonuscodes zoeken als je wil</b> tot de sluiting. Bekendmaking van de winnaars op <b>" + esc(CONFIG.dateResultats) + "</b>.")}</span></div>
       <div class="explik-step"><span class="explik-ico">🎁</span><span class="explik-txt"><b class="eh">${t("Traque les codes bonus", "Jaag op de bonuscodes")}</b>${t("Des codes sont cachés en magasin : chacun te rapporte <b>+" + CONFIG.pointsParCodeBonus + " graines</b>. Tu peux en accumuler <b>" + CONFIG.maxCodes + " au maximum</b> (soit +" + (CONFIG.pointsParCodeBonus * CONFIG.maxCodes) + " graines), et elles comptent au classement. <b>Même après avoir fait le quiz</b>, tu peux encore en récupérer : ça te fait remonter ! Ouvre l'œil 👀", "Er liggen codes verstopt in de winkel: elk levert je <b>+" + CONFIG.pointsParCodeBonus + " zaadjes</b> op. Je kan er <b>maximaal " + CONFIG.maxCodes + "</b> verzamelen (dus +" + (CONFIG.pointsParCodeBonus * CONFIG.maxCodes) + " zaadjes), en ze tellen mee in de ranking. <b>Zelfs na de quiz</b> kan je er nog ophalen: zo stijg je! Hou je ogen open 👀")}</span></div>
       <div class="explik-step"><span class="explik-ico">🌼</span><span class="explik-txt"><b class="eh">${t("Ton jardin — après le quiz", "Je tuin — na de quiz")}</b>${t("Une fois ton quiz terminé, <b>ton jardin s'ouvre</b> : chacun a le sien. Tu y dépenses tes graines pour planter des fleurs, des arbres, des variétés rares… Tu les verras diminuer, <b>c'est normal, ça ne concerne que le jardin</b> : <b>ton score au classement ne bouge pas</b>.", "Zodra je quiz klaar is, <b>opent je tuin</b>: iedereen heeft de zijne. Je geeft er je zaadjes uit om bloemen, bomen en zeldzame soorten te planten… Je ziet ze dalen, <b>dat is normaal, het geldt enkel voor de tuin</b>: <b>je score in de ranking verandert niet</b>.")}</span></div>
     </div>
@@ -2013,6 +2274,22 @@ function currentView() {
    📺 VUE — COMPTE À REBOURS
    ============================================================ */
 
+// 📅 Date ET heure du lancement, TIRÉES DE CONFIG.dateLancement — jamais
+// écrites en dur. Chaque magasin a les siennes (Mouscron le 29/07, La Panne le
+// 14/08) et elles se modifient depuis l'admin : une date figée dans le texte
+// annonçait « 29 juillet » sur la télé de La Panne pendant que les chiffres du
+// compte à rebours, eux, décomptaient correctement vers le 14 août.
+// L'heure est dérivée elle aussi : rien ne garantit que les deux magasins
+// ouvriront toujours à 12h30.
+function texteDateHeure(d, locale) {
+  const jour = d.toLocaleDateString(locale === "nl" ? "nl-BE" : "fr-BE", { day: "numeric", month: "long" });
+  const h = d.getHours();
+  const min = String(d.getMinutes()).padStart(2, "0");
+  return locale === "nl" ? `${jour} om ${h}u${min}` : `${jour} à ${h}h${min}`;
+}
+function texteLancement(locale) { return texteDateHeure(CONFIG.dateLancement, locale); }
+function texteCloture(locale)   { return texteDateHeure(CONFIG.dateCloture, locale); }
+
 function renderCountdown() {
   const phase = phaseNow();
   const target = phase === "avant" ? CONFIG.dateLancement : CONFIG.dateCloture;
@@ -2020,7 +2297,8 @@ function renderCountdown() {
     : phase === "ouvert" ? t("⏳ Fin du quiz dans...", "⏳ Einde van de quiz over...")
     : t("🏆 Résultats le " + CONFIG.dateResultats + " !", "🏆 Resultaten op " + CONFIG.dateResultats + "!");
   const info = phase === "avant"
-    ? t("Quelque chose se prépare... rendez-vous le 29 juillet à 12h30 !", "Er staat iets op til... afspraak op 29 juli om 12u30!")
+    ? t("Quelque chose se prépare... rendez-vous le " + texteLancement("fr") + " !",
+        "Er staat iets op til... afspraak op " + texteLancement("nl") + "!")
     : phase === "ouvert"
       ? t("Le quiz est ouvert ! Joue depuis ton téléphone et grimpe au classement.", "De quiz is open! Speel via je telefoon en klim in de ranking.")
       : t("Le quiz est terminé. Merci à tous les participants ! 🎉", "De quiz is afgelopen. Bedankt aan alle deelnemers! 🎉");
@@ -2069,6 +2347,11 @@ function renderCountdown() {
     tick();
     tickTimer = setInterval(tick, 1000);
   }
+
+  // 📺 Recalage télé : sans cet appel, l'écran de compte à rebours était le seul
+  // à ne jamais être ajusté à la hauteur disponible — et c'est pourtant celui
+  // qui reste affiché des jours entiers avant l'événement.
+  if (ECRAN === "tele") ajusteTeleBientot();
 }
 
 // 📺 AJUSTEMENT AUTOMATIQUE DE L'ÉCRAN TÉLÉ.
@@ -2082,7 +2365,9 @@ function renderCountdown() {
 // C'est ce qui garantit que rien ne sort de l'écran, sur n'importe quelle télé.
 function ajusteTele() {
   if (!document.body.classList.contains("mode-tele")) return;
-  const bloc = document.querySelector(".tv, .tf-wrap, .tw");
+  // .cd-wrap manquait : l'écran de COMPTE À REBOURS n'était donc jamais recalé,
+  // alors que c'est celui que la télé affiche pendant des jours avant l'événement.
+  const bloc = document.querySelector(".tv, .tf-wrap, .tw, .cd-wrap");
   if (!bloc) return;
   bloc.style.transform = "";                 // on repart toujours de la taille naturelle
   bloc.style.transformOrigin = "top center";
@@ -2595,17 +2880,43 @@ function fleurRareSvg(tier) {
     <ellipse class="glint" cx="43" cy="42" rx="6" ry="4" fill="rgba(255,255,255,.85)"/>
   </svg>`;
 }
-// 🍦 L'ARBRE À TICKETS GLACE : le vrai arbre que la fée fait pousser, avec les
-// tickets glace BLEUS pendus aux branches (pas un emoji). Repris du dessin de la fée.
-const TICKET_GLACE = `<rect x="2" y="2" width="166" height="100" rx="12" fill="url(#glaceTgJ)" stroke="#152c6b" stroke-width="3"></rect><rect x="10" y="12" width="106" height="80" rx="7" fill="#fff" stroke="#152c6b" stroke-width="1.6"></rect><text x="24" y="52" font-family="Arial,sans-serif" font-size="34" font-weight="900" fill="#1c1c1c" font-style="italic">1x</text><text x="18" y="72" font-family="Arial,sans-serif" font-size="15" font-weight="900" fill="#1c1c1c" font-style="italic">GRATUIT</text><path d="M118 60 L152 60 L135 98 Z" fill="#e8a94a" stroke="#152c6b" stroke-width="1.5"></path><path d="M116 58 C110 40 118 26 128 24 C126 12 146 8 150 20 C160 18 166 30 158 38 C166 44 158 58 150 56 Z" fill="#fdf6e6" stroke="#152c6b" stroke-width="1.6"></path>`;
+/* ============================================================
+   🎟️ LE TICKET — UN SEUL DESSIN, DEUX COULEURS.
+   Le ticket apparaît à trois endroits : seul (module d'inscription), suspendu
+   aux branches de l'arbre à tickets, et en petite icône dans les messages du
+   jardin. Il était écrit une fois en BLEU en dur, ce qui laissait des tickets
+   bleus dans l'arbre de La Panne alors que le vrai ticket du magasin est vert.
+   Le dessin est donc défini UNE fois, et seules les couleurs changent selon le
+   magasin. Teintes de La Panne relevées sur Ticket gourmand.png.
+   ============================================================ */
+function couleursTicket() {
+  return estGourmand()
+    ? { haut: "#5BC37E", bas: "#1F7A42", trait: "#0F5B2A" }   // La Panne — vert
+    : { haut: "#5b9bf5", bas: "#1e40af", trait: "#152c6b" };  // Mouscron — bleu
+}
+// Le dégradé, à poser dans les <defs> de chaque SVG qui affiche un ticket.
+function degradeTicket(id) {
+  const c = couleursTicket();
+  return `<linearGradient id="${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${c.haut}"/><stop offset="1" stop-color="${c.bas}"/></linearGradient>`;
+}
+// Le ticket lui-même. `id` est celui du dégradé déclaré juste au-dessus.
+function dessinTicket(id) {
+  const t = couleursTicket().trait;
+  return `<rect x="2" y="2" width="166" height="100" rx="12" fill="url(#${id})" stroke="${t}" stroke-width="3"></rect>`
+    + `<rect x="10" y="12" width="106" height="80" rx="7" fill="#fff" stroke="${t}" stroke-width="1.6"></rect>`
+    + `<text x="24" y="52" font-family="Arial,sans-serif" font-size="34" font-weight="900" fill="#1c1c1c" font-style="italic">1x</text>`
+    + `<text x="18" y="72" font-family="Arial,sans-serif" font-size="15" font-weight="900" fill="#1c1c1c" font-style="italic">GRATUIT</text>`
+    + `<path d="M118 60 L152 60 L135 98 Z" fill="#e8a94a" stroke="${t}" stroke-width="1.5"></path>`
+    + `<path d="M116 58 C110 40 118 26 128 24 C126 12 146 8 150 20 C160 18 166 30 158 38 C166 44 158 58 150 56 Z" fill="#fdf6e6" stroke="${t}" stroke-width="1.6"></path>`;
+}
 function arbreGlaceSvg() {
   // 🍦 EXACTEMENT l'arbre à tickets glace que la fée fait pousser : un pot en
   // terre cuite + l'arbre avec ses tickets bleus « 1x GRATUIT ».
-  const T = (x, y) => `<g transform="translate(${x},${y}) scale(0.3)">${TICKET_GLACE}</g>`;
+  const T = (x, y) => `<g transform="translate(${x},${y}) scale(0.3)">${dessinTicket("glaceTgJ")}</g>`;
   return `<svg class="arbre-glace" viewBox="40 24 140 236" xmlns="http://www.w3.org/2000/svg">
     <defs>
       <linearGradient id="feePotJ" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#C97B4A"/><stop offset="1" stop-color="#9C5730"/></linearGradient>
-      <linearGradient id="glaceTgJ" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5b9bf5"/><stop offset="1" stop-color="#1e40af"/></linearGradient>
+      ${degradeTicket("glaceTgJ")}
     </defs>
     <rect x="102" y="98" width="16" height="74" rx="5" fill="#8A5B36"/>
     <circle cx="110" cy="60" r="40" fill="#2E7D3B"/><circle cx="76" cy="80" r="27" fill="#3C9147"/>
@@ -2621,9 +2932,44 @@ function arbreGlaceSvg() {
 // les petits messages (là où l'arbre entier serait trop gros).
 function ticketGlaceSvg(cls = "") {
   return `<svg class="ticket-glace ${cls}" viewBox="0 0 170 104" xmlns="http://www.w3.org/2000/svg">
-    <defs><linearGradient id="glaceTgJ" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5b9bf5"/><stop offset="1" stop-color="#1e40af"/></linearGradient></defs>
-    ${TICKET_GLACE}</svg>`;
+    <defs>${degradeTicket("glaceTgJ")}</defs>
+    ${dessinTicket("glaceTgJ")}</svg>`;
 }
+
+
+// 🏬 Le bon ticket selon le magasin. Tout ce qui affiche un ticket passe par ici,
+// pour qu'on n'ait jamais un visuel de glace d'un côté et un mot « gourmand » de
+// l'autre.
+function estGourmand() { return SITE === "lapanne"; }
+
+// 🎟️ « C'est quoi un ticket gourmand ? » — la question que les gens posent à
+// l'accueil. Y répondre AVANT l'inscription évite d'avoir à l'expliquer vingt
+// fois par jour au comptoir.
+function modaleTicketQuoi() {
+  if (document.querySelector(".modal-fond")) return;
+  const o = document.createElement("div");
+  o.className = "modal-fond";
+  o.innerHTML = `<div class="modal code-modal">
+    <div class="cm-emoji">😃</div>
+    <h2 class="cm-titre">${t("C'est quoi un " + motTicket() + " ?", "Wat is een " + motTicket() + "?")}</h2>
+    <div style="margin:4px auto 14px; width:min(190px,60%);">${ticketSvg()}</div>
+    <p class="cm-sous">${t("Il te permet de prendre <b>une glace</b> ou <b>une gaufre</b> au food truck <b>Fami Resto</b>, offert par la maison 🍦🧇", "Ermee krijg je <b>een ijsje</b> of <b>een wafel</b> bij de foodtruck <b>Fami Resto</b>, van het huis 🍦🧇")}</p>
+    <p class="cm-sous">${t("Tu le retires à l'accueil du magasin après ton inscription.", "Je haalt het op aan het onthaal van de winkel na je inschrijving.")}</p>
+    <button class="btn" id="cm-ok" style="min-width:180px;">${t("Super, merci ! 😋", "Top, bedankt! 😋")}</button>
+  </div>`;
+  document.body.appendChild(o);
+  const ferme = () => o.remove();
+  o.querySelector("#cm-ok").addEventListener("click", ferme);
+  o.addEventListener("click", (e) => { if (e.target === o) ferme(); });
+}
+// Un seul rendu : ticketGlaceSvg() prend déjà les couleurs du magasin courant
+// (voir couleursTicket). On garde ce nom pour les appels existants.
+function ticketSvg(cls = "") { return ticketGlaceSvg(cls); }
+// Le nom du ticket, décliné pour les phrases où il apparaît.
+function motTicket() { return estGourmand() ? t("ticket gourmand", "lekkerbekticket") : t("ticket glace", "ijsjesticket"); }
+// Le même emoji partout : le dessin du ticket est un cornet dans les deux
+// magasins, un 🧇 à côté d'un cornet donnerait deux messages différents.
+function emojiTicket() { return "🍦"; }
 
 // Ce qui s'affiche dans une case : fleur métallique (rares), arbre à tickets glace,
 // sinon l'emoji de la plante.
@@ -2723,7 +3069,12 @@ function renderJardin() {
     ${JARDIN_LIBRE ? "" : `<div class="j-gagner">
       <button class="btn" id="j-quiz">${t("🎯 Quiz du jardin", "🎯 Tuinquiz")}</button>
       <button class="btn ghost" id="j-herbes">${t("🌿 Chasse aux herbes", "🌿 Onkruid vangen")}</button>
-      <span>${t("Deux façons de récolter des graines pour le jardin (jamais le classement). Le <b>quiz</b> en rapporte le plus, et chaque bonne réponse compte&nbsp;!", "Twee manieren om zaadjes voor de tuin te oogsten (nooit voor de ranking). De <b>quiz</b> levert het meeste op, en elk juist antwoord telt&nbsp;!")}</span>
+      ${(PROGRAMME[1].pret && epreuveDateOk(PROGRAMME[1])) ? `<button class="btn ghost" id="j-justeprix">${t("🏷️ Le Juste Prix", "🏷️ De Juiste Prijs")}</button>` : ""}
+      <span>${(PROGRAMME[1].pret && epreuveDateOk(PROGRAMME[1]))
+        ? t("Trois façons de récolter des graines pour ton jardin. Le <b>quiz du jardin</b> en rapporte le plus, et c'est <b>voulu</b> : il reste l'épreuve la plus généreuse. Le <b>Juste Prix</b> rapporte plus que les herbes, mais il est <b>plafonné à " + JUSTEPRIX_REJEU_MAX + " graines par partie</b> — le jardin ne se remplit pas avec lui seul, il faudra passer par le quiz. Le quiz du jardin et les herbes ne comptent <b>jamais</b> pour le classement.",
+            "Drie manieren om zaadjes voor je tuin te oogsten. De <b>tuinquiz</b> levert het meeste op, en dat is <b>bewust zo</b>: hij blijft de meest gulle proef. De <b>Juiste Prijs</b> levert meer op dan het onkruid, maar is <b>beperkt tot " + JUSTEPRIX_REJEU_MAX + " zaadjes per partij</b> — je vult je tuin niet met hem alleen, de quiz blijft nodig. De tuinquiz en het onkruid tellen <b>nooit</b> mee voor de ranking.")
+        : t("Deux façons de récolter des graines pour le jardin (jamais le classement). Le <b>quiz</b> en rapporte le plus, et chaque bonne réponse compte&nbsp;!",
+            "Twee manieren om zaadjes voor de tuin te oogsten (nooit voor de ranking). De <b>quiz</b> levert het meeste op, en elk juist antwoord telt&nbsp;!")}</span>
     </div>`}
     <div class="catalogue">
       ${Object.entries(PLANTES).map(([cle, p]) => `
@@ -2746,6 +3097,10 @@ function renderJardin() {
   // Aller au mini-jeu pour récolter des graines (absent en mode aperçu gratuit).
   const jh = $("#j-herbes");
   if (jh) jh.addEventListener("click", () => { userView = "herbes"; render(); });
+  // 🏷️ Le Juste Prix depuis le jardin : même chemin que depuis la tuile, une
+  // seule fonction pour les deux.
+  const jjp = $("#j-justeprix");
+  if (jjp) jjp.addEventListener("click", ouvreJustePrix);
   const jq = $("#j-quiz");
   if (jq) jq.addEventListener("click", () => {
     // Quiz REJOUABLE pour le jardin : mêmes questions (tirage au hasard), mais
@@ -3056,7 +3411,8 @@ function ouvreConnexionFami() {
     // Connecté : on ouvre sa session de jeu et on garde le jeton (téléphone perso).
     const j = r.joueur || {};
     joueur = { name: j.name, code: "", jeton: r.jeton, uid: j.uid, prenom: j.prenom, nom: j.nom, pseudo: j.pseudo || "",
-               solde: j.solde || 0, recoltees: j.recoltees || 0, nbCodes: j.nbCodes || 0, quizFait: j.quiz_fait !== false };
+               solde: j.solde || 0, recoltees: j.recoltees || 0, nbCodes: j.nbCodes || 0, quizFait: j.quiz_fait !== false,
+                 justePrixFait: !!j.justeprix_fait };
     sauveJeton(r.jeton);
     const msg = await reclamerEnAttente();
     jardinMsg = msg || null;
@@ -3130,10 +3486,12 @@ const INFOS = {
         <div class="info-steps">
           <div class="info-step"><div class="is-num">📇</div><div class="is-txt"><b>Prénom, nom, e-mail</b> — pour créer ton accès Famiformation, t'envoyer ton lien de connexion, et pouvoir te remettre ta récompense si tu gagnes.</div></div>
           <div class="info-step"><div class="is-num">🔑</div><div class="is-txt"><b>Identifiant et mot de passe</b> — pour te connecter. Ton mot de passe est <b>chiffré (haché)</b> : personne ne peut le lire.</div></div>
-          <div class="info-step"><div class="is-num">🌰</div><div class="is-txt"><b>Résultats du quiz, jardin, pseudo éventuel</b> — pour faire fonctionner le jeu et le classement.</div></div>
+          <div class="info-step"><div class="is-num">🌰</div><div class="is-txt"><b>Résultats des épreuves, jardin, pseudo éventuel</b> — pour faire fonctionner le jeu et le classement.</div></div>
         </div>
         <h3 class="info-h2">À qui elles sont transmises</h3>
-        <div class="info-note">Ton inscription (prénom, nom, e-mail) est aussi enregistrée dans un <b>formulaire Google</b> — Google agit comme sous-traitant — afin que l'accueil puisse te remettre ton <b>ticket glace</b>. Aucune donnée n'est vendue ni utilisée à des fins publicitaires.</div>
+        <div class="info-note">${estGourmand()
+          ? `Ton inscription (prénom, nom, e-mail) est enregistrée <b>dans notre propre base</b>, hébergée pour nous par notre prestataire technique, afin que l'accueil puisse te remettre ton <b>ticket gourmand</b>. Elle n'est transmise à <b>aucun tiers</b>, ni vendue, ni utilisée à des fins publicitaires.`
+          : `Ton inscription (prénom, nom, e-mail) est aussi enregistrée dans un <b>formulaire Google</b> — Google agit comme sous-traitant — afin que l'accueil puisse te remettre ton <b>ticket glace</b>. Aucune donnée n'est vendue ni utilisée à des fins publicitaires.`}</div>
         <h3 class="info-h2">Base légale &amp; durée</h3>
         <div class="info-note"><b>Base légale</b> : ton <b>consentement</b> (inscription volontaire) et l'intérêt légitime de Famiflora à organiser l'événement. <b>Durée</b> : les données liées au jeu sont conservées le temps de l'événement et du suivi des gagnants. Ton compte Famiformation suit, lui, la politique de la plateforme.</div>
         <h3 class="info-h2">Tes droits</h3>
@@ -3154,7 +3512,9 @@ const INFOS = {
           <div class="info-step"><div class="is-num">🌰</div><div class="is-txt"><b>Quizresultaten, tuin, eventuele bijnaam</b> — om het spel en de ranking te laten werken.</div></div>
         </div>
         <h3 class="info-h2">Aan wie ze worden doorgegeven</h3>
-        <div class="info-note">Je inschrijving (voornaam, naam, e-mail) wordt ook opgeslagen in een <b>Google-formulier</b> — Google treedt op als verwerker — zodat het onthaal je <b>ijsjesticket</b> kan geven. Geen enkele gegevens worden verkocht of voor reclame gebruikt.</div>
+        <div class="info-note">${estGourmand()
+          ? `Je inschrijving (voornaam, naam, e-mail) wordt opgeslagen <b>in onze eigen databank</b>, voor ons gehost door onze technische dienstverlener, zodat het onthaal je <b>lekkerbekticket</b> kan geven. Ze wordt aan <b>geen enkele derde</b> doorgegeven, niet verkocht en niet voor reclame gebruikt.`
+          : `Je inschrijving (voornaam, naam, e-mail) wordt ook opgeslagen in een <b>Google-formulier</b> — Google treedt op als verwerker — zodat het onthaal je <b>ijsjesticket</b> kan geven. Geen enkele gegevens worden verkocht of voor reclame gebruikt.`}</div>
         <h3 class="info-h2">Rechtsgrond &amp; bewaartermijn</h3>
         <div class="info-note"><b>Rechtsgrond</b> : je <b>toestemming</b> (vrijwillige inschrijving) en het gerechtvaardigd belang van Famiflora om het evenement te organiseren. <b>Bewaartermijn</b> : spelgegevens worden bewaard voor de duur van het evenement en de opvolging van de winnaars. Je Famiformation-account volgt het beleid van het platform.</div>
         <h3 class="info-h2">Je rechten</h3>
@@ -3218,18 +3578,27 @@ function renderInscription() {
     <p class="borne-sous">${t("<b>Famiformation</b>, c'est la plateforme de formation en ligne de Famiflora. Inscris-toi pour recevoir ton accès et jouer au quiz.", "<b>Famiformation</b> is het online opleidingsplatform van Famiflora. Schrijf je in om toegang te krijgen en de quiz te spelen.")}</p>
 
     <div class="insc-ticket">
-      <div class="insc-ticket-vis">${ticketGlaceSvg()}</div>
+      <div class="insc-ticket-vis">${ticketSvg()}</div>
       <div class="insc-ticket-txt">
-        <b>${t("En t'inscrivant, tu reçois un ticket glace <span class=\"it-gratuit\">GRATUIT</span> ! 🍦", "Bij inschrijving krijg je een <span class=\"it-gratuit\">GRATIS</span> ijsjesticket! 🍦")}</b>
+        <b>${estGourmand()
+          ? t("En t'inscrivant, tu reçois un ticket gourmand <span class=\"it-gratuit\">GRATUIT</span> ! 🍦", "Bij inschrijving krijg je een <span class=\"it-gratuit\">GRATIS</span> lekkerbekticket! 🍦")
+          : t("En t'inscrivant, tu reçois un ticket glace <span class=\"it-gratuit\">GRATUIT</span> ! 🍦", "Bij inschrijving krijg je een <span class=\"it-gratuit\">GRATIS</span> ijsjesticket! 🍦")}</b>
         <span>${t("Un cadeau de bienvenue, à retirer à l'accueil du magasin.", "Een welkomstcadeau, af te halen aan het onthaal van de winkel.")}</span>
+        ${estGourmand()
+          // 🏬 UNIQUEMENT À LA PANNE. Le « ticket gourmand » est un nom nouveau
+          // là-bas, d'où le besoin de l'expliquer. À Mouscron, le ticket glace
+          // est connu depuis le lancement : ajouter la question sur cet écran
+          // reviendrait à modifier un parcours qui tourne déjà.
+          ? `<button type="button" class="ticket-quoi" id="insc-quoi">${t("C'est quoi un " + motTicket() + " ?", "Wat is een " + motTicket() + "?")}</button>`
+          : ""}
       </div>
     </div>
 
     <div class="insc-etapes">
       <div class="insc-etape"><span class="ie-num">1</span><span class="ie-emo">📝</span>
         <span class="ie-txt">${t("Tu remplis ton inscription ci-dessous", "Je vult je inschrijving hieronder in")}</span></div>
-      <div class="insc-etape"><span class="ie-num">2</span><span class="ie-emo">🍦</span>
-        <span class="ie-txt">${t("Tu passes à l'accueil récupérer ton <b>ticket glace</b>", "Je gaat naar het onthaal voor je <b>ijsjesticket</b>")}</span></div>
+      <div class="insc-etape"><span class="ie-num">2</span><span class="ie-emo">${emojiTicket()}</span>
+        <span class="ie-txt">${t("Tu passes à l'accueil récupérer ton <b>" + motTicket() + "</b>", "Je gaat naar het onthaal voor je <b>" + motTicket() + "</b>")}</span></div>
       <div class="insc-etape"><span class="ie-num">3</span><span class="ie-emo">📬</span>
         <span class="ie-txt">${t("Tu reçois ton lien par e-mail pour <b>créer ton compte</b>", "Je ontvangt je link per e-mail om <b>je account aan te maken</b>")}</span></div>
     </div>
@@ -3249,6 +3618,15 @@ function renderInscription() {
         ${t("En t'inscrivant, tu acceptes notre <a href=\"#\" id=\"ci-rgpd\" class=\"lien\">politique de confidentialité</a>.", "Door je in te schrijven aanvaard je ons <a href=\"#\" id=\"ci-rgpd\" class=\"lien\">privacybeleid</a>.")}</p>
     </div>
 
+    ${estGourmand() ? `
+    <details class="insc-plus">
+      <summary>${t("En savoir plus sur l'adresse e-mail à utiliser", "Meer weten over welk e-mailadres te gebruiken")}</summary>
+      <div class="ip-corps">
+        <p>${t("Nous vous recommandons d'utiliser votre <b>adresse professionnelle</b>, votre adresse personnelle est aussi acceptée. Si vous n'avez pas d'adresse professionnelle et que vous ne souhaitez pas utiliser votre adresse personnelle, un module vous accompagne pour créer la vôtre pour Famiformation.", "Wij raden u aan uw <b>professioneel adres</b> te gebruiken; uw persoonlijk adres wordt ook aanvaard. Hebt u geen professioneel adres en wenst u uw persoonlijk adres niet te gebruiken, dan helpt een module u er een aan te maken voor Famiformation.")}</p>
+        <p>${t("Si vous avez une adresse professionnelle Famiflora et que vous ne vous souvenez plus de vos identifiants, contactez l'<b>IT</b>. Après, vous pouvez toujours utiliser votre adresse personnelle ou en créer une nouvelle.", "Hebt u een professioneel Famiflora-adres maar herinnert u zich uw gegevens niet meer, neem dan contact op met de <b>IT-dienst</b>. Daarna kunt u nog altijd uw persoonlijk adres gebruiken of een nieuw aanmaken.")}</p>
+      </div>
+    </details>` : ""}
+
     <div class="insc-modules">
       <button class="insc-mod" id="ci-presentation">
         <span class="im-emo">✨</span>
@@ -3266,12 +3644,16 @@ function renderInscription() {
     </div>
   </div>`;
 
+  // « C'est quoi un ticket … ? » — la petite pastille sous l'encart du ticket.
+  const bq = $("#insc-quoi");
+  if (bq) bq.addEventListener("click", modaleTicketQuoi);
+
   const err = (txt) => { $("#ci-err").innerHTML = `<div class="alert">${esc(txt)}</div>`; };
   const go = async () => {
     const prenom = $("#ci-prenom").value.trim();
     const nom = $("#ci-nom").value.trim();
     const email = $("#ci-email").value.trim();
-    if (prenom.length < 2 || nom.length < 2) { err(t("Indique ton prénom et ton nom (pour ton ticket glace et pour être éligible aux récompenses).", "Vul je voornaam en naam in (voor je ijsjesticket en om in aanmerking te komen voor de prijzen).")); return; }
+    if (prenom.length < 2 || nom.length < 2) { err(t("Indique ton prénom et ton nom (pour ton " + motTicket() + " et pour être éligible aux récompenses).", "Vul je voornaam en naam in (voor je " + motTicket() + " en om in aanmerking te komen voor de prijzen).")); return; }
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { err(t("Vérifie ton adresse e-mail.", "Controleer je e-mailadres.")); return; }
     $("#ci-ok").disabled = true;
     $("#ci-err").innerHTML = "";
@@ -3298,7 +3680,7 @@ function renderInscription() {
         <div style="font-size:3rem;">📭</div>
         <h3 style="font-family:'Fredoka',sans-serif; color:var(--pousse); margin:8px 0;">${t("Tu as déjà donné ton mail 👍", "Je hebt je mail al doorgegeven 👍")}</h3>
         <p style="font-size:1.05rem; line-height:1.6; margin:0 0 8px;">${t("Il semble que <b>" + esc(email) + "</b> soit déjà inscrit. On vient de <b>te renvoyer le lien</b> pour créer ton compte Famiformation — regarde ta <b>boîte de réception</b> et tes <b>spams</b>.", "Het lijkt erop dat <b>" + esc(email) + "</b> al ingeschreven is. We hebben je <b>de link opnieuw gestuurd</b> om je Famiformation-account aan te maken — kijk in je <b>inbox</b> en je <b>spam</b>.")}</p>
-        <p style="font-size:.95rem; color:#5a6b60; margin:0 0 16px;">${t("Toujours rien ? Écris à <b>admin@famiformation.com</b> et on t'aide. 🍦 Ton ticket glace t'attend à l'accueil !", "Nog steeds niets? Mail naar <b>admin@famiformation.com</b> en we helpen je. 🍦 Je ijsjesticket wacht aan het onthaal!")}</p>
+        <p style="font-size:.95rem; color:#5a6b60; margin:0 0 16px;">${t("Toujours rien ? Écris à <b>admin@famiformation.com</b> et on t'aide. " + emojiTicket() + " Ton " + motTicket() + " t'attend à l'accueil !", "Nog steeds niets? Mail naar <b>admin@famiformation.com</b> en we helpen je. " + emojiTicket() + " Je " + motTicket() + " wacht aan het onthaal!")}</p>
         <button class="btn" id="ci-fini" style="min-width:180px;">${t("J'ai compris 🌱", "Begrepen 🌱")}</button></div>`;
       $("#ci-fini").addEventListener("click", () => { if (retourAccueilBorne()) return; userView = "auto"; render(); });
       return;
@@ -3308,7 +3690,7 @@ function renderInscription() {
       <div style="font-size:3rem;">📬</div>
       <h3 style="font-family:'Fredoka',sans-serif; color:var(--pousse); margin:8px 0;">${t("C'est envoyé !", "Verzonden!")}</h3>
       <p style="font-size:1.05rem; line-height:1.6; margin:0 0 8px;">${t("Regarde ta boîte mail <b>" + esc(email) + "</b> : tu y trouveras ton lien pour <b>créer ton compte Famiformation</b> (choisir ton mot de passe).", "Kijk in je mailbox <b>" + esc(email) + "</b>: daar vind je je link om <b>je Famiformation-account aan te maken</b> (een wachtwoord kiezen).")}</p>
-      <p style="font-size:.95rem; color:#5a6b60; margin:0 0 16px;">${t("🍦 Pense à passer à l'accueil pour ton ticket glace ! Pas reçu le mail ? Regarde dans les spams.", "🍦 Vergeet niet je ijsjesticket op te halen aan het onthaal! Geen mail ontvangen? Kijk in je spam.")}</p>
+      <p style="font-size:.95rem; color:#5a6b60; margin:0 0 16px;">${t(emojiTicket() + " Pense à passer à l'accueil pour ton " + motTicket() + " ! Pas reçu le mail ? Regarde dans les spams.", emojiTicket() + " Vergeet niet je " + motTicket() + " op te halen aan het onthaal! Geen mail ontvangen? Kijk in je spam.")}</p>
       <button class="btn" id="ci-fini" style="min-width:180px;">${t("J'ai compris 🌱", "Begrepen 🌱")}</button></div>`;
     $("#ci-fini").addEventListener("click", () => { if (retourAccueilBorne()) return; userView = "auto"; render(); });
   };
@@ -3415,11 +3797,7 @@ function renderDashboard() {
     </div>` : ""}
     ${jardinMsg ? `<div class="alert" style="max-width:640px;margin:0 auto 16px;">${esc(jardinMsg)}</div>` : ""}
     <div class="borne-modules dash-modules">
-      <button class="borne-mod${quizOuvert && !quizFait ? "" : " mod-inactif"}" id="dash-quiz">
-        <span class="bm-emo">🎯</span>
-        <span class="bm-titre">${t("Faire le quiz", "De quiz doen")}</span>
-        <span class="bm-desc">${quizFait ? t("✅ Quiz déjà fait", "✅ Quiz al gedaan") : (quizOuvert ? t("Réponds et récolte tes graines", "Antwoord en oogst je zaadjes") : t("🔒 Dispo le ", "🔒 Beschikbaar op ") + labelLancement())}</span>
-      </button>
+      ${tuileEpreuveHtml(quizOuvert, quizFait)}
       <button class="borne-mod${jardinOk ? "" : " mod-inactif"}" id="dash-jardin">
         <span class="bm-emo">🌼</span>
         <span class="bm-titre">${t("Mon espace jardin", "Mijn tuin")}</span>
@@ -3431,22 +3809,36 @@ function renderDashboard() {
         <span class="bm-desc">${t("Le podium repart avec de très belles récompenses !", "Het podium wint heel mooie prijzen!")}</span>
       </button>
     </div>
+    ${blocModalitesHtml()}
     <div class="home-liens">
       <button class="lien-explik" id="dash-explik">${t("✨ Comment ça marche ?", "✨ Hoe werkt het?")}</button>
       <button class="lien-explik" id="dash-code">${t("🎁 J'ai un code", "🎁 Ik heb een code")}</button>
       <button class="lien-explik" id="dash-retour">${t("◂ Accueil", "◂ Beginscherm")}</button>
     </div>
   </div>`;
-  $("#dash-quiz").addEventListener("click", () => {
-    if (quizFait) { jardinMsg = t("Tu as déjà fait le quiz 🌱 Direction ton jardin !", "Je hebt de quiz al gedaan 🌱 Op naar je tuin!"); userView = "jardin"; ouvreJardinDepuisDash(); return; }
-    if (!quizOuvert) { modaleQuizVerrouille(); return; }
-    ouvrePseudoPuisQuiz();
+  // 🎯 UNE SEULE TUILE D'ÉPREUVE, qui change de contenu au fil du parcours.
+  // Elle route donc selon l'épreuve qu'elle porte au moment du clic.
+  $("#dash-epreuve").addEventListener("click", () => {
+    const cur = epreuveCourante();
+    if (!cur) { ouvreModalites(); return; }          // tout fait : on montre le programme
+    if (cur.st === "avenir") {
+      if (cur.e.cle === "quiz") { modaleQuizVerrouille(); } else { modaleEpreuveVerrouillee("date", cur.e); }
+      return;
+    }
+    if (cur.st === "bloquee") { modaleEpreuveVerrouillee("ordre", cur.e); return; }
+    if (cur.st === "bientot") { modaleEpreuveVerrouillee("bientot", cur.e); return; }
+
+    if (cur.e.cle === "quiz") { ouvrePseudoPuisQuiz(); return; }
+    if (cur.e.cle === "justeprix") { ouvreJustePrix(); return; }
+    // Épreuve pas encore construite : on l'annonce plutôt que d'ouvrir le vide.
+    modaleEpreuveVerrouillee("bientot", cur.e);
   });
   $("#dash-jardin").addEventListener("click", () => {
     if (!jardinOk) { modaleJardinVerrouille(); return; }
     ouvreJardinDepuisDash();
   });
   $("#dash-board").addEventListener("click", () => { userView = "board"; render(); });
+  { const m = $("#dash-modalites"); if (m) m.addEventListener("click", ouvreModalites); }
   $("#dash-explik").addEventListener("click", ouvreExplication);
   $("#dash-code").addEventListener("click", () => { codeAReclamer = null; userView = "reclamer"; render(); });
   // Quitter son espace vers l'accueil = se déconnecter (sur la borne, le retour
@@ -3516,7 +3908,14 @@ function modaleJardinVerrouille() {
 // 🎯 Indice « où chercher » : les zones où l'orga a caché des codes. Affiché à
 // partir de la VEILLE DU LANCEMENT (dernières 24 h du compte à rebours), puis il
 // reste visible pendant l'événement pour aider à dénicher les codes.
-function zonesDispoLe() { return CONFIG.dateLancement.getTime() - 86400000; }   // veille du lancement
+// 🔎 QUAND LES INDICES S'OUVRENT : une SEMAINE avant le lancement.
+// Pour La Panne (lancement le 14/08 à 12h30), cela tombe sur le 07/08 à 12h30.
+// La date se déduit du lancement plutôt que d'être écrite en dur : si le magasin
+// décale son ouverture, les indices suivent sans qu'on ait à y penser.
+// Mouscron n'est pas affecté — son lancement est passé, ses indices sont déjà
+// visibles quel que soit le décalage.
+const INDICES_AVANCE_MS = 7 * 86400000;   // 7 jours
+function zonesDispoLe() { return CONFIG.dateLancement.getTime() - INDICES_AVANCE_MS; }
 // Moment lisible, ex. « 28/07 à 12h ».
 function labelMoment(ts) {
   const d = new Date(ts);
@@ -3525,7 +3924,10 @@ function labelMoment(ts) {
 }
 // Les indices sont-ils dispo ? À partir de la veille du lancement, OU tout de
 // suite en mode aperçu (compte de test admin_/testeur, ou simulation) pour prévisualiser.
-function zonesDispo() { return (Date.now() >= zonesDispoLe()) || toutOuvert(); }
+// Les indices s'ouvrent la veille du lancement — ou tout de suite sur un appareil
+// où l'on a tapé « indice » (voir basculeIndices), pour vérifier ce que verront
+// les joueurs sans attendre.
+function zonesDispo() { return indicesDebloques || (Date.now() >= zonesDispoLe()) || toutOuvert(); }
 function zonesHintHtml() {
   // 🔎 TOUJOURS un bouton : au clic, une fenêtre modale s'ouvre avec les indices
   // (zones + nombre de codes). Verrouillé avant J-1 → la modale dit quand ça arrive.
@@ -3554,7 +3956,7 @@ function ouvreExplicationCodes() {
       <div class="explik-step"><span class="explik-ico">🔒</span><span class="explik-txt"><b class="eh">${t(CONFIG.maxCodes + " codes maximum par personne", "Maximaal " + CONFIG.maxCodes + " codes per persoon")}</b>${t("Et c'est <b>premier arrivé, premier servi</b> : un code déjà récupéré par quelqu'un d'autre ne vaut plus rien. Ne le laisse pas traîner !", "En het is <b>wie eerst komt, eerst maalt</b>: een code die al door iemand anders is opgehaald, is niets meer waard. Laat hem niet liggen!")}</span></div>
       <div class="explik-step"><span class="explik-ico">👤</span><span class="explik-txt"><b class="eh">${t("Il te faut un compte", "Je hebt een account nodig")}</b>${t("Crée ton compte (ou connecte-toi) pour que les graines soient créditées. Ça prend 30 secondes.", "Maak je account aan (of meld je aan) zodat de zaadjes worden bijgeschreven. Dat duurt 30 seconden.")}</span></div>
       <div class="explik-step"><span class="explik-ico">⏳</span><span class="explik-txt"><b class="eh">${t("Même après le quiz !", "Zelfs na de quiz!")}</b>${t("Tu as déjà fait le quiz ? Tu peux <b>toujours</b> récupérer des codes : ils s'ajoutent à ta récolte et te font remonter au classement.", "Heb je de quiz al gedaan? Je kan <b>nog steeds</b> codes ophalen: ze worden bij je oogst geteld en doen je stijgen in de ranking.")}</span></div>
-      <div class="explik-step"><span class="explik-ico">🎯</span><span class="explik-txt"><b class="eh">${t("Des indices arrivent", "Er komen tips aan")}</b>${t("À partir de la veille du lancement, cette page t'indiquera <b>dans quelles zones du magasin</b> des codes sont cachés (et combien).", "Vanaf de dag voor de start toont deze pagina je <b>in welke zones van de winkel</b> codes verstopt zijn (en hoeveel).")}</span></div>
+      <div class="explik-step"><span class="explik-ico">🎯</span><span class="explik-txt"><b class="eh">${t("Des indices arrivent", "Er komen tips aan")}</b>${t("À partir du <b>" + labelMoment(zonesDispoLe()) + "</b>, cette page t'indiquera <b>dans quelles zones du magasin</b> des codes sont cachés (et combien).", "Vanaf <b>" + labelMoment(zonesDispoLe()) + "</b> toont deze pagina je <b>in welke zones van de winkel</b> codes verstopt zijn (en hoeveel).")}</span></div>
     </div>
     <button class="btn" id="explik-ok" style="width:100%;">${t("Compris, je pars à la chasse ! 🔎", "Begrepen, ik ga op jacht! 🔎")}</button>
   </div>`;
@@ -3583,8 +3985,16 @@ function modaleIndices() {
 
 // 🎯 Modale des INDICES : au clic sur le bloc, on ouvre cette fenêtre avec les
 // zones du magasin où des codes sont cachés (et combien dans chacune).
-function modaleZones() {
-  const zones = (CONFIG.zones || []).filter((z) => z.nom && z.nb > 0);
+async function modaleZones() {
+  // 🎯 Les emplacements viennent du SERVEUR et ne comptent que les codes ENCORE
+  // À TROUVER : quand quelqu'un récupère un code, le compteur de sa zone baisse
+  // tout seul, et la zone disparaît de la liste dès que son dernier code est
+  // parti. Personne n'est plus envoyé fouiller un rayon déjà vidé.
+  // Repli sur la liste saisie à la main (CONFIG.zones) tant qu'aucun lieu n'a
+  // été renseigné code par code : l'ancien fonctionnement reste donc valable.
+  const cr = await apiCodesRestants().catch(() => null);
+  const auto = (cr && Array.isArray(cr.zones)) ? cr.zones : [];
+  const zones = (auto.length ? auto : (CONFIG.zones || [])).filter((z) => z.nom && z.nb > 0);
   const corps = zones.length
     ? `<div style="margin:6px 0 4px; text-align:left;">${zones.map((z) =>
         `<div style="display:flex; justify-content:space-between; gap:16px; padding:11px 14px; border-bottom:1px solid #eef2ec;">
@@ -4013,20 +4423,26 @@ function renderHome() {
     <div class="borne-modules">
       <button class="borne-mod bm-primaire${espaceAccessible() ? "" : " mod-inactif"}" data-go="espace">
         <span class="bm-emo">${espaceAccessible() ? "🌱" : "🔒"}</span>
-        <span class="bm-titre">${t("Quiz &amp; mon espace jardin", "Quiz &amp; mijn tuin")}</span>
+        <span class="bm-titre">${t("Épreuves &amp; mon espace jardin", "Proeven &amp; mijn tuin")}</span>
         <span class="bm-desc">${espaceAccessible()
           ? t("Réponds au quiz, récolte des graines, fais pousser ton jardin", "Beantwoord de quiz, verzamel zaadjes en laat je tuin groeien")
           : t("🔒 Ouvre le " + labelLancement() + " pour le lancement", "🔒 Opent op " + labelLancement() + " voor de lancering")}</span>
       </button>
-      <button class="borne-mod" data-go="code">
-        <span class="bm-emo">🎁</span>
+      <button class="borne-mod${tuilesAccessibles() ? "" : " mod-inactif"}" data-go="code">
+        <span class="bm-emo">${tuilesAccessibles() ? "🎁" : "🔒"}</span>
         <span class="bm-titre">${t("J'ai trouvé un code", "Ik heb een code gevonden")}</span>
-        <span class="bm-desc">${t("Récupère tes graines bonus", "Haal je bonuszaadjes op")}</span>
+        <span class="bm-desc">${tuilesAccessibles()
+          ? t("Récupère tes graines bonus", "Haal je bonuszaadjes op")
+          : t("🔒 Bientôt disponible", "🔒 Binnenkort beschikbaar")}</span>
       </button>
-      <button class="borne-mod" data-go="mail">
-        <span class="bm-ticket">${ticketGlaceSvg()}</span>
+      <button class="borne-mod${tuilesAccessibles() ? "" : " mod-inactif"}" data-go="mail">
+        <span class="bm-ticket">${ticketSvg()}</span>
         <span class="bm-titre">${t("Je ne suis pas encore inscrit sur Famiformation", "Ik ben nog niet ingeschreven op Famiformation")}</span>
-        <span class="bm-desc">${t("Ticket glace à gagner 🎁", "IJsjesticket te winnen 🎁")}</span>
+        <span class="bm-desc">${tuilesAccessibles()
+          ? (estGourmand()
+              ? t("Ticket gourmand à gagner 🎁", "Lekkerbekticket te winnen 🎁")
+              : t("Ticket glace à gagner 🎁", "IJsjesticket te winnen 🎁"))
+          : t("🔒 Bientôt disponible", "🔒 Binnenkort beschikbaar")}</span>
       </button>
     </div>
     ${SITE === "mouscron" ? `<button class="home-event" id="home-event">
@@ -4034,13 +4450,13 @@ function renderHome() {
       <span class="he-txt"><b>${t("Événements", "Evenementen")}</b><span>${t("Ce qui se passe pour fêter le lancement 🥂", "Wat er gebeurt om de lancering te vieren 🥂")}</span></span>
       <span class="he-fleche">›</span>
     </button>` : ""}
-    <div class="home-tease">${t("🎯 Le but : récolte un max de <b>graines</b> au quiz. Le <b>podium repart avec de très belles récompenses</b> — et en <b>terminant ton jardin</b>, tu gagnes toi aussi&nbsp;! 🌼", "🎯 Het doel: verzamel zoveel mogelijk <b>zaadjes</b> in de quiz. Het <b>podium wint heel mooie prijzen</b> — en door <b>je tuin af te werken</b> win jij ook&nbsp;! 🌼")}</div>
+    <div class="home-tease">${t("🎯 Le but : récolte un maximum de <b>graines</b> lors des épreuves. Le <b>podium repart avec de très belles récompenses</b> — et en <b>terminant ton jardin</b>, tu gagnes toi aussi&nbsp;! 🌼", "🎯 Het doel: verzamel zoveel mogelijk <b>zaadjes</b> tijdens de proeven. Het <b>podium wint heel mooie prijzen</b> — en door <b>je tuin af te werken</b> win jij ook&nbsp;! 🌼")}</div>
     <div class="home-liens">
       <button class="lien-explik" id="home-explik">${t("✨ Comment ça marche ?", "✨ Hoe werkt het?")}</button>
       <button class="lien-explik" id="home-board">${t("🏆 Voir le classement", "🏆 Bekijk de ranking")}</button>
       <button class="lien-explik" id="home-rgpd">${t("🔒 Confidentialité", "🔒 Privacy")}</button>
     </div>
-    ${borne ? `<p class="home-role">${t("🖥️ Borne servant à <b>participer au quiz</b>, <b>gérer ton espace jardin</b> et <b>t'inscrire à Famiformation</b>.", "🖥️ Zuil om <b>deel te nemen aan de quiz</b>, <b>je tuin te beheren</b> en <b>je in te schrijven op Famiformation</b>.")}</p>` : ""}
+    ${borne ? `<p class="home-role">${t("🖥️ Borne servant à <b>participer aux épreuves</b>, <b>gérer ton espace jardin</b> et <b>t'inscrire à Famiformation</b>.", "🖥️ Zuil om <b>deel te nemen aan de proeven</b>, <b>je tuin te beheren</b> en <b>je in te schrijven op Famiformation</b>.")}</p>` : ""}
   </div>
   <button class="fami-bulle" id="home-famif" title="${t("Découvrir Famiformation", "Ontdek Famiformation")}">
     <span class="fb-emo">🌱</span>
@@ -4061,6 +4477,28 @@ function renderHome() {
     };
     tick();
     tickTimer = setInterval(tick, 1000);
+  } else if (borne && phase === "avant") {
+    // 🖥️ LA BORNE SE DÉVERROUILLE TOUTE SEULE À L'HEURE DITE.
+    //
+    // Son accueil n'affiche PAS de compte à rebours (choix voulu, voir `cd`
+    // ci-dessus) : aucune minuterie n'était donc armée, et rien ne la faisait
+    // repasser par render() au moment du lancement. Le module « Quiz & mon
+    // espace jardin » restait cadenassé jusqu'à ce que quelqu'un recharge
+    // l'écran à la main — c'est ce qui s'est produit à Mouscron.
+    //
+    // La resynchronisation des 60 s ne suffisait pas : elle ne recharge la page
+    // que si une NOUVELLE VERSION du site est en ligne. Sans déploiement ce
+    // jour-là, la borne ne bougeait pas.
+    //
+    // On surveille donc l'échéance sans rien afficher : à zéro, confettis et
+    // redessin de l'accueil, module ouvert.
+    const tickBorne = () => {
+      if (CONFIG.dateLancement.getTime() - Date.now() > 0) return;
+      clearInterval(tickTimer);
+      lanceConfettis(6000);
+      render();
+    };
+    tickTimer = setInterval(tickBorne, 1000);
   }
 
   app.querySelectorAll("[data-go]").forEach((b) => b.addEventListener("click", () => {
@@ -4069,7 +4507,7 @@ function renderHome() {
     // que sur le téléphone. La borne reste donc sur /quiz/<ville>/borne : elle ne
     // bascule JAMAIS dans l'interface téléphone. Chaque vue a son propre « retour »
     // qui ramène à l'accueil de la borne.
-    // « Quiz & mon espace jardin » : déjà connecté → tableau de bord ; sinon on
+    // « Épreuves & mon espace jardin » : déjà connecté → tableau de bord ; sinon on
     // ouvre la modale de connexion Famiformation PAR-DESSUS l'accueil courant.
     if (go === "espace") {
       // 🔒 Verrouillé pour tout le monde avant le lancement (sauf déblocage « admin »).
@@ -4078,6 +4516,11 @@ function renderHome() {
       else ouvreConnexionFami();
       return;
     }
+    // 🔒 « J'ai trouvé un code » et « Je ne suis pas encore inscrit » : fermés tant
+    // que le verrou de La Panne tient (déblocage local en tapant « 0000 »).
+    // On coupe AVANT toute navigation : une tuile grisée ne doit pas être une
+    // simple décoration qu'un appui insistant finirait par ouvrir.
+    if ((go === "mail" || go === "code") && !tuilesAccessibles()) { modaleTuileBloquee(); return; }
     // Module « mail » : inscription intégrée (prénom, nom, e-mail) → mail immédiat.
     if (go === "mail") { userView = "inscription"; quiz = null; render(); return; }
     if (go === "code") { codeAReclamer = null; userView = "reclamer"; quiz = null; render(); return; }
@@ -4120,7 +4563,7 @@ function modaleEvenements() {
   o.addEventListener("click", (e) => { if (e.target === o) ferme(); });
 }
 
-// 🔒 Message affiché quand on clique le module « Quiz & mon espace jardin »
+// 🔒 Message affiché quand on clique le module « Épreuves & mon espace jardin »
 // pendant qu'il est verrouillé pour tout le monde.
 function modaleEspaceBloque(extra) {
   if (document.querySelector(".modal-fond")) return;
@@ -4149,6 +4592,208 @@ function retourAccueilVerrou() {
 }
 
 // 🔒 Message affiché quand on tente « Participer au quiz » avant l'ouverture.
+/* ============================================================
+   📅 MODALITÉ DES ÉPREUVES
+   ============================================================
+   Le bloc sous les trois modules, et la fenêtre qu'il ouvre.
+   On y répond aux trois questions que les gens posent : c'est quoi le
+   programme, est-ce que je peux encore rattraper, et à quoi ça sert.
+   ============================================================ */
+
+// L'état d'une épreuve, pour l'affichage. On lit l'ordre en même temps que la
+// date : la 3e reste « à venir » tant que la 2e n'est pas faite, même si son
+// jour est arrivé.
+function etatEpreuve(i) {
+  const e = PROGRAMME[i];
+  const dateOk = epreuveDateOk(e);
+
+  // Déjà jouée : elle reste « faite » quoi qu'il arrive, même si on referme
+  // l'épreuve derrière — on ne retire pas à quelqu'un ce qu'il a accompli.
+  if (e.cle === "quiz" && joueur && joueur.quizFait) return "faite";
+  if (e.cle === "justeprix" && joueur && joueur.justePrixFait) return "faite";
+
+  // 🚦 `pret` est l'INTERRUPTEUR : une épreuve pas encore écrite, ou écrite mais
+  // qu'on ne veut pas encore ouvrir, reste inactive quelle que soit sa date.
+  // Sans lui, une épreuve s'ouvrirait toute seule le jour dit — y compris une
+  // qui n'existe pas, dont le clic tomberait dans le vide.
+  if (!e.pret) return dateOk ? "bientot" : "avenir";
+
+  if (!dateOk) return "avenir";
+  if (e.cle === "quiz") return "ouverte";
+  // Toutes les autres suivent l'ordre : la précédente doit être terminée.
+  return (etatEpreuve(i - 1) === "faite") ? "ouverte" : "bloquee";
+}
+
+/* 🎯 LA PREMIÈRE TUILE PORTE L'ÉPREUVE DU MOMENT.
+   On reste à TROIS modules : la tuile ne s'ajoute pas, elle CHANGE. Le quiz
+   devient le Juste Prix une fois validé, puis l'épreuve suivante, et ainsi de
+   suite. L'espace jardin garde donc toujours la même forme — trois tuiles —
+   et la personne n'a qu'un seul endroit à regarder pour savoir quoi faire. */
+function epreuveCourante() {
+  for (let i = 0; i < PROGRAMME.length; i++) {
+    const st = etatEpreuve(i);
+    if (st !== "faite") return { i, e: PROGRAMME[i], st };
+  }
+  return null;   // tout est terminé
+}
+
+function tuileEpreuveHtml(quizOuvert, quizFait) {
+  const cur = epreuveCourante();
+
+  // Tout est fait : la tuile félicite et renvoie au programme.
+  if (!cur) {
+    return `<button class="borne-mod" id="dash-epreuve" data-cle="fini">
+      <span class="bm-emo">🎉</span>
+      <span class="bm-titre">${t("Toutes les épreuves faites&nbsp;!", "Alle proeven gedaan!")}</span>
+      <span class="bm-desc">${t("Bravo — surveille le classement, et rejoue quand tu veux pour ton jardin 🌱", "Proficiat — hou de ranking in de gaten en speel wanneer je wil voor je tuin 🌱")}</span>
+    </button>`;
+  }
+
+  const { e, st } = cur;
+  const actif = (st === "ouverte");
+  let desc;
+  if (st === "bientot") {
+    desc = t("🎁 Dévoilée très bientôt", "🎁 Binnenkort onthuld");
+  } else if (st === "avenir") {
+    desc = t("🔒 Dispo le ", "🔒 Beschikbaar op ") +
+      (e.cle === "quiz" ? labelLancement() : epreuveDateTexte(e));
+  } else if (st === "bloquee") {
+    desc = t("🔒 Termine l'épreuve précédente", "🔒 Werk eerst de vorige proef af");
+  } else if (e.cle === "quiz") {
+    desc = t("Réponds et récolte tes graines", "Antwoord en oogst je zaadjes");
+  } else {
+    desc = t(e.dfr, e.dnl);
+  }
+
+  // Le numéro rassure : on voit qu'on avance dans un parcours, pas qu'on
+  // tombe sur une épreuve isolée.
+  const numero = t("Épreuve", "Proef") + " " + (cur.i + 1) + "/" + PROGRAMME.length;
+
+  return `<button class="borne-mod${actif ? "" : " mod-inactif"}" id="dash-epreuve" data-cle="${esc(e.cle)}">
+    <span class="bm-emo">${e.emoji}</span>
+    <span class="bm-titre">${t(e.fr, e.nl)}</span>
+    <span class="bm-desc"><span class="ep-num">${numero}</span>${desc}</span>
+  </button>`;
+}
+
+function blocModalitesHtml() {
+  const prochaine = PROGRAMME.find((e) => !epreuveDateOk(e));
+  return `<button class="bloc-modalites" id="dash-modalites">
+    <span class="bmod-ico">📅</span>
+    <span class="bmod-txt">
+      <b>${t("Modalité des épreuves", "Verloop van de proeven")}</b>
+      <span>${prochaine
+        ? t("Prochaine épreuve le " + epreuveDateTexte(prochaine) + " — voir le programme",
+            "Volgende proef op " + epreuveDateTexte(prochaine) + " — bekijk het programma")
+        : t("Toutes les épreuves sont ouvertes — voir le programme",
+            "Alle proeven staan open — bekijk het programma")}</span>
+    </span>
+    <span class="bmod-fleche">›</span>
+  </button>`;
+}
+
+function ouvreModalites() {
+  const etiquette = {
+    faite:   { fr: "✅ Faite",     nl: "✅ Gedaan",      cl: "ep-faite" },
+    ouverte: { fr: "▶ À faire",   nl: "▶ Te doen",     cl: "ep-ouverte" },
+    bloquee: { fr: "🔒 Bloquée",  nl: "🔒 Geblokkeerd", cl: "ep-bloquee" },
+    bientot: { fr: "🎁 Bientôt",  nl: "🎁 Binnenkort",  cl: "ep-avenir" },
+    avenir:  { fr: "🗓 À venir",  nl: "🗓 Nog te komen", cl: "ep-avenir" },
+  };
+  const o = document.createElement("div");
+  o.className = "modal-fond";
+  o.innerHTML = `<div class="modal modalites-modal">
+    <h2 class="cm-titre" style="margin-bottom:2px;">${t("📅 Les épreuves", "📅 De proeven")}</h2>
+    <p class="cm-sous" style="margin-bottom:14px;">${t(
+      "Une <b>nouvelle épreuve chaque semaine</b>, le jeudi, jusqu'au 27 août.",
+      "Elke week een <b>nieuwe proef</b>, op donderdag, tot 27 augustus.")}</p>
+
+    <ol class="ep-liste">
+      ${PROGRAMME.map((e, i) => {
+        const st = etatEpreuve(i);
+        const et = etiquette[st];
+        return `<li class="ep-item ${et.cl}">
+          <span class="ep-emo">${e.emoji}</span>
+          <span class="ep-corps">
+            <b>${t(e.fr, e.nl)}</b>
+            <span class="ep-desc">${t(e.dfr, e.dnl)}</span>
+          </span>
+          <span class="ep-droite">
+            <span class="ep-date">${epreuveDateTexte(e)}</span>
+            <span class="ep-etat">${t(et.fr, et.nl)}</span>
+          </span>
+        </li>`;
+      }).join("")}
+    </ol>
+
+    <div class="ep-notes">
+      <p>🏆 ${t(
+        "Chaque épreuve rapporte des <b>points</b> et peut <b>chambouler le classement</b> — rien n'est joué avant la dernière.",
+        "Elke proef levert <b>punten</b> op en kan <b>de ranking omgooien</b> — niets ligt vast tot de laatste.")}</p>
+      <p>🔢 ${t(
+        "Les épreuves se font <b>dans l'ordre</b> : il faut avoir terminé la précédente pour ouvrir la suivante.",
+        "De proeven doe je <b>in volgorde</b>: je moet de vorige afgewerkt hebben om de volgende te openen.")}</p>
+      <p>⏱ ${t(
+        "<b>Rien ne se perd.</b> Une épreuve passée reste ouverte : si tu arrives le 28 août, tu peux toutes les enchaîner d'affilée.",
+        "<b>Er gaat niets verloren.</b> Een voorbije proef blijft open: kom je pas op 28 augustus, dan doe je ze gewoon allemaal na elkaar.")}</p>
+    </div>
+
+    <div style="text-align:center;">
+      <button class="btn" id="cm-ok" style="min-width:180px;">${t("J'ai compris 🌱", "Begrepen 🌱")}</button>
+    </div>
+  </div>`;
+  document.body.appendChild(o);
+  const ferme = () => o.remove();
+  o.querySelector("#cm-ok").addEventListener("click", ferme);
+  o.addEventListener("click", (e) => { if (e.target === o) ferme(); });
+}
+
+// 🏷️ Ouvrir le Juste Prix. On emmène le JETON et le MAGASIN.
+// Le jeton parce que sur une BORNE il n'est jamais écrit dans le navigateur
+// (appareil partagé) : sans lui, la page d'à côté ne saurait pas qui joue.
+// Le magasin parce que les scores sont cloisonnés par site
+// (scores-<site>.json) : sans lui, la partie serait créditée ailleurs.
+// Chemin ABSOLU : depuis /quiz/mouscron, un relatif « justeprix/ » chercherait
+// /quiz/mouscron/justeprix/ et tomberait sur un 404.
+function ouvreJustePrix() {
+  const p = new URLSearchParams({ site: SITE });
+  const j = (joueur && joueur.jeton) || "";
+  if (j) p.set("jeton", j);
+  location.href = QUIZ_RACINE + "justeprix/?" + p.toString();
+}
+
+// Pourquoi une épreuve ne s'ouvre pas. Trois raisons possibles, trois messages
+// différents : « c'est fermé » sans dire pourquoi est la meilleure façon de
+// faire revenir quelqu'un à l'accueil du magasin poser la question.
+function modaleEpreuveVerrouillee(raison, ep) {
+  const nom = ep ? t(ep.fr, ep.nl) : "";
+  const titres = {
+    ordre:   t("Termine l'épreuve précédente", "Werk eerst de vorige proef af"),
+    date:    t("Pas encore ouverte", "Nog niet open"),
+    bientot: t("Bientôt&nbsp;!", "Binnenkort!"),
+  };
+  const textes = {
+    ordre:   t("Les épreuves se font <b>dans l'ordre</b>. Termine celle d'avant et <b>" + nom + "</b> s'ouvrira 🌱",
+               "De proeven doe je <b>in volgorde</b>. Werk de vorige af en <b>" + nom + "</b> gaat open 🌱"),
+    date:    t("Rendez-vous le <b>" + (ep ? epreuveDateTexte(ep) : "") + "</b> pour <b>" + nom + "</b> 🗓",
+               "Afspraak op <b>" + (ep ? epreuveDateTexte(ep) : "") + "</b> voor <b>" + nom + "</b> 🗓"),
+    bientot: t("<b>" + nom + "</b> se prépare — elle sera dévoilée le jour même. Reste à l'affût&nbsp;! 👀",
+               "<b>" + nom + "</b> wordt voorbereid — ze wordt die dag onthuld. Blijf alert! 👀"),
+  };
+  const o = document.createElement("div");
+  o.className = "modal-fond";
+  o.innerHTML = `<div class="modal code-modal">
+    <div class="cm-emoji">${raison === "bientot" ? "🎁" : "🔒"}</div>
+    <h2 class="cm-titre">${titres[raison] || titres.date}</h2>
+    <p class="cm-sous">${textes[raison] || textes.date}</p>
+    <button class="btn" id="cm-ok" style="min-width:180px;">${t("D'accord", "Oké")}</button>
+  </div>`;
+  document.body.appendChild(o);
+  const ferme = () => o.remove();
+  o.querySelector("#cm-ok").addEventListener("click", ferme);
+  o.addEventListener("click", (e) => { if (e.target === o) ferme(); });
+}
+
 function modaleQuizVerrouille() {
   const o = document.createElement("div");
   o.className = "modal-fond";
@@ -4228,8 +4873,13 @@ function ouvreMailBorne() {
    ============================================================ */
 
 const FEE = (() => {
-  // --- Le vrai ticket glace du site (glace.php), pendu à l'arbre à tickets ---
-  const TICKET = `<rect x="2" y="2" width="166" height="100" rx="12" fill="url(#glaceTg)" stroke="#152c6b" stroke-width="3"></rect><rect x="10" y="12" width="106" height="80" rx="7" fill="#fff" stroke="#152c6b" stroke-width="1.6"></rect><text x="24" y="52" font-family="Inter,Arial,sans-serif" font-size="34" font-weight="900" fill="#1c1c1c" font-style="italic">1x</text><text x="18" y="72" font-family="Inter,Arial,sans-serif" font-size="15" font-weight="900" fill="#1c1c1c" font-style="italic">GRATUIT</text><text x="22" y="88" font-family="Inter,Arial,sans-serif" font-size="15" font-weight="900" fill="#1c1c1c" font-style="italic">GRATIS</text><g><path d="M118 60 L152 60 L135 98 Z" fill="#e8a94a" stroke="#152c6b" stroke-width="1.5"></path><path d="M122 66 L148 66 M126 74 L144 74 M130 82 L140 82 M126 60 L138 92 M144 60 L133 92" stroke="#152c6b" stroke-width="1.2" opacity=".5"></path><path d="M116 58 C110 40 118 26 128 24 C126 12 146 8 150 20 C160 18 166 30 158 38 C166 44 158 58 150 56 Z" fill="#fdf6e6" stroke="#152c6b" stroke-width="1.6"></path><circle cx="130" cy="40" r="2.6" fill="#2a2a2a"></circle><circle cx="146" cy="40" r="2.6" fill="#2a2a2a"></circle></g>`;
+  // 🎟️ Les couleurs du ticket suivent le magasin, comme partout ailleurs
+  // (voir couleursTicket). Sans ça, l'arbre que la fée fait pousser sur la télé
+  // gardait des tickets BLEUS à La Panne — c'est un SECOND dessin du ticket,
+  // plus détaillé que celui du jardin, qu'il fallait recolorer lui aussi.
+  const CT = couleursTicket();
+  // --- Le vrai ticket du site (glace.php), pendu à l'arbre à tickets ---
+  const TICKET = `<rect x="2" y="2" width="166" height="100" rx="12" fill="url(#glaceTg)" stroke="${CT.trait}" stroke-width="3"></rect><rect x="10" y="12" width="106" height="80" rx="7" fill="#fff" stroke="${CT.trait}" stroke-width="1.6"></rect><text x="24" y="52" font-family="Inter,Arial,sans-serif" font-size="34" font-weight="900" fill="#1c1c1c" font-style="italic">1x</text><text x="18" y="72" font-family="Inter,Arial,sans-serif" font-size="15" font-weight="900" fill="#1c1c1c" font-style="italic">GRATUIT</text><text x="22" y="88" font-family="Inter,Arial,sans-serif" font-size="15" font-weight="900" fill="#1c1c1c" font-style="italic">GRATIS</text><g><path d="M118 60 L152 60 L135 98 Z" fill="#e8a94a" stroke="${CT.trait}" stroke-width="1.5"></path><path d="M122 66 L148 66 M126 74 L144 74 M130 82 L140 82 M126 60 L138 92 M144 60 L133 92" stroke="${CT.trait}" stroke-width="1.2" opacity=".5"></path><path d="M116 58 C110 40 118 26 128 24 C126 12 146 8 150 20 C160 18 166 30 158 38 C166 44 158 58 150 56 Z" fill="#fdf6e6" stroke="${CT.trait}" stroke-width="1.6"></path><circle cx="130" cy="40" r="2.6" fill="#2a2a2a"></circle><circle cx="146" cy="40" r="2.6" fill="#2a2a2a"></circle></g>`;
 
   // --- La fée (SVG du site, avec le regard curieux ajouté) ---
   const FEE_SVG = `<svg class="fee-perso" viewBox="130 20 360 490" xmlns="http://www.w3.org/2000/svg">
@@ -4240,7 +4890,7 @@ const FEE = (() => {
     <radialGradient id="feeGlow"><stop offset="0" stop-color="#EAF6CE" stop-opacity="0.85"/><stop offset="0.5" stop-color="#C9E58B" stop-opacity="0.4"/><stop offset="1" stop-color="#8DC63F" stop-opacity="0"/></radialGradient>
     <linearGradient id="feePot" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#C97B4A"/><stop offset="1" stop-color="#9C5730"/></linearGradient>
     <linearGradient id="feeTige" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#2E7D3B"/><stop offset="1" stop-color="#8DC63F"/></linearGradient>
-    <linearGradient id="glaceTg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5b9bf5"/><stop offset="1" stop-color="#1e40af"/></linearGradient>
+    <linearGradient id="glaceTg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${CT.haut}"/><stop offset="1" stop-color="${CT.bas}"/></linearGradient>
   </defs>
   <g class="fee-ailes">
     <path d="M298 318 Q 156 330 140 160 Q 270 152 298 318 Z" fill="#1E6B33"/>
@@ -4460,7 +5110,7 @@ const FEE = (() => {
       titre  = "De très belles récompenses à gagner !";
       detail = lots.length
         ? lots.map((l, i) => `${["🥇", "🥈", "🥉"][i] || "🎁"} ${esc(l)}`).join("<br>")
-        : "Pour le podium du quiz — et pour ceux qui terminent leur jardin 🌼🏆";
+        : "Pour le podium — et pour ceux qui terminent leur jardin 🌼🏆";
     } else {
       // 🌟 Récompense pour les plus déterminés (hors top 3) : finir son jardin.
       titre  = "Une récompense pour les plus déterminés 🌱";
@@ -4640,7 +5290,12 @@ const EGG = (() => {
   }
 
   // « admin » : mot secret de l'organisateur — (dé)verrouille le module quiz & jardin.
-  const MOTS = { "graine": grainePluie, "famiflora": famiflora, "2026": badge, "admin": basculeEspaceAdmin };
+  // « 0000 » : (dé)verrouille les tuiles « J'ai trouvé un code » et « Je ne suis
+  // pas encore inscrit » sur CET appareil, pendant que le verrou de La Panne les
+  // tient fermées pour tout le monde. Voir VERROU_TUILES.
+  // « indice » : affiche tout de suite les indices « où chercher les codes »,
+  // qui n'ouvrent normalement que la veille du lancement.
+  const MOTS = { "graine": grainePluie, "famiflora": famiflora, "2026": badge, "admin": basculeEspaceAdmin, "0000": basculeTuiles, "indice": basculeIndices };
 
   // Clavier (ordinateur) : on retient les dernières frappes.
   let buf = "";
@@ -5080,7 +5735,7 @@ function retourNav() {
   // toute façon désactivée plus bas (appareil partagé).
   if (ECRAN === "code") { codeAReclamer = null; userView = "reclamer"; }
 
-  // 🌱 Depuis la borne, « Quiz & mon espace jardin » ouvre /quiz?espace=1 : on
+  // 🌱 Depuis la borne, « Épreuves & mon espace jardin » ouvre /quiz?espace=1 : on
   // entre direct dans l'espace (connexion/création → tableau de bord).
   if (SIM_PARAMS.get("espace")) userView = "espace";
   else if (SIM_PARAMS.get("play")) userView = "quiz";
@@ -5089,7 +5744,7 @@ function retourNav() {
   // session sans redemander le mot de passe. Sur une borne, jamais (chargeJeton
   // renvoie "" sur borne). Un jeton périmé/invalide est simplement ignoré.
   // 🔗 ARRIVÉE DEPUIS FAMIFORMATION (?jeton=…). La personne vient de cliquer sur
-  // la tuile « Quiz & mon espace jardin » : elle est déjà authentifiée là-bas, on
+  // la tuile « Épreuves & mon espace jardin » : elle est déjà authentifiée là-bas, on
   // ne lui redemande rien. Le jeton est signé par le serveur — un jeton bricolé
   // est rejeté par l'API, il n'y a donc rien à vérifier ici.
   //
@@ -5115,7 +5770,8 @@ function retourNav() {
     if (r && r.ok && r.joueur) {
       const j = r.joueur;
       joueur = { name: j.name, code: "", jeton: jetonMemo, uid: j.uid, prenom: j.prenom, nom: j.nom, pseudo: j.pseudo || "",
-                 solde: j.solde || 0, recoltees: j.recoltees || 0, nbCodes: j.nbCodes || 0, quizFait: j.quiz_fait !== false };
+                 solde: j.solde || 0, recoltees: j.recoltees || 0, nbCodes: j.nbCodes || 0, quizFait: j.quiz_fait !== false,
+                 justePrixFait: !!j.justeprix_fait };
       const m = await reclamerEnAttente();
       if (m) jardinMsg = m;
     } else {
@@ -5132,7 +5788,7 @@ function retourNav() {
     if (res && res.exists && !res.mauvais_code) {
       joueur = { name: res.name, code: moi.code, solde: res.solde, recoltees: res.recoltees, nbCodes: res.nbCodes, quizFait: res.quiz_fait !== false };
       // Reconnu : on reste sur l'accueil (userView "auto" → home). Entrer dans
-      // « Quiz & mon espace jardin » ira droit au tableau de bord (déjà connecté).
+      // « Épreuves & mon espace jardin » ira droit au tableau de bord (déjà connecté).
       const m = await reclamerEnAttente();      // un code mis de côté ?
       if (m) jardinMsg = m;
     } else if (res && res.mauvais_code) {

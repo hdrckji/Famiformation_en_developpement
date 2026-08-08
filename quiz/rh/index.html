@@ -3,6 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- 🌐 Pas de traduction automatique : les noms des gagnants et les libellés
+     des récompenses ne doivent jamais être réécrits par le navigateur. -->
+<meta name="google" content="notranslate">
 <meta name="robots" content="noindex,nofollow">
 <title>Famiformation — Récompenses RH</title>
 <style>
@@ -73,6 +76,28 @@
   .msg { padding:10px 14px; border-radius:10px; margin-bottom:12px; font-weight:600; }
   .msg.err { background:#fdecec; color:#a12; } .msg.ok { background:#eaf7ec; color:#1E7A46; }
   .hint { color:#7a8a80; font-size:.85rem; }
+/* --- Stock de bons cadeaux et onglets --- */
+.stock{display:flex;flex-wrap:wrap;gap:14px;align-items:center;background:#fff;border-radius:14px;
+       padding:14px 18px;margin:14px 0;box-shadow:0 3px 12px rgba(0,0,0,.07);border-left:5px solid #3f9d57;}
+.stock.bas{border-left-color:#d6a21a;}
+.stock.vide{border-left-color:#c0392b;}
+.stock .st-b{display:flex;flex-direction:column;line-height:1.15;padding-right:16px;}
+.stock .st-b b{font-size:26px;font-weight:900;color:#1f5c34;}
+.stock .st-b span{font-size:12px;font-weight:700;color:#5c6f60;text-transform:uppercase;letter-spacing:.04em;}
+.stock .st-msg{flex:1;min-width:220px;font-size:13.5px;font-weight:600;color:#8a5f2a;}
+.stock.vide .st-msg{color:#a8341f;}
+.onglets{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0;}
+.onglets .ong{border:0;background:#fff;color:#5c6f60;font-weight:700;font-size:13.5px;padding:9px 16px;
+              border-radius:999px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.07);}
+.onglets .ong.on{background:#1f5c34;color:#fff;}
+.rd-tab{width:100%;border-collapse:collapse;}
+.rd-tab th,.rd-tab td{padding:10px 12px;text-align:left;font-size:13.5px;border-bottom:1px solid #eef2ee;vertical-align:top;}
+.rd-tab th{font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;color:#1f5c34;white-space:nowrap;}
+.rd-tab tr:last-child td{border-bottom:0;}
+.rd-date{color:#5c6f60;font-size:12.5px;white-space:nowrap;}
+.rd-mail{font-size:12px;color:#5c6f60;}
+.rd-code{font-family:ui-monospace,Consolas,monospace;font-size:12.5px;}
+.rd-vide{text-align:center;color:#5c6f60;padding:28px 10px;}
 </style>
 </head>
 <body>
@@ -87,6 +112,11 @@ let auth = null;
 try { auth = JSON.parse(localStorage.getItem("fj_rh_auth") || "null"); } catch (e) {}
 let site = localStorage.getItem("fj_rh_site") || "mouscron";
 let data = null;
+// 🎟️ État du stock de bons cadeaux + la liste de ceux déjà donnés.
+// Chargé à part de rh_liste : si la base est indisponible, on perd l'onglet,
+// pas l'accès à la page.
+let recomp = null;
+let onglet = "remettre";
 
 async function post(action, corps = {}) {
   const r = await fetch(`${API}?action=${action}`, {
@@ -206,10 +236,93 @@ function sectionHtml(titre, emoji, liste, type) {
   </div>`;
 }
 
+// 🎟️ Les deux chiffres du stock, tout en haut. Le nombre de bons restants est
+// l'information la plus utile de la page : sans bon, le mail « ta récompense
+// est prête » ne part plus du tout.
+function stockHtml() {
+  if (!recomp) return "";
+  const libres = Number(recomp.libres || 0);
+  const donnes = Number(recomp.donnes || 0);
+  const alerte = libres === 0 ? "vide" : (libres <= 3 ? "bas" : "");
+  return `
+    <div class="stock ${alerte}">
+      <div class="st-b"><b>${libres}</b><span>code${libres > 1 ? "s" : ""} restant${libres > 1 ? "s" : ""}</span></div>
+      <div class="st-b"><b>${donnes}</b><span>déjà donné${donnes > 1 ? "s" : ""}</span></div>
+      ${libres === 0
+        ? `<div class="st-msg">⚠️ Plus aucun bon : le mail « ta récompense est prête » ne partira pas tant que le stock n'est pas rechargé.</div>`
+        : (libres <= 3 ? `<div class="st-msg">Le stock devient bas.</div>` : "")}
+    </div>`;
+}
+
+function ongletsHtml() {
+  return `
+    <div class="onglets">
+      <button class="ong ${onglet === "remettre" ? "on" : ""}" data-ong="remettre">🎁 À remettre</button>
+      <button class="ong ${onglet === "donnees" ? "on" : ""}" data-ong="donnees">🎟️ Récompenses données${recomp ? ` (${Number(recomp.donnes || 0)})` : ""}</button>
+    </div>`;
+}
+
+// La liste des bons déjà attribués. Le magasin figure sur chaque ligne : le
+// stock est commun aux deux, un bon donné à Mouscron est un bon en moins pour
+// La Panne.
+function vueDonnees() {
+  const lignes = (recomp && recomp.lignes) || [];
+  const corps = lignes.length
+    ? lignes.map((l) => {
+        const quand = l.attribue_le ? new Date(l.attribue_le.replace(" ", "T")) : null;
+        const q = quand && !isNaN(quand) ? quand.toLocaleString("fr-BE", { dateStyle:"short", timeStyle:"short" }) : "";
+        return `<tr>
+          <td class="rd-date">${esc(q)}</td>
+          <td><b>${esc(l.attribue_nom || l.attribue_a || "")}</b><div class="rd-mail">${esc(l.attribue_email || "")}</div></td>
+          <td>${esc(SITES[l.site] || l.site || "—")}</td>
+          <td>${l.motif === "podium" ? "🏆 Podium" : (l.motif === "jardin" ? "🌼 Jardin" : "—")}</td>
+          <td class="rd-code">${esc(l.barcode || "")}</td>
+          <td><button class="rh-lien rd-lib" data-id="${esc(l.id)}">Libérer</button></td>
+        </tr>`;
+      }).join("")
+    : `<tr><td colspan="6" class="rd-vide">Aucun bon donné pour l'instant.</td></tr>`;
+  return `
+    <div class="card">
+      <table class="rd-tab">
+        <thead><tr><th>Quand</th><th>Qui</th><th>Magasin</th><th>Motif</th><th>Code</th><th></th></tr></thead>
+        <tbody>${corps}</tbody>
+      </table>
+    </div>
+    <p class="hint">« Libérer » remet le bon dans le stock et permet de renvoyer le mail à cette personne — c'est le seul moyen, un code déjà attribué bloquant tout second envoi.</p>`;
+}
+
 function rendre() {
+  if (onglet === "donnees") {
+    $("#app").innerHTML = `
+      <h1>🎟️ Récompenses données</h1>
+      <p class="sub">Qui a reçu un bon, lequel, et quand.</p>
+      ${stockHtml()}
+      ${ongletsHtml()}
+      <div class="top">
+        <button class="btn ghost" id="rafraichir">🔄 Rafraîchir</button>
+        <span class="spacer"></span>
+        <button class="btn ghost" id="deco">Se déconnecter</button>
+      </div>
+      <div id="msg"></div>
+      ${vueDonnees()}`;
+    $("#rafraichir").addEventListener("click", charger);
+    $("#deco").addEventListener("click", () => { auth = null; localStorage.removeItem("fj_rh_auth"); vueLogin(); });
+    document.querySelectorAll(".ong").forEach((b) => b.addEventListener("click", () => {
+      onglet = b.dataset.ong; rendre();
+    }));
+    document.querySelectorAll(".rd-lib").forEach((b) => b.addEventListener("click", async () => {
+      if (!confirm("Remettre ce bon dans le stock ? La personne pourra de nouveau recevoir le mail.")) return;
+      const r = await post("rh_code_liberer", { id: b.dataset.id });
+      if (r.ok && r.data && r.data.ok) { await charger(); }
+      else { $("#msg").innerHTML = `<div class="msg err">Impossible de libérer ce bon.</div>`; }
+    }));
+    return;
+  }
   $("#app").innerHTML = `
     <h1>🎁 Récompenses à remettre</h1>
     <p class="sub">Coche chaque personne <b>quand tu lui as remis sa récompense</b>. Enregistré automatiquement.</p>
+    ${stockHtml()}
+    ${ongletsHtml()}
     <div class="site-switch">
       <span style="font-weight:700;">🏬 Magasin :</span>
       ${Object.entries(SITES).map(([k,l]) => `<button class="ss-btn ${site===k?"on":""}" data-site="${k}">${l}</button>`).join("")}
@@ -236,6 +349,9 @@ function rendre() {
     ${sectionHtml("Podium (top 3)", "🏆", data.podium || [], "podium")}
     <p class="hint">🌼 Jardin terminé = grille pleine + les 3 lotus (bronze, argent, or). 🏆 Podium = les 3 meilleures récoltes.</p>`;
 
+  document.querySelectorAll(".ong").forEach((b) => b.addEventListener("click", () => {
+    onglet = b.dataset.ong; rendre();
+  }));
   document.querySelectorAll(".ss-btn").forEach((b) => b.addEventListener("click", async () => {
     if (site === b.dataset.site) return;
     site = b.dataset.site; localStorage.setItem("fj_rh_site", site);
@@ -336,7 +452,14 @@ async function charger() {
   const r = await post("rh_liste");
   if (r.status === 401) { auth = null; localStorage.removeItem("fj_rh_auth"); vueLogin("Session expirée, reconnecte-toi."); return; }
   if (!r.ok || !r.data || !r.data.ok) { $("#msg") && ($("#msg").innerHTML = `<div class="msg err">Chargement impossible, réessaie.</div>`); return; }
-  data = r.data; rendre();
+  data = r.data;
+  // Le stock de bons se charge à part et sans bloquer : s'il échoue, la page
+  // reste utilisable, seuls les compteurs et l'onglet manquent.
+  try {
+    const c = await post("rh_recompenses");
+    recomp = (c.ok && c.data && c.data.ok) ? c.data : null;
+  } catch (e) { recomp = null; }
+  rendre();
 }
 
 if (auth) { charger(); } else { vueLogin(); }

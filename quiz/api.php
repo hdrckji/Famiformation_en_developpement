@@ -149,6 +149,14 @@ $FAVORIS_TEXTES = [
  * avant cette heure, tout le monde reste en beta comme prévu.
  */
 function roleInscription($prenom, $nom) {
+  global $SITE;
+  // 🏬 LA PANNE : tous les inscrits du quiz — borne comme téléphone — reçoivent
+  // le profil « betalapanne ». C'est une bêta À PART : elle n'ouvre que
+  // « Quiz & mon espace jardin », sans les modules de la bêta classique
+  // (Onboarding, Magasin), qui ne concernent pas ce magasin pour l'instant.
+  // Volontairement AVANT la reconnaissance du personnel : à La Panne, même
+  // quelqu'un présent dans la liste du personnel entre par cette porte-là.
+  if ($SITE === 'lapanne') { return 'betalapanne'; }
   if (!function_exists('personnelTrouve') || !function_exists('personnelRegleActive')) { return 'beta'; }
   if (!personnelRegleActive()) { return 'beta'; }
   return personnelTrouve($nom, $prenom) ? personnelRoleCible() : 'beta';
@@ -981,15 +989,259 @@ function pousseVersForm($prenom, $nom, $email) {
   return $code === 200 && $rep !== false;
 }
 
-// 🔐 Identifiants admin (accès au mode admin + réinitialisation des scores)
-$ADMIN_ID  = "admin";
-$ADMIN_PWD = "a";
+// 📊 STATISTIQUES D'USAGE PAR ÉCRAN (borne, télé, code, téléphone).
+//
+// Le client calcule déjà l'écran depuis l'URL (/quiz/mouscron/borne → « borne »)
+// et le transmet désormais à chaque appel. On enregistre ici les deux moments
+// qui comptent : une inscription et une participation au quiz.
+//
+// Pourquoi la base et pas les fichiers du quiz : ces chiffres se croisent avec
+// utilisateurs et widget_sites (qui travaille où, quel magasin), ce qu'un
+// fichier JSON ne permet pas. La page /admin_borne.php les lit directement.
+//
+// Volontairement NON BLOQUANT, comme lapanneCollecte() : une statistique
+// perdue est sans conséquence, une inscription perdue non.
+
+function ecranDe($input) {
+  $connus = ['borne', 'tele', 'code', 'user'];
+  $e = strtolower(trim((string)($input['ecran'] ?? $_GET['ecran'] ?? '')));
+  // Écran inconnu ou absent (ancienne version du client encore en cache sur une
+  // borne) : on retient « user » plutôt que de refuser l'enregistrement.
+  return in_array($e, $connus, true) ? $e : 'user';
+}
+
+function borneEvenement($db, $site, $ecran, $type, $joueur = null, $score = null) {
+  if (!($db instanceof PDO)) { return false; }
+  try {
+    $db->exec(
+      "CREATE TABLE IF NOT EXISTS quiz_borne_events (
+         id INT AUTO_INCREMENT PRIMARY KEY,
+         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+         site VARCHAR(20) NOT NULL,
+         ecran VARCHAR(10) NOT NULL,
+         type VARCHAR(20) NOT NULL,
+         joueur VARCHAR(60) NULL,
+         score DECIMAL(6,1) NULL,
+         INDEX idx_borne_date (created_at),
+         INDEX idx_borne_site (site, ecran)
+       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci"
+    );
+    $st = $db->prepare(
+      'INSERT INTO quiz_borne_events (site, ecran, type, joueur, score) VALUES (?, ?, ?, ?, ?)'
+    );
+    return $st->execute([
+      (string) $site,
+      (string) $ecran,
+      (string) $type,
+      $joueur !== null ? mb_substr((string) $joueur, 0, 60) : null,
+      $score !== null ? (float) $score : null,
+    ]);
+  } catch (Throwable $e) {
+    return false;
+  }
+}
+
+// 🎟️ CODES RÉCOMPENSE (bons cadeaux).
+//
+// Le stock, ce sont les 200 bons Lollyland : remplacer-codes-lollyland.sql,
+// généré depuis FAMIFORMATION_Bon Lollyland.xlsx. (Les codes de
+// Test_Enlyson.xlsx étaient erronés et ont été retirés.) Un code part avec le
+// mail « ta récompense est prête » et devient définitivement celui de cette
+// personne : UN code par personne, jamais deux.
+//
+// Le compte de test ne pioche PAS dans ce stock — voir recompenseCodeTest().
+
+function recompenseCodesEnsure($db) {
+  if (!($db instanceof PDO)) { return false; }
+  try {
+    $db->exec(
+      "CREATE TABLE IF NOT EXISTS recompense_codes (
+         id INT AUTO_INCREMENT PRIMARY KEY,
+         code_id VARCHAR(30) NOT NULL,
+         barcode VARCHAR(60) NOT NULL,
+         attribue_a VARCHAR(80) NULL,
+         attribue_nom VARCHAR(120) NULL,
+         attribue_email VARCHAR(190) NULL,
+         attribue_le DATETIME NULL,
+         motif VARCHAR(20) NULL,
+         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+         UNIQUE KEY uniq_barcode (barcode),
+         INDEX idx_attribue (attribue_a),
+         INDEX idx_libre (attribue_a, id)
+       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci"
+    );
+    // Le magasin est ajouté après coup : le stock est commun aux deux, mais
+    // savoir d'où part chaque bon aide les RH à s'y retrouver.
+    $c = $db->query("SHOW COLUMNS FROM recompense_codes LIKE 'site'");
+    if ($c && !$c->fetch()) {
+      $db->exec("ALTER TABLE recompense_codes ADD COLUMN site VARCHAR(20) NULL AFTER motif");
+    }
+    return true;
+  } catch (Throwable $e) { return false; }
+}
+
+// Le compte de test peut recevoir plusieurs codes : il sert justement à
+// vérifier l'envoi. Tous les autres sont limités à un seul.
+function estCompteAdminTest($cle) {
+  return stripos(trim((string) $cle), 'admin_') === 0;
+}
+
+// 🧪 LE BON DE TEST DU COMPTE admin_.
+//
+// Tester l'envoi ne doit RIEN coûter : chaque bon tiré du stock est un bon en
+// moins pour un client, et il n'y en a que 200. Le compte de test reçoit donc
+// un code fabriqué à la volée, jamais écrit en base. Conséquences voulues :
+//   — le stock ne bouge pas ;
+//   — admin_ n'apparaît jamais dans « Récompenses données » ;
+//   — le mail est identique à un vrai, code-barres compris, donc le test est
+//     fidèle.
+// Le préfixe FAMITEST- le rend reconnaissable au premier coup d'œil et la
+// caisse le refusera : c'est exactement ce qu'on veut d'un faux bon.
+function recompenseCodeTest() {
+  return [
+    'code_id' => 'test',
+    'barcode' => 'FAMITEST-' . strtoupper(bin2hex(random_bytes(4))),
+  ];
+}
+
+// Le code déjà attribué à quelqu'un, ou null. C'est ce qui bloque un second
+// envoi : si la personne a déjà son code, il n'y a plus rien à envoyer.
+function recompenseCodeExistant($db, $cle) {
+  if (!($db instanceof PDO)) { return null; }
+  try {
+    $st = $db->prepare('SELECT * FROM recompense_codes WHERE attribue_a = ? ORDER BY id DESC LIMIT 1');
+    $st->execute([(string) $cle]);
+    $r = $st->fetch(PDO::FETCH_ASSOC);
+    return $r ?: null;
+  } catch (Throwable $e) { return null; }
+}
+
+// Réserve le plus ancien code libre pour cette personne.
+//
+// SELECT ... FOR UPDATE dans une transaction : sans ce verrou, deux envois
+// lancés en même temps par les RH liraient la même ligne « libre » et
+// repartiraient avec le MÊME code. Le verrou fait attendre le second.
+function recompenseAttribue($db, $cle, $nom, $email, $motif) {
+  global $SITE;
+  if (!($db instanceof PDO)) { return null; }
+  recompenseCodesEnsure($db);
+  try {
+    $db->beginTransaction();
+    $st = $db->prepare('SELECT * FROM recompense_codes WHERE attribue_a IS NULL ORDER BY id ASC LIMIT 1 FOR UPDATE');
+    $st->execute();
+    $code = $st->fetch(PDO::FETCH_ASSOC);
+    if (!$code) { $db->rollBack(); return null; }   // stock épuisé
+    $db->prepare(
+      'UPDATE recompense_codes
+          SET attribue_a = ?, attribue_nom = ?, attribue_email = ?, attribue_le = NOW(), motif = ?, site = ?
+        WHERE id = ?'
+    )->execute([(string) $cle, (string) $nom, (string) $email, (string) $motif,
+                (string) ($SITE ?? ''), (int) $code['id']]);
+    $db->commit();
+    return $code;
+  } catch (Throwable $e) {
+    try { if ($db->inTransaction()) { $db->rollBack(); } } catch (Throwable $e2) {}
+    return null;
+  }
+}
+
+// L'adresse publique de l'image code-barres, pour le mail. Les clients mail
+// n'affichent pas de SVG : code-barre.php renvoie un PNG.
+function recompenseUrlCodeBarre($barcode) {
+  $hote = (string) ($_SERVER['HTTP_HOST'] ?? '');
+  // Les envois automatiques n'ont pas de requête HTTP : on retombe sur le
+  // domaine public, sinon l'image du mail pointerait dans le vide.
+  if ($hote === '' || strpos($hote, 'localhost') !== false) { $hote = 'www.famiformation.com'; }
+  return 'https://' . $hote . '/quiz/code-barre.php?c=' . rawurlencode((string) $barcode);
+}
+
+// 📧 COLLECTE DES ADRESSES DE LA PANNE, DEPUIS LE QUIZ.
+//
+// La table lapanne_emails est celle de public/emails/lapanne/_lapanne.php, qui
+// fait foi pour le schéma. On ne peut PAS inclure ce fichier ici : il charge
+// config.php, et le commentaire de famiDb() explique pourquoi c'est exclu —
+// config.php ouvre une session, peut émettre des redirections et injecte du
+// HTML, trois choses qui détruiraient une réponse JSON. On refait donc l'insert
+// à l'identique, en gardant les mêmes règles (adresse en minuscules, doublon
+// toléré grâce à la clé unique).
+//
+// Volontairement NON BLOQUANT : à ce stade le compte est créé et le mail
+// d'activation est parti. Hors de question de faire échouer une inscription
+// réussie parce que le tableau RH est momentanément indisponible.
+function lapanneCollecte($db, $prenom, $nom, $email) {
+  if (!($db instanceof PDO)) { return false; }
+  $nom    = trim(preg_replace('/\s+/u', ' ', (string) $nom));
+  $prenom = trim(preg_replace('/\s+/u', ' ', (string) $prenom));
+  $email  = trim(mb_strtolower((string) $email, 'UTF-8'));
+  if ($nom === '' || $prenom === '' || $email === '') { return false; }
+  if (!filter_var($email, FILTER_VALIDATE_EMAIL)) { return false; }
+  if (mb_strlen($nom) > 120 || mb_strlen($prenom) > 120 || mb_strlen($email) > 190) { return false; }
+  try {
+    // Même création que du côté RH : la toute première inscription peut très
+    // bien venir de la borne, avant que quiconque n'ait ouvert la page RH.
+    $db->exec(
+      "CREATE TABLE IF NOT EXISTS lapanne_emails (
+         id INT AUTO_INCREMENT PRIMARY KEY,
+         nom VARCHAR(120) NOT NULL,
+         prenom VARCHAR(120) NOT NULL,
+         email VARCHAR(190) NOT NULL,
+         ticket_remis TINYINT(1) NOT NULL DEFAULT 0,
+         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+         updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+         UNIQUE KEY uniq_lapanne_email (email),
+         INDEX idx_lapanne_created (created_at)
+       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci"
+    );
+    $st = $db->prepare('INSERT INTO lapanne_emails (nom, prenom, email) VALUES (?, ?, ?)');
+    $st->execute([$nom, $prenom, $email]);
+    return true;
+  } catch (Throwable $e) {
+    // 23000 = adresse déjà présente : c'est un succès, pas une erreur.
+    return (string) $e->getCode() === '23000';
+  }
+}
+
+// 🔐 IDENTIFIANTS ADMIN ET RH — JAMAIS DANS LE CODE.
+//
+// Ce dépôt est PUBLIC : tout mot de passe écrit ici est lisible par n'importe
+// qui sur GitHub, et le restera dans l'historique même après correction. Les
+// mots de passe viennent donc de variables d'environnement Railway, comme
+// FORM_FEED_SECRET plus bas :
+//
+//   QUIZ_ADMIN_PWD = le mot de passe du mode admin du quiz   (obligatoire)
+//   QUIZ_RH_PWD    = le mot de passe de la page /quiz/rh     (obligatoire)
+//   QUIZ_ADMIN_ID  = l'identifiant admin, « admin » par défaut  (facultatif)
+//   QUIZ_RH_ID     = l'identifiant RH, « rh » par défaut        (facultatif)
+//
+// ⚠️ ON ÉCHOUE FERMÉ : tant que le mot de passe n'est pas défini dans
+// l'environnement, l'accès est REFUSÉ. Prévoir une valeur de repli reviendrait
+// à remettre un mot de passe dans le code — donc à ne rien avoir corrigé. Les
+// identifiants, eux, ne sont pas des secrets : ils gardent un défaut.
+function quizEnv($nom, $defaut = '') {
+  $v = getenv($nom);
+  if ($v === false || $v === '') { $v = $_SERVER[$nom] ?? ''; }
+  return (string) ($v !== '' ? $v : $defaut);
+}
+
+// 🛡️ Comparaison d'un secret, à temps constant, qui REFUSE TOUJOURS un secret
+// attendu vide. Sans ce garde-fou, hash_equals('', '') vaudrait VRAI : le jour
+// où la variable d'environnement manque, n'importe qui entrerait en envoyant un
+// mot de passe vide. Autrement dit, une simple erreur de configuration ouvrirait
+// l'admin en grand — exactement l'inverse de ce qu'on cherche ici.
+function secretOk($attendu, $fourni) {
+  $attendu = (string) $attendu;
+  if ($attendu === '') { return false; }
+  return hash_equals($attendu, (string) $fourni);
+}
+
+$ADMIN_ID  = quizEnv('QUIZ_ADMIN_ID', 'admin');
+$ADMIN_PWD = quizEnv('QUIZ_ADMIN_PWD');            // vide = accès impossible
 $ADMIN_PIN = $ADMIN_PWD;   // compat : ancien lien api.php?action=reset&pin=...
 
 // 🎁 Accès RH (page /quiz/rh) : voir/cocher les récompenses remises. Séparé de
 // l'admin, pour confier la remise des récompenses aux RH sans donner l'admin.
-$RH_ID  = "rh";
-$RH_PWD = "Fami2026";
+$RH_ID  = quizEnv('QUIZ_RH_ID', 'rh');
+$RH_PWD = quizEnv('QUIZ_RH_PWD');                  // vide = accès impossible
 
 // 📄 FLUX DU FORMULAIRE GOOGLE (onglet « recolte de mail »).
 // Le site lit la feuille via un mini-script Google (Apps Script) déployé en
@@ -1037,14 +1289,35 @@ function siteDe($input, $sites, $defaut) {
 // après lecture de la requête, car ils dépendent du site. Ne pas les utiliser avant.
 
 // ⏱ Dates de l'événement, modifiables depuis l'admin (onglet Compte à rebours).
-// Par défaut : lancement le 29/07 à 12h30, clôture le 30/08, annonce des vainqueurs le 31 août à 12h30.
-function ladConfig($fichier) {
+//
+// 🏬 LES DÉFAUTS SONT PROPRES À CHAQUE MAGASIN. Les deux sites ne vivent pas le
+// même événement : Mouscron a ouvert le 29/07, La Panne ouvre le 14/08 et se
+// clôture le 10/09. Ces valeurs ne servent que TANT QU'AUCUNE date n'a été
+// saisie dans l'admin pour le site concerné (le fichier config-<site>.json prime
+// toujours). Sans cette table, La Panne héritait des dates de Mouscron : son
+// compte à rebours visait une échéance déjà passée, et la télé basculait
+// directement sur le classement au lieu du décompte.
+function ladConfig($fichier, $site = 'mouscron') {
+  $parSite = [
+    'mouscron' => [
+      'lancement' => '2026-07-29T12:30',
+      'cloture'   => '2026-08-30T23:59',
+      'resultats' => '31 août à 12h30',
+    ],
+    'lapanne' => [
+      'lancement' => '2026-08-14T12:30',
+      'cloture'   => '2026-09-10T12:30',
+      'resultats' => '10 septembre à 12h30',
+    ],
+  ];
+  $d = $parSite[$site] ?? $parSite['mouscron'];
+
   $c = is_file($fichier) ? json_decode((string)@file_get_contents($fichier), true) : null;
   if (!is_array($c)) { $c = []; }
   return [
-    'lancement' => $c['lancement'] ?? '2026-07-29T12:30',
-    'cloture'   => $c['cloture']   ?? '2026-08-30T23:59',
-    'resultats' => $c['resultats'] ?? '31 août à 12h30',
+    'lancement' => $c['lancement'] ?? $d['lancement'],
+    'cloture'   => $c['cloture']   ?? $d['cloture'],
+    'resultats' => $c['resultats'] ?? $d['resultats'],
     // Zones du magasin où des codes ont été cachés (indice affiché à J-1) :
     // liste de { nom, nb }.
     'zones'     => (isset($c['zones']) && is_array($c['zones'])) ? array_values($c['zones']) : [],
@@ -1102,6 +1375,30 @@ $HERBE_MAX_GAIN = 15;         // gain maximum crédité en une partie (des miett
 // Environ 1 800 graines pour finir le jardin (3 lotus + cases) → ~12 quiz.
 $QUIZ_JARDIN_PAR_BONNE = 10;   // graines de jardin par bonne réponse
 $QUIZ_JARDIN_MAX_BONNES = 20;  // plafond par partie (anti-triche bon enfant)
+
+// 🏷️ LE JUSTE PRIX (2e épreuve). Deux régimes, exactement comme le quiz :
+//
+//   • La PREMIÈRE partie compte pour le CLASSEMENT. Son score s'ajoute à
+//     « score », qui alimente à la fois le podium et le solde du jardin. Une
+//     seule fois, jamais rejouable — même règle que le quiz, donc rien de
+//     nouveau à expliquer aux joueurs.
+//   • Les parties SUIVANTES ne nourrissent que le JARDIN : elles créditent
+//     « bonus », plafonné par partie.
+//
+// Le plafond du rejeu est placé ENTRE la chasse aux herbes (15, des miettes)
+// et le quiz du jardin (200, la voie efficace). On gagne donc nettement plus
+// qu'en tapant des herbes, mais remplir les ~1 800 graines du jardin
+// uniquement au Juste Prix demanderait une trentaine de parties. C'est VOULU :
+// le quiz reste la voie courte.
+$JUSTEPRIX_MAX_PARTIE = 200;   // score maximum d'une partie (10 manches × 20 pts)
+$JUSTEPRIX_REJEU_MAX  = 50;    // graines de jardin créditées par partie rejouée
+
+// 🚦 L'INTERRUPTEUR DE L'ÉPREUVE. À false, aucun score n'est enregistré, même
+// si quelqu'un connaît l'adresse directe de /quiz/justeprix/ — cacher la tuile
+// ne suffit pas, l'API doit refuser elle aussi.
+// ⚠️ À basculer EN MÊME TEMPS que « pret » sur la ligne justeprix de PROGRAMME,
+// dans quiz/index.html : l'un ferme la porte, l'autre cache le bouton.
+$JUSTEPRIX_OUVERT = false;
 
 /**
  * Solde de graines DISPONIBLES pour planter :
@@ -1191,7 +1488,7 @@ function exigeAdmin($input) {
   global $ADMIN_ID, $ADMIN_PWD;
   $id  = trim($input['id'] ?? '');
   $pwd = (string)($input['pwd'] ?? '');
-  if (!hash_equals($ADMIN_ID, $id) || !hash_equals($ADMIN_PWD, $pwd)) {
+  if (!hash_equals($ADMIN_ID, $id) || !secretOk($ADMIN_PWD, $pwd)) {
     http_response_code(401);
     echo json_encode(['error' => 'Acces refuse']);
     exit;
@@ -1202,8 +1499,8 @@ function exigeRh($input) {
   global $RH_ID, $RH_PWD, $ADMIN_ID, $ADMIN_PWD;
   $id  = trim($input['id'] ?? '');
   $pwd = (string)($input['pwd'] ?? '');
-  $okRh    = hash_equals($RH_ID, $id) && hash_equals($RH_PWD, $pwd);
-  $okAdmin = hash_equals($ADMIN_ID, $id) && hash_equals($ADMIN_PWD, $pwd);
+  $okRh    = hash_equals($RH_ID, $id) && secretOk($RH_PWD, $pwd);
+  $okAdmin = hash_equals($ADMIN_ID, $id) && secretOk($ADMIN_PWD, $pwd);
   if (!$okRh && !$okAdmin) {
     http_response_code(401);
     echo json_encode(['error' => 'Acces refuse']);
@@ -2040,6 +2337,33 @@ function mailRecompense(PDO $db, $cle, $info, $modele = 'attente', $origine = 'a
     // c'est qu'elle est prête et où la chercher.
     $sujet = msgTexte($estPodium ? 'mail_prete_podium_sujet' : 'mail_prete_jardin_sujet');
     $corps = msgTexte($estPodium ? 'mail_prete_podium_corps' : 'mail_prete_jardin_corps');
+
+    // 🎟️ LE BON CADEAU NE CONCERNE QUE LE JARDIN TERMINÉ.
+    //
+    // Le stock de codes est réservé aux jardins ; le podium a ses propres lots,
+    // remis en main propre. Un mail de podium part donc SANS code, exactement
+    // comme avant — et n'est pas bloqué par la règle du code unique.
+    if (!$estPodium) {
+      if (estCompteAdminTest($cle)) {
+        // 🧪 Compte de test : faux bon, stock intact. Autant de fois qu'on veut.
+        $codeRecompense = recompenseCodeTest();
+      } else {
+        // Un code, une personne : si elle a déjà le sien, on n'envoie RIEN. Le
+        // mail contiendrait un second bon alors que le premier reste valable.
+        $dejaCode = recompenseCodeExistant($db, $cle);
+        if ($dejaCode) {
+          return false;
+        }
+
+        $code = recompenseAttribue($db, $cle, $bonjour, $email, 'jardin');
+        if (!$code) {
+          // Stock épuisé : on n'envoie pas un mail « c'est prêt » sans le bon.
+          // Mieux vaut que les RH voient l'envoi échouer et rechargent des codes.
+          return false;
+        }
+        $codeRecompense = $code;
+      }
+    }
   }
 
   // Une ligne du message = un paragraphe. Les lignes vides sont ignorées, pour
@@ -2051,9 +2375,28 @@ function mailRecompense(PDO $db, $cle, $info, $modele = 'attente', $origine = 'a
     $paragraphes .= '<p style="font-size:16px;line-height:1.6;">' . $ligne . '</p>';
   }
 
+  // 🎟️ LE BON CADEAU. Le code est écrit EN TOUTES LETTRES en plus du
+  // code-barres : la plupart des clients mail bloquent les images distantes par
+  // défaut, et un bon illisible ne sert à rien. La caisse peut donc le saisir à
+  // la main si l'image ne s'affiche pas.
+  $blocCode = '';
+  if (!empty($codeRecompense)) {
+    $bar = (string) $codeRecompense['barcode'];
+    $blocCode =
+      '<div style="margin:24px 0;padding:20px;border:2px dashed #d6a21a;border-radius:14px;background:#fffbf0;text-align:center;">'
+      . '<div style="font-size:13px;font-weight:bold;color:#8a6d1a;letter-spacing:.06em;text-transform:uppercase;">Ton bon cadeau</div>'
+      . '<div style="margin:12px 0 6px;"><img src="' . htmlspecialchars(recompenseUrlCodeBarre($bar), ENT_QUOTES, 'UTF-8')
+      . '" alt="' . htmlspecialchars($bar, ENT_QUOTES, 'UTF-8') . '" width="300" style="max-width:100%;height:auto;"></div>'
+      . '<div style="font-family:monospace;font-size:19px;font-weight:bold;color:#244230;letter-spacing:.04em;">'
+      . htmlspecialchars($bar, ENT_QUOTES, 'UTF-8') . '</div>'
+      . '<div style="margin-top:10px;font-size:13px;color:#617268;">Présente ce code en caisse. Il est personnel et utilisable une seule fois.</div>'
+      . '</div>';
+  }
+
   $body = '<div style="font-family:Arial,sans-serif;color:#244230;max-width:560px;margin:0 auto;padding:24px;">'
     . '<p style="font-size:16px;">Bonjour ' . htmlspecialchars($bonjour, ENT_QUOTES, 'UTF-8') . ',</p>'
     . $paragraphes
+    . $blocCode
     . '<p style="font-size:16px;line-height:1.6;">Une question&nbsp;? Écris à <a href="mailto:admin@famiformation.com">admin@famiformation.com</a>.</p>'
     . '<p style="font-size:15px;color:#617268;">Merci d\'avoir joué, et à bientôt&nbsp;! 🌱<br>L\'équipe Famiflora · Famiformation</p></div>';
   $ok = function_exists('sendMail') ? sendMail($email, $sujet, $body, true) : false;
@@ -2215,8 +2558,40 @@ switch ($action) {
     $reels = array_values(array_filter($BONUS_CODES, fn($c) => $c !== $CODE_TEST_OK && $c !== $CODE_TEST_USED));
     $total = count($reels);
     $pris = 0;
-    foreach ($reels as $c) { if (isset($claimed[$c])) $pris++; }
-    echo json_encode(['total' => $total, 'restants' => max(0, $total - $pris), 'pris' => $pris]);
+
+    // 🎯 RÉPARTITION PAR LIEU, calculée sur les codes ENCORE À TROUVER.
+    //
+    // Le lieu de chaque code est saisi dans l'admin (action code_indice) et rangé
+    // dans codes-indices-<site>.json. On regroupe ici les codes NON réclamés par
+    // lieu : dès que quelqu'un récupère un code, le compteur de son emplacement
+    // baisse tout seul, et l'emplacement disparaît de la liste quand son dernier
+    // code est parti. Plus rien à tenir à jour à la main.
+    //
+    // Un code sans lieu renseigné n'apparaît nulle part : mieux vaut ne rien
+    // annoncer qu'envoyer les gens fouiller une zone déjà vidée.
+    $indices = readJson($indicesFile);
+    if (!is_array($indices)) { $indices = []; }
+    $parLieu = [];
+    foreach ($reels as $c) {
+      if (isset($claimed[$c])) { $pris++; continue; }
+      $lieu = trim((string) ($indices[$c] ?? ''));
+      if ($lieu === '') { continue; }
+      $parLieu[$lieu] = ($parLieu[$lieu] ?? 0) + 1;
+    }
+    // Les emplacements les mieux fournis d'abord ; à égalité, ordre alphabétique.
+    $zones = [];
+    foreach ($parLieu as $nom => $nb) { $zones[] = ['nom' => $nom, 'nb' => $nb]; }
+    usort($zones, function ($a, $b) {
+      if ($a['nb'] !== $b['nb']) { return $b['nb'] - $a['nb']; }
+      return strcasecmp($a['nom'], $b['nom']);
+    });
+
+    echo json_encode([
+      'total'    => $total,
+      'restants' => max(0, $total - $pris),
+      'pris'     => $pris,
+      'zones'    => $zones,
+    ], JSON_UNESCAPED_UNICODE);
     break;
   }
 
@@ -2290,6 +2665,15 @@ switch ($action) {
       echo json_encode(['error' => 'nom_pris']);
       break;
     }
+
+    // 📊 Trace de la participation, avec l'écran d'où elle vient.
+    // Volontairement APRÈS le test de conflit et hors du cas « deja » : on ne
+    // compte que les parties réellement enregistrées, sinon un joueur qui
+    // rouvre sa page gonflerait les chiffres à chaque fois.
+    if (empty($res['deja'])) {
+      borneEvenement(famiDb(), $SITE, ecranDe($input), 'participation', $name, $entree['score']);
+    }
+
     echo json_encode($res['board'], JSON_UNESCAPED_UNICODE);
     break;
   }
@@ -2329,7 +2713,7 @@ switch ($action) {
         if (mb_strtolower($p['name'] ?? '') === mb_strtolower($name)) {
           if ((string)($p['code'] ?? '') === $code4) {
             return ['ok' => true, 'exist' => true, 'name' => $p['name'],
-                    'quiz_fait' => ($p['quiz_fait'] ?? true), 'recoltees' => round(floatval($p['score'] ?? 0), 1),
+                    'quiz_fait' => ($p['quiz_fait'] ?? true), 'justeprix_fait' => !empty($p['justeprix_fait']), 'recoltees' => round(floatval($p['score'] ?? 0), 1),
                     'solde' => soldeDe($p), 'nbCodes' => intval($p['codes'] ?? 0)];
           }
           return ['pris' => true];
@@ -2400,7 +2784,7 @@ switch ($action) {
           $p['uid'] = (int) $u['id'];
           $p['prenom'] = $u['prenom']; $p['nom'] = $u['nom'];
           $write = true;
-          return ['quiz_fait' => ($p['quiz_fait'] ?? true), 'recoltees' => round(floatval($p['score'] ?? 0), 1),
+          return ['quiz_fait' => ($p['quiz_fait'] ?? true), 'justeprix_fait' => !empty($p['justeprix_fait']), 'recoltees' => round(floatval($p['score'] ?? 0), 1),
                   'solde' => soldeDe($p), 'nbCodes' => intval($p['codes'] ?? 0), 'pseudo' => ($p['pseudo'] ?? '')];
         }
       }
@@ -2429,7 +2813,7 @@ switch ($action) {
         echo json_encode(['ok' => true, 'joueur' => [
           'name' => $p['name'], 'uid' => intval($p['uid'] ?? 0),
           'prenom' => $p['prenom'] ?? '', 'nom' => $p['nom'] ?? '', 'pseudo' => $p['pseudo'] ?? '',
-          'quiz_fait' => ($p['quiz_fait'] ?? true), 'recoltees' => round(floatval($p['score'] ?? 0), 1),
+          'quiz_fait' => ($p['quiz_fait'] ?? true), 'justeprix_fait' => !empty($p['justeprix_fait']), 'recoltees' => round(floatval($p['score'] ?? 0), 1),
           'solde' => soldeDe($p), 'nbCodes' => intval($p['codes'] ?? 0),
         ]], JSON_UNESCAPED_UNICODE);
         exit;
@@ -2466,7 +2850,7 @@ switch ($action) {
       // créer deux fiches pour la même personne.
       foreach ($board as &$p) {
         if (mb_strtolower((string) ($p['name'] ?? '')) === mb_strtolower((string) $uMoi['identifiant'])) {
-          return ['quiz_fait' => ($p['quiz_fait'] ?? true), 'recoltees' => round(floatval($p['score'] ?? 0), 1),
+          return ['quiz_fait' => ($p['quiz_fait'] ?? true), 'justeprix_fait' => !empty($p['justeprix_fait']), 'recoltees' => round(floatval($p['score'] ?? 0), 1),
                   'solde' => soldeDe($p), 'nbCodes' => intval($p['codes'] ?? 0), 'pseudo' => ($p['pseudo'] ?? '')];
         }
       }
@@ -2570,6 +2954,17 @@ switch ($action) {
     // Google (contrôle tickets glace). Comme l'e-mail existe déjà en base, si la
     // soumission déclenche l'envoi auto, il verra « déjà présent » → aucun 2e mail.
     if ($aPousserVersForm) { pousseVersForm($prenom, $nom, $email); }
+
+    // 📧 LA PANNE : la collecte des adresses ne passe PAS par le Google Form,
+    // mais par la table lapanne_emails que /emails/lapanne/ affiche aux RH
+    // (avec le suivi des tickets remis). Une inscription faite depuis la BORNE
+    // ou le TÉLÉPHONE doit donc y atterrir elle aussi — sans ça, les RH ne
+    // verraient que les saisies faites a la main et rateraient tous
+    // ceux qui se sont inscrits par le quiz.
+    if ($SITE === 'lapanne') { lapanneCollecte(famiDb(), $prenom, $nom, $email); }
+
+    // 📊 Trace de l'inscription, avec l'écran d'où elle vient.
+    borneEvenement(famiDb(), $SITE, ecranDe($input), 'inscription', $prenom . ' ' . $nom);
 
     // Compte créé + mail envoyé (le seul cas « déjà donné ton mail » vient de la
     // base : compte en attente → on renvoie le lien, géré plus haut).
@@ -2890,7 +3285,72 @@ switch ($action) {
     break;
   }
 
-  case 'rh_mail': {
+  // 🎟️ L'ÉTAT DU STOCK ET LES BONS DÉJÀ DONNÉS.
+//
+// Action séparée de rh_liste, volontairement : rh_liste sert AUSSI à valider le
+// mot de passe RH, et tout ce qui peut échouer dedans empêche d'ENTRER. Ici, une
+// base indisponible ne prive que d'un onglet.
+//
+// Pas de filtre par magasin : le stock est commun aux deux, et un bon donné à
+// Mouscron reste un bon en moins pour La Panne. Le magasin est affiché sur
+// chaque ligne, pour s'y retrouver sans découper les chiffres.
+case 'rh_recompenses': {
+  exigeRh($input);
+  $dbr = famiDb();
+  if (!($dbr instanceof PDO)) {
+    echo json_encode(['ok' => false, 'reason' => 'base_indisponible']);
+    break;
+  }
+  recompenseCodesEnsure($dbr);
+  $libres = 0; $donnes = 0; $lignes = [];
+  // 🧪 Le compte de test est exclu du décompte ET de la liste : ce ne sont pas
+  // des personnes à qui on a remis un bon. Depuis recompenseCodeTest() il ne
+  // consomme plus de code du tout, ce filtre ne sert donc qu'aux lignes de
+  // tests laissées par l'ancienne version.
+  // LEFT(...) = 'admin_' plutôt que LIKE : dans un LIKE, le « _ » est un
+  // joker qui matcherait « admin7 », « adminX »… La comparaison est
+  // insensible à la casse par la collation, comme le stripos côté PHP.
+  $saufTest = "LEFT(attribue_a, 6) <> 'admin_'";
+  try {
+    $libres = (int) $dbr->query('SELECT COUNT(*) FROM recompense_codes WHERE attribue_a IS NULL')->fetchColumn();
+    $donnes = (int) $dbr->query(
+      'SELECT COUNT(*) FROM recompense_codes WHERE attribue_a IS NOT NULL AND ' . $saufTest
+    )->fetchColumn();
+    $lignes = $dbr->query(
+      'SELECT id, code_id, barcode, attribue_a, attribue_nom, attribue_email, attribue_le, motif, site
+         FROM recompense_codes
+        WHERE attribue_a IS NOT NULL AND ' . $saufTest . '
+        ORDER BY attribue_le DESC, id DESC
+        LIMIT 500'
+    )->fetchAll(PDO::FETCH_ASSOC);
+  } catch (Throwable $e) { /* onglet vide plutôt qu'une erreur */ }
+  echo json_encode(['ok' => true, 'libres' => $libres, 'donnes' => $donnes, 'lignes' => $lignes], JSON_UNESCAPED_UNICODE);
+  break;
+}
+
+// 🎟️ Remet un bon dans le stock (attribué par erreur, mail jamais reçu…).
+// La personne redevient éligible : c'est le SEUL moyen de lui renvoyer le mail,
+// puisqu'un code déjà attribué bloque tout second envoi.
+case 'rh_code_liberer': {
+  exigeRh($input);
+  $dbr = famiDb();
+  $id = (int) ($input['id'] ?? 0);
+  if (!($dbr instanceof PDO) || $id <= 0) { echo json_encode(['ok' => false]); break; }
+  try {
+    $dbr->prepare(
+      'UPDATE recompense_codes
+          SET attribue_a = NULL, attribue_nom = NULL, attribue_email = NULL,
+              attribue_le = NULL, motif = NULL, site = NULL
+        WHERE id = ?'
+    )->execute([$id]);
+    echo json_encode(['ok' => true]);
+  } catch (Throwable $e) {
+    echo json_encode(['ok' => false]);
+  }
+  break;
+}
+
+case 'rh_mail': {
     exigeRh($input);
     $db = famiDb();
     if (!$db) { http_response_code(503); echo json_encode(['ok' => false, 'reason' => 'base_indisponible']); break; }
@@ -3270,12 +3730,72 @@ switch ($action) {
     break;
   }
 
+  // 🏷️ LE JUSTE PRIX. Authentifié par le JETON : le nom vient du jeton, jamais
+  // du client, sinon n'importe qui pourrait créditer n'importe quel compte.
+  //
+  // ⚠️ Le score est RECALCULÉ nulle part : contrairement au mini-jeu des herbes,
+  // le barème du Juste Prix vit dans la page. On ne peut donc que le PLAFONNER.
+  // C'est assumé pour un jeu bon enfant, mais ça veut dire qu'un joueur décidé
+  // peut se donner 200 points au premier essai. Le plafond garantit au moins
+  // qu'il ne peut pas s'en donner 10 000.
+  case 'justeprix': {
+    // L'épreuve n'est pas encore ouverte : on refuse AVANT tout le reste.
+    if (!$JUSTEPRIX_OUVERT) { echo json_encode(['ok' => false, 'reason' => 'ferme']); break; }
+    $auth = litJeton($input['jeton'] ?? '');
+    if (!$auth) { http_response_code(401); echo json_encode(['ok' => false, 'reason' => 'auth']); break; }
+    $points = max(0, min($JUSTEPRIX_MAX_PARTIE, round(floatval($input['points'] ?? 0), 1)));
+    $name = $auth['identifiant'];
+
+    $res = withLock($scoresFile, function (&$board, &$write) use ($name, $points, $JUSTEPRIX_REJEU_MAX) {
+      for ($i = 0; $i < count($board); $i++) {
+        if (mb_strtolower($board[$i]['name'] ?? '') !== mb_strtolower($name)) { continue; }
+
+        // L'ordre des épreuves est une règle du jeu, pas seulement de l'affichage :
+        // sans le quiz, pas de Juste Prix — même si quelqu'un appelait l'API à la main.
+        if (empty($board[$i]['quiz_fait']) && !estCompteTest($board[$i])) {
+          return ['ok' => false, 'reason' => 'quiz_dabord'];
+        }
+
+        // Le compte de test rejoue indéfiniment en 1re partie : il sert à vérifier.
+        $premiere = empty($board[$i]['justeprix_fait']) || estCompteTest($board[$i]);
+
+        if ($premiere) {
+          // Classement + jardin : « score » alimente les deux.
+          $board[$i]['score'] = round(floatval($board[$i]['score'] ?? 0) + $points, 1);
+          if (!estCompteTest($board[$i])) { $board[$i]['justeprix_fait'] = true; }
+          $gain = $points;
+          $type = 'classement';
+          sortBoard($board);   // le podium a pu bouger
+        } else {
+          // Rejeu : jardin seulement, et plafonné.
+          $gain = min($JUSTEPRIX_REJEU_MAX, (int) floor($points));
+          if ($gain > 0) { $board[$i]['bonus'] = intval($board[$i]['bonus'] ?? 0) + $gain; }
+          $type = 'jardin';
+        }
+
+        $write = true;
+        // Après sortBoard, l'index a pu changer : on relit par le nom.
+        foreach ($board as $q) {
+          if (mb_strtolower($q['name'] ?? '') === mb_strtolower($name)) {
+            return ['ok' => true, 'type' => $type, 'gain' => $gain,
+                    'plafond' => $JUSTEPRIX_REJEU_MAX,
+                    'solde' => soldeDe($q), 'recoltees' => round(floatval($q['score'] ?? 0), 1)];
+          }
+        }
+        return ['ok' => true, 'type' => $type, 'gain' => $gain, 'plafond' => $JUSTEPRIX_REJEU_MAX];
+      }
+      return ['ok' => false, 'reason' => 'inconnu'];
+    });
+    echo json_encode($res, JSON_UNESCAPED_UNICODE);
+    break;
+  }
+
   // ⏱ Les dates de l'événement (lues par la page joueur pour le compte à rebours).
   // On y joint la « version » du site (date du dernier déploiement de la page) :
   // la télé, qui reste allumée des jours entiers, s'en sert pour se recharger
   // toute seule après une mise en ligne au lieu de garder l'ancienne page.
   case 'config_get': {
-    $conf = ladConfig($configFile);
+    $conf = ladConfig($configFile, $SITE);
     $conf['version'] = (string) (@filemtime(__DIR__ . '/index.html') ?: 0);
     echo json_encode($conf, JSON_UNESCAPED_UNICODE);
     break;
@@ -3297,7 +3817,7 @@ switch ($action) {
       echo json_encode(['ok' => false, 'reason' => 'date_cloture_invalide']);
       break;
     }
-    $actuel = ladConfig($configFile);
+    $actuel = ladConfig($configFile, $SITE);
     // Zones (facultatif) : liste { nom, nb }. On nettoie et on plafonne à 30.
     $zones = $actuel['zones'];
     if (isset($input['zones']) && is_array($input['zones'])) {
@@ -3550,7 +4070,7 @@ switch ($action) {
   case 'login': {
     $id  = trim($input['id'] ?? '');
     $pwd = (string)($input['pwd'] ?? '');
-    $ok = hash_equals($ADMIN_ID, $id) && hash_equals($ADMIN_PWD, $pwd);
+    $ok = hash_equals($ADMIN_ID, $id) && secretOk($ADMIN_PWD, $pwd);
     if (!$ok) {
       http_response_code(401);
       echo json_encode(['ok' => false]);
@@ -3810,7 +4330,7 @@ switch ($action) {
       'questions' => lesQuestions($questionsFile, $QUESTIONS_DEFAUT),
       'jardin'    => ['cases' => (object)($j['cases'] ?? []), 'total' => $JARDIN_CASES],
       'plantes'   => $PLANTES,
-      'config'    => ladConfig($configFile),
+      'config'    => ladConfig($configFile, $SITE),
     ], JSON_UNESCAPED_UNICODE);
     break;
   }
@@ -3922,7 +4442,7 @@ switch ($action) {
 
   // 🧹 Réinitialiser (tests) : api.php?action=reset&pin=XXXX
   case 'reset': {
-    if (!hash_equals($ADMIN_PIN, (string)($_GET['pin'] ?? ''))) {
+    if (!secretOk($ADMIN_PIN, (string)($_GET['pin'] ?? ''))) {
       http_response_code(403);
       echo json_encode(['error' => 'PIN incorrect']);
       break;

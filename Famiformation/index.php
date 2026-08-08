@@ -22,6 +22,13 @@ if ($role === 'beta') {
     header('Location: beta.php');
     exit();
 }
+// 🏬 « betalapanne » = les inscrits du quiz de La Panne. Parcours DISTINCT de la
+// bêta de Mouscron, donc page distincte : ils n'ont accès qu'au quiz et à leur
+// jardin, et ne doivent pas voir le bandeau bêta destiné à Mouscron.
+if ($role === 'betalapanne') {
+    header('Location: lapanne.php');
+    exit();
+}
 
 $user_id = $_SESSION['user_id'];
 ensureUserProfileColumns($db);
@@ -296,7 +303,7 @@ if (!empty($_SESSION['module_flash'])) {
 
         .tile-inactive { opacity: 0.45; }
 
-        /* 🌱 MISE EN AVANT DE LA TUILE « Quiz & mon espace jardin ».
+        /* 🌱 MISE EN AVANT DE LA TUILE « Épreuves & mon espace jardin ».
            TOUT est dans des classes DÉDIÉES (.tile-jardin, .badge-jardin) et des
            animations préfixées « jd » : aucune autre tuile n'est touchée, et le
            jour où la mise en avant n'a plus lieu d'être il suffit de retirer la
@@ -597,7 +604,7 @@ if ($wcThemeOn && !empty($siteTheme) && is_array($siteTheme)) {
         <a href="quiz_acces.php" class="tile tile-jardin">
             <span class="badge-jardin">🎁 <?= t('NOUVEAU', 'NIEUW') ?></span>
             <div class="tile-media"><span class="tile-icon">🌱</span></div>
-            <div class="tile-title"><?= t('Quiz & mon espace jardin', 'Quiz & mijn tuin') ?></div>
+            <div class="tile-title"><?= t('Épreuves & mon espace jardin', 'Proeven & mijn tuin') ?></div>
             <div class="tile-desc"><?= t('Réponds au quiz, récolte tes graines et fais pousser ton jardin.', 'Doe de quiz, oogst je zaadjes en laat je tuin groeien.') ?></div>
         </a>
 

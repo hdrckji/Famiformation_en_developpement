@@ -236,23 +236,38 @@ if (!function_exists('themeSkinCatalog')) {
         return [
 
             // 🌿 BIENVENUE — Botanique & Or. Vert profond, or chaud, papier crème.
+            // ⚠️ FOND CLAIR, ENCRE SOMBRE — et c'est volontaire.
+            //
+            // Ce thème avait un fond presque noir avec « ink » en vert très clair
+            // (#EAF1E6). Ça marche pour le texte posé sur le fond, mais TOUT ce
+            // qui se trouve dans une carte blanche hérite de cette couleur : du
+            // vert clair sur du blanc, illisible. Et c'était la majorité des
+            // textes du site, puisque presque tout vit dans une carte.
+            //
+            // On ne pouvait pas simplement noircir l'encre : le texte posé sur le
+            // fond sombre serait devenu invisible à son tour. On éclaircit donc le
+            // FOND — crème et or, l'esprit botanique est conservé — et l'encre
+            // devient sombre. Le texte est alors lisible partout, dans les cartes
+            // comme sur le fond.
             'bienvenue' => [
-                'fx' => ['motes', ['#D4AF37'], 26],
-                'bg' => 'radial-gradient(1100px 620px at 50% -12%, rgba(212,175,55,.16), transparent 62%),'
-                    . 'radial-gradient(900px 700px at 8% 108%, rgba(62,142,78,.22), transparent 66%),'
-                    . 'linear-gradient(168deg,#0C2215 0%,#143620 46%,#1E4D2B 100%)',
-                'pattern' => $botanical, 'vignette' => 'rgba(4,14,8,.45)',
-                'ink' => '#EAF1E6',
+                'fx' => ['motes', ['#C79A2E'], 26],
+                'bg' => 'radial-gradient(1100px 620px at 50% -12%, rgba(212,175,55,.22), transparent 62%),'
+                    . 'radial-gradient(900px 700px at 8% 108%, rgba(62,142,78,.16), transparent 66%),'
+                    . 'linear-gradient(168deg,#FBF7EA 0%,#F3EEDC 46%,#EAF1E2 100%)',
+                'pattern' => $botanical, 'vignette' => 'rgba(120,100,50,.10)',
+                'ink' => '#1A2A1E',
                 'foil' => 'linear-gradient(100deg,#A87C15 0%,#F3E3A6 28%,#D4AF37 50%,#F3E3A6 72%,#A87C15 100%)',
                 'tilePaper' => 'linear-gradient(180deg,#FDFBF3 0%,#F4EFDF 100%)',
                 'tileBorder' => 'rgba(168,124,21,.28)',
                 'tileBar' => 'linear-gradient(90deg,#A87C15,#F3E3A6 45%,#D4AF37 55%,#A87C15)',
                 'tileOrnament' => $leafSvg,
-                'tileShadow' => '0 2px 4px rgba(4,14,8,.18), 0 16px 40px rgba(4,14,8,.28)',
-                'tileShadowHover' => '0 6px 10px rgba(4,14,8,.2), 0 26px 58px rgba(212,175,55,.24)',
+                // Ombres allégées : sur fond clair, les ombres profondes du fond
+                // sombre faisaient des taches grises autour de chaque tuile.
+                'tileShadow' => '0 2px 4px rgba(90,75,35,.10), 0 14px 34px rgba(90,75,35,.14)',
+                'tileShadowHover' => '0 6px 10px rgba(90,75,35,.14), 0 24px 52px rgba(168,124,21,.20)',
                 'tileTitle' => '#1B4429', 'tileDesc' => '#5C6B54',
-                'cardBg' => 'rgba(251,248,239,.97)', 'cardBorder' => 'rgba(168,124,21,.22)',
-                'cardShadow' => '0 18px 48px rgba(4,14,8,.3)',
+                'cardBg' => 'rgba(255,253,247,.97)', 'cardBorder' => 'rgba(168,124,21,.22)',
+                'cardShadow' => '0 14px 38px rgba(90,75,35,.16)',
                 'btn' => 'linear-gradient(180deg,#26623A,#1B4429)',
                 // Papier CRÈME DORÉ (pas le blanc-vert d'origine) → la différence se voit.
                 'doc' => ['paper' => '#FBF6E6', 'paper-deep' => '#F3EAD0', 'line' => '#E0D2AC',

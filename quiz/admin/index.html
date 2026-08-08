@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light">
 <meta name="supported-color-schemes" content="light">
+<!-- 🌐 Pas de traduction automatique : cette page pilote les textes du quiz
+     (questions, récompenses, messages). Une traduction posée par-dessus par le
+     navigateur rendrait illisible ce qu'on est en train d'écrire. -->
+<meta name="google" content="notranslate">
 <meta name="robots" content="noindex, nofollow">
 <title>Quiz — Administration</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -23,12 +27,18 @@
   --corail: #FF6B5E;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
+/* 📐 La page s'adapte à l'écran. Une largeur figée à 900 px avec un corps de
+   16 px se lit très petit sur un moniteur de bureau : on lie la typographie à
+   la largeur disponible et on exprime la colonne en rem, pour que les deux
+   grandissent ensemble. Bornes volontairement prudentes — la page est dense,
+   il ne s'agit pas de tout faire exploser. */
+html { font-size: clamp(16px, 0.28vw + 13.4px, 20px); }
 body {
   min-height: 100vh; background: var(--brume);
   font-family: 'Nunito Sans', system-ui, sans-serif; color: var(--foret);
   padding: 24px 16px 80px;
 }
-.wrap { max-width: 900px; margin: 0 auto; }
+.wrap { max-width: min(76rem, 96vw); margin: 0 auto; }
 h1 { font-family: 'Fredoka', sans-serif; font-size: 1.6rem; color: var(--pousse); }
 h2 { font-family: 'Fredoka', sans-serif; font-size: 1.2rem; margin-bottom: 14px; }
 .sub { opacity: .75; font-weight: 600; font-size: .95rem; margin-bottom: 22px; }
@@ -251,6 +261,7 @@ function rendre() {
     ["messages", "💬 Messages & mails"],
     ["envoi", "✉️ Envoi groupé"],
     ["simulation", "🎬 Simulation"],
+    ["justeprix", "🏷️ Juste Prix"],
   ];
   app.innerHTML = `
     <div class="site-switch">
@@ -287,6 +298,7 @@ function rendre() {
   else if (vue === "envoi") vueEnvoi();
   else if (vue === "messages") vueMessages();
   else if (vue === "simulation") vueSimulation();
+  else if (vue === "justeprix") vueJustePrix();
   else vueCodes();
 }
 
@@ -1171,9 +1183,12 @@ function vueCountdown() {
     <div class="card">
       <h2>🎯 Zones où j'ai caché des codes</h2>
       <p class="hint">Indique combien de codes tu as placés dans chaque zone du magasin. Cet indice
-      s'affichera aux joueurs sur la page « J'ai un code » <strong>à partir de la veille du lancement</strong>
-      (dernières 24 h du compte à rebours), puis restera visible pendant l'événement pour les aider à
-      dénicher les codes.</p>
+      s'affichera aux joueurs sur la page « J'ai un code » <strong>une semaine avant le lancement</strong>
+      (soit le 07/08 à 12h30 pour La Panne), puis restera visible pendant l'événement pour les aider à
+      dénicher les codes.<br>
+      Cette liste manuelle ne sert plus que de repli : dès qu'un emplacement est saisi <strong>par code</strong>
+      dans le tableau ci-dessous, c'est lui qui s'affiche, avec des compteurs qui baissent tout seuls
+      quand les codes sont trouvés.</p>
       <div id="zones-liste">${zoneRowsHtml()}</div>
       <button class="btn ghost" id="zone-add" style="margin-top:8px;">＋ Ajouter une zone</button>
       <div id="zones-msg" style="margin-top:8px;"></div>
@@ -1349,10 +1364,14 @@ function vueCodes() {
       pas dans les 20 codes du magasin.</em></p>
       <div style="overflow-x:auto">
       <table>
-        <tr><th>Code</th><th>État</th><th>Récupéré par</th><th>Quand</th><th></th></tr>
+        <tr><th>Code</th><th>Où je l'ai caché</th><th>État</th><th>Récupéré par</th><th>Quand</th><th></th></tr>
         ${data.codes.map((x) => `
           <tr>
             <td><strong>${esc(x.code)}</strong></td>
+            <td><input class="lieu-input" data-lieu="${esc(x.code)}" value="${esc(x.indice || "")}"
+                       placeholder="ex. Rayon plantes d'intérieur" maxlength="300"
+                       ${x.pris ? "disabled" : ""}
+                       title="${x.pris ? "Code déjà pris : l'emplacement n'est plus affiché aux joueurs." : "Tape l'emplacement puis clique ailleurs pour enregistrer."}"></td>
             <td class="${x.pris ? "pris" : "libre"}">${x.pris ? (x.par === "Organisateur" ? "Bloqué" : "Pris") : "Libre"}</td>
             <td>${x.par ? esc(x.par) : "—"}</td>
             <td>${x.date ? esc(new Date(x.date).toLocaleString("fr-BE")) : "—"}</td>
@@ -1362,6 +1381,39 @@ function vueCodes() {
           </tr>`).join("")}
       </table></div>
     </div>`;
+
+  // 📍 EMPLACEMENT D'UN CODE — enregistré à la sortie du champ.
+  //
+  // Ce lieu ne sert pas qu'à s'y retrouver : le serveur s'en sert pour bâtir
+  // l'indice « où chercher » montré aux joueurs, en ne comptant QUE les codes
+  // encore à trouver. Quand un code part, sa zone perd un cran toute seule, et
+  // disparaît de l'indice quand son dernier code est parti.
+  //
+  // Enregistrement sur « change » (donc à la sortie du champ) plutôt qu'à chaque
+  // touche : sinon on enverrait une requête par lettre tapée. Pas de rechargement
+  // du tableau après coup — cela ferait perdre le focus si on remplit les
+  // emplacements à la chaîne.
+  c.querySelectorAll("[data-lieu]").forEach((champ) => {
+    let dernier = champ.value;
+    champ.addEventListener("change", async () => {
+      const valeur = champ.value.trim();
+      if (valeur === dernier) { return; }
+      champ.style.opacity = ".5";
+      const r = await post("code_indice", { code: champ.dataset.lieu, indice: valeur });
+      champ.style.opacity = "1";
+      if (r.ok && r.data && r.data.ok) {
+        dernier = valeur;
+        champ.style.borderColor = "#2e7d32";
+        setTimeout(() => { champ.style.borderColor = ""; }, 1200);
+      } else {
+        // On remet la valeur d'avant : un champ qui affiche autre chose que ce
+        // qui est réellement enregistré est pire que pas de champ du tout.
+        champ.value = dernier;
+        champ.style.borderColor = "#c0392b";
+        setTimeout(() => { champ.style.borderColor = ""; }, 2000);
+      }
+    });
+  });
 
   c.querySelectorAll("[data-blo]").forEach((b) => b.addEventListener("click", () => {
     const code = b.dataset.blo;
@@ -1396,6 +1448,183 @@ function vueCodes() {
       await charger();
     });
   }));
+}
+
+/* ---------------------- ONGLET JUSTE PRIX ----------------------
+   La liste complète des articles que le jeu peut tirer, avec leur prix, leur
+   code EAN et leur nombre de ventes.
+   Deux choses à savoir en la lisant :
+     • cette liste est COMMUNE aux deux magasins, contrairement aux questions
+       et aux codes bonus — d'où l'avertissement en tête ;
+     • elle est lue directement dans le fichier du jeu, pas dans la base. Ce
+       que vous voyez ici est donc exactement ce que les joueurs verront.
+   ------------------------------------------------------------------- */
+
+// 📅 Les ventes sont celles de JUILLET 2026, et elles viennent de MOUSCRON
+// seulement — La Panne suivra. L'export porte en réalité sur les semaines 27
+// à 30, qui démarrent le 29 juin : on annonce « juillet » parce que c'est ce
+// qui parle, et on précise les dates exactes à côté pour qui vérifierait.
+const JP_PERIODE = { mois: "juillet 2026", s1: 27, s2: 30, du: "29/06/2026", au: "26/07/2026" };
+const JP_MAGASIN = "Mouscron";
+const JP_RAYONS = { deco: "Déco", famigarden: "Famigarden", animalerie: "Animalerie", food: "Food" };
+
+let jpArticles = null;      // null = pas encore chargé
+let jpTri = "ventes";       // colonne de tri
+let jpSens = -1;            // -1 = décroissant
+let jpFiltre = "";
+let jpRayon = "";
+
+async function vueJustePrix() {
+  const c = $("#contenu");
+  if (!jpArticles) {
+    c.innerHTML = `<div class="card"><p class="hint">Chargement des articles…</p></div>`;
+    try {
+      // Chemin relatif depuis /quiz/admin/ vers /quiz/justeprix/.
+      const r = await fetch("../justeprix/articles.json", { cache: "no-store" });
+      jpArticles = await r.json();
+    } catch (e) {
+      c.innerHTML = `<div class="card"><div class="alert">Impossible de charger la liste des articles.</div></div>`;
+      return;
+    }
+  }
+  jpRendre();
+}
+
+function jpRendre() {
+  const c = $("#contenu");
+  const q = jpFiltre.trim().toLowerCase();
+  let liste = jpArticles.filter((a) => {
+    if (jpRayon && a.rayon !== jpRayon) return false;
+    if (!q) return true;
+    return (a.fr + " " + (a.nl || "") + " " + a.ean).toLowerCase().includes(q);
+  });
+  liste = liste.slice().sort((x, y) => {
+    let d;
+    if (jpTri === "nom") d = String(x.fr).localeCompare(String(y.fr), "fr");
+    else if (jpTri === "rayon") d = String(x.rayon).localeCompare(String(y.rayon));
+    else if (jpTri === "ean") d = String(x.ean).localeCompare(String(y.ean));
+    else d = (Number(x[jpTri]) || 0) - (Number(y[jpTri]) || 0);
+    return d * jpSens;
+  });
+
+  const prix = jpArticles.map((a) => Number(a.prix)).sort((a, b) => a - b);
+  const ventes = jpArticles.reduce((s, a) => s + (Number(a.ventes) || 0), 0);
+  const flecheDe = (k) => (jpTri === k ? (jpSens === 1 ? " ▲" : " ▼") : "");
+
+  c.innerHTML = `
+    <div class="card">
+      <h2 style="margin-top:0">🏷️ Les articles du Juste Prix</h2>
+      <p class="hint">🏬 Les chiffres de vente sont ceux de <b>${JP_MAGASIN}</b> — La Panne suivra.
+        La liste d'articles, elle, est <b>commune aux deux magasins</b> : le choix du magasin en haut
+        de page n'a aucun effet sur cet onglet.</p>
+      <p class="hint">Ventes du <b>mois de ${JP_PERIODE.mois}</b>
+        <span style="opacity:.75;">(semaines ${JP_PERIODE.s1} à ${JP_PERIODE.s2}, du ${JP_PERIODE.du} au ${JP_PERIODE.au})</span>.
+        Le prix affiché est le <b>prix de vente</b>, colonne PV de l'export.</p>
+
+      <div style="display:flex;gap:14px;flex-wrap:wrap;margin:16px 0;">
+        <div class="qbloc" style="flex:1;min-width:130px;margin:0;text-align:center;">
+          <div style="font-family:'Fredoka',sans-serif;font-size:1.9rem;color:var(--pousse);font-weight:700;">${jpArticles.length}</div>
+          <div class="hint" style="margin:0;">articles dans le jeu</div>
+        </div>
+        <div class="qbloc" style="flex:1;min-width:130px;margin:0;text-align:center;">
+          <div style="font-family:'Fredoka',sans-serif;font-size:1.9rem;color:var(--pousse);font-weight:700;">${jpEuro(prix[0])} – ${jpEuro(prix[prix.length - 1])}</div>
+          <div class="hint" style="margin:0;">fourchette de prix</div>
+        </div>
+        <div class="qbloc" style="flex:1;min-width:130px;margin:0;text-align:center;">
+          <div style="font-family:'Fredoka',sans-serif;font-size:1.9rem;color:var(--pousse);font-weight:700;">${ventes.toLocaleString("fr-BE")}</div>
+          <div class="hint" style="margin:0;">ventes en 
+        </div>
+      </div>
+
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px;">
+        <input id="jp-q" class="field" type="text" placeholder="Chercher un nom ou un code EAN…"
+               value="${esc(jpFiltre)}" style="flex:1;min-width:220px;margin-bottom:0;width:auto;">
+        <select id="jp-rayon" class="field" style="margin-bottom:0;width:auto;">
+          <option value="">Tous les rayons</option>
+          ${Object.entries(JP_RAYONS).map(([k, l]) =>
+            `<option value="${k}" ${jpRayon === k ? "selected" : ""}>${l} (${jpArticles.filter(a => a.rayon === k).length})</option>`).join("")}
+        </select>
+        <button class="btn ghost" id="jp-csv">⬇️ Exporter en CSV</button>
+      </div>
+
+      <p class="hint">${liste.length} article${liste.length > 1 ? "s" : ""} affiché${liste.length > 1 ? "s" : ""}${
+        (q || jpRayon) ? ` sur ${jpArticles.length}` : ""}. Clique sur un en-tête pour trier.</p>
+
+      <div style="overflow-x:auto;">
+      <table>
+        <thead><tr>
+          <th style="width:56px;"></th>
+          <th><button class="jp-tri" data-k="nom" style="all:unset;cursor:pointer;font:inherit;color:inherit;">Article${flecheDe("nom")}</button></th>
+          <th><button class="jp-tri" data-k="rayon" style="all:unset;cursor:pointer;font:inherit;color:inherit;">Rayon${flecheDe("rayon")}</button></th>
+          <th><button class="jp-tri" data-k="ean" style="all:unset;cursor:pointer;font:inherit;color:inherit;">Code EAN${flecheDe("ean")}</button></th>
+          <th style="text-align:right;"><button class="jp-tri" data-k="prix" style="all:unset;cursor:pointer;font:inherit;color:inherit;">Prix${flecheDe("prix")}</button></th>
+          <th style="text-align:right;"><button class="jp-tri" data-k="ventes" style="all:unset;cursor:pointer;font:inherit;color:inherit;">Ventes${flecheDe("ventes")}</button></th>
+        </tr></thead>
+        <tbody>
+          ${liste.map((a) => `
+            <tr>
+              <td><img src="../justeprix/img/${esc(a.img)}" alt="" loading="lazy"
+                       style="width:44px;height:44px;object-fit:contain;background:#fff;border-radius:8px;"></td>
+              <td>
+                ${esc(a.fr)}
+                ${a.nl && a.nl !== a.fr ? `<br><span class="hint" style="margin:0;">🇳🇱 ${esc(a.nl)}</span>` : ""}
+              </td>
+              <td>${esc(JP_RAYONS[a.rayon] || a.rayon || "")}</td>
+              <td class="num">${esc(a.ean)}</td>
+              <td class="num" style="text-align:right;font-weight:800;">${jpEuro(a.prix)}</td>
+              <td class="num" style="text-align:right;">${Number(a.ventes).toLocaleString("fr-BE")}</td>
+            </tr>`).join("")}
+        </tbody>
+      </table>
+      </div>
+
+      ${liste.length === 0 ? `<p class="hint">Aucun article ne correspond.</p>` : ""}
+
+      <p class="hint" style="margin-top:18px;">
+        Un article n'entre dans le jeu que si sa photo a pu être retrouvée <b>à partir de son code EAN</b>.
+        Ceux dont l'EAN est interne au magasin, ou absent des bases publiques, sont écartés : mieux vaut
+        un article en moins qu'un article illustré par la mauvaise photo.
+      </p>
+    </div>`;
+
+  $("#jp-q").addEventListener("input", (e) => {
+    jpFiltre = e.target.value;
+    const pos = e.target.selectionStart;
+    jpRendre();
+    // On redonne le focus et la position du curseur : sans ça, taper une
+    // recherche lettre par lettre serait impossible, le champ se recréant.
+    const n = $("#jp-q");
+    n.focus();
+    n.setSelectionRange(pos, pos);
+  });
+  $("#jp-rayon").addEventListener("change", (e) => { jpRayon = e.target.value; jpRendre(); });
+  $("#jp-csv").addEventListener("click", () => jpExportCsv(liste));
+  c.querySelectorAll(".jp-tri").forEach((b) => b.addEventListener("click", () => {
+    const k = b.dataset.k;
+    if (jpTri === k) jpSens = -jpSens;
+    else { jpTri = k; jpSens = (k === "nom" || k === "rayon" || k === "ean") ? 1 : -1; }
+    jpRendre();
+  }));
+}
+
+const jpEuro = (n) => Number(n).toFixed(2).replace(".", ",") + " €";
+
+function jpExportCsv(liste) {
+  // Point-virgule et BOM : c'est ce qu'Excel en français attend. Avec une
+  // virgule, tout atterrit dans une seule colonne.
+  const lignes = [["Article", "Nom NL", "Rayon", "Code EAN", "Prix", "Ventes juillet 2026 (Mouscron)"]];
+  for (const a of liste) {
+    lignes.push([a.fr, a.nl || "", JP_RAYONS[a.rayon] || a.rayon || "", a.ean,
+                 String(a.prix).replace(".", ","), a.ventes]);
+  }
+  const csv = "﻿" + lignes.map((l) =>
+    l.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(";")).join("\r\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "justeprix-articles.csv";
+  a.click();
+  URL.revokeObjectURL(a.href);
 }
 
 /* ---------------------- DÉMARRAGE ---------------------- */

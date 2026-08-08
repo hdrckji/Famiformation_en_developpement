@@ -20,6 +20,7 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] === 'etudiant') {
     </style>
 </head>
 <body>
+<?php require_once __DIR__ . '/includes/retour.php'; echo barreRetour(); ?>
     <div class="container">
         <h2>Formation secourisme</h2>
         <p>La formation secourisme permet d'acquérir les gestes qui sauvent et est recommandée pour tous les collaborateurs. Renseignez-vous sur les prochaines sessions.</p>

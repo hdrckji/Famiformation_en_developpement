@@ -1,0 +1,864 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>Le Juste Prix — Famiformation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito+Sans:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   LE JUSTE PRIX — 2e épreuve, ouverte depuis l'espace jardin.
+   Page à part du quiz, mais même palette et mêmes polices : on doit sentir
+   qu'on est toujours dans le même jeu.
+   Le score part vers api.php (action=justeprix) : la 1re partie compte pour le
+   CLASSEMENT et le jardin, les suivantes ne nourrissent que le jardin et sont
+   plafonnées. Le joueur est reconnu par son jeton, passé dans l'URL.
+   ============================================================ */
+:root {
+  color-scheme: light;
+  --soleil: #FFC53D;
+  --corail: #FF6B5E;
+
+  --brume: #EAF4EC;    /* fond de page          */
+  --craie: #FFFFFF;    /* fond des cartes       */
+  --foret: #0E3B24;    /* texte principal       */
+  --doux:  #5D7566;    /* texte secondaire      */
+  --trait: #CDDCD2;    /* filets et bordures    */
+  --accent: #1E7A46;
+  --ombre: #145C34;
+  --puce: #0E3B24;     /* pastille du score     */
+  --puceTexte: #FFFFFF;
+  --jauge: #D6E6DA;
+}
+/* 🎓 MODE ENTRAÎNEMENT — le MÊME vert, simplement en version sombre.
+   On ne change pas la couleur de la maison : seule la lumière baisse. Ça suffit
+   largement à voir d'un coup d'œil qu'on n'est pas encore dans la vraie partie,
+   sans donner l'impression d'avoir changé de jeu. */
+body.demo {
+  color-scheme: dark;
+  --brume: #0B2417;
+  --craie: #16402A;
+  --foret: #E9F5ED;
+  --doux:  #9DBCA9;
+  --trait: #2E6244;
+  --accent: #5FCB8B;
+  --ombre: #124E31;
+  --puce: #5FCB8B;
+  --puceTexte: #06301C;
+  --jauge: #2E6244;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+/* 📐 TAILLE D'AFFICHAGE.
+   La page était une colonne de 620 px avec un corps figé à 16 px : parfait sur
+   un téléphone, minuscule au milieu du vide sur un écran de bureau ou une
+   borne. On lie donc la base typographique à la largeur de l'écran et on
+   exprime la colonne en rem : titres, boutons, champ de saisie et photo
+   grandissent ENSEMBLE, au lieu de rester figés à la taille d'un mobile.
+   Le clamp borne des deux côtés — jamais sous 16 px sur un petit écran,
+   jamais au-delà de 24 px sur un très grand. */
+html { font-size: clamp(16px, 0.5vw + 13.2px, 24px); }
+body {
+  font-family: 'Nunito Sans', system-ui, sans-serif;
+  color: var(--foret);
+  background: var(--brume);
+  min-height: 100dvh;
+  display: flex; flex-direction: column;
+  transition: background .4s;
+}
+h1, h2, h3 { font-family: 'Fredoka', sans-serif; }
+
+/* ↩︎ Retour vers le quiz. Le Juste Prix est une page a part : sans ce lien,
+   on y entre et on ne sait plus comment revenir a son espace jardin. */
+.retour {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: none; border: 0; font: inherit; font-size: .88rem; font-weight: 800;
+  color: var(--doux); cursor: pointer; padding: 6px 2px;
+}
+.retour:hover { color: var(--accent); }
+.wrap { flex: 1; width: 100%; max-width: min(42rem, 94vw); margin: 0 auto; padding: 0.9rem 1rem 2rem; }
+
+/* Choix de langue, discret mais toujours atteignable. */
+.langues { display: flex; justify-content: flex-end; gap: 6px; margin-bottom: 6px; }
+.langues button {
+  font: inherit; font-size: .8rem; font-weight: 900; cursor: pointer;
+  border: 2px solid var(--trait); background: transparent; color: var(--doux);
+  border-radius: 999px; padding: 3px 11px;
+}
+.langues button.on { background: var(--accent); border-color: var(--accent); color: var(--puceTexte); }
+
+/* ---------- Accueil ---------- */
+.accueil { text-align: center; padding-top: 8px; }
+.accueil h1 { font-size: clamp(2rem, 9vw, 2.9rem); margin: 8px 0 6px; color: var(--accent); }
+.accueil .but {
+  font-size: 1.12rem; line-height: 1.5; background: var(--craie);
+  border-radius: 18px; padding: 20px 18px; margin: 6px 0 18px;
+  box-shadow: 0 6px 22px rgba(14,59,36,.10);
+}
+.plus {
+  background: none; border: 0; color: var(--accent); font: inherit;
+  font-weight: 900; font-size: .92rem; cursor: pointer;
+  text-decoration: underline; text-underline-offset: 3px; padding: 6px;
+}
+
+.btn {
+  font-family: 'Fredoka', sans-serif; font-size: 1.15rem; font-weight: 600;
+  background: var(--accent); color: var(--puceTexte); border: 0; border-radius: 999px;
+  padding: 14px 34px; cursor: pointer;
+  box-shadow: 0 5px 0 var(--ombre); transition: transform .08s, box-shadow .08s;
+}
+.btn:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--ombre); }
+.btn:disabled { opacity: .45; cursor: default; transform: none; }
+.btn.secondaire { background: var(--craie); color: var(--foret); box-shadow: 0 5px 0 var(--trait); }
+.btn.secondaire:active { box-shadow: 0 2px 0 var(--trait); }
+
+/* ---------- Fenêtre « en savoir plus » ---------- */
+.fond {
+  position: fixed; inset: 0; background: rgba(10,30,20,.55);
+  display: flex; align-items: center; justify-content: center; padding: 18px; z-index: 50;
+}
+.modale {
+  background: var(--craie); border-radius: 22px; padding: 22px; max-width: 29rem;
+  width: 100%; max-height: 86dvh; overflow-y: auto; text-align: left;
+  box-shadow: 0 20px 50px rgba(0,0,0,.3);
+}
+.modale h2 { margin: 0 0 12px; font-size: 1.5rem; color: var(--accent); }
+.modale h3 { margin: 18px 0 6px; font-size: 1.05rem; }
+.modale p { margin: 6px 0; font-size: .95rem; line-height: 1.55; }
+.exemple { background: var(--brume); border-radius: 12px; padding: 12px 14px; margin: 8px 0; font-size: .9rem; }
+.exemple table { width: 100%; border-collapse: collapse; }
+.exemple td { padding: 3px 0; }
+.exemple td:last-child { text-align: right; font-weight: 900; color: var(--accent); white-space: nowrap; }
+
+/* ---------- Barre du haut ---------- */
+.hud { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; min-height: 34px; }
+.hud .manche { font-family: 'Fredoka', sans-serif; font-weight: 600; font-size: 1.02rem; }
+.hud .pts {
+  margin-left: auto; background: var(--puce); color: var(--puceTexte); border-radius: 999px;
+  padding: 6px 14px; font-weight: 900; font-size: .96rem;
+}
+.hud .serie {
+  background: #FFF3C9; color: #8a6d1a; border: 2px solid var(--soleil);
+  border-radius: 999px; padding: 4px 10px; font-weight: 900; font-size: .85rem;
+}
+.hud .etiq {
+  background: var(--accent); color: var(--puceTexte); border-radius: 999px;
+  padding: 4px 11px; font-weight: 900; font-size: .76rem;
+  letter-spacing: .06em; text-transform: uppercase;
+}
+.jauge { height: 9px; background: var(--jauge); border-radius: 999px; overflow: hidden; margin-bottom: 14px; }
+.jauge > i { display: block; height: 100%; background: var(--accent); border-radius: 999px; transition: width .25s linear; }
+.jauge.presse > i { background: var(--corail); }
+
+/* ---------- Carte produit ---------- */
+.carte {
+  background: var(--craie); border-radius: 22px; padding: 18px;
+  box-shadow: 0 8px 26px rgba(14,59,36,.12); text-align: center;
+}
+/* Les pointillés doivent RESTER visibles sur le fond sombre : --trait y tombe
+   à 1,6:1, autant ne rien dessiner. On prend un vert plus clair (3,6:1). */
+body.demo .carte { border: 3px dashed #4E9E72; }
+.photo { width: 100%; height: min(46vh, 20rem); object-fit: contain; background: #fff; border-radius: 14px; display: block; }
+.nom { font-size: 1.05rem; font-weight: 700; margin: 14px 0 2px; line-height: 1.35; }
+
+.saisie { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 16px 0 6px; }
+.saisie input {
+  font-family: 'Fredoka', sans-serif; font-size: 2.1rem; font-weight: 700;
+  width: 100%; max-width: 13rem; text-align: right;
+  border: 3px solid var(--trait); border-radius: 14px; padding: 8px 12px;
+  color: var(--foret); background: var(--craie); outline: none;
+}
+.saisie input:focus { border-color: var(--accent); }
+.saisie .eur { font-family: 'Fredoka', sans-serif; font-size: 2rem; font-weight: 700; }
+.aide { font-size: .84rem; color: var(--doux); min-height: 1.2em; }
+
+/* ---------- Verdict, volontairement dépouillé ---------- */
+.verdict .titre { font-family: 'Fredoka', sans-serif; font-size: 1.75rem; margin: 8px 0 2px; }
+.verdict .libelle { font-size: .88rem; color: var(--doux); }
+.verdict .prixreel { font-family: 'Fredoka', sans-serif; font-size: 2.7rem; color: var(--accent); margin: 2px 0 6px; }
+.verdict .tien { font-size: 1rem; margin-bottom: 14px; }
+.verdict .grosgain {
+  font-family: 'Fredoka', sans-serif; font-size: 2rem; font-weight: 700;
+  background: var(--brume); border-radius: 16px; padding: 10px 18px; display: inline-block;
+}
+.verdict .grosgain.zero { color: var(--doux); }
+/* Le nombre de ventes : présent mais discret, il ne doit pas voler la vedette
+   au gain de la manche. */
+.vendu {
+  display: inline-block; background: var(--brume); color: var(--foret);
+  border-radius: 999px; padding: 6px 15px; margin-bottom: 14px;
+  font-size: .92rem; font-weight: 700;
+}
+.chips { margin-top: 8px; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; font-size: .84rem; font-weight: 900; }
+.chip { background: #FFF3C9; color: #8a6d1a; border-radius: 999px; padding: 3px 11px; }
+
+/* ---------- Bascule entraînement / partie ---------- */
+.annonce { text-align: center; padding: 28px 6px; }
+.annonce .gros { font-size: 3.6rem; line-height: 1.1; }
+.annonce h2 { font-size: 1.7rem; margin: 10px 0 8px; color: var(--accent); }
+.annonce p { font-size: 1.04rem; line-height: 1.55; margin: 8px 0 20px; }
+
+/* ---------- Fin ---------- */
+.fin { text-align: center; }
+/* Ce que devient le score : la question que tout le monde se pose en
+   finissant. Elle mérite donc d'être lisible, pas une note de bas de page. */
+.verse {
+  display: block; margin: 12px auto 10px; max-width: 30rem;
+  border-radius: 14px; padding: 11px 15px;
+  font-size: .95rem; line-height: 1.5; font-weight: 700;
+}
+.verse-attente     { background: var(--brume); color: var(--doux); }
+.verse-classement  { background: #FFF3C9; color: #7a5c12; border: 2px solid var(--soleil); }
+.verse-jardin      { background: #E7F6EC; color: #17603A; border: 2px solid #9AD3B0; }
+.verse-rate        { background: #FDECEA; color: #98342A; border: 2px solid #F3B7AF; }
+.fin .score { font-family: 'Fredoka', sans-serif; font-size: 3.4rem; color: var(--accent); line-height: 1; }
+.recap { margin: 18px 0; text-align: left; }
+.recap .ligne {
+  display: flex; align-items: center; gap: 10px; background: var(--craie);
+  border-radius: 12px; padding: 8px 12px; margin-bottom: 6px; font-size: .89rem;
+}
+.recap .ligne img { width: 2.4rem; height: 2.4rem; object-fit: contain; border-radius: 8px; flex: none; }
+.recap .ligne .t { flex: 1; min-width: 0; }
+.recap .ligne .t b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.recap .ligne .p { font-weight: 900; white-space: nowrap; }
+.gagne { color: var(--accent); }
+.rien { color: var(--doux); }
+.lien { color: var(--accent); font-size: .82rem; }
+
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+
+<div class="wrap" id="app"></div>
+<div id="modale"></div>
+
+<script>
+// ============================================================
+//  LANGUE
+// ============================================================
+let LANG = (localStorage.getItem("jp_lang") === "nl") ? "nl" : "fr";
+const t = (fr, nl) => (LANG === "nl" ? nl : fr);
+function setLang(l) {
+  LANG = l;
+  localStorage.setItem("jp_lang", l);
+  document.documentElement.lang = l;
+  rendre();
+}
+
+// ============================================================
+//  DONNÉES — les MEILLEURES VENTES Famiflora, quatre rayons confondus :
+//  déco, animalerie, famigarden et food. Le prix est le prix de vente réel
+//  (colonne PV de l'export), et les articles sont classés par quantité vendue.
+//
+//  Chaque article a été retrouvé PAR SON CODE EAN, chez Hermie (société sœur,
+//  son propre catalogue) ou dans Open Food Facts (photos sous licence libre).
+//  Ceux dont l'EAN n'est indexé nulle part n'ont pas de photo fiable : ils ont
+//  été écartés plutôt que d'être illustrés au hasard.
+//
+//  Images redimensionnées et hébergées ici : la borne ne dépend d'aucun site
+//  extérieur pour afficher une manche.
+// ============================================================
+const DATE_RELEVE = "08/08/2026";
+let ARTICLES = [];
+
+// ============================================================
+//  BARÈME
+//
+//  10 points si le prix est trouvé PILE, puis ça descend de façon continue
+//  jusqu'à 0 quand on s'éloigne. Pas de paliers : deux joueurs qui se
+//  trompent de 3 € et de 4 € ne doivent pas marquer pareil.
+//
+//  ⚠️ L'écart se mesure en POURCENTAGE en coulisses, jamais en euros : se
+//  tromper de 5 € sur un sécateur à 12 € n'a rien à voir avec se tromper de
+//  5 € sur un parasol à 300 €. Mais on l'AFFICHE en euros, parce que « tu
+//  étais à 3,20 € près » parle immédiatement, là où « 18 % » ne dit rien.
+//
+//  Plafond : 10 + 5 + 5 = 20 par manche, 200 sur la partie — exactement le
+//  même que le quiz, pour que les deux épreuves pèsent pareil.
+// ============================================================
+const BAREME = {
+  ptsMax: 10,
+  tolerance: 0.60,   // au-delà de 60 % d'écart, plus aucun point
+  vitesseMax: 5,
+  vitesseT: 20,      // au-delà de 20 s, plus de bonus rapidité
+  serieMax: 5,
+  serieSeuil: 0.20,  // une estimation « réussie », qui entretient la série
+  secondes: 30,
+  manches: 10,
+  demo: 3,
+};
+
+const ecartDe = (propose, reel) => Math.abs(propose - reel) / reel;
+
+// Base : décroissance linéaire de 10 (pile) à 0 (au-delà de la tolérance).
+function pointsPrecision(ecart) {
+  const p = BAREME.ptsMax * (1 - ecart / BAREME.tolerance);
+  return Math.max(0, Math.round(p * 10) / 10);
+}
+
+function titreDe(ecart) {
+  if (ecart <= 0.02) return { titre: t("Pile poil !", "Precies goed!"), emoji: "🎯" };
+  if (ecart <= 0.05) return { titre: t("Excellent !", "Uitstekend!"), emoji: "🌟" };
+  if (ecart <= 0.10) return { titre: t("Très bien", "Heel goed"), emoji: "👏" };
+  if (ecart <= 0.20) return { titre: t("Pas mal", "Niet slecht"), emoji: "🙂" };
+  if (ecart <= 0.35) return { titre: t("Un peu loin", "Een beetje ver"), emoji: "😅" };
+  if (ecart <= BAREME.tolerance) return { titre: t("Loin", "Ver"), emoji: "😬" };
+  return { titre: t("Raté", "Mis"), emoji: "🌧️" };
+}
+
+// La rapidité et la série ne récompensent QUE ce qui rapporte déjà : taper
+// n'importe quoi en une seconde ne doit rien donner.
+function gainManche(ecart, tSec, serie) {
+  const base = pointsPrecision(ecart);
+  if (base === 0) return { base: 0, vitesse: 0, serie: 0, total: 0 };
+  const vitesse = Math.round(BAREME.vitesseMax * Math.max(0, 1 - tSec / BAREME.vitesseT) * 10) / 10;
+  const bonusSerie = serie >= 2 ? Math.min(serie - 1, BAREME.serieMax) : 0;
+  return { base, vitesse, serie: bonusSerie, total: Math.round((base + vitesse + bonusSerie) * 10) / 10 };
+}
+
+const aff = (n) => Math.round(Number(n) || 0);
+const euro = (n) => Number(n).toFixed(2).replace(".", ",") + " €";
+
+// 🛒 COMBIEN L'ARTICLE S'EST VENDU.
+//
+// Affiché APRÈS la réponse, jamais avant : un gros chiffre de ventes trahit
+// souvent un petit prix, ça donnerait la réponse. En revanche, une fois le
+// prix révélé, c'est l'information qui rend la manche intéressante — on
+// apprend ce qui part vraiment en magasin.
+// Chiffres de Mouscron, juillet 2026.
+const PERIODE_VENTES = { fr: "en juillet 2026", nl: "in juli 2026" };
+const nbFr = (n) => Number(n).toLocaleString(LANG === "nl" ? "nl-BE" : "fr-BE");
+
+function venduHtml(a) {
+  const v = Number(a.ventes);
+  if (!isFinite(v) || v <= 0) return "";   // pas de chiffre : on n'invente rien
+  return `<div class="vendu">🛒 ${t(
+    `Vendu <b>${nbFr(v)} fois</b> ${PERIODE_VENTES.fr}`,
+    `<b>${nbFr(v)} keer</b> verkocht ${PERIODE_VENTES.nl}`)}</div>`;
+}
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const nomDe = (a) => (LANG === "nl" ? a.nl : a.fr);
+
+// ============================================================
+//  QUI JOUE — et où part le score
+//
+//  Le jeton arrive par « ?jeton=… », comme partout ailleurs dans le quiz.
+//  C'est indispensable sur la BORNE : là-bas le jeton n'est jamais écrit dans
+//  le navigateur (appareil partagé), il ne vit qu'en mémoire. Sans le passer
+//  dans l'URL, la borne arriverait ici sans savoir qui joue.
+//  On l'efface aussitôt de la barre d'adresse et on le garde en mémoire vive.
+// ============================================================
+// 🏬 Le magasin. Les scores sont cloisonnés par site côté serveur
+// (scores-<site>.json) : jouer sans le préciser créditerait le mauvais magasin.
+// Il arrive par « ?site=… », comme le jeton.
+let SITE = "mouscron";
+
+const JETON = (() => {
+  let j = "";
+  try {
+    const u = new URL(location.href);
+    j = u.searchParams.get("jeton") || "";
+    const s = (u.searchParams.get("site") || "").toLowerCase();
+    if (s === "mouscron" || s === "lapanne") { SITE = s; }
+    if (j || u.searchParams.get("site")) {
+      const propre = new URL(location.href);
+      propre.searchParams.delete("jeton");
+      propre.searchParams.delete("site");
+      history.replaceState(null, "", propre.pathname + (propre.search || "") + propre.hash);
+    }
+    // Téléphone perso : le quiz garde le jeton, on peut le relire directement.
+    if (!j) { j = localStorage.getItem("fj_jeton") || ""; }
+  } catch (e) { /* navigateur ancien : on jouera sans enregistrer */ }
+  return j;
+})();
+
+// Retour vers le quiz : on REND le jeton. Sans ça, la borne repartirait
+// déconnectée — son jeton n'existe que dans l'URL et en mémoire.
+// Le magasin est déjà dans le chemin (/quiz/mouscron), inutile de le répéter.
+function urlRetour() {
+  return "../" + SITE + (JETON ? "?jeton=" + encodeURIComponent(JETON) : "");
+}
+
+// Envoie le score. Ne bloque JAMAIS l'affichage : si l'envoi échoue, la partie
+// reste jouée et lisible, on le dit simplement à l'écran.
+async function envoyerScore(points) {
+  if (!JETON) return { ok: false, reason: "anonyme" };
+  try {
+    const r = await fetch("../api.php?site=" + encodeURIComponent(SITE) + "&ecran=user&action=justeprix", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ jeton: JETON, points }),
+    });
+    return await r.json();
+  } catch (e) { return { ok: false, reason: "reseau" }; }
+}
+
+// ============================================================
+//  ÉTAT
+// ============================================================
+let etat = null;
+let minuteur = null;
+
+// 🎲 Tirage au sort À CHAQUE PARTIE, pour que deux personnes côte à côte
+// n'aient pas les mêmes articles — sinon il suffit d'écouter son voisin.
+// Mélange complet des 100, puis on prend les 3 de l'entraînement et les 10 de
+// la partie dans le même paquet : jamais deux fois le même article.
+function melange(tab) {
+  const c = tab.slice();
+  for (let i = c.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [c[i], c[j]] = [c[j], c[i]];
+  }
+  return c;
+}
+
+function tirage() {
+  const paquet = melange(ARTICLES);
+  const demo = paquet.slice(0, BAREME.demo);
+  const reste = paquet.slice(BAREME.demo);
+
+  // On étale les prix : sans ça une partie peut tomber sur dix articles à 3 €
+  // et n'apprendre strictement rien.
+  const parBande = new Map();
+  const partie = [];
+  for (const a of reste) {
+    const b = Math.floor(Math.log10(Math.max(1, a.prix)) * 2);
+    if (!parBande.has(b) && partie.length < BAREME.manches) { parBande.set(b, true); partie.push(a); }
+  }
+  for (const a of reste) {
+    if (partie.length >= BAREME.manches) break;
+    if (!partie.includes(a)) partie.push(a);
+  }
+  return { demo, partie: melange(partie.slice(0, BAREME.manches)) };
+}
+
+function nouvellePartie() {
+  const tir = tirage();
+  etat = {
+    demo: tir.demo, partie: tir.partie,
+    mode: "demo", idx: 0, score: 0, serie: 0, histo: [],
+    phase: "annonceDemo", debut: 0, reste: BAREME.secondes,
+  };
+  rendre();
+}
+
+const articleCourant = () => (etat.mode === "demo" ? etat.demo : etat.partie)[etat.idx];
+const nbManches = () => (etat.mode === "demo" ? BAREME.demo : BAREME.manches);
+
+// ============================================================
+//  RENDU
+// ============================================================
+function rendre() {
+  document.body.classList.toggle("demo", !!etat && etat.mode === "demo" && etat.phase !== "fin");
+  if (!etat) return vueAccueil();
+  if (etat.phase === "annonceDemo") return vueAnnonceDemo();
+  if (etat.phase === "annonceReel") return vueAnnonceReel();
+  if (etat.phase === "manche") return vueManche();
+  if (etat.phase === "verdict") return vueVerdict();
+  if (etat.phase === "fin") return vueFin();
+}
+
+function languesHtml() {
+  return `<div class="langues">
+    <button data-l="fr" class="${LANG === "fr" ? "on" : ""}">FR</button>
+    <button data-l="nl" class="${LANG === "nl" ? "on" : ""}">NL</button>
+  </div>`;
+}
+function brancheLangues() {
+  document.querySelectorAll(".langues button").forEach(b =>
+    b.addEventListener("click", () => setLang(b.dataset.l)));
+}
+
+// ---------- Accueil : le but du jeu, et rien d'autre ----------
+function vueAccueil() {
+  arreteMinuteur();
+  $("#app").innerHTML = `
+    ${languesHtml()}
+    <div class="accueil">
+      <div style="font-size:3.4rem;line-height:1">🏷️</div>
+      <h1>${t("Le Juste Prix", "De Juiste Prijs")}</h1>
+
+      <div class="but">
+        ${t(`On te montre un article du magasin.<br><b>À toi de deviner son prix.</b>`,
+             `We tonen je een artikel uit de winkel.<br><b>Raad jij de prijs?</b>`)}
+        <div style="margin-top:12px;font-size:.98rem;color:var(--doux);">
+          ${t(`Plus tu es près du vrai prix, plus tu marques de points.<br>${BAREME.manches} articles, ${BAREME.secondes} secondes chacun.`,
+               `Hoe dichter bij de echte prijs, hoe meer punten.<br>${BAREME.manches} artikelen, telkens ${BAREME.secondes} seconden.`)}
+        </div>
+      </div>
+
+      <button class="plus" id="enSavoirPlus">${t("En savoir plus sur les points", "Meer over de punten")}</button>
+      <div style="margin:16px 0 0"><button class="btn" id="go">${t("C'est parti !", "We gaan ervoor!")}</button></div>
+
+      <div style="margin-top:14px;"><button class="retour" id="jp-retour">${t("◂ Retour à mon espace jardin", "◂ Terug naar mijn tuin")}</button></div>
+      <div style="margin-top:10px;font-size:.76rem;color:var(--doux);">
+        ${t("Meilleures ventes Famiflora — prix de vente au", "Best verkochte artikelen Famiflora — verkoopprijs op")} ${DATE_RELEVE}.
+      </div>
+    </div>`;
+  brancheLangues();
+  $("#go").addEventListener("click", nouvellePartie);
+  $("#enSavoirPlus").addEventListener("click", ouvrirModale);
+  brancheRetour();
+}
+
+// ↩︎ Retour vers le quiz. On remonte d'un cran (/quiz/justeprix/ → /quiz/),
+// et non vers une adresse écrite en dur : la page doit continuer à marcher
+// si elle est un jour servie sous /quiz/mouscron/justeprix/.
+function brancheRetour() {
+  const b = $("#jp-retour");
+  if (b) b.addEventListener("click", () => { location.href = urlRetour(); });
+}
+
+// ---------- La fenêtre des détails, pour qui veut savoir ----------
+function ouvrirModale() {
+  const ex = [
+    { dit: 20, pts: pointsPrecision(0) },
+    { dit: 22, pts: pointsPrecision(ecartDe(22, 20)) },
+    { dit: 26, pts: pointsPrecision(ecartDe(26, 20)) },
+    { dit: 32, pts: pointsPrecision(ecartDe(32, 20)) },
+  ];
+  $("#modale").innerHTML = `
+    <div class="fond" id="fond">
+      <div class="modale" role="dialog" aria-modal="true">
+        <h2>${t("Comment on compte les points", "Hoe de punten geteld worden")}</h2>
+
+        <h3>🎯 ${t("La précision", "Nauwkeurigheid")}</h3>
+        <p>${t(`Tu marques <b>${BAREME.ptsMax} points</b> si tu tombes pile sur le prix. Plus tu t'éloignes, moins tu marques — et à partir d'un gros écart, plus rien du tout.`,
+                `Je krijgt <b>${BAREME.ptsMax} punten</b> als je de prijs precies raadt. Hoe verder ernaast, hoe minder punten — en bij een grote afwijking niets meer.`)}</p>
+        <div class="exemple">
+          <div style="font-weight:900;margin-bottom:6px;">${t("Exemple sur un article à 20 €", "Voorbeeld bij een artikel van 20 €")}</div>
+          <table>
+            ${ex.map(e => `<tr><td>${t("tu dis", "je zegt")} ${euro(e.dit)}</td><td>${e.pts} ${t("pts", "ptn")}</td></tr>`).join("")}
+          </table>
+        </div>
+        <p style="font-size:.86rem;color:var(--doux);">${t(
+          "L'écart est calculé en proportion du prix : se tromper de 5 € sur un sécateur à 12 € n'est pas la même erreur que se tromper de 5 € sur un parasol à 300 €.",
+          "De afwijking telt in verhouding tot de prijs: 5 € ernaast zitten bij een snoeischaar van 12 € is niet hetzelfde als 5 € ernaast bij een parasol van 300 €.")}</p>
+
+        <h3>⚡ ${t("La rapidité", "Snelheid")}</h3>
+        <p>${t(`Jusqu'à <b>+${BAREME.vitesseMax} points</b> si tu réponds vite. Le bonus fond au fil des secondes et disparaît après ${BAREME.vitesseT} s.`,
+                `Tot <b>+${BAREME.vitesseMax} punten</b> als je snel antwoordt. De bonus smelt weg en verdwijnt na ${BAREME.vitesseT} s.`)}</p>
+
+        <h3>🔥 ${t("La série", "De reeks")}</h3>
+        <p>${t(`Deux bonnes estimations d'affilée et la série démarre : jusqu'à <b>+${BAREME.serieMax} points</b>. Une estimation compte comme bonne quand tu es vraiment proche — moins de 2 € d'écart sur un article à 10 €, par exemple. La moindre erreur remet la série à zéro.`,
+                `Twee goede schattingen na elkaar en de reeks begint: tot <b>+${BAREME.serieMax} punten</b>. Een schatting telt als goed wanneer je er echt dicht bij zit — minder dan 2 € afwijking bij een artikel van 10 €, bijvoorbeeld. Eén misser zet de reeks terug op nul.`)}</p>
+
+        <div class="exemple" style="margin-top:14px;">
+          ${t(`Au total : <b>${BAREME.ptsMax + BAREME.vitesseMax + BAREME.serieMax} points</b> au maximum par article,
+               soit <b>${(BAREME.ptsMax + BAREME.vitesseMax + BAREME.serieMax) * BAREME.manches}</b> sur la partie.`,
+               `In totaal: maximaal <b>${BAREME.ptsMax + BAREME.vitesseMax + BAREME.serieMax} punten</b> per artikel,
+               dus <b>${(BAREME.ptsMax + BAREME.vitesseMax + BAREME.serieMax) * BAREME.manches}</b> voor het hele spel.`)}
+        </div>
+
+        <div style="text-align:center;margin-top:18px;">
+          <button class="btn" id="fermer">${t("J'ai compris", "Begrepen")}</button>
+        </div>
+      </div>
+    </div>`;
+  const fermer = () => { $("#modale").innerHTML = ""; };
+  $("#fermer").addEventListener("click", fermer);
+  $("#fond").addEventListener("click", (e) => { if (e.target.id === "fond") fermer(); });
+}
+
+// ---------- On prévient AVANT l'entraînement ----------
+function vueAnnonceDemo() {
+  arreteMinuteur();
+  $("#app").innerHTML = `
+    <div class="annonce">
+      <div class="gros">🎓</div>
+      <h2>${t("On s'échauffe", "Even opwarmen")}</h2>
+      <p>${t(`<b>${BAREME.demo} articles pour comprendre</b>, sans aucun enjeu.<br>
+              Ces points ne comptent pas : c'est juste un exemple.`,
+              `<b>${BAREME.demo} artikelen om het te snappen</b>, zonder inzet.<br>
+              Deze punten tellen niet mee: het is maar een voorbeeld.`)}</p>
+      <p style="font-size:.9rem;color:var(--doux);">${t(
+        "Tu reconnaîtras l'entraînement à son fond sombre.",
+        "Je herkent de oefening aan de donkere achtergrond.")}</p>
+      <button class="btn" id="allez">${t("Commencer l'échauffement", "Start de opwarming")}</button>
+    </div>`;
+  $("#allez").addEventListener("click", () => { etat.phase = "manche"; rendre(); });
+}
+
+// ---------- ...et AVANT la vraie partie ----------
+function vueAnnonceReel() {
+  arreteMinuteur();
+  $("#app").innerHTML = `
+    <div class="annonce">
+      <div class="gros">🏁</div>
+      <h2>${t("Fini l'échauffement !", "Opwarming voorbij!")}</h2>
+      <p>${t(`Maintenant, <b>ça compte</b>.<br>${BAREME.manches} articles, et chaque point est pour toi.`,
+              `Nu <b>telt het echt</b>.<br>${BAREME.manches} artikelen, en elk punt is voor jou.`)}</p>
+      <p style="font-size:.9rem;color:var(--doux);">${t(
+        "La lumière revient : tu es dans la vraie partie.",
+        "Het licht gaat weer aan: je zit in het echte spel.")}</p>
+      <button class="btn" id="allez">${t("Je suis prêt !", "Ik ben klaar!")}</button>
+    </div>`;
+  $("#allez").addEventListener("click", () => { etat.phase = "manche"; rendre(); });
+}
+
+// ---------- Une manche ----------
+function vueManche() {
+  const a = articleCourant();
+  etat.debut = Date.now();
+  etat.reste = BAREME.secondes;
+  $("#app").innerHTML = `
+    ${hudHtml()}
+    <div class="jauge" id="jauge"><i style="width:100%"></i></div>
+    <div class="carte">
+      <img class="photo" src="img/${esc(a.img)}" alt="" loading="eager">
+      <div class="nom">${esc(nomDe(a))}</div>
+      <div class="saisie">
+        <input id="prix" type="text" inputmode="decimal" autocomplete="off" placeholder="0,00"
+               aria-label="${t("Ton prix en euros", "Jouw prijs in euro")}">
+        <span class="eur">€</span>
+      </div>
+      <div class="aide">${t("Tape ton prix puis valide", "Typ je prijs en bevestig")}</div>
+      <button class="btn" id="valider" style="margin-top:10px" disabled>${t("Valider", "Bevestigen")}</button>
+    </div>`;
+
+  const champ = $("#prix"), bouton = $("#valider");
+  champ.focus();
+  champ.addEventListener("input", () => {
+    // On accepte la virgule ET le point : personne ne doit se demander lequel taper.
+    let v = champ.value.replace(/[^\d.,]/g, "").replace(/\./g, ",");
+    const i = v.indexOf(",");
+    if (i >= 0) v = v.slice(0, i + 1) + v.slice(i + 1).replace(/,/g, "");
+    champ.value = v;
+    bouton.disabled = !lirePrix(v);
+  });
+  champ.addEventListener("keydown", (e) => { if (e.key === "Enter" && !bouton.disabled) valider(); });
+  bouton.addEventListener("click", () => valider());
+  lanceMinuteur();
+}
+
+function lirePrix(v) {
+  const n = parseFloat(String(v).replace(",", "."));
+  return isFinite(n) && n > 0 ? n : null;
+}
+
+function hudHtml() {
+  const demo = etat.mode === "demo";
+  return `<div class="hud">
+    ${demo ? `<span class="etiq">${t("Entraînement", "Oefening")}</span>` : ""}
+    <span class="manche">${demo ? "" : t("Article", "Artikel") + " "}${etat.idx + 1}<span style="opacity:.5"> / ${nbManches()}</span></span>
+    ${!demo && etat.serie >= 2 ? `<span class="serie">🔥 ${etat.serie}</span>` : ""}
+    ${demo ? "" : `<span class="pts">${aff(etat.score)} ${t("pts", "ptn")}</span>`}
+  </div>`;
+}
+
+function lanceMinuteur() {
+  arreteMinuteur();
+  minuteur = setInterval(() => {
+    const ecoule = (Date.now() - etat.debut) / 1000;
+    etat.reste = Math.max(0, BAREME.secondes - ecoule);
+    const j = $("#jauge");
+    if (j) {
+      j.firstElementChild.style.width = (etat.reste / BAREME.secondes * 100) + "%";
+      j.classList.toggle("presse", etat.reste <= 8);
+    }
+    if (etat.reste <= 0) valider(true);
+  }, 200);
+}
+function arreteMinuteur() { if (minuteur) { clearInterval(minuteur); minuteur = null; } }
+
+function valider(tempsEcoule) {
+  arreteMinuteur();
+  const a = articleCourant();
+  const champ = $("#prix");
+  const propose = champ ? lirePrix(champ.value) : null;
+  const tSec = Math.min(BAREME.secondes, (Date.now() - etat.debut) / 1000);
+
+  let ecart, gain, titre;
+  if (!propose) {
+    ecart = 1;
+    if (etat.mode !== "demo") etat.serie = 0;
+    gain = { base: 0, vitesse: 0, serie: 0, total: 0 };
+    titre = { titre: tempsEcoule === true ? t("Temps écoulé", "Tijd om") : t("Raté", "Mis"), emoji: "⏳" };
+  } else {
+    ecart = ecartDe(propose, a.prix);
+    // ⚠️ La série se calcule AVANT le gain : une estimation qui rapporte des
+    // points sans être vraiment bonne casse la série, et ne doit donc pas
+    // toucher le bonus de la série qu'elle vient de casser.
+    if (etat.mode !== "demo") etat.serie = (ecart <= BAREME.serieSeuil) ? etat.serie + 1 : 0;
+    gain = gainManche(ecart, tSec, etat.mode === "demo" ? 1 : etat.serie);
+    titre = titreDe(ecart);
+  }
+
+  if (etat.mode !== "demo") {
+    etat.score = Math.round((etat.score + gain.total) * 10) / 10;
+    etat.histo.push({ a, propose, ecart, gain, tSec });
+  }
+  etat.dernier = { a, propose, ecart, gain, titre, tSec };
+  etat.phase = "verdict";
+  rendre();
+}
+
+// ---------- Verdict : l'essentiel, pas le détail ----------
+function vueVerdict() {
+  const d = etat.dernier;
+  const a = d.a;
+  const demo = etat.mode === "demo";
+  const dernier = etat.idx >= nbManches() - 1;
+  // 💶 L'écart s'affiche en EUROS : « à 3,20 € près » parle tout de suite,
+  // « 18 % » ne dit rien à personne.
+  const diff = d.propose ? Math.abs(d.propose - a.prix) : null;
+
+  $("#app").innerHTML = `
+    ${hudHtml()}
+    <div class="carte verdict">
+      <img class="photo" style="height:min(26vh,11rem)" src="img/${esc(a.img)}" alt="">
+      <div class="titre">${d.titre.emoji} ${esc(d.titre.titre)}</div>
+      <div class="libelle">${t("Le vrai prix", "De echte prijs")}</div>
+      <div class="prixreel">${euro(a.prix)}</div>
+      <div class="tien">
+        ${d.propose
+          ? t(`Tu as dit <b>${euro(d.propose)}</b> — à <b>${euro(diff)}</b> près`,
+              `Jij zei <b>${euro(d.propose)}</b> — <b>${euro(diff)}</b> ernaast`)
+          : `<span class="rien">${t("Pas de réponse", "Geen antwoord")}</span>`}
+      </div>
+
+      ${venduHtml(a)}
+
+      ${demo
+        ? `<div class="grosgain zero" style="font-size:1.15rem;">${t("L'échauffement ne compte pas", "De opwarming telt niet mee")}</div>`
+        : `<div class="grosgain ${d.gain.total ? "gagne" : "zero"}">+${d.gain.total} ${t("pts", "ptn")}</div>
+           <div class="chips">
+             ${d.gain.vitesse ? `<span class="chip">⚡ +${d.gain.vitesse}</span>` : ""}
+             ${d.gain.serie ? `<span class="chip">🔥 +${d.gain.serie}</span>` : ""}
+           </div>`}
+
+      <div style="margin-top:16px">
+        <button class="btn" id="suite">${
+          dernier
+            ? (demo ? t("Passer à la vraie partie", "Naar het echte spel")
+                    : t("Voir mon score", "Bekijk mijn score"))
+            : t("Article suivant", "Volgend artikel")}</button>
+      </div>
+      <div style="margin-top:10px"><a class="lien" href="${esc(a.url)}" target="_blank" rel="noopener">${t("Voir la fiche du produit ↗", "Bekijk de productfiche ↗")}</a></div>
+    </div>`;
+
+  $("#suite").addEventListener("click", () => {
+    if (!dernier) { etat.idx++; etat.phase = "manche"; }
+    else if (demo) { etat.mode = "reel"; etat.idx = 0; etat.serie = 0; etat.phase = "annonceReel"; }
+    else { etat.phase = "fin"; }
+    rendre();
+  });
+}
+
+// ---------- Fin ----------
+function vueFin() {
+  arreteMinuteur();
+  const max = (BAREME.ptsMax + BAREME.vitesseMax + BAREME.serieMax) * BAREME.manches;
+  const bonnes = etat.histo.filter(h => h.ecart <= BAREME.serieSeuil).length;
+  const pile = etat.histo.filter(h => h.ecart <= 0.02).length;
+
+  let mot = t("Il y a de la marge !", "Er is nog werk!");
+  if (etat.score >= max * 0.7) mot = t("Impressionnant — tu connais la maison 🏆", "Indrukwekkend — jij kent de winkel 🏆");
+  else if (etat.score >= max * 0.45) mot = t("Très bon flair 👏", "Goede neus 👏");
+  else if (etat.score >= max * 0.25) mot = t("Pas mal du tout 🙂", "Helemaal niet slecht 🙂");
+
+  $("#app").innerHTML = `
+    ${languesHtml()}
+    <div class="fin">
+      <div style="font-size:2.6rem">🏁</div>
+      <div class="score">${aff(etat.score)}</div>
+      <div style="font-size:.95rem;color:var(--doux);margin-bottom:6px;">${t("points sur", "punten op")} ${max}</div>
+      <div style="font-size:1.1rem;font-weight:700;margin-bottom:4px;">${mot}</div>
+      <div id="jp-verse" class="verse verse-attente">⏳ ${t("Enregistrement…", "Opslaan…")}</div>
+      <div style="font-size:.92rem;color:var(--doux);">
+        ${t(`${bonnes} bonne${bonnes > 1 ? "s" : ""} estimation${bonnes > 1 ? "s" : ""} sur ${BAREME.manches}`,
+             `${bonnes} goede schatting${bonnes > 1 ? "en" : ""} op ${BAREME.manches}`)}${pile ? ` · ${pile} ${t("pile poil", "precies goed")} 🎯` : ""}
+      </div>
+
+      <div class="recap">
+        ${etat.histo.map(h => `
+          <div class="ligne">
+            <img src="img/${esc(h.a.img)}" alt="">
+            <div class="t">
+              <b>${esc(nomDe(h.a))}</b>
+              <span style="color:var(--doux);font-size:.84rem;">
+                ${h.propose
+                  ? t(`toi ${euro(h.propose)} · vrai ${euro(h.a.prix)}`, `jij ${euro(h.propose)} · echt ${euro(h.a.prix)}`)
+                  : t(`pas de réponse · vrai ${euro(h.a.prix)}`, `geen antwoord · echt ${euro(h.a.prix)}`)}
+              </span>
+            </div>
+            <span class="p ${h.gain.total ? "gagne" : "rien"}">+${h.gain.total}</span>
+          </div>`).join("")}
+      </div>
+
+      <button class="btn" id="rejouer">${t("Rejouer", "Opnieuw spelen")}</button>
+      <div style="margin-top:10px"><button class="btn secondaire" id="retour">${t("Revoir les règles", "Regels opnieuw bekijken")}</button></div>
+      <div style="margin-top:12px"><button class="retour" id="jp-retour">${t("◂ Retour à mon espace jardin", "◂ Terug naar mijn tuin")}</button></div>
+    </div>`;
+  brancheLangues();
+  $("#rejouer").addEventListener("click", nouvellePartie);
+  $("#retour").addEventListener("click", () => { etat = null; rendre(); });
+  brancheRetour();
+
+  // 📤 On envoie le score UNE FOIS par partie, après l'affichage. L'écran de
+  // fin ne doit pas attendre le réseau : on montre le résultat tout de suite
+  // et on complète la ligne dès que le serveur a répondu.
+  if (!etat.envoye) {
+    etat.envoye = true;
+    envoyerScore(etat.score).then((r) => afficheVerse(r));
+  } else {
+    afficheVerse(etat.verse);
+  }
+}
+
+// Ce que devient le score — dit clairement, parce que c'est la question que
+// tout le monde se pose en finissant.
+function afficheVerse(r) {
+  const el = $("#jp-verse");
+  if (!el) return;
+  if (etat) etat.verse = r;
+
+  if (!r || !r.ok) {
+    const raison = r && r.reason;
+    el.className = "verse verse-rate";
+    el.innerHTML = raison === "anonyme"
+      ? "👤 " + t("Tu n'es pas connecté : cette partie ne compte pas. Passe par ton espace jardin pour qu'elle soit enregistrée.",
+                  "Je bent niet aangemeld: deze partij telt niet mee. Ga via je tuin zodat ze meetelt.")
+      : raison === "quiz_dabord"
+        ? "🔒 " + t("Fais d'abord le quiz : les épreuves se suivent dans l'ordre.",
+                    "Doe eerst de quiz: de proeven volgen elkaar in volgorde op.")
+      : raison === "ferme"
+        ? "🗓 " + t("L'épreuve n'est pas encore ouverte, ta partie ne compte donc pas — mais tu peux déjà t'entraîner&nbsp;! Reviens très bientôt.",
+                    "De proef is nog niet open, je partij telt dus niet mee — maar je kan al oefenen! Kom heel binnenkort terug.")
+        : "⚠️ " + t("Score non enregistré — réessaie depuis ton espace jardin.",
+                    "Score niet opgeslagen — probeer opnieuw via je tuin.");
+    return;
+  }
+
+  if (r.type === "classement") {
+    el.className = "verse verse-classement";
+    el.innerHTML = "🏆 <b>+" + aff(r.gain) + "</b> " + t(
+      "graines — ajoutées à ton classement <u>et</u> à ton jardin&nbsp;!",
+      "zaadjes — toegevoegd aan je ranking <u>én</u> aan je tuin!");
+  } else {
+    el.className = "verse verse-jardin";
+    el.innerHTML = "🌱 <b>+" + aff(r.gain) + "</b> " + t(
+      "graines pour ton jardin. Ta partie classée est déjà jouée : les suivantes ne nourrissent que le jardin, dans la limite de " + r.plafond + " graines.",
+      "zaadjes voor je tuin. Je partij voor de ranking is al gespeeld: volgende partijen voeden alleen je tuin, tot maximaal " + r.plafond + " zaadjes.");
+  }
+}
+
+// ============================================================
+//  DÉMARRAGE
+// ============================================================
+document.documentElement.lang = LANG;
+fetch("articles.json", { cache: "no-store" })
+  .then(r => r.json())
+  .then(d => { ARTICLES = d; rendre(); })
+  .catch(() => {
+    $("#app").innerHTML = `<div class="accueil"><h1>Oups</h1>
+      <div class="but">${t("Les articles n'ont pas pu être chargés.", "De artikelen konden niet geladen worden.")}</div></div>`;
+  });
+</script>
+</body>
+</html>

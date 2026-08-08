@@ -20,6 +20,7 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] === 'etudiant') {
     </style>
 </head>
 <body>
+<?php require_once __DIR__ . '/includes/retour.php'; echo barreRetour(); ?>
     <div class="container">
         <h2>Chaussure de sécurité</h2>
         <p>Le port de chaussures de sécurité est obligatoire dans certains secteurs. Veuillez vérifier les consignes et vous équiper en conséquence.</p>
