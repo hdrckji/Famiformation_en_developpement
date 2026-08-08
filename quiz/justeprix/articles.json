@@ -6,7 +6,9 @@
   "prix": 7.99,
   "img": "001.jpg",
   "url": "https://hermie.com/fr-fr/36740/famiflora-terreau-universel-70l",
-  "rayon": "famigarden"
+  "rayon": "famigarden",
+  "ean": "5412296009905",
+  "ventes": 2698
  },
  {
   "id": 2,
@@ -15,7 +17,9 @@
   "prix": 4.49,
   "img": "002.jpg",
   "url": "https://hermie.com/fr-fr/987734/famiflora-terreau-universel-35l",
-  "rayon": "famigarden"
+  "rayon": "famigarden",
+  "ean": "5412296010314",
+  "ventes": 2093
  },
  {
   "id": 3,
@@ -24,7 +28,9 @@
   "prix": 2.99,
   "img": "003.jpg",
   "url": "https://world.openfoodfacts.org/product/4009900544788",
-  "rayon": "food"
+  "rayon": "food",
+  "ean": "4009900544788",
+  "ventes": 1251
  },
  {
   "id": 4,
@@ -33,7 +39,9 @@
   "prix": 0.99,
   "img": "004.jpg",
   "url": "https://world.openfoodfacts.org/product/8990800025759",
-  "rayon": "food"
+  "rayon": "food",
+  "ean": "8990800025759",
+  "ventes": 1036
  },
  {
   "id": 5,
@@ -42,7 +50,9 @@
   "prix": 5.99,
   "img": "005.jpg",
   "url": "https://hermie.com/fr-fr/201892662/famiflora-mulch-5-10-50-l",
-  "rayon": "famigarden"
+  "rayon": "famigarden",
+  "ean": "5401119004562",
+  "ventes": 718
  },
  {
   "id": 6,
@@ -51,7 +61,9 @@
   "prix": 5.99,
   "img": "006.jpg",
   "url": "https://hermie.com/fr-fr/201989131/famiflora-potting-soil-flower-boxes-40l-riche-en-nutriments-pour-fleurs-et-plantes-ornementales-aere-et-nutritif",
-  "rayon": "famigarden"
+  "rayon": "famigarden",
+  "ean": "5401119012772",
+  "ventes": 711
  },
  {
   "id": 7,
@@ -60,7 +72,9 @@
   "prix": 5.99,
   "img": "007.jpg",
   "url": "https://hermie.com/fr-fr/201989132/famiflora-terreau-pour-plantes-mediterraneennes-40l-riche-en-nutriments-pour-oliviers-lavande-et-agrumes-aere-et-nutritif",
-  "rayon": "famigarden"
+  "rayon": "famigarden",
+  "ean": "5401119012789",
+  "ventes": 613
  },
  {
   "id": 8,
@@ -69,7 +83,9 @@
   "prix": 9.99,
   "img": "008.jpg",
   "url": "https://hermie.com/fr-fr/201892660/famiflora-ecorce-ornementale-10-20-50-l",
-  "rayon": "famigarden"
+  "rayon": "famigarden",
+  "ean": "5401119004531",
+  "ventes": 596
  },
  {
   "id": 9,
@@ -78,7 +94,9 @@
   "prix": 5.99,
   "img": "009.jpg",
   "url": "https://hermie.com/fr-fr/201989133/famiflora-potting-soil-indoor-plants-40l-premium-rich-nutrient-package-for-indoor-plants-airy-carefree",
-  "rayon": "famigarden"
+  "rayon": "famigarden",
+  "ean": "5401119012796",
+  "ventes": 494
  },
  {
   "id": 10,
@@ -87,7 +105,9 @@
   "prix": 1.99,
   "img": "010.jpg",
   "url": "https://hermie.com/fr-fr/201888850/famiflora-chiffons-microfibre-40x35cm-200gr-m2-lot-de-5",
-  "rayon": "deco"
+  "rayon": "deco",
+  "ean": "5401119005668",
+  "ventes": 485
  },
  {
   "id": 11,
@@ -96,7 +116,9 @@
   "prix": 1.49,
   "img": "011.jpg",
   "url": "https://hermie.com/fr-fr/201970924/famiflora-set-de-8-boules-de-suif-sans-filet-8x90g",
-  "rayon": "animalerie"
+  "rayon": "animalerie",
+  "ean": "5401119015407",
+  "ventes": 440
  },
  {
   "id": 12,
@@ -105,7 +127,9 @@
   "prix": 2.39,
   "img": "012.jpg",
   "url": "https://hermie.com/fr-fr/188266/bougie-de-neuvaine-blanche",
-  "rayon": "deco"
+  "rayon": "deco",
+  "ean": "5425005928480",
+  "ventes": 440
  },
  {
   "id": 13,
@@ -114,7 +138,9 @@
   "prix": 1.29,
   "img": "013.jpg",
   "url": "https://hermie.com/fr-fr/119292/lingettes-pour-bebe-huggies-pure-56-pieces",
-  "rayon": "deco"
+  "rayon": "deco",
+  "ean": "5029053550039",
+  "ventes": 420
  },
  {
   "id": 14,
@@ -123,7 +149,9 @@
   "prix": 6.99,
   "img": "014.jpg",
   "url": "https://hermie.com/fr-fr/201995750/wd-40-multi-spray-200ml-derouillant-lubrifiant-nettoyant-smart-straw",
-  "rayon": "famigarden"
+  "rayon": "famigarden",
+  "ean": "5032227316607",
+  "ventes": 417
  },
  {
   "id": 15,
@@ -132,7 +160,9 @@
   "prix": 2.79,
   "img": "015.jpg",
   "url": "https://hermie.com/fr-fr/201878319/loda-javel-150-5-litres-d-eau-de-javel",
-  "rayon": "deco"
+  "rayon": "deco",
+  "ean": "5411161100334",
+  "ventes": 378
  },
  {
   "id": 16,
@@ -141,7 +171,9 @@
   "prix": 2.39,
   "img": "016.jpg",
   "url": "https://hermie.com/fr-fr/188267/bougie-de-neuvaine-rouge",
-  "rayon": "deco"
+  "rayon": "deco",
+  "ean": "5425005926936",
+  "ventes": 365
  },
  {
   "id": 17,
@@ -150,7 +182,9 @@
   "prix": 1.99,
   "img": "017.jpg",
   "url": "https://hermie.com/fr-fr/201627657/amoos-2-ply-kitchen-roll-4-rouleaux-d-essuie-tout",
-  "rayon": "deco"
+  "rayon": "deco",
+  "ean": "5601856210022",
+  "ventes": 364
  },
  {
   "id": 18,
@@ -159,7 +193,9 @@
   "prix": 9.99,
   "img": "018.jpg",
   "url": "https://hermie.com/fr-fr/201892663/famiflora-copeaux-de-bois-colores-50-l",
-  "rayon": "famigarden"
+  "rayon": "famigarden",
+  "ean": "5401119004579",
+  "ventes": 344
  },
  {
   "id": 19,
@@ -168,7 +204,9 @@
   "prix": 1.99,
   "img": "019.jpg",
   "url": "https://hermie.com/fr-fr/201837120/famiflora-crochets-toile-de-sol-picots-diametre-3-mm-l20-cm-x-l5-cm-10-pieces",
-  "rayon": "famigarden"
+  "rayon": "famigarden",
+  "ean": "5401119003329",
+  "ventes": 342
  },
  {
   "id": 20,
@@ -177,7 +215,9 @@
   "prix": 0.99,
   "img": "020.jpg",
   "url": "https://hermie.com/fr-fr/201818469/secret-de-gourmet-verre-a-pied-orpea-360ml",
-  "rayon": "deco"
+  "rayon": "deco",
+  "ean": "3560237536040",
+  "ventes": 331
  },
  {
   "id": 21,
@@ -186,7 +226,9 @@
   "prix": 2.79,
   "img": "021.jpg",
   "url": "https://hermie.com/fr-fr/190924/bougie-de-neuvaine-blanche-sainte-rita",
-  "rayon": "deco"
+  "rayon": "deco",
+  "ean": "5425005928442",
+  "ventes": 327
  },
  {
   "id": 22,
@@ -195,7 +237,9 @@
   "prix": 6.6,
   "img": "022.jpg",
   "url": "https://hermie.com/fr-fr/201690790/dcm-terreau-pour-cactus-plantes-grasses-et-plantes-de-rocaille-10l",
-  "rayon": "famigarden"
+  "rayon": "famigarden",
+  "ean": "5413448144680",
+  "ventes": 318
  },
  {
   "id": 23,
@@ -204,7 +248,9 @@
   "prix": 3.99,
   "img": "023.jpg",
   "url": "https://hermie.com/fr-fr/201791629/famiflora-engrais-liquide-pour-plantes-d-interieur-1l",
-  "rayon": "famigarden"
+  "rayon": "famigarden",
+  "ean": "5401119002971",
+  "ventes": 314
  },
  {
   "id": 24,
@@ -213,7 +259,9 @@
   "prix": 4.99,
   "img": "024.jpg",
   "url": "https://hermie.com/fr-fr/201829800/bordure-siloux-bordure-en-bois-150x1500-mm",
-  "rayon": "famigarden"
+  "rayon": "famigarden",
+  "ean": "3598740110044",
+  "ventes": 304
  },
  {
   "id": 25,
@@ -222,7 +270,9 @@
   "prix": 6.99,
   "img": "025.jpg",
   "url": "https://hermie.com/fr-fr/201845439/famiflora-green-professional-folding-crate-32l-extra-sturdy-30kg-carry-capacity-collapsible-folding-box-stackable-space-saving-green",
-  "rayon": "deco"
+  "rayon": "deco",
+  "ean": "5401119001004",
+  "ventes": 262
  },
  {
   "id": 26,
@@ -231,7 +281,9 @@
   "prix": 8.2,
   "img": "026.jpg",
   "url": "https://hermie.com/fr-fr/201742129/dcm-perlite-10l-bio",
-  "rayon": "famigarden"
+  "rayon": "famigarden",
+  "ean": "5413448101812",
+  "ventes": 254
  },
  {
   "id": 27,
@@ -240,7 +292,9 @@
   "prix": 2.99,
   "img": "027.jpg",
   "url": "https://hermie.com/fr-fr/201627655/amoos-super-roll-2-ply-xxl-kitchen-roll-10-rouleaux-normaux-d-essuie-tout-en-1-rouleau-extra-large",
-  "rayon": "deco"
+  "rayon": "deco",
+  "ean": "5601856250080",
+  "ventes": 254
  },
  {
   "id": 28,
@@ -249,7 +303,9 @@
   "prix": 1.59,
   "img": "028.jpg",
   "url": "https://world.openfoodfacts.org/product/5414359994319",
-  "rayon": "food"
+  "rayon": "food",
+  "ean": "5414359994319",
+  "ventes": 242
  },
  {
   "id": 29,
@@ -258,7 +314,9 @@
   "prix": 1.69,
   "img": "029.jpg",
   "url": "https://hermie.com/fr-fr/146317/eau-demineralisee-loda-5l",
-  "rayon": "deco"
+  "rayon": "deco",
+  "ean": "5411161111125",
+  "ventes": 238
  },
  {
   "id": 30,
@@ -267,7 +325,9 @@
   "prix": 4.99,
   "img": "030.jpg",
   "url": "https://hermie.com/fr-fr/202028487/famiflora-winter-scatter-food-4kg-melange-pour-4-saisons-haute-energie-nourriture-d-hiver-pour-oiseaux-de-jardin-nourriture-pour-oiseaux",
-  "rayon": "animalerie"
+  "rayon": "animalerie",
+  "ean": "5404028162422",
+  "ventes": 224
  },
  {
   "id": 31,
@@ -276,7 +336,9 @@
   "prix": 2.29,
   "img": "031.jpg",
   "url": "https://hermie.com/fr-fr/202028486/famiflora-winter-scatter-food-1kg-melange-4-saisons-haute-energie-nourriture-d-hiver-pour-oiseaux-de-jardin-nourriture-pour-oiseaux",
-  "rayon": "animalerie"
+  "rayon": "animalerie",
+  "ean": "5404028162415",
+  "ventes": 206
  },
  {
   "id": 32,
@@ -285,7 +347,9 @@
   "prix": 4.99,
   "img": "032.jpg",
   "url": "https://hermie.com/fr-fr/201969512/famiflora-chef-s-famigrill-charcoal-2.5kg-professional-quality",
-  "rayon": "deco"
+  "rayon": "deco",
+  "ean": "5401119010570",
+  "ventes": 201
  },
  {
   "id": 33,
@@ -294,7 +358,9 @@
   "prix": 2.99,
   "img": "033.jpg",
   "url": "https://hermie.com/fr-fr/201780246/5l-liquide-lave-glace-ete",
-  "rayon": "famigarden"
+  "rayon": "famigarden",
+  "ean": "5411511550390",
+  "ventes": 187
  },
  {
   "id": 34,
@@ -303,7 +369,9 @@
   "prix": 2.99,
   "img": "034.jpg",
   "url": "https://world.openfoodfacts.org/product/9002490291778",
-  "rayon": "food"
+  "rayon": "food",
+  "ean": "9002490291778",
+  "ventes": 182
  },
  {
   "id": 35,
@@ -312,7 +380,9 @@
   "prix": 7.99,
   "img": "035.jpg",
   "url": "https://hermie.com/fr-fr/201892661/famiflora-ecorces-de-pin-pinus-sylvestris-10-20-mm-50-l",
-  "rayon": "famigarden"
+  "rayon": "famigarden",
+  "ean": "5401119004555",
+  "ventes": 173
  },
  {
   "id": 36,
@@ -321,7 +391,9 @@
   "prix": 9.99,
   "img": "036.jpg",
   "url": "https://hermie.com/fr-fr/101428/topcat-litiere-pour-chat-antibacterienne-20l",
-  "rayon": "animalerie"
+  "rayon": "animalerie",
+  "ean": "4036897882159",
+  "ventes": 167
  },
  {
   "id": 37,
@@ -330,7 +402,9 @@
   "prix": 14.89,
   "img": "037.jpg",
   "url": "https://hermie.com/fr-fr/134952/lave-vaisselle-5l-original",
-  "rayon": "deco"
+  "rayon": "deco",
+  "ean": "8006540785508",
+  "ventes": 164
  },
  {
   "id": 38,
@@ -339,7 +413,9 @@
   "prix": 3.99,
   "img": "038.jpg",
   "url": "https://hermie.com/fr-fr/201879485/famiflora-copeaux-d-allumage-laine-de-bois-325-g",
-  "rayon": "deco"
+  "rayon": "deco",
+  "ean": "5401119004791",
+  "ventes": 158
  },
  {
   "id": 39,
@@ -348,7 +424,9 @@
   "prix": 2.49,
   "img": "039.jpg",
   "url": "https://world.openfoodfacts.org/product/90474538",
-  "rayon": "food"
+  "rayon": "food",
+  "ean": "90474538",
+  "ventes": 152
  },
  {
   "id": 40,
@@ -357,7 +435,9 @@
   "prix": 4.99,
   "img": "040.jpg",
   "url": "https://hermie.com/fr-fr/174917/jardiniere-rectangulaire-pour-balcon-gris-ciment-lot-de-3-3-x-6l-50x15x12cm",
-  "rayon": "famigarden"
+  "rayon": "famigarden",
+  "ean": "3086960203474",
+  "ventes": 149
  },
  {
   "id": 41,
@@ -366,7 +446,9 @@
   "prix": 10.6,
   "img": "041.jpg",
   "url": "https://hermie.com/fr-fr/201690784/dcm-terreau-pour-plantes-d-interieur-30l",
-  "rayon": "famigarden"
+  "rayon": "famigarden",
+  "ean": "5413448144802",
+  "ventes": 132
  },
  {
   "id": 42,
@@ -375,7 +457,9 @@
   "prix": 5.99,
   "img": "042.jpg",
   "url": "https://hermie.com/fr-fr/201936489/famiflora-litiere-pour-chat-savon-de-marseille-10l-bentonite-naturelle-forte-absorption-des-odeurs",
-  "rayon": "animalerie"
+  "rayon": "animalerie",
+  "ean": "5401119006337",
+  "ventes": 129
  },
  {
   "id": 43,
@@ -384,7 +468,9 @@
   "prix": 7.99,
   "img": "043.jpg",
   "url": "https://hermie.com/fr-fr/201919846/copeaux-d-allumage-en-laine-de-bois-famiflora-900-grammes-env.-72-pieces",
-  "rayon": "deco"
+  "rayon": "deco",
+  "ean": "5401119007129",
+  "ventes": 123
  },
  {
   "id": 44,
@@ -393,7 +479,9 @@
   "prix": 3.99,
   "img": "044.jpg",
   "url": "https://hermie.com/fr-fr/107193/famiflora-engrais-liquide-pour-plantes-mediterraneennes-1-l",
-  "rayon": "famigarden"
+  "rayon": "famigarden",
+  "ean": "5401119000939",
+  "ventes": 122
  },
  {
   "id": 45,
@@ -402,7 +490,9 @@
   "prix": 8.29,
   "img": "045.jpg",
   "url": "https://hermie.com/fr-fr/201847142/compo-engrais-liquide-pour-plantes-mediterraneennes-et-agrumes-1-l",
-  "rayon": "famigarden"
+  "rayon": "famigarden",
+  "ean": "5411196075874",
+  "ventes": 120
  },
  {
   "id": 46,
@@ -411,7 +501,9 @@
   "prix": 1.99,
   "img": "046.jpg",
   "url": "https://hermie.com/fr-fr/201915029/famiflora-rouleau-de-fil-de-fer-30m-diametre-1.6-mm",
-  "rayon": "famigarden"
+  "rayon": "famigarden",
+  "ean": "5401119005873",
+  "ventes": 119
  },
  {
   "id": 47,
@@ -420,7 +512,9 @@
   "prix": 12.99,
   "img": "047.jpg",
   "url": "https://hermie.com/fr-fr/202015097/famiflora-grower-astax-6-mm-poissons-d-etang-et-carpes-koi-10-litres-approx.-4.17kg",
-  "rayon": "animalerie"
+  "rayon": "animalerie",
+  "ean": "5401119013755",
+  "ventes": 115
  },
  {
   "id": 48,
@@ -429,7 +523,9 @@
   "prix": 8.29,
   "img": "048.jpg",
   "url": "https://hermie.com/fr-fr/21957/compo-engrais-liquide-pour-plantes-d-interieur-et-palmiers-1l",
-  "rayon": "famigarden"
+  "rayon": "famigarden",
+  "ean": "5411196075317",
+  "ventes": 111
  },
  {
   "id": 49,
@@ -438,7 +534,9 @@
   "prix": 14.99,
   "img": "049.jpg",
   "url": "https://hermie.com/fr-fr/201956972/famiflora-colourful-sticks-mix-nourriture-pour-poissons-de-bassin-40l-3kg-avec-spiruline-convient-a-divers-poissons-de-bassin",
-  "rayon": "animalerie"
+  "rayon": "animalerie",
+  "ean": "5401119009291",
+  "ventes": 109
  },
  {
   "id": 50,
@@ -447,7 +545,9 @@
   "prix": 8.99,
   "img": "050.jpg",
   "url": "https://hermie.com/fr-fr/201970557/famiflora-colour-mix-light-15l-nourriture-pour-poissons-granules-pour-etang-equilibre-des-couleurs-nourriture-pour-poissons-facile-a-digerer-pour-tous-les-poissons-d-ornement",
-  "rayon": "animalerie"
+  "rayon": "animalerie",
+  "ean": "5401119010679",
+  "ventes": 103
  },
  {
   "id": 51,
@@ -456,7 +556,9 @@
   "prix": 2.79,
   "img": "051.jpg",
   "url": "https://hermie.com/fr-fr/190936/bougie-de-neuvaine-blanche-ave-maria",
-  "rayon": "deco"
+  "rayon": "deco",
+  "ean": "5425005928541",
+  "ventes": 103
  },
  {
   "id": 52,
@@ -465,7 +567,9 @@
   "prix": 3.49,
   "img": "052.jpg",
   "url": "https://hermie.com/fr-fr/201694118/esschert-design-porte-couronne-en-acier",
-  "rayon": "deco"
+  "rayon": "deco",
+  "ean": "8714982171512",
+  "ventes": 101
  },
  {
   "id": 53,
@@ -474,7 +578,9 @@
   "prix": 2.79,
   "img": "053.jpg",
   "url": "https://hermie.com/fr-fr/190935/bougie-de-neuvaine-blanche-medaille-de-la-vierge",
-  "rayon": "deco"
+  "rayon": "deco",
+  "ean": "5425005926950",
+  "ventes": 100
  },
  {
   "id": 54,
@@ -483,7 +589,9 @@
   "prix": 3.99,
   "img": "054.jpg",
   "url": "https://hermie.com/fr-fr/192657/bsi-ph-up-liquide-1l-augmente-le-niveau-de-ph-de-votre-piscine-ou-spa",
-  "rayon": "deco"
+  "rayon": "deco",
+  "ean": "5425001716272",
+  "ventes": 98
  },
  {
   "id": 55,
@@ -492,7 +600,9 @@
   "prix": 3.99,
   "img": "055.jpg",
   "url": "https://hermie.com/fr-fr/201941216/famiflora-waterboost-liquide-1l-contre-l-eau-trouble",
-  "rayon": "deco"
+  "rayon": "deco",
+  "ean": "5401119007808",
+  "ventes": 98
  },
  {
   "id": 56,
@@ -501,7 +611,9 @@
   "prix": 5.99,
   "img": "056.jpg",
   "url": "https://hermie.com/fr-fr/202041708/famiflora-amorce-all-round-bait-2.5-kg-appat-pour-poissons-blancs-avec-graines-de-fenouil",
-  "rayon": "animalerie"
+  "rayon": "animalerie",
+  "ean": "5401119017470",
+  "ventes": 92
  },
  {
   "id": 57,
@@ -510,7 +622,9 @@
   "prix": 7.99,
   "img": "057.jpg",
   "url": "https://hermie.com/fr-fr/201868131/compo-engrais-liquide-pour-fruits-et-legumes-1-l-bio",
-  "rayon": "famigarden"
+  "rayon": "famigarden",
+  "ean": "5411196041541",
+  "ventes": 91
  },
  {
   "id": 58,
@@ -519,7 +633,9 @@
   "prix": 9.4,
   "img": "058.jpg",
   "url": "https://hermie.com/fr-fr/201690792/dcm-engrais-liquide-pour-plantes-d-interieur-800ml-bio",
-  "rayon": "famigarden"
+  "rayon": "famigarden",
+  "ean": "5413448139525",
+  "ventes": 90
  },
  {
   "id": 59,
@@ -528,7 +644,9 @@
   "prix": 1.39,
   "img": "059.jpg",
   "url": "https://world.openfoodfacts.org/product/5011061181329",
-  "rayon": "food"
+  "rayon": "food",
+  "ean": "5011061181329",
+  "ventes": 90
  },
  {
   "id": 60,
@@ -537,7 +655,9 @@
   "prix": 13.3,
   "img": "060.jpg",
   "url": "https://hermie.com/fr-fr/201694663/dcm-ecorce-de-pin-pinus-sylvestrus-20-40-70l-organic",
-  "rayon": "famigarden"
+  "rayon": "famigarden",
+  "ean": "5413448110906",
+  "ventes": 89
  },
  {
   "id": 61,
@@ -546,7 +666,9 @@
   "prix": 7.99,
   "img": "061.jpg",
   "url": "https://hermie.com/fr-fr/202028494/famiflora-graines-de-tournesol-striees-seau-de-4kg-grand-emballage-pratique-nourriture-pour-oiseaux-de-jardin-nourriture-d-hiver",
-  "rayon": "animalerie"
+  "rayon": "animalerie",
+  "ean": "5404028162347",
+  "ventes": 88
  },
  {
   "id": 62,
@@ -555,7 +677,9 @@
   "prix": 9.99,
   "img": "062.jpg",
   "url": "https://hermie.com/fr-fr/201892659/famiflora-ecorce-ornementale-20-40-50-l",
-  "rayon": "famigarden"
+  "rayon": "famigarden",
+  "ean": "5401119004548",
+  "ventes": 87
  },
  {
   "id": 63,
@@ -564,7 +688,9 @@
   "prix": 5.99,
   "img": "063.jpg",
   "url": "https://hermie.com/fr-fr/201941212/famiflora-powerfloc-xtreme-liquide-1l-floculant-puissant-pour-une-eau-de-piscine-cristalline",
-  "rayon": "deco"
+  "rayon": "deco",
+  "ean": "5401119009239",
+  "ventes": 87
  },
  {
   "id": 64,
@@ -573,7 +699,9 @@
   "prix": 19.99,
   "img": "064.jpg",
   "url": "https://hermie.com/fr-fr/201986731/famiflora-allround-mix-nourriture-pour-poissons-15l-pour-koi-et-poissons-rouges-couleur-sante-et-festin-dans-chaque-granule",
-  "rayon": "animalerie"
+  "rayon": "animalerie",
+  "ean": "5401119012673",
+  "ventes": 85
  },
  {
   "id": 65,
@@ -582,7 +710,9 @@
   "prix": 14.99,
   "img": "065.jpg",
   "url": "https://hermie.com/fr-fr/201970997/famiflora-billes-d-argile-40l",
-  "rayon": "famigarden"
+  "rayon": "famigarden",
+  "ean": "5401119010693",
+  "ventes": 84
  },
  {
   "id": 66,
@@ -591,7 +721,9 @@
   "prix": 18.6,
   "img": "066.jpg",
   "url": "https://hermie.com/fr-fr/201690575/terreau-dcm-pour-oliviers-figuiers-et-agrumes-60l",
-  "rayon": "famigarden"
+  "rayon": "famigarden",
+  "ean": "5413448144840",
+  "ventes": 84
  },
  {
   "id": 67,
@@ -600,7 +732,9 @@
   "prix": 3.99,
   "img": "067.jpg",
   "url": "https://hermie.com/fr-fr/201941218/famiflora-ph-down-liquid-1l-abaisse-le-niveau-de-ph-de-votre-piscine-ou-spa",
-  "rayon": "deco"
+  "rayon": "deco",
+  "ean": "5401119007822",
+  "ventes": 81
  },
  {
   "id": 68,
@@ -609,7 +743,9 @@
   "prix": 0.69,
   "img": "068.jpg",
   "url": "https://world.openfoodfacts.org/product/5011061115348",
-  "rayon": "food"
+  "rayon": "food",
+  "ean": "5011061115348",
+  "ventes": 78
  },
  {
   "id": 69,
@@ -618,7 +754,9 @@
   "prix": 7.99,
   "img": "069.jpg",
   "url": "https://hermie.com/fr-fr/201694564/compo-engrais-liquide-pour-tomates-1-l-bio",
-  "rayon": "famigarden"
+  "rayon": "famigarden",
+  "ean": "5411196041503",
+  "ventes": 74
  },
  {
   "id": 70,
@@ -627,7 +765,9 @@
   "prix": 2.79,
   "img": "070.jpg",
   "url": "https://hermie.com/fr-fr/190925/bougie-de-neuvaine-blanche-saint-antoine",
-  "rayon": "deco"
+  "rayon": "deco",
+  "ean": "5425005928466",
+  "ventes": 74
  },
  {
   "id": 71,
@@ -636,7 +776,9 @@
   "prix": 8.99,
   "img": "071.jpg",
   "url": "https://hermie.com/fr-fr/201874110/foin-jopack-nourriture-pour-rongeurs-10-kg",
-  "rayon": "animalerie"
+  "rayon": "animalerie",
+  "ean": "5425010111310",
+  "ventes": 72
  },
  {
   "id": 72,
@@ -645,7 +787,9 @@
   "prix": 7.99,
   "img": "072.jpg",
   "url": "https://hermie.com/fr-fr/201949541/demarcation-en-acier-corten-famiflora-h-16cm-x-l-100cm-epaisseur-1-5mm-acier-corten-spa-h",
-  "rayon": "famigarden"
+  "rayon": "famigarden",
+  "ean": "5401119012932",
+  "ventes": 71
  },
  {
   "id": 73,
@@ -654,7 +798,9 @@
   "prix": 1.99,
   "img": "073.jpg",
   "url": "https://world.openproductsfacts.org/product/3179630006304",
-  "rayon": "famigarden"
+  "rayon": "famigarden",
+  "ean": "3179630006304",
+  "ventes": 71
  },
  {
   "id": 74,
@@ -663,7 +809,9 @@
   "prix": 2.79,
   "img": "074.jpg",
   "url": "https://hermie.com/fr-fr/190939/bougie-de-neuvaine-blanche-archange-michel",
-  "rayon": "deco"
+  "rayon": "deco",
+  "ean": "5425005928336",
+  "ventes": 70
  },
  {
   "id": 75,
@@ -672,7 +820,9 @@
   "prix": 2.99,
   "img": "075.jpg",
   "url": "https://hermie.com/fr-fr/201700209/famiflora-engrais-pour-fruits-et-legumes-500-g-bio",
-  "rayon": "famigarden"
+  "rayon": "famigarden",
+  "ean": "5401119000717",
+  "ventes": 68
  },
  {
   "id": 76,
@@ -681,7 +831,9 @@
   "prix": 1.29,
   "img": "076.jpg",
   "url": "https://hermie.com/fr-fr/63290/cannes-en-bambou-nature-60cm-diametre-6-8-mm-lot-de-10",
-  "rayon": "famigarden"
+  "rayon": "famigarden",
+  "ean": "8711338402009",
+  "ventes": 66
  },
  {
   "id": 77,
@@ -690,7 +842,9 @@
   "prix": 2.49,
   "img": "077.jpg",
   "url": "https://hermie.com/fr-fr/201664825/sable-de-jeu-pur-100-sable-de-jeu-25-kg",
-  "rayon": "deco"
+  "rayon": "deco",
+  "ean": "5411382120166",
+  "ventes": 62
  },
  {
   "id": 78,
@@ -699,7 +853,9 @@
   "prix": 9.99,
   "img": "078.jpg",
   "url": "https://hermie.com/fr-fr/201783308/litiere-green-elephant-litiere-10kg",
-  "rayon": "famigarden"
+  "rayon": "famigarden",
+  "ean": "5425036130036",
+  "ventes": 60
  },
  {
   "id": 79,
@@ -708,7 +864,9 @@
   "prix": 2.29,
   "img": "079.jpg",
   "url": "https://world.openfoodfacts.org/product/3701650200266",
-  "rayon": "food"
+  "rayon": "food",
+  "ean": "3701650200266",
+  "ventes": 59
  },
  {
   "id": 80,
@@ -717,7 +875,9 @@
   "prix": 2.79,
   "img": "080.jpg",
   "url": "https://hermie.com/fr-fr/190923/bougie-de-neuvaine-blanche-notre-dame-du-perpetuel-secours",
-  "rayon": "deco"
+  "rayon": "deco",
+  "ean": "5425005928459",
+  "ventes": 59
  },
  {
   "id": 81,
@@ -726,7 +886,9 @@
   "prix": 10.99,
   "img": "081.jpg",
   "url": "https://hermie.com/fr-fr/201850430/katoos-muesli-mix-pour-chevreuils-et-chevres-15kg-aliment-pour-chevreuils-et-chevres-pour-un-pelage-une-croissance-et-une-condition-sains",
-  "rayon": "animalerie"
+  "rayon": "animalerie",
+  "ean": "6090905285262",
+  "ventes": 57
  },
  {
   "id": 82,
@@ -735,7 +897,9 @@
   "prix": 4.99,
   "img": "082.jpg",
   "url": "https://hermie.com/fr-fr/201877124/famiflora-hydro-grains-10l",
-  "rayon": "famigarden"
+  "rayon": "famigarden",
+  "ean": "5401119004685",
+  "ventes": 56
  },
  {
   "id": 83,
@@ -744,7 +908,9 @@
   "prix": 10.99,
   "img": "083.jpg",
   "url": "https://hermie.com/fr-fr/201969797/katoos-chicken-feed-laying-mash-18kg-aliment-pour-poules-pondeuses-production-naturelle-d-oeufs-100-vegetal",
-  "rayon": "animalerie"
+  "rayon": "animalerie",
+  "ean": "6090915285221",
+  "ventes": 56
  },
  {
   "id": 84,
@@ -753,7 +919,9 @@
   "prix": 2.79,
   "img": "084.jpg",
   "url": "https://hermie.com/fr-fr/190932/bougie-de-neuvaine-blanche-padre-pio",
-  "rayon": "deco"
+  "rayon": "deco",
+  "ean": "5425005927308",
+  "ventes": 55
  },
  {
   "id": 85,
@@ -762,7 +930,9 @@
   "prix": 0.99,
   "img": "085.jpg",
   "url": "https://world.openfoodfacts.org/product/8712738839211",
-  "rayon": "food"
+  "rayon": "food",
+  "ean": "8712738839211",
+  "ventes": 54
  },
  {
   "id": 86,
@@ -771,7 +941,9 @@
   "prix": 3.99,
   "img": "086.jpg",
   "url": "https://hermie.com/fr-fr/192655/bsi-ph-down-liquide-1l-abaisse-le-niveau-de-ph-de-votre-piscine-ou-spa",
-  "rayon": "deco"
+  "rayon": "deco",
+  "ean": "5425001716241",
+  "ventes": 54
  },
  {
   "id": 87,
@@ -780,7 +952,9 @@
   "prix": 12.99,
   "img": "087.jpg",
   "url": "https://hermie.com/fr-fr/201943170/paille-de-miscanthus-d-elephant-vert-avec-tabac-10kg",
-  "rayon": "famigarden"
+  "rayon": "famigarden",
+  "ean": "5425036130074",
+  "ventes": 53
  },
  {
   "id": 88,
@@ -789,7 +963,9 @@
   "prix": 9.99,
   "img": "088.jpg",
   "url": "https://hermie.com/fr-fr/201850427/katoos-grain-crumble-mix-aliment-pour-poulets-melange-de-grains-brises-18-kg-haute-energie",
-  "rayon": "animalerie"
+  "rayon": "animalerie",
+  "ean": "6090901144181",
+  "ventes": 53
  },
  {
   "id": 89,
@@ -798,7 +974,9 @@
   "prix": 5.99,
   "img": "089.jpg",
   "url": "https://hermie.com/fr-fr/184547/cartouche-de-filtre-intex-type-s1-ensemble-de-2-pieces",
-  "rayon": "deco"
+  "rayon": "deco",
+  "ean": "6941057404424",
+  "ventes": 52
  },
  {
   "id": 90,
@@ -807,7 +985,9 @@
   "prix": 4.99,
   "img": "090.jpg",
   "url": "https://hermie.com/fr-fr/21896/terreau-pour-cactus-compo-sana-5l",
-  "rayon": "famigarden"
+  "rayon": "famigarden",
+  "ean": "5411196090136",
+  "ventes": 49
  },
  {
   "id": 91,
@@ -816,7 +996,9 @@
   "prix": 2.99,
   "img": "091.jpg",
   "url": "https://hermie.com/fr-fr/201899563/panier-de-rangement-5five-gris-fonce-29-litres",
-  "rayon": "deco"
+  "rayon": "deco",
+  "ean": "3560238931530",
+  "ventes": 46
  },
  {
   "id": 92,
@@ -825,7 +1007,9 @@
   "prix": 8.99,
   "img": "092.jpg",
   "url": "https://hermie.com/fr-fr/201636532/litiere-en-fibres-de-bois-pour-rongeurs-plospan-160-l",
-  "rayon": "animalerie"
+  "rayon": "animalerie",
+  "ean": "8715663032757",
+  "ventes": 43
  },
  {
   "id": 93,
@@ -834,7 +1018,9 @@
   "prix": 26.99,
   "img": "093.jpg",
   "url": "https://hermie.com/fr-fr/201986730/famiflora-premium-select-sturgeon-feed-15l-6-mm-sinking-pellet-high-protein-digestible-pour-des-esturgeons-forts-et-en-bonne-sante",
-  "rayon": "animalerie"
+  "rayon": "animalerie",
+  "ean": "5401119012666",
+  "ventes": 43
  },
  {
   "id": 94,
@@ -843,7 +1029,9 @@
   "prix": 1.99,
   "img": "094.jpg",
   "url": "https://hermie.com/fr-fr/201988817/famiflora-beurre-de-cacahuetes-pour-oiseaux-de-jardin-avec-pomme-arome-350-gr-beurre-de-cacahuetes-pour-oiseaux",
-  "rayon": "animalerie"
+  "rayon": "animalerie",
+  "ean": "5401119012758",
+  "ventes": 42
  },
  {
   "id": 95,
@@ -852,7 +1040,9 @@
   "prix": 2.79,
   "img": "095.jpg",
   "url": "https://hermie.com/fr-fr/190938/bougie-de-neuvaine-blanche-4-saints",
-  "rayon": "deco"
+  "rayon": "deco",
+  "ean": "5425005928367",
+  "ventes": 42
  },
  {
   "id": 96,
@@ -861,7 +1051,9 @@
   "prix": 15.99,
   "img": "096.jpg",
   "url": "https://hermie.com/fr-fr/202015098/famiflora-koi-mix-osw-astax-pond-pellet-6-mm-15-l-melange-d-aliments-de-luxe-pour-des-kois-colores-et-en-bonne-sante",
-  "rayon": "animalerie"
+  "rayon": "animalerie",
+  "ean": "5401119014578",
+  "ventes": 41
  },
  {
   "id": 97,
@@ -870,7 +1062,9 @@
   "prix": 8.99,
   "img": "097.jpg",
   "url": "https://hermie.com/fr-fr/201941219/famiflora-ph-down-liquid-5l-abaisse-le-niveau-de-ph-de-votre-piscine-ou-spa",
-  "rayon": "deco"
+  "rayon": "deco",
+  "ean": "5401119007839",
+  "ventes": 38
  },
  {
   "id": 98,
@@ -879,7 +1073,9 @@
   "prix": 2.79,
   "img": "098.jpg",
   "url": "https://hermie.com/fr-fr/190937/bougie-de-neuvaine-blanche-sacre-coeur-marie",
-  "rayon": "deco"
+  "rayon": "deco",
+  "ean": "5425005928350",
+  "ventes": 37
  },
  {
   "id": 99,
@@ -888,7 +1084,9 @@
   "prix": 1.49,
   "img": "099.jpg",
   "url": "https://hermie.com/fr-fr/201860671/famiflora-set-de-8-boules-de-suif-avec-filet-8x90g",
-  "rayon": "animalerie"
+  "rayon": "animalerie",
+  "ean": "5401119002865",
+  "ventes": 35
  },
  {
   "id": 100,
@@ -897,7 +1095,9 @@
   "prix": 6.35,
   "img": "100.jpg",
   "url": "https://hermie.com/fr-fr/202001625/dcm-lava-grain-decover-pouzzolane-5l-organic",
-  "rayon": "famigarden"
+  "rayon": "famigarden",
+  "ean": "5413448164183",
+  "ventes": 33
  },
  {
   "id": 101,
@@ -906,7 +1106,9 @@
   "prix": 11.99,
   "img": "101.jpg",
   "url": "https://hermie.com/fr-fr/201881962/famiflora-seau-de-terre-de-diatomee-2kg-controle-ecologique-des-poux-de-sang-escargots-fourmis...",
-  "rayon": "animalerie"
+  "rayon": "animalerie",
+  "ean": "5401119004975",
+  "ventes": 33
  },
  {
   "id": 102,
@@ -915,7 +1117,9 @@
   "prix": 7.99,
   "img": "102.jpg",
   "url": "https://hermie.com/fr-fr/201860669/boules-de-suif-famiflora-35-pieces-en-seau-boules-de-suif-avec-filet",
-  "rayon": "animalerie"
+  "rayon": "animalerie",
+  "ean": "5401119002841",
+  "ventes": 31
  },
  {
   "id": 103,
@@ -924,7 +1128,9 @@
   "prix": 11.99,
   "img": "103.jpg",
   "url": "https://hermie.com/fr-fr/201902432/katoos-laying-pellets-granules-pour-pondeuses-granules-pour-pondeuses-pour-poules-pondeuses-18-kg-100-vegetal",
-  "rayon": "animalerie"
+  "rayon": "animalerie",
+  "ean": "6090918125180",
+  "ventes": 30
  },
  {
   "id": 104,
@@ -933,7 +1139,9 @@
   "prix": 7.99,
   "img": "104.jpg",
   "url": "https://hermie.com/fr-fr/201874109/jopack-flaxlemen-fibre-de-lin-120l-100-naturel-couverture-absorbante-pour-ecuries-lapins-poulaillers",
-  "rayon": "animalerie"
+  "rayon": "animalerie",
+  "ean": "5425010110016",
+  "ventes": 29
  },
  {
   "id": 105,
@@ -942,7 +1150,9 @@
   "prix": 12.99,
   "img": "105.jpg",
   "url": "https://hermie.com/fr-fr/202015096/famiflora-grower-astax-4.5-mm-poissons-d-etang-koi-10-litres-approx.-4kg",
-  "rayon": "animalerie"
+  "rayon": "animalerie",
+  "ean": "5401119013748",
+  "ventes": 27
  },
  {
   "id": 106,
@@ -951,7 +1161,9 @@
   "prix": 2.79,
   "img": "106.jpg",
   "url": "https://hermie.com/fr-fr/192590/bougie-de-neuvaine-blanche-notre-dame-de-lourdes",
-  "rayon": "deco"
+  "rayon": "deco",
+  "ean": "5425005927292",
+  "ventes": 27
  },
  {
   "id": 107,
@@ -960,7 +1172,9 @@
   "prix": 15.99,
   "img": "107.jpg",
   "url": "https://hermie.com/fr-fr/202041705/famiflora-bouillettes-fraise-fraise-20mm-5-kg-appat-a-carpe-4-6h-d-action",
-  "rayon": "animalerie"
+  "rayon": "animalerie",
+  "ean": "5401119017449",
+  "ventes": 26
  },
  {
   "id": 108,
@@ -969,7 +1183,9 @@
   "prix": 2.5,
   "img": "108.jpg",
   "url": "https://world.openfoodfacts.org/product/5420006331505",
-  "rayon": "food"
+  "rayon": "food",
+  "ean": "5420006331505",
+  "ventes": 25
  },
  {
   "id": 109,
@@ -978,7 +1194,9 @@
   "prix": 6.99,
   "img": "109.jpg",
   "url": "https://hermie.com/fr-fr/201803123/cartouche-filtrante-bestway-type-vi-jeu-de-2-pieces",
-  "rayon": "deco"
+  "rayon": "deco",
+  "ean": "6942138981155",
+  "ventes": 21
  },
  {
   "id": 110,
@@ -987,7 +1205,9 @@
   "prix": 3.99,
   "img": "110.jpg",
   "url": "https://world.openfoodfacts.org/product/3162050019825",
-  "rayon": "food"
+  "rayon": "food",
+  "ean": "3162050019825",
+  "ventes": 20
  },
  {
   "id": 111,
@@ -996,7 +1216,9 @@
   "prix": 15.99,
   "img": "111.jpg",
   "url": "https://hermie.com/fr-fr/202041704/famiflora-bouillettes-scopex-20mm-4-6h-de-dissolution-5kg",
-  "rayon": "animalerie"
+  "rayon": "animalerie",
+  "ean": "5401119017432",
+  "ventes": 17
  },
  {
   "id": 112,
@@ -1005,7 +1227,9 @@
   "prix": 3.99,
   "img": "112.jpg",
   "url": "https://world.openfoodfacts.org/product/3162050019856",
-  "rayon": "food"
+  "rayon": "food",
+  "ean": "3162050019856",
+  "ventes": 17
  },
  {
   "id": 113,
@@ -1014,7 +1238,9 @@
   "prix": 9.99,
   "img": "113.jpg",
   "url": "https://hermie.com/fr-fr/201970998/famiflora-famigrill-briquettes-de-charbon-de-bois-calorbrik-10kg-qualite-professionnelle",
-  "rayon": "deco"
+  "rayon": "deco",
+  "ean": "5401119010709",
+  "ventes": 16
  },
  {
   "id": 114,
@@ -1023,7 +1249,9 @@
   "prix": 1.99,
   "img": "114.jpg",
   "url": "https://world.openfoodfacts.org/product/3068320124537",
-  "rayon": "food"
+  "rayon": "food",
+  "ean": "3068320124537",
+  "ventes": 15
  },
  {
   "id": 115,
@@ -1032,7 +1260,9 @@
   "prix": 2.49,
   "img": "115.jpg",
   "url": "https://hermie.com/fr-fr/201818343/set-de-base-de-cintres-avec-feutre-antiderapant-noir-8-pieces",
-  "rayon": "deco"
+  "rayon": "deco",
+  "ean": "3560234521476",
+  "ventes": 14
  },
  {
   "id": 116,
@@ -1041,7 +1271,9 @@
   "prix": 119.99,
   "img": "116.jpg",
   "url": "https://hermie.com/fr-fr/202035583/serre-tunnel-famiflora-18m2-300x600x200cm-vert",
-  "rayon": "famigarden"
+  "rayon": "famigarden",
+  "ean": "5401119016572",
+  "ventes": 13
  },
  {
   "id": 117,
@@ -1050,7 +1282,9 @@
   "prix": 3.49,
   "img": "117.jpg",
   "url": "https://world.openfoodfacts.org/product/3162050019962",
-  "rayon": "food"
+  "rayon": "food",
+  "ean": "3162050019962",
+  "ventes": 12
  },
  {
   "id": 118,
@@ -1059,7 +1293,9 @@
   "prix": 14.99,
   "img": "118.jpg",
   "url": "https://hermie.com/fr-fr/202035586/serre-de-jardin-compacte-famiflora-120x62x60cm-vert",
-  "rayon": "famigarden"
+  "rayon": "famigarden",
+  "ean": "5401119016602",
+  "ventes": 11
  },
  {
   "id": 119,
@@ -1068,7 +1304,9 @@
   "prix": 2.79,
   "img": "119.jpg",
   "url": "https://hermie.com/fr-fr/190929/bougie-de-neuvaine-blanche-notre-dame-de-fatima",
-  "rayon": "deco"
+  "rayon": "deco",
+  "ean": "5425005927896",
+  "ventes": 11
  },
  {
   "id": 120,
@@ -1077,7 +1315,9 @@
   "prix": 0.49,
   "img": "120.jpg",
   "url": "https://world.openfoodfacts.org/product/3162050034033",
-  "rayon": "food"
+  "rayon": "food",
+  "ean": "3162050034033",
+  "ventes": 10
  },
  {
   "id": 121,
@@ -1086,7 +1326,9 @@
   "prix": 19.99,
   "img": "121.jpg",
   "url": "https://hermie.com/fr-fr/201785195/10-lumieres-de-fete-avec-filament-6cm-led-classic-10m-3m-cordon-noir-ip44-trafo",
-  "rayon": "deco"
+  "rayon": "deco",
+  "ean": "8713619401688",
+  "ventes": 10
  },
  {
   "id": 122,
@@ -1095,7 +1337,9 @@
   "prix": 44.99,
   "img": "122.jpg",
   "url": "https://hermie.com/fr-fr/201905987/esschert-design-table-de-croissance-en-bois-marron-avec-pied-l-s-lxlxh-80.5x37.3x78.2cm",
-  "rayon": "famigarden"
+  "rayon": "famigarden",
+  "ean": "8714982186530",
+  "ventes": 9
  },
  {
   "id": 123,
@@ -1104,7 +1348,9 @@
   "prix": 6.99,
   "img": "123.jpg",
   "url": "https://world.openfoodfacts.org/product/5411866920015",
-  "rayon": "food"
+  "rayon": "food",
+  "ean": "5411866920015",
+  "ventes": 9
  },
  {
   "id": 124,
@@ -1113,7 +1359,9 @@
   "prix": 9.99,
   "img": "124.jpg",
   "url": "https://hermie.com/fr-fr/201841124/lumieres-solaires-de-fete-cordon-de-450-cm-avec-10-lumieres-blanc-chaud-eclairage-d-ambiance-pour-l-exterieur",
-  "rayon": "deco"
+  "rayon": "deco",
+  "ean": "8713619401251",
+  "ventes": 8
  },
  {
   "id": 125,
@@ -1122,7 +1370,9 @@
   "prix": 9.99,
   "img": "125.jpg",
   "url": "https://hermie.com/fr-fr/201932791/bandelettes-de-test-bsi-pour-piscine-spa-et-etang-9-en-1-25-bandelettes",
-  "rayon": "deco"
+  "rayon": "deco",
+  "ean": "5420046648700",
+  "ventes": 8
  },
  {
   "id": 126,
@@ -1131,7 +1381,9 @@
   "prix": 1.69,
   "img": "126.jpg",
   "url": "https://world.openfoodfacts.org/product/3162050011904",
-  "rayon": "food"
+  "rayon": "food",
+  "ean": "3162050011904",
+  "ventes": 7
  },
  {
   "id": 127,
@@ -1140,7 +1392,9 @@
   "prix": 3.99,
   "img": "127.jpg",
   "url": "https://hermie.com/fr-fr/9604/cartouche-filtrante-intex-type-a",
-  "rayon": "deco"
+  "rayon": "deco",
+  "ean": "6941057420004",
+  "ventes": 6
  },
  {
   "id": 128,
@@ -1149,7 +1403,9 @@
   "prix": 2.29,
   "img": "128.jpg",
   "url": "https://world.openfoodfacts.org/product/3162050016046",
-  "rayon": "food"
+  "rayon": "food",
+  "ean": "3162050016046",
+  "ventes": 5
  },
  {
   "id": 129,
@@ -1158,7 +1414,9 @@
   "prix": 5.99,
   "img": "129.jpg",
   "url": "https://hermie.com/fr-fr/165463/boite-d-ail-a-bouillon-authentique",
-  "rayon": "deco"
+  "rayon": "deco",
+  "ean": "8714982109256",
+  "ventes": 5
  },
  {
   "id": 130,
@@ -1167,7 +1425,9 @@
   "prix": 4.99,
   "img": "130.jpg",
   "url": "https://world.openfoodfacts.org/product/5415196005848",
-  "rayon": "food"
+  "rayon": "food",
+  "ean": "5415196005848",
+  "ventes": 4
  },
  {
   "id": 131,
@@ -1176,7 +1436,9 @@
   "prix": 2.99,
   "img": "131.jpg",
   "url": "https://world.openfoodfacts.org/product/3162050019429",
-  "rayon": "food"
+  "rayon": "food",
+  "ean": "3162050019429",
+  "ventes": 2
  },
  {
   "id": 132,
@@ -1185,7 +1447,9 @@
   "prix": 15.99,
   "img": "132.jpg",
   "url": "https://hermie.com/fr-fr/165467/casse-noisettes-en-fonte",
-  "rayon": "deco"
+  "rayon": "deco",
+  "ean": "8714982046483",
+  "ventes": 2
  },
  {
   "id": 133,
@@ -1194,7 +1458,9 @@
   "prix": 3.99,
   "img": "133.jpg",
   "url": "https://hermie.com/fr-fr/201941222/famiflora-flocculant-liquide-1l-floculant-liquide-pour-une-eau-cristalline",
-  "rayon": "deco"
+  "rayon": "deco",
+  "ean": "5401119007877",
+  "ventes": 2
  },
  {
   "id": 134,
@@ -1203,6 +1469,8 @@
   "prix": 1.99,
   "img": "134.jpg",
   "url": "https://hermie.com/fr-fr/191272/cartouche-filtrante-intex-type-h",
-  "rayon": "deco"
+  "rayon": "deco",
+  "ean": "6941057404455",
+  "ventes": 2
  }
 ]
