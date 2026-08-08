@@ -653,6 +653,16 @@ body.mode-tele .lang-switch { display: none; }   /* pas sur la télé */
 /* Espace (gate connexion/création) : 2 blocs centrés */
 .esp-modules { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); max-width: 760px; margin: 0 auto; }
 
+/* « Épreuve 2/5 » dans la tuile : on voit qu'on avance dans un parcours, pas
+   qu'on tombe sur un jeu isolé. */
+.ep-num {
+  display: inline-block; margin-right: 8px; padding: 2px 9px;
+  background: rgba(30,122,70,.12); color: var(--pousse);
+  border-radius: 999px; font-size: .78em; font-weight: 800;
+  letter-spacing: .02em; white-space: nowrap;
+}
+.mod-inactif .ep-num { background: rgba(0,0,0,.08); color: inherit; opacity: .8; }
+
 /* 📅 Bloc « Modalité des épreuves », sous les modules. Volontairement plus
    sobre que les tuiles : c'est une information, pas une quatrième action. */
 .bloc-modalites {
@@ -1218,10 +1228,10 @@ const CONFIG = {
    magasin, comme CONFIG.dateLancement l'est déjà côté serveur.
    ============================================================ */
 const PROGRAMME = [
-  { cle: "quiz",      emoji: "🎯",  date: "2026-07-29", fr: "Le quiz",        nl: "De quiz",
+  { cle: "quiz", pret: true, emoji: "🎯",  date: "2026-07-29", fr: "Le quiz",        nl: "De quiz",
     dfr: "Réponds aux questions et récolte tes premières graines.",
     dnl: "Beantwoord de vragen en oogst je eerste zaadjes." },
-  { cle: "justeprix", emoji: "🏷️", date: "2026-08-08", fr: "Le Juste Prix",  nl: "De Juiste Prijs",
+  { cle: "justeprix", pret: true, emoji: "🏷️", date: "2026-08-08", fr: "Le Juste Prix",  nl: "De Juiste Prijs",
     dfr: "Devine le prix de 10 articles du magasin.",
     dnl: "Raad de prijs van 10 artikelen uit de winkel." },
   { cle: "a3",        emoji: "🎁",  date: "2026-08-13", fr: "Épreuve surprise", nl: "Verrassingsproef",
@@ -3082,16 +3092,10 @@ function renderJardin() {
   // Aller au mini-jeu pour récolter des graines (absent en mode aperçu gratuit).
   const jh = $("#j-herbes");
   if (jh) jh.addEventListener("click", () => { userView = "herbes"; render(); });
-  // 🏷️ Le Juste Prix depuis le jardin. Même trajet que depuis la tuile : on
-  // emmène le jeton et le magasin, sinon la borne y arrive sans identité et la
-  // partie serait créditée au mauvais magasin.
+  // 🏷️ Le Juste Prix depuis le jardin : même chemin que depuis la tuile, une
+  // seule fonction pour les deux.
   const jjp = $("#j-justeprix");
-  if (jjp) jjp.addEventListener("click", () => {
-    const p = new URLSearchParams({ site: SITE });
-    const j = (joueur && joueur.jeton) || "";
-    if (j) p.set("jeton", j);
-    location.href = QUIZ_RACINE + "justeprix/?" + p.toString();
-  });
+  if (jjp) jjp.addEventListener("click", ouvreJustePrix);
   const jq = $("#j-quiz");
   if (jq) jq.addEventListener("click", () => {
     // Quiz REJOUABLE pour le jardin : mêmes questions (tirage au hasard), mais
@@ -3771,12 +3775,6 @@ function renderDashboard() {
   // essayer. En vrai, le quiz ne se fait qu'une fois et le jardin s'ouvre après.
   const quizFait = toutOuvert() ? false : !!joueur.quizFait;
   const jardinOk = toutOuvert() ? true : quizFait;
-  // 🏷️ LE JUSTE PRIX. Deux conditions, pas une : sa date doit être passée ET
-  // le quiz doit être fait. Les épreuves s'enchaînent dans l'ordre — c'est ce
-  // qui donne sa cohérence au parcours, et ça évite qu'on découvre la 2e sans
-  // avoir jamais joué la 1re.
-  const jpDateOk = epreuveDateOk(PROGRAMME[1]);
-  const jpAccessible = jpDateOk && (quizFait || toutOuvert());
   // 🏆 Vainqueur : quand l'événement est TERMINÉ, si le joueur connecté est dans
   // le top 3 du classement final, on l'en félicite et on l'oriente vers les RH.
   let rangFinal = 0;
@@ -3794,21 +3792,7 @@ function renderDashboard() {
     </div>` : ""}
     ${jardinMsg ? `<div class="alert" style="max-width:640px;margin:0 auto 16px;">${esc(jardinMsg)}</div>` : ""}
     <div class="borne-modules dash-modules">
-      <button class="borne-mod${quizOuvert && !quizFait ? "" : " mod-inactif"}" id="dash-quiz">
-        <span class="bm-emo">🎯</span>
-        <span class="bm-titre">${t("Faire le quiz", "De quiz doen")}</span>
-        <span class="bm-desc">${quizFait ? t("✅ Quiz déjà fait", "✅ Quiz al gedaan") : (quizOuvert ? t("Réponds et récolte tes graines", "Antwoord en oogst je zaadjes") : t("🔒 Dispo le ", "🔒 Beschikbaar op ") + labelLancement())}</span>
-      </button>
-      <button class="borne-mod${jpAccessible ? "" : " mod-inactif"}" id="dash-justeprix">
-        <span class="bm-emo">${PROGRAMME[1].emoji}</span>
-        <span class="bm-titre">${t(PROGRAMME[1].fr, PROGRAMME[1].nl)}</span>
-        <span class="bm-desc">${
-          !quizFait ? t("🔒 Fais le quiz d'abord", "🔒 Doe eerst de quiz")
-          : !jpDateOk ? t("🔒 Dispo le ", "🔒 Beschikbaar op ") + epreuveDateTexte(PROGRAMME[1])
-          : joueur.justePrixFait
-            ? t("✅ Fait — rejoue pour ton jardin 🌱", "✅ Gedaan — speel opnieuw voor je tuin 🌱")
-            : t("Devine le prix de 10 articles du magasin", "Raad de prijs van 10 artikelen uit de winkel")}</span>
-      </button>
+      ${tuileEpreuveHtml(quizOuvert, quizFait)}
       <button class="borne-mod${jardinOk ? "" : " mod-inactif"}" id="dash-jardin">
         <span class="bm-emo">🌼</span>
         <span class="bm-titre">${t("Mon espace jardin", "Mijn tuin")}</span>
@@ -3827,30 +3811,26 @@ function renderDashboard() {
       <button class="lien-explik" id="dash-retour">${t("◂ Accueil", "◂ Beginscherm")}</button>
     </div>
   </div>`;
-  $("#dash-quiz").addEventListener("click", () => {
-    if (quizFait) { jardinMsg = t("Tu as déjà fait le quiz 🌱 Direction ton jardin !", "Je hebt de quiz al gedaan 🌱 Op naar je tuin!"); userView = "jardin"; ouvreJardinDepuisDash(); return; }
-    if (!quizOuvert) { modaleQuizVerrouille(); return; }
-    ouvrePseudoPuisQuiz();
+  // 🎯 UNE SEULE TUILE D'ÉPREUVE, qui change de contenu au fil du parcours.
+  // Elle route donc selon l'épreuve qu'elle porte au moment du clic.
+  $("#dash-epreuve").addEventListener("click", () => {
+    const cur = epreuveCourante();
+    if (!cur) { ouvreModalites(); return; }          // tout fait : on montre le programme
+    if (cur.st === "avenir") {
+      if (cur.e.cle === "quiz") { modaleQuizVerrouille(); } else { modaleEpreuveVerrouillee("date", cur.e); }
+      return;
+    }
+    if (cur.st === "bloquee") { modaleEpreuveVerrouillee("ordre", cur.e); return; }
+    if (cur.st === "bientot") { modaleEpreuveVerrouillee("bientot", cur.e); return; }
+
+    if (cur.e.cle === "quiz") { ouvrePseudoPuisQuiz(); return; }
+    if (cur.e.cle === "justeprix") { ouvreJustePrix(); return; }
+    // Épreuve pas encore construite : on l'annonce plutôt que d'ouvrir le vide.
+    modaleEpreuveVerrouillee("bientot", cur.e);
   });
   $("#dash-jardin").addEventListener("click", () => {
     if (!jardinOk) { modaleJardinVerrouille(); return; }
     ouvreJardinDepuisDash();
-  });
-  $("#dash-justeprix").addEventListener("click", () => {
-    if (!quizFait && !toutOuvert()) { modaleEpreuveVerrouillee("ordre"); return; }
-    if (!jpDateOk) { modaleEpreuveVerrouillee("date"); return; }
-    // Le Juste Prix est une page à part (/quiz/justeprix/). Chemin ABSOLU :
-    // depuis /quiz/mouscron, un relatif « justeprix/ » chercherait
-    // /quiz/mouscron/justeprix/ et tomberait sur un 404.
-    // On emmène le JETON et le MAGASIN.
-    // Le jeton parce que sur une borne il n'est jamais écrit dans le
-    // navigateur (appareil partagé) : sans lui, la page d'à côté ne saurait
-    // pas qui joue. Le magasin parce que les scores sont cloisonnés par site
-    // (scores-<site>.json) : sans lui, la partie serait créditée ailleurs.
-    const p = new URLSearchParams({ site: SITE });
-    const j = (joueur && joueur.jeton) || "";
-    if (j) p.set("jeton", j);
-    location.href = QUIZ_RACINE + "justeprix/?" + p.toString();
   });
   $("#dash-board").addEventListener("click", () => { userView = "board"; render(); });
   { const m = $("#dash-modalites"); if (m) m.addEventListener("click", ouvreModalites); }
@@ -4630,11 +4610,66 @@ function etatEpreuve(i) {
     if (!dateOk) return "avenir";
     return (joueur && joueur.quizFait) ? "ouverte" : "bloquee";
   }
-  // Les épreuves encore à écrire : elles resteront « à venir » jusqu'à leur
-  // date, puis « bloquée » tant que la précédente n'est pas terminée.
+  // ⚠️ Les épreuves encore à écrire. Sans ce test, passé le 13 août la tuile
+  // afficherait « Épreuve surprise » comme disponible et le clic tomberait
+  // dans le vide. On la garde donc INACTIVE tant qu'elle n'existe pas, quelle
+  // que soit la date.
+  if (!e.pret) return dateOk ? "bientot" : "avenir";
   const precedenteOk = !!(joueur && joueur.justePrixFait);
   if (!dateOk) return "avenir";
   return precedenteOk ? "ouverte" : "bloquee";
+}
+
+/* 🎯 LA PREMIÈRE TUILE PORTE L'ÉPREUVE DU MOMENT.
+   On reste à TROIS modules : la tuile ne s'ajoute pas, elle CHANGE. Le quiz
+   devient le Juste Prix une fois validé, puis l'épreuve suivante, et ainsi de
+   suite. L'espace jardin garde donc toujours la même forme — trois tuiles —
+   et la personne n'a qu'un seul endroit à regarder pour savoir quoi faire. */
+function epreuveCourante() {
+  for (let i = 0; i < PROGRAMME.length; i++) {
+    const st = etatEpreuve(i);
+    if (st !== "faite") return { i, e: PROGRAMME[i], st };
+  }
+  return null;   // tout est terminé
+}
+
+function tuileEpreuveHtml(quizOuvert, quizFait) {
+  const cur = epreuveCourante();
+
+  // Tout est fait : la tuile félicite et renvoie au programme.
+  if (!cur) {
+    return `<button class="borne-mod" id="dash-epreuve" data-cle="fini">
+      <span class="bm-emo">🎉</span>
+      <span class="bm-titre">${t("Toutes les épreuves faites&nbsp;!", "Alle proeven gedaan!")}</span>
+      <span class="bm-desc">${t("Bravo — surveille le classement, et rejoue quand tu veux pour ton jardin 🌱", "Proficiat — hou de ranking in de gaten en speel wanneer je wil voor je tuin 🌱")}</span>
+    </button>`;
+  }
+
+  const { e, st } = cur;
+  const actif = (st === "ouverte");
+  let desc;
+  if (st === "bientot") {
+    desc = t("🎁 Dévoilée très bientôt", "🎁 Binnenkort onthuld");
+  } else if (st === "avenir") {
+    desc = t("🔒 Dispo le ", "🔒 Beschikbaar op ") +
+      (e.cle === "quiz" ? labelLancement() : epreuveDateTexte(e));
+  } else if (st === "bloquee") {
+    desc = t("🔒 Termine l'épreuve précédente", "🔒 Werk eerst de vorige proef af");
+  } else if (e.cle === "quiz") {
+    desc = t("Réponds et récolte tes graines", "Antwoord en oogst je zaadjes");
+  } else {
+    desc = t(e.dfr, e.dnl);
+  }
+
+  // Le numéro rassure : on voit qu'on avance dans un parcours, pas qu'on
+  // tombe sur une épreuve isolée.
+  const numero = t("Épreuve", "Proef") + " " + (cur.i + 1) + "/" + PROGRAMME.length;
+
+  return `<button class="borne-mod${actif ? "" : " mod-inactif"}" id="dash-epreuve" data-cle="${esc(e.cle)}">
+    <span class="bm-emo">${e.emoji}</span>
+    <span class="bm-titre">${t(e.fr, e.nl)}</span>
+    <span class="bm-desc"><span class="ep-num">${numero}</span>${desc}</span>
+  </button>`;
 }
 
 function blocModalitesHtml() {
@@ -4655,10 +4690,11 @@ function blocModalitesHtml() {
 
 function ouvreModalites() {
   const etiquette = {
-    faite:   { fr: "✅ Faite",     nl: "✅ Gedaan",     cl: "ep-faite" },
-    ouverte: { fr: "▶ À faire",   nl: "▶ Te doen",    cl: "ep-ouverte" },
+    faite:   { fr: "✅ Faite",     nl: "✅ Gedaan",      cl: "ep-faite" },
+    ouverte: { fr: "▶ À faire",   nl: "▶ Te doen",     cl: "ep-ouverte" },
     bloquee: { fr: "🔒 Bloquée",  nl: "🔒 Geblokkeerd", cl: "ep-bloquee" },
-    avenir:  { fr: "🗓 À venir",  nl: "🗓 Binnenkort",  cl: "ep-avenir" },
+    bientot: { fr: "🎁 Bientôt",  nl: "🎁 Binnenkort",  cl: "ep-avenir" },
+    avenir:  { fr: "🗓 À venir",  nl: "🗓 Nog te komen", cl: "ep-avenir" },
   };
   const o = document.createElement("div");
   o.className = "modal-fond";
@@ -4708,22 +4744,44 @@ function ouvreModalites() {
   o.addEventListener("click", (e) => { if (e.target === o) ferme(); });
 }
 
-// Pourquoi une épreuve ne s'ouvre pas : l'ordre, ou la date. Deux raisons
-// différentes, deux messages différents — « c'est fermé » sans dire pourquoi
-// est la meilleure façon de faire revenir quelqu'un à l'accueil du magasin.
-function modaleEpreuveVerrouillee(raison) {
+// 🏷️ Ouvrir le Juste Prix. On emmène le JETON et le MAGASIN.
+// Le jeton parce que sur une BORNE il n'est jamais écrit dans le navigateur
+// (appareil partagé) : sans lui, la page d'à côté ne saurait pas qui joue.
+// Le magasin parce que les scores sont cloisonnés par site
+// (scores-<site>.json) : sans lui, la partie serait créditée ailleurs.
+// Chemin ABSOLU : depuis /quiz/mouscron, un relatif « justeprix/ » chercherait
+// /quiz/mouscron/justeprix/ et tomberait sur un 404.
+function ouvreJustePrix() {
+  const p = new URLSearchParams({ site: SITE });
+  const j = (joueur && joueur.jeton) || "";
+  if (j) p.set("jeton", j);
+  location.href = QUIZ_RACINE + "justeprix/?" + p.toString();
+}
+
+// Pourquoi une épreuve ne s'ouvre pas. Trois raisons possibles, trois messages
+// différents : « c'est fermé » sans dire pourquoi est la meilleure façon de
+// faire revenir quelqu'un à l'accueil du magasin poser la question.
+function modaleEpreuveVerrouillee(raison, ep) {
+  const nom = ep ? t(ep.fr, ep.nl) : "";
+  const titres = {
+    ordre:   t("Termine l'épreuve précédente", "Werk eerst de vorige proef af"),
+    date:    t("Pas encore ouverte", "Nog niet open"),
+    bientot: t("Bientôt&nbsp;!", "Binnenkort!"),
+  };
+  const textes = {
+    ordre:   t("Les épreuves se font <b>dans l'ordre</b>. Termine celle d'avant et <b>" + nom + "</b> s'ouvrira 🌱",
+               "De proeven doe je <b>in volgorde</b>. Werk de vorige af en <b>" + nom + "</b> gaat open 🌱"),
+    date:    t("Rendez-vous le <b>" + (ep ? epreuveDateTexte(ep) : "") + "</b> pour <b>" + nom + "</b> 🗓",
+               "Afspraak op <b>" + (ep ? epreuveDateTexte(ep) : "") + "</b> voor <b>" + nom + "</b> 🗓"),
+    bientot: t("<b>" + nom + "</b> se prépare — elle sera dévoilée le jour même. Reste à l'affût&nbsp;! 👀",
+               "<b>" + nom + "</b> wordt voorbereid — ze wordt die dag onthuld. Blijf alert! 👀"),
+  };
   const o = document.createElement("div");
   o.className = "modal-fond";
   o.innerHTML = `<div class="modal code-modal">
-    <div class="cm-emoji">🔒</div>
-    <h2 class="cm-titre">${raison === "ordre"
-      ? t("Le quiz d'abord !", "Eerst de quiz!")
-      : t("Pas encore ouverte", "Nog niet open")}</h2>
-    <p class="cm-sous">${raison === "ordre"
-      ? t("Les épreuves se font <b>dans l'ordre</b>. Termine le quiz et celle-ci s'ouvrira 🌱",
-          "De proeven doe je <b>in volgorde</b>. Werk de quiz af en deze gaat open 🌱")
-      : t("Rendez-vous le <b>" + epreuveDateTexte(PROGRAMME[1]) + "</b> pour le Juste Prix 🏷️",
-          "Afspraak op <b>" + epreuveDateTexte(PROGRAMME[1]) + "</b> voor de Juiste Prijs 🏷️")}</p>
+    <div class="cm-emoji">${raison === "bientot" ? "🎁" : "🔒"}</div>
+    <h2 class="cm-titre">${titres[raison] || titres.date}</h2>
+    <p class="cm-sous">${textes[raison] || textes.date}</p>
     <button class="btn" id="cm-ok" style="min-width:180px;">${t("D'accord", "Oké")}</button>
   </div>`;
   document.body.appendChild(o);
