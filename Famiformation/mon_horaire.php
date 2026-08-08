@@ -98,73 +98,144 @@ $stmt->execute([
 ]);
 $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-$rowsByDate = [];
-foreach ($rows as $row) {
-    $dateKey = (string) ($row['shift_date'] ?? '');
-    if (!isset($rowsByDate[$dateKey])) {
-        $rowsByDate[$dateKey] = [];
-    }
-    $rowsByDate[$dateKey][] = $row;
-}
-
-$weekDays = [];
+// ─────────────────────────────────────────────────────────────────────────────
+// LA SEMAINE EN GRILLE : les 7 jours en COLONNES, un département par LIGNE.
+//
+// L'affichage précédent empilait 7 tableaux de 4 colonnes, un par jour. Sur une
+// semaine à 2 créneaux, ça faisait 5 blocs « Aucun horaire attribué » à faire
+// défiler pour trouver les 2 qui comptent. Une grille montre la semaine entière
+// d'un coup d'œil, et les trous se lisent comme des trous.
+//
+// Une ligne par département (et non une seule ligne fourre-tout) : un étudiant
+// qui fait Caisse le lundi et Garden le samedi voit deux métiers distincts, pas
+// une bouillie dans la même bande.
+// ─────────────────────────────────────────────────────────────────────────────
+$joursSemaine = [];
 $cursor = $selectedWeekStart;
+$todayKey = $today->format('Y-m-d');
 while ($cursor <= $selectedWeekEnd) {
     $key = $cursor->format('Y-m-d');
-    $weekDays[] = [
-        'key' => $key,
-        'label' => fmtDateFr($key),
-        'items' => $rowsByDate[$key] ?? [],
+    $joursSemaine[] = [
+        'key'      => $key,
+        'nom'      => nomDuJour($key),
+        'chiffre'  => $cursor->format('d/m'),
+        'estAuj'   => ($key === $todayKey),
+        'weekend'  => in_array($cursor->format('N'), ['6', '7'], true),
     ];
     $cursor = $cursor->modify('+1 day');
+}
+
+// [département][date] => créneaux
+$grille = [];
+foreach ($rows as $row) {
+    $dept = trim((string) ($row['department_name'] ?? ''));
+    if ($dept === '') {
+        $dept = monHoraireT('Sans département', 'Zonder afdeling');
+    }
+    $grille[$dept][(string) ($row['shift_date'] ?? '')][] = $row;
+}
+ksort($grille);
+
+// Total d'heures de la semaine, quand les créneaux sont écrits « 9h-17h ».
+// Purement indicatif : le texte est libre en base, on ne prétend pas le
+// comprendre à tous les coups — d'où l'affichage « ~ » et le silence si on
+// n'a rien su lire.
+$heuresSemaine = 0.0;
+$heuresLues = 0;
+foreach ($rows as $row) {
+    $d = dureeCreneau((string) ($row['time_slot'] ?? ''));
+    if ($d !== null) {
+        $heuresSemaine += $d;
+        $heuresLues++;
+    }
 }
 
 $weekLabel = monHoraireT('Semaine du ', 'Week van ') . $selectedWeekStart->format('d/m/Y') . monHoraireT(' au ', ' tot ') . $selectedWeekEnd->format('d/m/Y');
 $isCurrentWeek = $selectedWeekStart->format('Y-m-d') === $currentWeekStart->format('Y-m-d');
 
-function fmtDateFr($dateValue)
+/** Juste le nom du jour, sans la date : elle est affichée en dessous. */
+function nomDuJour($dateValue)
 {
     $dt = DateTimeImmutable::createFromFormat('Y-m-d', (string) $dateValue);
     if (!$dt) {
         return (string) $dateValue;
     }
 
-    $days = famiLang() === 'nl' ? [
-        'Monday' => 'Maandag',
-        'Tuesday' => 'Dinsdag',
-        'Wednesday' => 'Woensdag',
-        'Thursday' => 'Donderdag',
-        'Friday' => 'Vrijdag',
-        'Saturday' => 'Zaterdag',
-        'Sunday' => 'Zondag',
-    ] : [
-        'Monday' => 'Lundi',
-        'Tuesday' => 'Mardi',
-        'Wednesday' => 'Mercredi',
-        'Thursday' => 'Jeudi',
-        'Friday' => 'Vendredi',
-        'Saturday' => 'Samedi',
-        'Sunday' => 'Dimanche',
-    ];
+    $jours = famiLang() === 'nl'
+        ? ['Monday' => 'Maandag', 'Tuesday' => 'Dinsdag', 'Wednesday' => 'Woensdag',
+           'Thursday' => 'Donderdag', 'Friday' => 'Vrijdag', 'Saturday' => 'Zaterdag', 'Sunday' => 'Zondag']
+        : ['Monday' => 'Lundi', 'Tuesday' => 'Mardi', 'Wednesday' => 'Mercredi',
+           'Thursday' => 'Jeudi', 'Friday' => 'Vendredi', 'Saturday' => 'Samedi', 'Sunday' => 'Dimanche'];
 
-    $dayName = $days[$dt->format('l')] ?? $dt->format('l');
-    return $dayName . ' ' . $dt->format('d/m/Y');
+    return $jours[$dt->format('l')] ?? $dt->format('l');
 }
 
-function renderScheduleRows(array $items)
+/**
+ * Durée d'un créneau écrit à la main, en heures — ou null si on n'a pas su lire.
+ *
+ * Le créneau est du TEXTE LIBRE en base : « 9h-17h », « 09:00 - 17:30 »,
+ * « 9h à 17h »... On reconnaît les formes courantes et on renonce proprement
+ * pour le reste, plutôt que d'annoncer un total faux. Une nuit qui passe
+ * minuit (22h-6h) est comptée comme telle.
+ */
+function dureeCreneau($texte)
+{
+    if (!preg_match_all('/(\d{1,2})\s*[h:]\s*(\d{2})?/i', (string) $texte, $m, PREG_SET_ORDER) || count($m) < 2) {
+        return null;
+    }
+
+    // Les heures sont lues DEUX PAR DEUX : « 8h-12h / 13h-17h » compte les deux
+    // demi-journées. Ne prendre que la première et la dernière donnerait 9 h au
+    // lieu de 8 — la pause de midi comptée comme du travail.
+    $total = 0.0;
+    $paires = 0;
+
+    for ($i = 0; $i + 1 < count($m); $i += 2) {
+        $debut = (int) $m[$i][1]     + (isset($m[$i][2])     && $m[$i][2]     !== '' ? ((int) $m[$i][2]) / 60 : 0);
+        $fin   = (int) $m[$i + 1][1] + (isset($m[$i + 1][2]) && $m[$i + 1][2] !== '' ? ((int) $m[$i + 1][2]) / 60 : 0);
+
+        if ($debut > 24 || $fin > 24) {
+            return null;
+        }
+        if ($fin <= $debut) {
+            $fin += 24; // le créneau passe minuit
+        }
+
+        $duree = $fin - $debut;
+        if ($duree <= 0 || $duree > 16) {
+            return null;
+        }
+
+        $total += $duree;
+        $paires++;
+    }
+
+    return ($paires > 0 && $total <= 16) ? $total : null;
+}
+
+/** Le contenu d'une case : les créneaux d'un jour, pour un département. */
+function renderCase(array $items)
 {
     if (empty($items)) {
-        echo '<tr><td colspan="4" class="empty-row">' . e(monHoraireT('Aucun horaire attribue.', 'Geen rooster toegewezen.')) . '</td></tr>';
+        echo '<span class="rien">·</span>';
         return;
     }
 
     foreach ($items as $item) {
-        echo '<tr>';
-        echo '<td>' . e((string) ($item['time_slot'] ?? '')) . '</td>';
-        echo '<td>' . e((string) ($item['department_name'] ?? '')) . '</td>';
-        echo '<td>' . e((string) ($item['agency_name'] ?? '')) . '</td>';
-        echo '<td>' . e((string) ($item['comment'] ?? '')) . '</td>';
-        echo '</tr>';
+        $agence     = trim((string) ($item['agency_name'] ?? ''));
+        $commentaire = trim((string) ($item['comment'] ?? ''));
+
+        echo '<div class="creneau">';
+        echo '<span class="heure">' . e((string) ($item['time_slot'] ?? '')) . '</span>';
+        if ($agence !== '') {
+            echo '<span class="agence">' . e($agence) . '</span>';
+        }
+        // Le commentaire est le seul champ vraiment libre : il peut être long,
+        // donc il passe en info-bulle plutôt que d'étirer la colonne.
+        if ($commentaire !== '') {
+            echo '<span class="mot" title="' . e($commentaire) . '">' . e($commentaire) . '</span>';
+        }
+        echo '</div>';
     }
 }
 ?>
@@ -407,6 +478,122 @@ function renderScheduleRows(array $items)
             color: var(--muted);
             font-style: italic;
         }
+
+        /* ── LA GRILLE DE LA SEMAINE ─────────────────────────────────────────
+           7 colonnes de jours + 1 colonne de département. Les colonnes de jours
+           ont toutes la MÊME largeur (table-layout: fixed) : sans ça, un
+           commentaire un peu long élargit son jour et la semaine devient
+           bancale, ce qui trompe l'œil sur la charge réelle. */
+        table.grille {
+            table-layout: fixed;
+            min-width: 940px;
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+
+        table.grille th,
+        table.grille td {
+            border-bottom: 1px solid var(--line);
+            border-right: 1px solid var(--line);
+            vertical-align: top;
+            padding: 10px 9px;
+        }
+        table.grille tr > *:last-child { border-right: none; }
+        table.grille tbody tr:last-child > * { border-bottom: none; }
+
+        /* Colonne des départements : figée à gauche pour rester lisible quand
+           la grille défile horizontalement sur un téléphone. */
+        table.grille .col-dept {
+            width: 150px;
+            position: sticky;
+            left: 0;
+            z-index: 2;
+            background: #fbfdfb;
+            text-align: left;
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--accent);
+            text-transform: none;
+            letter-spacing: 0;
+            border-right: 2px solid var(--line);
+        }
+
+        table.grille thead th {
+            text-align: center;
+            background: #fbfdfb;
+            padding: 9px 6px;
+        }
+        table.grille .jour-nom {
+            display: block;
+            font-size: 0.78rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: var(--text);
+        }
+        table.grille .jour-date {
+            display: block;
+            font-size: 0.72rem;
+            color: var(--muted);
+            margin-top: 2px;
+            font-weight: 400;
+        }
+
+        /* Le jour du jour : une colonne teintée sur toute sa hauteur. C'est le
+           repère qu'on cherche en premier en ouvrant la page. */
+        table.grille .auj { background: var(--soft); }
+        table.grille thead th.auj .jour-nom { color: var(--accent); }
+        table.grille .we { background: #fafbfa; }
+        table.grille .auj.we { background: var(--soft); }
+        table.grille td.creux { text-align: center; }
+
+        .creneau {
+            background: #fff;
+            border: 1px solid var(--line);
+            border-left: 3px solid var(--accent);
+            border-radius: 8px;
+            padding: 7px 9px;
+            margin-bottom: 6px;
+            box-shadow: 0 1px 3px rgba(22, 49, 33, 0.06);
+        }
+        .creneau:last-child { margin-bottom: 0; }
+        .creneau .heure {
+            display: block;
+            font-weight: 700;
+            font-size: 0.86rem;
+            color: var(--text);
+        }
+        .creneau .agence,
+        .creneau .mot {
+            display: block;
+            font-size: 0.75rem;
+            color: var(--muted);
+            margin-top: 2px;
+        }
+        /* Un commentaire long ne doit pas étirer la case : il est coupé et le
+           texte complet reste disponible en info-bulle. */
+        .creneau .mot {
+            font-style: italic;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .rien { color: #cbd6cf; }
+
+        .semaine-vide {
+            text-align: center;
+            padding: 46px 20px;
+            color: var(--muted);
+        }
+        .semaine-vide-icone { font-size: 2.4rem; margin-bottom: 8px; }
+        .semaine-vide p { margin: 4px 0; }
+        .semaine-vide .petit { font-size: 0.85rem; opacity: 0.8; }
+
+        @media (max-width: 720px) {
+            body { padding: 12px; }
+            table.grille .col-dept { width: 110px; }
+        }
     </style>
 </head>
 <body>
@@ -429,6 +616,21 @@ function renderScheduleRows(array $items)
             <div class="value"><?= count($rows) ?></div>
         </div>
         <div class="stat">
+            <div class="label"><?php echo e(monHoraireT('Heures estimees', 'Geschatte uren')); ?></div>
+            <div class="value">
+                <?php
+                // Silence si aucun créneau n'a pu être lu : mieux vaut ne rien
+                // annoncer qu'un total faux. Le « ~ » rappelle que le créneau
+                // est du texte libre, pas une heure de début et de fin en base.
+                if ($heuresLues === 0) {
+                    echo '—';
+                } else {
+                    echo '~' . e(rtrim(rtrim(number_format($heuresSemaine, 1, ',', ''), '0'), ',')) . 'h';
+                }
+                ?>
+            </div>
+        </div>
+        <div class="stat">
             <div class="label"><?php echo e(monHoraireT('Position', 'Status')); ?></div>
             <div class="value" style="font-size:1.1rem;"><?= $isCurrentWeek ? monHoraireT('Semaine en cours', 'Huidige week') : monHoraireT('Archive / prevision', 'Archief / vooruitblik') ?></div>
         </div>
@@ -445,24 +647,41 @@ function renderScheduleRows(array $items)
                 <a class="week-arrow" href="?week_start=<?= e($nextWeekStart->format('Y-m-d')) ?>" title="<?= e(monHoraireT('Semaine suivante', 'Volgende week')); ?>">→</a>
             </div>
         </div>
-        <?php foreach ($weekDays as $day): ?>
-        <div class="day-block">
-            <div class="day-head"><?= e($day['label']) ?> <span class="badge" style="margin-left:8px;"><?= count($day['items']) ?></span></div>
+        <?php if (empty($grille)): ?>
+            <div class="semaine-vide">
+                <div class="semaine-vide-icone">🗓️</div>
+                <p><?php echo e(monHoraireT('Aucun horaire attribue cette semaine.', 'Geen rooster toegewezen deze week.')); ?></p>
+                <p class="petit"><?php echo e(monHoraireT('Utilise les fleches ci-dessus pour voir une autre semaine.', 'Gebruik de pijlen hierboven om een andere week te bekijken.')); ?></p>
+            </div>
+        <?php else: ?>
             <div class="table-wrap">
-                <table>
+                <table class="grille">
                     <thead>
-                    <tr>
-                        <th><?php echo e(monHoraireT('Creneau', 'Slot')); ?></th>
-                        <th><?php echo e(monHoraireT('Departement', 'Afdeling')); ?></th>
-                        <th><?php echo e(monHoraireT('Agence', 'Agentschap')); ?></th>
-                        <th><?php echo e(monHoraireT('Commentaire', 'Opmerking')); ?></th>
-                    </tr>
+                        <tr>
+                            <th class="col-dept"><?php echo e(monHoraireT('Departement', 'Afdeling')); ?></th>
+                            <?php foreach ($joursSemaine as $j): ?>
+                                <th class="<?= $j['estAuj'] ? 'auj' : '' ?><?= $j['weekend'] ? ' we' : '' ?>">
+                                    <span class="jour-nom"><?= e($j['nom']) ?></span>
+                                    <span class="jour-date"><?= e($j['chiffre']) ?></span>
+                                </th>
+                            <?php endforeach; ?>
+                        </tr>
                     </thead>
-                    <tbody><?php renderScheduleRows($day['items']); ?></tbody>
+                    <tbody>
+                    <?php foreach ($grille as $dept => $parJour): ?>
+                        <tr>
+                            <th class="col-dept" scope="row"><?= e($dept) ?></th>
+                            <?php foreach ($joursSemaine as $j): ?>
+                                <td class="<?= $j['estAuj'] ? 'auj' : '' ?><?= $j['weekend'] ? ' we' : '' ?><?= empty($parJour[$j['key']]) ? ' creux' : '' ?>">
+                                    <?php renderCase($parJour[$j['key']] ?? []); ?>
+                                </td>
+                            <?php endforeach; ?>
+                        </tr>
+                    <?php endforeach; ?>
+                    </tbody>
                 </table>
             </div>
-        </div>
-        <?php endforeach; ?>
+        <?php endif; ?>
     </section>
 </div>
 </body>
