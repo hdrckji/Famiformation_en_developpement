@@ -181,6 +181,13 @@ body.demo .carte { border: 3px dashed #4E9E72; }
   background: var(--brume); border-radius: 16px; padding: 10px 18px; display: inline-block;
 }
 .verdict .grosgain.zero { color: var(--doux); }
+/* Le nombre de ventes : présent mais discret, il ne doit pas voler la vedette
+   au gain de la manche. */
+.vendu {
+  display: inline-block; background: var(--brume); color: var(--foret);
+  border-radius: 999px; padding: 6px 15px; margin-bottom: 14px;
+  font-size: .92rem; font-weight: 700;
+}
 .chips { margin-top: 8px; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; font-size: .84rem; font-weight: 900; }
 .chip { background: #FFF3C9; color: #8a6d1a; border-radius: 999px; padding: 3px 11px; }
 
@@ -301,6 +308,24 @@ function gainManche(ecart, tSec, serie) {
 
 const aff = (n) => Math.round(Number(n) || 0);
 const euro = (n) => Number(n).toFixed(2).replace(".", ",") + " €";
+
+// 🛒 COMBIEN L'ARTICLE S'EST VENDU.
+//
+// Affiché APRÈS la réponse, jamais avant : un gros chiffre de ventes trahit
+// souvent un petit prix, ça donnerait la réponse. En revanche, une fois le
+// prix révélé, c'est l'information qui rend la manche intéressante — on
+// apprend ce qui part vraiment en magasin.
+// Chiffres de Mouscron, juillet 2026.
+const PERIODE_VENTES = { fr: "en juillet 2026", nl: "in juli 2026" };
+const nbFr = (n) => Number(n).toLocaleString(LANG === "nl" ? "nl-BE" : "fr-BE");
+
+function venduHtml(a) {
+  const v = Number(a.ventes);
+  if (!isFinite(v) || v <= 0) return "";   // pas de chiffre : on n'invente rien
+  return `<div class="vendu">🛒 ${t(
+    `Vendu <b>${nbFr(v)} fois</b> ${PERIODE_VENTES.fr}`,
+    `<b>${nbFr(v)} keer</b> verkocht ${PERIODE_VENTES.nl}`)}</div>`;
+}
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const nomDe = (a) => (LANG === "nl" ? a.nl : a.fr);
@@ -620,6 +645,8 @@ function vueVerdict() {
               `Jij zei <b>${euro(d.propose)}</b> — <b>${euro(diff)}</b> ernaast`)
           : `<span class="rien">${t("Pas de réponse", "Geen antwoord")}</span>`}
       </div>
+
+      ${venduHtml(a)}
 
       ${demo
         ? `<div class="grosgain zero" style="font-size:1.15rem;">${t("L'échauffement ne compte pas", "De opwarming telt niet mee")}</div>`
