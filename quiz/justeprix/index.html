@@ -18,23 +18,36 @@
    ============================================================ */
 :root {
   color-scheme: light;
-  --pousse: #1E7A46;
-  --foret: #0E3B24;
-  --brume: #EAF4EC;
   --soleil: #FFC53D;
-  --craie: #FFFFFF;
   --corail: #FF6B5E;
-  --accent: var(--pousse);
-  --ombre: #145c34;
+
+  --brume: #EAF4EC;    /* fond de page          */
+  --craie: #FFFFFF;    /* fond des cartes       */
+  --foret: #0E3B24;    /* texte principal       */
+  --doux:  #5D7566;    /* texte secondaire      */
+  --trait: #CDDCD2;    /* filets et bordures    */
+  --accent: #1E7A46;
+  --ombre: #145C34;
+  --puce: #0E3B24;     /* pastille du score     */
+  --puceTexte: #FFFFFF;
+  --jauge: #D6E6DA;
 }
-/* 🎓 MODE ENTRAÎNEMENT — fond franchement différent.
-   Le but est qu'on VOIE d'un coup d'œil que ça ne compte pas : même palette
-   décalée vers le bleu, plus froide, plus « brouillon ». */
+/* 🎓 MODE ENTRAÎNEMENT — le MÊME vert, simplement en version sombre.
+   On ne change pas la couleur de la maison : seule la lumière baisse. Ça suffit
+   largement à voir d'un coup d'œil qu'on n'est pas encore dans la vraie partie,
+   sans donner l'impression d'avoir changé de jeu. */
 body.demo {
-  --brume: #E7EEF7;
-  --accent: #3C6CA8;
-  --ombre: #2b5182;
-  --foret: #1B3550;
+  color-scheme: dark;
+  --brume: #0B2417;
+  --craie: #16402A;
+  --foret: #E9F5ED;
+  --doux:  #9DBCA9;
+  --trait: #2E6244;
+  --accent: #5FCB8B;
+  --ombre: #124E31;
+  --puce: #5FCB8B;
+  --puceTexte: #06301C;
+  --jauge: #2E6244;
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
@@ -59,10 +72,10 @@ h1, h2, h3 { font-family: 'Fredoka', sans-serif; }
 .langues { display: flex; justify-content: flex-end; gap: 6px; margin-bottom: 6px; }
 .langues button {
   font: inherit; font-size: .8rem; font-weight: 900; cursor: pointer;
-  border: 2px solid #cddcd2; background: transparent; color: #6d8577;
+  border: 2px solid var(--trait); background: transparent; color: var(--doux);
   border-radius: 999px; padding: 3px 11px;
 }
-.langues button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.langues button.on { background: var(--accent); border-color: var(--accent); color: var(--puceTexte); }
 
 /* ---------- Accueil ---------- */
 .accueil { text-align: center; padding-top: 8px; }
@@ -80,14 +93,14 @@ h1, h2, h3 { font-family: 'Fredoka', sans-serif; }
 
 .btn {
   font-family: 'Fredoka', sans-serif; font-size: 1.15rem; font-weight: 600;
-  background: var(--accent); color: #fff; border: 0; border-radius: 999px;
+  background: var(--accent); color: var(--puceTexte); border: 0; border-radius: 999px;
   padding: 14px 34px; cursor: pointer;
   box-shadow: 0 5px 0 var(--ombre); transition: transform .08s, box-shadow .08s;
 }
 .btn:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--ombre); }
 .btn:disabled { opacity: .45; cursor: default; transform: none; }
-.btn.secondaire { background: var(--craie); color: var(--foret); box-shadow: 0 5px 0 #cddcd2; }
-.btn.secondaire:active { box-shadow: 0 2px 0 #cddcd2; }
+.btn.secondaire { background: var(--craie); color: var(--foret); box-shadow: 0 5px 0 var(--trait); }
+.btn.secondaire:active { box-shadow: 0 2px 0 var(--trait); }
 
 /* ---------- Fenêtre « en savoir plus » ---------- */
 .fond {
@@ -95,7 +108,7 @@ h1, h2, h3 { font-family: 'Fredoka', sans-serif; }
   display: flex; align-items: center; justify-content: center; padding: 18px; z-index: 50;
 }
 .modale {
-  background: #fff; border-radius: 22px; padding: 22px; max-width: 460px;
+  background: var(--craie); border-radius: 22px; padding: 22px; max-width: 460px;
   width: 100%; max-height: 86dvh; overflow-y: auto; text-align: left;
   box-shadow: 0 20px 50px rgba(0,0,0,.3);
 }
@@ -111,7 +124,7 @@ h1, h2, h3 { font-family: 'Fredoka', sans-serif; }
 .hud { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; min-height: 34px; }
 .hud .manche { font-family: 'Fredoka', sans-serif; font-weight: 600; font-size: 1.02rem; }
 .hud .pts {
-  margin-left: auto; background: var(--foret); color: #fff; border-radius: 999px;
+  margin-left: auto; background: var(--puce); color: var(--puceTexte); border-radius: 999px;
   padding: 6px 14px; font-weight: 900; font-size: .96rem;
 }
 .hud .serie {
@@ -119,11 +132,11 @@ h1, h2, h3 { font-family: 'Fredoka', sans-serif; }
   border-radius: 999px; padding: 4px 10px; font-weight: 900; font-size: .85rem;
 }
 .hud .etiq {
-  background: var(--accent); color: #fff; border-radius: 999px;
+  background: var(--accent); color: var(--puceTexte); border-radius: 999px;
   padding: 4px 11px; font-weight: 900; font-size: .76rem;
   letter-spacing: .06em; text-transform: uppercase;
 }
-.jauge { height: 9px; background: #d3dfe3; border-radius: 999px; overflow: hidden; margin-bottom: 14px; }
+.jauge { height: 9px; background: var(--jauge); border-radius: 999px; overflow: hidden; margin-bottom: 14px; }
 .jauge > i { display: block; height: 100%; background: var(--accent); border-radius: 999px; transition: width .25s linear; }
 .jauge.presse > i { background: var(--corail); }
 
@@ -132,7 +145,9 @@ h1, h2, h3 { font-family: 'Fredoka', sans-serif; }
   background: var(--craie); border-radius: 22px; padding: 18px;
   box-shadow: 0 8px 26px rgba(14,59,36,.12); text-align: center;
 }
-body.demo .carte { border: 3px dashed #a9c2de; }
+/* Les pointillés doivent RESTER visibles sur le fond sombre : --trait y tombe
+   à 1,6:1, autant ne rien dessiner. On prend un vert plus clair (3,6:1). */
+body.demo .carte { border: 3px dashed #4E9E72; }
 .photo { width: 100%; height: min(44vh, 290px); object-fit: contain; background: #fff; border-radius: 14px; display: block; }
 .nom { font-size: 1.05rem; font-weight: 700; margin: 14px 0 2px; line-height: 1.35; }
 
@@ -140,23 +155,23 @@ body.demo .carte { border: 3px dashed #a9c2de; }
 .saisie input {
   font-family: 'Fredoka', sans-serif; font-size: 2.1rem; font-weight: 700;
   width: 100%; max-width: 210px; text-align: right;
-  border: 3px solid #d6e6da; border-radius: 14px; padding: 8px 12px;
-  color: var(--foret); background: #fff; outline: none;
+  border: 3px solid var(--trait); border-radius: 14px; padding: 8px 12px;
+  color: var(--foret); background: var(--craie); outline: none;
 }
 .saisie input:focus { border-color: var(--accent); }
 .saisie .eur { font-family: 'Fredoka', sans-serif; font-size: 2rem; font-weight: 700; }
-.aide { font-size: .84rem; color: #5d7566; min-height: 1.2em; }
+.aide { font-size: .84rem; color: var(--doux); min-height: 1.2em; }
 
 /* ---------- Verdict, volontairement dépouillé ---------- */
 .verdict .titre { font-family: 'Fredoka', sans-serif; font-size: 1.75rem; margin: 8px 0 2px; }
-.verdict .libelle { font-size: .88rem; color: #5d7566; }
+.verdict .libelle { font-size: .88rem; color: var(--doux); }
 .verdict .prixreel { font-family: 'Fredoka', sans-serif; font-size: 2.7rem; color: var(--accent); margin: 2px 0 6px; }
 .verdict .tien { font-size: 1rem; margin-bottom: 14px; }
 .verdict .grosgain {
   font-family: 'Fredoka', sans-serif; font-size: 2rem; font-weight: 700;
   background: var(--brume); border-radius: 16px; padding: 10px 18px; display: inline-block;
 }
-.verdict .grosgain.zero { color: #93a89a; }
+.verdict .grosgain.zero { color: var(--doux); }
 .chips { margin-top: 8px; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; font-size: .84rem; font-weight: 900; }
 .chip { background: #FFF3C9; color: #8a6d1a; border-radius: 999px; padding: 3px 11px; }
 
@@ -179,7 +194,7 @@ body.demo .carte { border: 3px dashed #a9c2de; }
 .recap .ligne .t b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .recap .ligne .p { font-weight: 900; white-space: nowrap; }
 .gagne { color: var(--accent); }
-.rien { color: #93a89a; }
+.rien { color: var(--doux); }
 .lien { color: var(--accent); font-size: .82rem; }
 
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
@@ -363,7 +378,7 @@ function vueAccueil() {
       <div class="but">
         ${t(`On te montre un article du magasin.<br><b>À toi de deviner son prix.</b>`,
              `We tonen je een artikel uit de winkel.<br><b>Raad jij de prijs?</b>`)}
-        <div style="margin-top:12px;font-size:.98rem;color:#5d7566;">
+        <div style="margin-top:12px;font-size:.98rem;color:var(--doux);">
           ${t(`Plus tu es près du vrai prix, plus tu marques de points.<br>${BAREME.manches} articles, ${BAREME.secondes} secondes chacun.`,
                `Hoe dichter bij de echte prijs, hoe meer punten.<br>${BAREME.manches} artikelen, telkens ${BAREME.secondes} seconden.`)}
         </div>
@@ -372,7 +387,7 @@ function vueAccueil() {
       <button class="plus" id="enSavoirPlus">${t("En savoir plus sur les points", "Meer over de punten")}</button>
       <div style="margin:16px 0 0"><button class="btn" id="go">${t("C'est parti !", "We gaan ervoor!")}</button></div>
 
-      <div style="margin-top:18px;font-size:.76rem;color:#7c9184;">
+      <div style="margin-top:18px;font-size:.76rem;color:var(--doux);">
         ${t("Prix relevés sur hermie.com le", "Prijzen opgehaald op hermie.com op")} ${DATE_RELEVE}.
       </div>
     </div>`;
@@ -403,7 +418,7 @@ function ouvrirModale() {
             ${ex.map(e => `<tr><td>${t("tu dis", "je zegt")} ${euro(e.dit)}</td><td>${e.pts} ${t("pts", "ptn")}</td></tr>`).join("")}
           </table>
         </div>
-        <p style="font-size:.86rem;color:#5d7566;">${t(
+        <p style="font-size:.86rem;color:var(--doux);">${t(
           "L'écart est calculé en proportion du prix : se tromper de 5 € sur un sécateur à 12 € n'est pas la même erreur que se tromper de 5 € sur un parasol à 300 €.",
           "De afwijking telt in verhouding tot de prijs: 5 € ernaast zitten bij een snoeischaar van 12 € is niet hetzelfde als 5 € ernaast bij een parasol van 300 €.")}</p>
 
@@ -443,9 +458,9 @@ function vueAnnonceDemo() {
               Ces points ne comptent pas : c'est juste un exemple.`,
               `<b>${BAREME.demo} artikelen om het te snappen</b>, zonder inzet.<br>
               Deze punten tellen niet mee: het is maar een voorbeeld.`)}</p>
-      <p style="font-size:.9rem;color:#5d7566;">${t(
-        "Tu reconnaîtras l'entraînement à son fond bleu.",
-        "Je herkent de oefening aan de blauwe achtergrond.")}</p>
+      <p style="font-size:.9rem;color:var(--doux);">${t(
+        "Tu reconnaîtras l'entraînement à son fond sombre.",
+        "Je herkent de oefening aan de donkere achtergrond.")}</p>
       <button class="btn" id="allez">${t("Commencer l'échauffement", "Start de opwarming")}</button>
     </div>`;
   $("#allez").addEventListener("click", () => { etat.phase = "manche"; rendre(); });
@@ -460,9 +475,9 @@ function vueAnnonceReel() {
       <h2>${t("Fini l'échauffement !", "Opwarming voorbij!")}</h2>
       <p>${t(`Maintenant, <b>ça compte</b>.<br>${BAREME.manches} articles, et chaque point est pour toi.`,
               `Nu <b>telt het echt</b>.<br>${BAREME.manches} artikelen, en elk punt is voor jou.`)}</p>
-      <p style="font-size:.9rem;color:#5d7566;">${t(
-        "Le fond redevient vert : tu es dans la vraie partie.",
-        "De achtergrond wordt weer groen: je zit in het echte spel.")}</p>
+      <p style="font-size:.9rem;color:var(--doux);">${t(
+        "La lumière revient : tu es dans la vraie partie.",
+        "Het licht gaat weer aan: je zit in het echte spel.")}</p>
       <button class="btn" id="allez">${t("Je suis prêt !", "Ik ben klaar!")}</button>
     </div>`;
   $("#allez").addEventListener("click", () => { etat.phase = "manche"; rendre(); });
@@ -632,9 +647,9 @@ function vueFin() {
     <div class="fin">
       <div style="font-size:2.6rem">🏁</div>
       <div class="score">${aff(etat.score)}</div>
-      <div style="font-size:.95rem;color:#5d7566;margin-bottom:6px;">${t("points sur", "punten op")} ${max}</div>
+      <div style="font-size:.95rem;color:var(--doux);margin-bottom:6px;">${t("points sur", "punten op")} ${max}</div>
       <div style="font-size:1.1rem;font-weight:700;margin-bottom:4px;">${mot}</div>
-      <div style="font-size:.92rem;color:#5d7566;">
+      <div style="font-size:.92rem;color:var(--doux);">
         ${t(`${bonnes} bonne${bonnes > 1 ? "s" : ""} estimation${bonnes > 1 ? "s" : ""} sur ${BAREME.manches}`,
              `${bonnes} goede schatting${bonnes > 1 ? "en" : ""} op ${BAREME.manches}`)}${pile ? ` · ${pile} ${t("pile poil", "precies goed")} 🎯` : ""}
       </div>
@@ -645,7 +660,7 @@ function vueFin() {
             <img src="img/${esc(h.a.img)}" alt="">
             <div class="t">
               <b>${esc(nomDe(h.a))}</b>
-              <span style="color:#5d7566;font-size:.84rem;">
+              <span style="color:var(--doux);font-size:.84rem;">
                 ${h.propose
                   ? t(`toi ${euro(h.propose)} · vrai ${euro(h.a.prix)}`, `jij ${euro(h.propose)} · echt ${euro(h.a.prix)}`)
                   : t(`pas de réponse · vrai ${euro(h.a.prix)}`, `geen antwoord · echt ${euro(h.a.prix)}`)}
