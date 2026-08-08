@@ -494,6 +494,12 @@ $famijobBackgroundUrl = resolvePublicAssetUrl(
                 <div class="tile-desc"><?= e(famiT('tile.schedule.desc')) ?></div>
             </a>
 
+            <a href="envoi_horaires.php" class="tile">
+                <div class="tile-icon">📨</div>
+                <div class="tile-title"><?= e(famiT('tile.schedule_mail.title')) ?></div>
+                <div class="tile-desc"><?= e(famiT('tile.schedule_mail.desc')) ?></div>
+            </a>
+
             <a href="relance_etudiant.php" class="tile">
                 <div class="tile-icon">✉️</div>
                 <div class="tile-title"><?= e(famiT('tile.relaunch.title')) ?></div>
