@@ -12,8 +12,8 @@
 /* ============================================================
    LE JUSTE PRIX — VERSION D'ESSAI, ISOLÉE DU QUIZ EN LIGNE.
    Aucune écriture en base, aucun classement, aucun jardin : cette page ne
-   parle à personne. Elle sert à juger le RESSENTI du jeu (rythme, barème,
-   difficulté) avant de décider quoi que ce soit.
+   parle à personne. Elle sert à juger le RESSENTI du jeu avant de décider
+   s'il rejoint le quiz.
    Palette et polices reprises du quiz pour que la comparaison soit honnête.
    ============================================================ */
 :root {
@@ -24,6 +24,17 @@
   --soleil: #FFC53D;
   --craie: #FFFFFF;
   --corail: #FF6B5E;
+  --accent: var(--pousse);
+  --ombre: #145c34;
+}
+/* 🎓 MODE ENTRAÎNEMENT — fond franchement différent.
+   Le but est qu'on VOIE d'un coup d'œil que ça ne compte pas : même palette
+   décalée vers le bleu, plus froide, plus « brouillon ». */
+body.demo {
+  --brume: #E7EEF7;
+  --accent: #3C6CA8;
+  --ombre: #2b5182;
+  --foret: #1B3550;
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
@@ -33,120 +44,170 @@ body {
   background: var(--brume);
   min-height: 100dvh;
   display: flex; flex-direction: column;
+  transition: background .4s;
 }
-h1, h2, h3, .chiffre { font-family: 'Fredoka', sans-serif; }
+h1, h2, h3 { font-family: 'Fredoka', sans-serif; }
 
-/* Bandeau d'essai : impossible de confondre cette page avec le vrai jeu. */
 .essai {
   background: repeating-linear-gradient(45deg, #2b2b2b, #2b2b2b 14px, #3a3a3a 14px, #3a3a3a 28px);
-  color: #fff; text-align: center; font-weight: 900; font-size: .78rem;
-  letter-spacing: .1em; text-transform: uppercase; padding: 7px 10px;
+  color: #fff; text-align: center; font-weight: 900; font-size: .74rem;
+  letter-spacing: .1em; text-transform: uppercase; padding: 6px 10px;
 }
-.wrap { flex: 1; width: 100%; max-width: 620px; margin: 0 auto; padding: 16px 16px 32px; }
+.wrap { flex: 1; width: 100%; max-width: 620px; margin: 0 auto; padding: 14px 16px 32px; }
+
+/* Choix de langue, discret mais toujours atteignable. */
+.langues { display: flex; justify-content: flex-end; gap: 6px; margin-bottom: 6px; }
+.langues button {
+  font: inherit; font-size: .8rem; font-weight: 900; cursor: pointer;
+  border: 2px solid #cddcd2; background: transparent; color: #6d8577;
+  border-radius: 999px; padding: 3px 11px;
+}
+.langues button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
 
 /* ---------- Accueil ---------- */
-.accueil { text-align: center; padding-top: 14px; }
-.accueil h1 { font-size: clamp(2rem, 9vw, 2.9rem); margin: 10px 0 4px; color: var(--pousse); }
-.accueil .sous { font-size: 1.05rem; margin-bottom: 22px; }
-.regles {
-  background: var(--craie); border-radius: 18px; padding: 18px;
-  box-shadow: 0 6px 22px rgba(14,59,36,.10); text-align: left; margin-bottom: 22px;
+.accueil { text-align: center; padding-top: 8px; }
+.accueil h1 { font-size: clamp(2rem, 9vw, 2.9rem); margin: 8px 0 6px; color: var(--accent); }
+.accueil .but {
+  font-size: 1.12rem; line-height: 1.5; background: var(--craie);
+  border-radius: 18px; padding: 20px 18px; margin: 6px 0 18px;
+  box-shadow: 0 6px 22px rgba(14,59,36,.10);
 }
-.regle { display: flex; gap: 12px; align-items: flex-start; margin: 12px 0; font-size: .96rem; }
-.regle .ico { font-size: 1.5rem; line-height: 1; flex: none; width: 30px; text-align: center; }
-.bareme { margin-top: 14px; border-top: 2px dashed #d8e6dc; padding-top: 12px; }
-.bareme table { width: 100%; border-collapse: collapse; font-size: .9rem; }
-.bareme td { padding: 4px 0; }
-.bareme td:last-child { text-align: right; font-weight: 900; color: var(--pousse); white-space: nowrap; }
+.plus {
+  background: none; border: 0; color: var(--accent); font: inherit;
+  font-weight: 900; font-size: .92rem; cursor: pointer;
+  text-decoration: underline; text-underline-offset: 3px; padding: 6px;
+}
 
 .btn {
   font-family: 'Fredoka', sans-serif; font-size: 1.15rem; font-weight: 600;
-  background: var(--pousse); color: #fff; border: 0; border-radius: 999px;
+  background: var(--accent); color: #fff; border: 0; border-radius: 999px;
   padding: 14px 34px; cursor: pointer;
-  box-shadow: 0 5px 0 #145c34; transition: transform .08s, box-shadow .08s;
+  box-shadow: 0 5px 0 var(--ombre); transition: transform .08s, box-shadow .08s;
 }
-.btn:active { transform: translateY(3px); box-shadow: 0 2px 0 #145c34; }
-.btn:disabled { opacity: .5; cursor: default; transform: none; }
+.btn:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--ombre); }
+.btn:disabled { opacity: .45; cursor: default; transform: none; }
 .btn.secondaire { background: var(--craie); color: var(--foret); box-shadow: 0 5px 0 #cddcd2; }
 .btn.secondaire:active { box-shadow: 0 2px 0 #cddcd2; }
 
-/* ---------- Barre du haut pendant la partie ---------- */
-.hud { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
-.hud .manche { font-family: 'Fredoka', sans-serif; font-weight: 600; font-size: 1.05rem; }
+/* ---------- Fenêtre « en savoir plus » ---------- */
+.fond {
+  position: fixed; inset: 0; background: rgba(10,30,20,.55);
+  display: flex; align-items: center; justify-content: center; padding: 18px; z-index: 50;
+}
+.modale {
+  background: #fff; border-radius: 22px; padding: 22px; max-width: 460px;
+  width: 100%; max-height: 86dvh; overflow-y: auto; text-align: left;
+  box-shadow: 0 20px 50px rgba(0,0,0,.3);
+}
+.modale h2 { margin: 0 0 12px; font-size: 1.5rem; color: var(--accent); }
+.modale h3 { margin: 18px 0 6px; font-size: 1.05rem; }
+.modale p { margin: 6px 0; font-size: .95rem; line-height: 1.55; }
+.exemple { background: var(--brume); border-radius: 12px; padding: 12px 14px; margin: 8px 0; font-size: .9rem; }
+.exemple table { width: 100%; border-collapse: collapse; }
+.exemple td { padding: 3px 0; }
+.exemple td:last-child { text-align: right; font-weight: 900; color: var(--accent); white-space: nowrap; }
+
+/* ---------- Barre du haut ---------- */
+.hud { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; min-height: 34px; }
+.hud .manche { font-family: 'Fredoka', sans-serif; font-weight: 600; font-size: 1.02rem; }
 .hud .pts {
   margin-left: auto; background: var(--foret); color: #fff; border-radius: 999px;
-  padding: 6px 14px; font-weight: 900; font-size: .98rem;
+  padding: 6px 14px; font-weight: 900; font-size: .96rem;
 }
 .hud .serie {
   background: #FFF3C9; color: #8a6d1a; border: 2px solid var(--soleil);
-  border-radius: 999px; padding: 4px 11px; font-weight: 900; font-size: .88rem;
+  border-radius: 999px; padding: 4px 10px; font-weight: 900; font-size: .85rem;
 }
-.jauge { height: 9px; background: #d6e6da; border-radius: 999px; overflow: hidden; margin-bottom: 16px; }
-.jauge > i { display: block; height: 100%; background: var(--pousse); border-radius: 999px; transition: width .25s linear; }
+.hud .etiq {
+  background: var(--accent); color: #fff; border-radius: 999px;
+  padding: 4px 11px; font-weight: 900; font-size: .76rem;
+  letter-spacing: .06em; text-transform: uppercase;
+}
+.jauge { height: 9px; background: #d3dfe3; border-radius: 999px; overflow: hidden; margin-bottom: 14px; }
+.jauge > i { display: block; height: 100%; background: var(--accent); border-radius: 999px; transition: width .25s linear; }
 .jauge.presse > i { background: var(--corail); }
 
-/* ---------- La carte produit ---------- */
+/* ---------- Carte produit ---------- */
 .carte {
   background: var(--craie); border-radius: 22px; padding: 18px;
   box-shadow: 0 8px 26px rgba(14,59,36,.12); text-align: center;
 }
-.photo {
-  width: 100%; height: min(46vh, 300px); object-fit: contain;
-  background: #fff; border-radius: 14px; display: block;
-}
-.nom { font-size: 1.06rem; font-weight: 700; margin: 14px 0 4px; line-height: 1.35; }
+body.demo .carte { border: 3px dashed #a9c2de; }
+.photo { width: 100%; height: min(44vh, 290px); object-fit: contain; background: #fff; border-radius: 14px; display: block; }
+.nom { font-size: 1.05rem; font-weight: 700; margin: 14px 0 2px; line-height: 1.35; }
 
-/* ---------- La saisie du prix ---------- */
-.saisie { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 18px 0 6px; }
+.saisie { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 16px 0 6px; }
 .saisie input {
   font-family: 'Fredoka', sans-serif; font-size: 2.1rem; font-weight: 700;
-  width: 100%; max-width: 220px; text-align: right;
+  width: 100%; max-width: 210px; text-align: right;
   border: 3px solid #d6e6da; border-radius: 14px; padding: 8px 12px;
   color: var(--foret); background: #fff; outline: none;
 }
-.saisie input:focus { border-color: var(--pousse); }
+.saisie input:focus { border-color: var(--accent); }
 .saisie .eur { font-family: 'Fredoka', sans-serif; font-size: 2rem; font-weight: 700; }
 .aide { font-size: .84rem; color: #5d7566; min-height: 1.2em; }
 
-/* ---------- Le verdict ---------- */
-.verdict { text-align: center; }
-.verdict .titre { font-family: 'Fredoka', sans-serif; font-size: 1.8rem; margin: 6px 0; }
-.verdict .prixreel { font-family: 'Fredoka', sans-serif; font-size: 2.6rem; color: var(--pousse); margin: 4px 0; }
-.verdict .ecart { font-size: 1rem; margin-bottom: 12px; }
-.detail { background: var(--brume); border-radius: 14px; padding: 12px 14px; text-align: left; font-size: .93rem; }
-.detail .l { display: flex; justify-content: space-between; padding: 3px 0; }
-.detail .l.total { border-top: 2px solid #cddcd2; margin-top: 6px; padding-top: 8px; font-weight: 900; font-size: 1.05rem; }
-.gagne { color: var(--pousse); font-weight: 900; }
-.rien { color: #93a89a; }
+/* ---------- Verdict, volontairement dépouillé ---------- */
+.verdict .titre { font-family: 'Fredoka', sans-serif; font-size: 1.75rem; margin: 8px 0 2px; }
+.verdict .libelle { font-size: .88rem; color: #5d7566; }
+.verdict .prixreel { font-family: 'Fredoka', sans-serif; font-size: 2.7rem; color: var(--accent); margin: 2px 0 6px; }
+.verdict .tien { font-size: 1rem; margin-bottom: 14px; }
+.verdict .grosgain {
+  font-family: 'Fredoka', sans-serif; font-size: 2rem; font-weight: 700;
+  background: var(--brume); border-radius: 16px; padding: 10px 18px; display: inline-block;
+}
+.verdict .grosgain.zero { color: #93a89a; }
+.chips { margin-top: 8px; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; font-size: .84rem; font-weight: 900; }
+.chip { background: #FFF3C9; color: #8a6d1a; border-radius: 999px; padding: 3px 11px; }
 
-/* ---------- Fin de partie ---------- */
+/* ---------- Bascule entraînement / partie ---------- */
+.annonce { text-align: center; padding: 28px 6px; }
+.annonce .gros { font-size: 3.6rem; line-height: 1.1; }
+.annonce h2 { font-size: 1.7rem; margin: 10px 0 8px; color: var(--accent); }
+.annonce p { font-size: 1.04rem; line-height: 1.55; margin: 8px 0 20px; }
+
+/* ---------- Fin ---------- */
 .fin { text-align: center; }
-.fin .score { font-family: 'Fredoka', sans-serif; font-size: 3.4rem; color: var(--pousse); line-height: 1; }
+.fin .score { font-family: 'Fredoka', sans-serif; font-size: 3.4rem; color: var(--accent); line-height: 1; }
 .recap { margin: 18px 0; text-align: left; }
 .recap .ligne {
   display: flex; align-items: center; gap: 10px; background: var(--craie);
-  border-radius: 12px; padding: 8px 12px; margin-bottom: 6px; font-size: .9rem;
+  border-radius: 12px; padding: 8px 12px; margin-bottom: 6px; font-size: .89rem;
 }
 .recap .ligne img { width: 38px; height: 38px; object-fit: contain; border-radius: 8px; flex: none; }
 .recap .ligne .t { flex: 1; min-width: 0; }
 .recap .ligne .t b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .recap .ligne .p { font-weight: 900; white-space: nowrap; }
-.lien { color: var(--pousse); font-size: .82rem; }
+.gagne { color: var(--accent); }
+.rien { color: #93a89a; }
+.lien { color: var(--accent); font-size: .82rem; }
 
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 </style>
 </head>
 <body>
 
-<div class="essai">⚠️ Version d'essai — rien n'est enregistré</div>
+<div class="essai" id="bandeau">⚠️ Version d'essai — rien n'est enregistré</div>
 <div class="wrap" id="app"></div>
+<div id="modale"></div>
 
 <script>
 // ============================================================
-//  DONNÉES
-//  100 articles réels du catalogue Hermie, relevés le 08/08/2026.
-//  Images redimensionnées et hébergées ici : la borne ne dépend donc pas du
-//  site de Hermie pour afficher une manche.
+//  LANGUE
+// ============================================================
+let LANG = (localStorage.getItem("jp_lang") === "nl") ? "nl" : "fr";
+const t = (fr, nl) => (LANG === "nl" ? nl : fr);
+function setLang(l) {
+  LANG = l;
+  localStorage.setItem("jp_lang", l);
+  document.documentElement.lang = l;
+  rendre();
+}
+
+// ============================================================
+//  DONNÉES — 100 articles réels du catalogue Hermie, relevés le 08/08/2026.
+//  Images redimensionnées et hébergées ici : la borne ne dépend pas du site
+//  de Hermie pour afficher une manche.
 // ============================================================
 const DATE_RELEVE = "08/08/2026";
 let ARTICLES = [];
@@ -154,140 +215,262 @@ let ARTICLES = [];
 // ============================================================
 //  BARÈME
 //
-//  Calé sur celui du quiz pour que les deux épreuves pèsent pareil :
-//  10 points de base + 5 de rapidité + 5 de série = 20 au maximum par manche,
-//  soit 200 sur une partie de 10 — exactement le plafond du quiz.
+//  10 points si le prix est trouvé PILE, puis ça descend de façon continue
+//  jusqu'à 0 quand on s'éloigne. Pas de paliers : deux joueurs qui se
+//  trompent de 3 € et de 4 € ne doivent pas marquer pareil.
 //
-//  La différence : au quiz on a juste ou faux, ici on est plus ou moins près.
-//  La base varie donc avec la PRÉCISION. Les paliers sont en pourcentage et
-//  non en euros, sinon se tromper de 5 € sur un sécateur à 12 € compterait
-//  comme se tromper de 5 € sur un parasol à 300 €.
+//  ⚠️ L'écart se mesure en POURCENTAGE en coulisses, jamais en euros : se
+//  tromper de 5 € sur un sécateur à 12 € n'a rien à voir avec se tromper de
+//  5 € sur un parasol à 300 €. Mais on l'AFFICHE en euros, parce que « tu
+//  étais à 3,20 € près » parle immédiatement, là où « 18 % » ne dit rien.
+//
+//  Plafond : 10 + 5 + 5 = 20 par manche, 200 sur la partie — exactement le
+//  même que le quiz, pour que les deux épreuves pèsent pareil.
 // ============================================================
 const BAREME = {
-  paliers: [
-    { ecart: 0.02, pts: 10, titre: "Pile poil !",      emoji: "🎯" },
-    { ecart: 0.05, pts: 8,  titre: "Excellent !",      emoji: "🌟" },
-    { ecart: 0.10, pts: 6,  titre: "Très bien",        emoji: "👏" },
-    { ecart: 0.20, pts: 4,  titre: "Pas mal",          emoji: "🙂" },
-    { ecart: 0.35, pts: 2,  titre: "Un peu loin",      emoji: "😅" },
-    { ecart: 0.60, pts: 1,  titre: "Loin",             emoji: "😬" },
-  ],
-  vitesseMax: 5,      // bonus si on répond quasi instantanément
-  vitesseT: 20,       // au-delà de 20 s, plus de bonus rapidité
-  serieMax: 5,        // plafond du bonus de série
-  serieSeuil: 0.20,   // une estimation « réussie » = moins de 20 % d'écart
-  secondes: 30,       // temps par manche
+  ptsMax: 10,
+  tolerance: 0.60,   // au-delà de 60 % d'écart, plus aucun point
+  vitesseMax: 5,
+  vitesseT: 20,      // au-delà de 20 s, plus de bonus rapidité
+  serieMax: 5,
+  serieSeuil: 0.20,  // une estimation « réussie », qui entretient la série
+  secondes: 30,
   manches: 10,
+  demo: 3,
 };
 
-// L'écart RELATIF entre la proposition et le vrai prix.
-function ecartDe(propose, reel) { return Math.abs(propose - reel) / reel; }
+const ecartDe = (propose, reel) => Math.abs(propose - reel) / reel;
 
-function palierDe(ecart) {
-  for (const p of BAREME.paliers) { if (ecart <= p.ecart) return p; }
-  return { ecart: 1, pts: 0, titre: "Raté", emoji: "🌧️" };
+// Base : décroissance linéaire de 10 (pile) à 0 (au-delà de la tolérance).
+function pointsPrecision(ecart) {
+  const p = BAREME.ptsMax * (1 - ecart / BAREME.tolerance);
+  return Math.max(0, Math.round(p * 10) / 10);
 }
 
-// Gain d'une manche : base (précision) + rapidité + série.
-// La rapidité et la série ne récompensent QUE les estimations qui rapportent
-// déjà : répondre n'importe quoi en une seconde ne doit rien donner.
+function titreDe(ecart) {
+  if (ecart <= 0.02) return { titre: t("Pile poil !", "Precies goed!"), emoji: "🎯" };
+  if (ecart <= 0.05) return { titre: t("Excellent !", "Uitstekend!"), emoji: "🌟" };
+  if (ecart <= 0.10) return { titre: t("Très bien", "Heel goed"), emoji: "👏" };
+  if (ecart <= 0.20) return { titre: t("Pas mal", "Niet slecht"), emoji: "🙂" };
+  if (ecart <= 0.35) return { titre: t("Un peu loin", "Een beetje ver"), emoji: "😅" };
+  if (ecart <= BAREME.tolerance) return { titre: t("Loin", "Ver"), emoji: "😬" };
+  return { titre: t("Raté", "Mis"), emoji: "🌧️" };
+}
+
+// La rapidité et la série ne récompensent QUE ce qui rapporte déjà : taper
+// n'importe quoi en une seconde ne doit rien donner.
 function gainManche(ecart, tSec, serie) {
-  const pal = palierDe(ecart);
-  if (pal.pts === 0) return { pal, base: 0, vitesse: 0, serie: 0, total: 0 };
-  const vitesse = BAREME.vitesseMax * Math.max(0, 1 - tSec / BAREME.vitesseT);
+  const base = pointsPrecision(ecart);
+  if (base === 0) return { base: 0, vitesse: 0, serie: 0, total: 0 };
+  const vitesse = Math.round(BAREME.vitesseMax * Math.max(0, 1 - tSec / BAREME.vitesseT) * 10) / 10;
   const bonusSerie = serie >= 2 ? Math.min(serie - 1, BAREME.serieMax) : 0;
-  return {
-    pal, base: pal.pts,
-    vitesse: Math.round(vitesse * 10) / 10,
-    serie: bonusSerie,
-    total: Math.round((pal.pts + vitesse + bonusSerie) * 10) / 10,
-  };
+  return { base, vitesse, serie: bonusSerie, total: Math.round((base + vitesse + bonusSerie) * 10) / 10 };
 }
 
 const aff = (n) => Math.round(Number(n) || 0);
 const euro = (n) => Number(n).toFixed(2).replace(".", ",") + " €";
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const nomDe = (a) => (LANG === "nl" ? a.nl : a.fr);
 
 // ============================================================
-//  ÉTAT DE LA PARTIE
+//  ÉTAT
 // ============================================================
 let etat = null;
 let minuteur = null;
 
-function tirage() {
-  // 10 articles au hasard, mais UN SEUL par tranche de prix proche : sans ça
-  // on peut tomber sur cinq articles à 3 € et la partie n'apprend rien.
-  const copie = ARTICLES.slice();
-  for (let i = copie.length - 1; i > 0; i--) {
+// 🎲 Tirage au sort À CHAQUE PARTIE, pour que deux personnes côte à côte
+// n'aient pas les mêmes articles — sinon il suffit d'écouter son voisin.
+// Mélange complet des 100, puis on prend les 3 de l'entraînement et les 10 de
+// la partie dans le même paquet : jamais deux fois le même article.
+function melange(tab) {
+  const c = tab.slice();
+  for (let i = c.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
-    [copie[i], copie[j]] = [copie[j], copie[i]];
+    [c[i], c[j]] = [c[j], c[i]];
   }
-  const choisis = [];
-  const tranches = new Set();
-  for (const a of copie) {
-    const t = Math.floor(Math.log10(Math.max(1, a.prix)) * 2);   // ~demi-décade
-    if (choisis.length < BAREME.manches && !tranches.has(t)) { tranches.add(t); choisis.push(a); }
+  return c;
+}
+
+function tirage() {
+  const paquet = melange(ARTICLES);
+  const demo = paquet.slice(0, BAREME.demo);
+  const reste = paquet.slice(BAREME.demo);
+
+  // On étale les prix : sans ça une partie peut tomber sur dix articles à 3 €
+  // et n'apprendre strictement rien.
+  const parBande = new Map();
+  const partie = [];
+  for (const a of reste) {
+    const b = Math.floor(Math.log10(Math.max(1, a.prix)) * 2);
+    if (!parBande.has(b) && partie.length < BAREME.manches) { parBande.set(b, true); partie.push(a); }
   }
-  for (const a of copie) {
-    if (choisis.length >= BAREME.manches) break;
-    if (!choisis.includes(a)) choisis.push(a);
+  for (const a of reste) {
+    if (partie.length >= BAREME.manches) break;
+    if (!partie.includes(a)) partie.push(a);
   }
-  return choisis.slice(0, BAREME.manches);
+  return { demo, partie: melange(partie.slice(0, BAREME.manches)) };
 }
 
 function nouvellePartie() {
-  etat = { articles: tirage(), idx: 0, score: 0, serie: 0, histo: [], phase: "manche", debut: 0, reste: BAREME.secondes };
+  const tir = tirage();
+  etat = {
+    demo: tir.demo, partie: tir.partie,
+    mode: "demo", idx: 0, score: 0, serie: 0, histo: [],
+    phase: "annonceDemo", debut: 0, reste: BAREME.secondes,
+  };
   rendre();
 }
 
+const articleCourant = () => (etat.mode === "demo" ? etat.demo : etat.partie)[etat.idx];
+const nbManches = () => (etat.mode === "demo" ? BAREME.demo : BAREME.manches);
+
 // ============================================================
-//  ÉCRANS
+//  RENDU
 // ============================================================
 function rendre() {
+  document.body.classList.toggle("demo", !!etat && etat.mode === "demo" && etat.phase !== "fin");
+  $("#bandeau").textContent = t("⚠️ Version d'essai — rien n'est enregistré",
+                                "⚠️ Testversie — er wordt niets opgeslagen");
   if (!etat) return vueAccueil();
+  if (etat.phase === "annonceDemo") return vueAnnonceDemo();
+  if (etat.phase === "annonceReel") return vueAnnonceReel();
   if (etat.phase === "manche") return vueManche();
   if (etat.phase === "verdict") return vueVerdict();
   if (etat.phase === "fin") return vueFin();
 }
 
+function languesHtml() {
+  return `<div class="langues">
+    <button data-l="fr" class="${LANG === "fr" ? "on" : ""}">FR</button>
+    <button data-l="nl" class="${LANG === "nl" ? "on" : ""}">NL</button>
+  </div>`;
+}
+function brancheLangues() {
+  document.querySelectorAll(".langues button").forEach(b =>
+    b.addEventListener("click", () => setLang(b.dataset.l)));
+}
+
+// ---------- Accueil : le but du jeu, et rien d'autre ----------
 function vueAccueil() {
   arreteMinuteur();
   $("#app").innerHTML = `
+    ${languesHtml()}
     <div class="accueil">
       <div style="font-size:3.4rem;line-height:1">🏷️</div>
-      <h1>Le Juste Prix</h1>
-      <div class="sous">${BAREME.manches} articles du magasin. À toi de deviner leur prix.</div>
+      <h1>${t("Le Juste Prix", "De Juiste Prijs")}</h1>
 
-      <div class="regles">
-        <div class="regle"><span class="ico">⌨️</span><span>Tu tapes le prix que tu crois juste, en euros. Pas de choix multiple : c'est toi qui décides.</span></div>
-        <div class="regle"><span class="ico">🎯</span><span>Plus tu es <b>près du vrai prix</b>, plus tu marques. On compte en pourcentage, donc un petit et un gros article sont aussi difficiles l'un que l'autre.</span></div>
-        <div class="regle"><span class="ico">⚡</span><span>Tu as <b>${BAREME.secondes} secondes</b> par article. Répondre vite rapporte jusqu'à <b>+${BAREME.vitesseMax}</b>.</span></div>
-        <div class="regle"><span class="ico">🔥</span><span>Deux bonnes estimations d'affilée et la <b>série</b> démarre : jusqu'à <b>+${BAREME.serieMax}</b>. La moindre erreur la remet à zéro.</span></div>
-
-        <div class="bareme">
-          <div style="font-weight:900;margin-bottom:6px;">Ce que rapporte la précision</div>
-          <table>
-            ${BAREME.paliers.map(p => `<tr><td>${p.emoji} à moins de ${Math.round(p.ecart * 100)} % du prix</td><td>${p.pts} pts</td></tr>`).join("")}
-            <tr><td class="rien">🌧️ au-delà de ${Math.round(BAREME.paliers[BAREME.paliers.length - 1].ecart * 100)} %</td><td class="rien">0 pt</td></tr>
-          </table>
-          <div style="margin-top:8px;font-size:.85rem;color:#5d7566;">
-            Maximum : ${BAREME.paliers[0].pts + BAREME.vitesseMax + BAREME.serieMax} points par article,
-            soit <b>${(BAREME.paliers[0].pts + BAREME.vitesseMax + BAREME.serieMax) * BAREME.manches}</b> sur la partie — le même plafond que le quiz.
-          </div>
+      <div class="but">
+        ${t(`On te montre un article du magasin.<br><b>À toi de deviner son prix.</b>`,
+             `We tonen je een artikel uit de winkel.<br><b>Raad jij de prijs?</b>`)}
+        <div style="margin-top:12px;font-size:.98rem;color:#5d7566;">
+          ${t(`Plus tu es près du vrai prix, plus tu marques de points.<br>${BAREME.manches} articles, ${BAREME.secondes} secondes chacun.`,
+               `Hoe dichter bij de echte prijs, hoe meer punten.<br>${BAREME.manches} artikelen, telkens ${BAREME.secondes} seconden.`)}
         </div>
       </div>
 
-      <button class="btn" id="go">C'est parti !</button>
-      <div style="margin-top:16px;font-size:.78rem;color:#7c9184;">
-        Prix relevés sur hermie.com le ${DATE_RELEVE}.
+      <button class="plus" id="enSavoirPlus">${t("En savoir plus sur les points", "Meer over de punten")}</button>
+      <div style="margin:16px 0 0"><button class="btn" id="go">${t("C'est parti !", "We gaan ervoor!")}</button></div>
+
+      <div style="margin-top:18px;font-size:.76rem;color:#7c9184;">
+        ${t("Prix relevés sur hermie.com le", "Prijzen opgehaald op hermie.com op")} ${DATE_RELEVE}.
       </div>
     </div>`;
+  brancheLangues();
   $("#go").addEventListener("click", nouvellePartie);
+  $("#enSavoirPlus").addEventListener("click", ouvrirModale);
 }
 
+// ---------- La fenêtre des détails, pour qui veut savoir ----------
+function ouvrirModale() {
+  const ex = [
+    { dit: 20, pts: pointsPrecision(0) },
+    { dit: 22, pts: pointsPrecision(ecartDe(22, 20)) },
+    { dit: 26, pts: pointsPrecision(ecartDe(26, 20)) },
+    { dit: 32, pts: pointsPrecision(ecartDe(32, 20)) },
+  ];
+  $("#modale").innerHTML = `
+    <div class="fond" id="fond">
+      <div class="modale" role="dialog" aria-modal="true">
+        <h2>${t("Comment on compte les points", "Hoe de punten geteld worden")}</h2>
+
+        <h3>🎯 ${t("La précision", "Nauwkeurigheid")}</h3>
+        <p>${t(`Tu marques <b>${BAREME.ptsMax} points</b> si tu tombes pile sur le prix. Plus tu t'éloignes, moins tu marques — et à partir d'un gros écart, plus rien du tout.`,
+                `Je krijgt <b>${BAREME.ptsMax} punten</b> als je de prijs precies raadt. Hoe verder ernaast, hoe minder punten — en bij een grote afwijking niets meer.`)}</p>
+        <div class="exemple">
+          <div style="font-weight:900;margin-bottom:6px;">${t("Exemple sur un article à 20 €", "Voorbeeld bij een artikel van 20 €")}</div>
+          <table>
+            ${ex.map(e => `<tr><td>${t("tu dis", "je zegt")} ${euro(e.dit)}</td><td>${e.pts} ${t("pts", "ptn")}</td></tr>`).join("")}
+          </table>
+        </div>
+        <p style="font-size:.86rem;color:#5d7566;">${t(
+          "L'écart est calculé en proportion du prix : se tromper de 5 € sur un sécateur à 12 € n'est pas la même erreur que se tromper de 5 € sur un parasol à 300 €.",
+          "De afwijking telt in verhouding tot de prijs: 5 € ernaast zitten bij een snoeischaar van 12 € is niet hetzelfde als 5 € ernaast bij een parasol van 300 €.")}</p>
+
+        <h3>⚡ ${t("La rapidité", "Snelheid")}</h3>
+        <p>${t(`Jusqu'à <b>+${BAREME.vitesseMax} points</b> si tu réponds vite. Le bonus fond au fil des secondes et disparaît après ${BAREME.vitesseT} s.`,
+                `Tot <b>+${BAREME.vitesseMax} punten</b> als je snel antwoordt. De bonus smelt weg en verdwijnt na ${BAREME.vitesseT} s.`)}</p>
+
+        <h3>🔥 ${t("La série", "De reeks")}</h3>
+        <p>${t(`Deux bonnes estimations d'affilée et la série démarre : jusqu'à <b>+${BAREME.serieMax} points</b>. Une estimation compte comme bonne quand tu es vraiment proche — moins de 2 € d'écart sur un article à 10 €, par exemple. La moindre erreur remet la série à zéro.`,
+                `Twee goede schattingen na elkaar en de reeks begint: tot <b>+${BAREME.serieMax} punten</b>. Een schatting telt als goed wanneer je er echt dicht bij zit — minder dan 2 € afwijking bij een artikel van 10 €, bijvoorbeeld. Eén misser zet de reeks terug op nul.`)}</p>
+
+        <div class="exemple" style="margin-top:14px;">
+          ${t(`Au total : <b>${BAREME.ptsMax + BAREME.vitesseMax + BAREME.serieMax} points</b> au maximum par article,
+               soit <b>${(BAREME.ptsMax + BAREME.vitesseMax + BAREME.serieMax) * BAREME.manches}</b> sur la partie.`,
+               `In totaal: maximaal <b>${BAREME.ptsMax + BAREME.vitesseMax + BAREME.serieMax} punten</b> per artikel,
+               dus <b>${(BAREME.ptsMax + BAREME.vitesseMax + BAREME.serieMax) * BAREME.manches}</b> voor het hele spel.`)}
+        </div>
+
+        <div style="text-align:center;margin-top:18px;">
+          <button class="btn" id="fermer">${t("J'ai compris", "Begrepen")}</button>
+        </div>
+      </div>
+    </div>`;
+  const fermer = () => { $("#modale").innerHTML = ""; };
+  $("#fermer").addEventListener("click", fermer);
+  $("#fond").addEventListener("click", (e) => { if (e.target.id === "fond") fermer(); });
+}
+
+// ---------- On prévient AVANT l'entraînement ----------
+function vueAnnonceDemo() {
+  arreteMinuteur();
+  $("#app").innerHTML = `
+    <div class="annonce">
+      <div class="gros">🎓</div>
+      <h2>${t("On s'échauffe", "Even opwarmen")}</h2>
+      <p>${t(`<b>${BAREME.demo} articles pour comprendre</b>, sans aucun enjeu.<br>
+              Ces points ne comptent pas : c'est juste un exemple.`,
+              `<b>${BAREME.demo} artikelen om het te snappen</b>, zonder inzet.<br>
+              Deze punten tellen niet mee: het is maar een voorbeeld.`)}</p>
+      <p style="font-size:.9rem;color:#5d7566;">${t(
+        "Tu reconnaîtras l'entraînement à son fond bleu.",
+        "Je herkent de oefening aan de blauwe achtergrond.")}</p>
+      <button class="btn" id="allez">${t("Commencer l'échauffement", "Start de opwarming")}</button>
+    </div>`;
+  $("#allez").addEventListener("click", () => { etat.phase = "manche"; rendre(); });
+}
+
+// ---------- ...et AVANT la vraie partie ----------
+function vueAnnonceReel() {
+  arreteMinuteur();
+  $("#app").innerHTML = `
+    <div class="annonce">
+      <div class="gros">🏁</div>
+      <h2>${t("Fini l'échauffement !", "Opwarming voorbij!")}</h2>
+      <p>${t(`Maintenant, <b>ça compte</b>.<br>${BAREME.manches} articles, et chaque point est pour toi.`,
+              `Nu <b>telt het echt</b>.<br>${BAREME.manches} artikelen, en elk punt is voor jou.`)}</p>
+      <p style="font-size:.9rem;color:#5d7566;">${t(
+        "Le fond redevient vert : tu es dans la vraie partie.",
+        "De achtergrond wordt weer groen: je zit in het echte spel.")}</p>
+      <button class="btn" id="allez">${t("Je suis prêt !", "Ik ben klaar!")}</button>
+    </div>`;
+  $("#allez").addEventListener("click", () => { etat.phase = "manche"; rendre(); });
+}
+
+// ---------- Une manche ----------
 function vueManche() {
-  const a = etat.articles[etat.idx];
+  const a = articleCourant();
   etat.debut = Date.now();
   etat.reste = BAREME.secondes;
   $("#app").innerHTML = `
@@ -295,24 +478,28 @@ function vueManche() {
     <div class="jauge" id="jauge"><i style="width:100%"></i></div>
     <div class="carte">
       <img class="photo" src="img/${esc(a.img)}" alt="" loading="eager">
-      <div class="nom">${esc(a.nom)}</div>
+      <div class="nom">${esc(nomDe(a))}</div>
       <div class="saisie">
-        <input id="prix" type="text" inputmode="decimal" autocomplete="off" placeholder="0,00" aria-label="Ton prix en euros">
+        <input id="prix" type="text" inputmode="decimal" autocomplete="off" placeholder="0,00"
+               aria-label="${t("Ton prix en euros", "Jouw prijs in euro")}">
         <span class="eur">€</span>
       </div>
-      <div class="aide" id="aide">Tape ton prix puis valide</div>
-      <button class="btn" id="valider" style="margin-top:10px" disabled>Valider</button>
+      <div class="aide">${t("Tape ton prix puis valide", "Typ je prijs en bevestig")}</div>
+      <button class="btn" id="valider" style="margin-top:10px" disabled>${t("Valider", "Bevestigen")}</button>
     </div>`;
 
   const champ = $("#prix"), bouton = $("#valider");
   champ.focus();
   champ.addEventListener("input", () => {
     // On accepte la virgule ET le point : personne ne doit se demander lequel taper.
-    champ.value = champ.value.replace(/[^\d.,]/g, "").replace(/[.,]/g, (m, i, s) => s.indexOf(m) === i ? "," : "");
-    bouton.disabled = !lirePrix(champ.value);
+    let v = champ.value.replace(/[^\d.,]/g, "").replace(/\./g, ",");
+    const i = v.indexOf(",");
+    if (i >= 0) v = v.slice(0, i + 1) + v.slice(i + 1).replace(/,/g, "");
+    champ.value = v;
+    bouton.disabled = !lirePrix(v);
   });
   champ.addEventListener("keydown", (e) => { if (e.key === "Enter" && !bouton.disabled) valider(); });
-  bouton.addEventListener("click", valider);
+  bouton.addEventListener("click", () => valider());
   lanceMinuteur();
 }
 
@@ -322,10 +509,12 @@ function lirePrix(v) {
 }
 
 function hudHtml() {
+  const demo = etat.mode === "demo";
   return `<div class="hud">
-    <span class="manche">Article ${etat.idx + 1}<span style="opacity:.5"> / ${BAREME.manches}</span></span>
-    ${etat.serie >= 2 ? `<span class="serie">🔥 ${etat.serie}</span>` : ""}
-    <span class="pts">${aff(etat.score)} pts</span>
+    ${demo ? `<span class="etiq">${t("Entraînement", "Oefening")}</span>` : ""}
+    <span class="manche">${demo ? "" : t("Article", "Artikel") + " "}${etat.idx + 1}<span style="opacity:.5"> / ${nbManches()}</span></span>
+    ${!demo && etat.serie >= 2 ? `<span class="serie">🔥 ${etat.serie}</span>` : ""}
+    ${demo ? "" : `<span class="pts">${aff(etat.score)} ${t("pts", "ptn")}</span>`}
   </div>`;
 }
 
@@ -346,88 +535,108 @@ function arreteMinuteur() { if (minuteur) { clearInterval(minuteur); minuteur = 
 
 function valider(tempsEcoule) {
   arreteMinuteur();
-  const a = etat.articles[etat.idx];
+  const a = articleCourant();
   const champ = $("#prix");
   const propose = champ ? lirePrix(champ.value) : null;
   const tSec = Math.min(BAREME.secondes, (Date.now() - etat.debut) / 1000);
 
-  let ecart, gain;
+  let ecart, gain, titre;
   if (!propose) {
-    // Rien de saisi (ou temps écoulé les mains vides) : manche perdue, série cassée.
     ecart = 1;
-    etat.serie = 0;
-    gain = { pal: { titre: tempsEcoule === true ? "Temps écoulé" : "Raté", emoji: "⏳", pts: 0 },
-             base: 0, vitesse: 0, serie: 0, total: 0 };
+    if (etat.mode !== "demo") etat.serie = 0;
+    gain = { base: 0, vitesse: 0, serie: 0, total: 0 };
+    titre = { titre: tempsEcoule === true ? t("Temps écoulé", "Tijd om") : t("Raté", "Mis"), emoji: "⏳" };
   } else {
     ecart = ecartDe(propose, a.prix);
-    // ⚠️ La série se calcule AVANT le gain, pas après : une estimation qui
-    // rapporte des points sans être vraiment bonne (par exemple 30 % d'écart)
-    // casse la série. Si on incrémentait après coup, elle toucherait quand
-    // même le bonus de série de la manche qu'elle vient de casser.
-    etat.serie = (ecart <= BAREME.serieSeuil) ? etat.serie + 1 : 0;
-    gain = gainManche(ecart, tSec, etat.serie);
+    // ⚠️ La série se calcule AVANT le gain : une estimation qui rapporte des
+    // points sans être vraiment bonne casse la série, et ne doit donc pas
+    // toucher le bonus de la série qu'elle vient de casser.
+    if (etat.mode !== "demo") etat.serie = (ecart <= BAREME.serieSeuil) ? etat.serie + 1 : 0;
+    gain = gainManche(ecart, tSec, etat.mode === "demo" ? 1 : etat.serie);
+    titre = titreDe(ecart);
   }
 
-  etat.score = Math.round((etat.score + gain.total) * 10) / 10;
-  etat.histo.push({ a, propose, ecart, gain, tSec });
+  if (etat.mode !== "demo") {
+    etat.score = Math.round((etat.score + gain.total) * 10) / 10;
+    etat.histo.push({ a, propose, ecart, gain, tSec });
+  }
+  etat.dernier = { a, propose, ecart, gain, titre, tSec };
   etat.phase = "verdict";
   rendre();
 }
 
+// ---------- Verdict : l'essentiel, pas le détail ----------
 function vueVerdict() {
-  const h = etat.histo[etat.histo.length - 1];
-  const a = h.a;
-  const dernier = etat.idx >= BAREME.manches - 1;
-  const sur = h.propose ? (h.propose > a.prix ? "au-dessus" : "en dessous") : null;
+  const d = etat.dernier;
+  const a = d.a;
+  const demo = etat.mode === "demo";
+  const dernier = etat.idx >= nbManches() - 1;
+  // 💶 L'écart s'affiche en EUROS : « à 3,20 € près » parle tout de suite,
+  // « 18 % » ne dit rien à personne.
+  const diff = d.propose ? Math.abs(d.propose - a.prix) : null;
 
   $("#app").innerHTML = `
     ${hudHtml()}
     <div class="carte verdict">
-      <img class="photo" style="height:min(30vh,190px)" src="img/${esc(a.img)}" alt="">
-      <div class="titre">${h.gain.pal.emoji} ${esc(h.gain.pal.titre)}</div>
-      <div style="font-size:.9rem;color:#5d7566;">Le vrai prix était</div>
+      <img class="photo" style="height:min(26vh,165px)" src="img/${esc(a.img)}" alt="">
+      <div class="titre">${d.titre.emoji} ${esc(d.titre.titre)}</div>
+      <div class="libelle">${t("Le vrai prix", "De echte prijs")}</div>
       <div class="prixreel">${euro(a.prix)}</div>
-      <div class="ecart">
-        ${h.propose
-          ? `Tu as dit <b>${euro(h.propose)}</b> — ${Math.round(h.ecart * 100)} % ${esc(sur)}`
-          : `<span class="rien">Pas de réponse</span>`}
+      <div class="tien">
+        ${d.propose
+          ? t(`Tu as dit <b>${euro(d.propose)}</b> — à <b>${euro(diff)}</b> près`,
+              `Jij zei <b>${euro(d.propose)}</b> — <b>${euro(diff)}</b> ernaast`)
+          : `<span class="rien">${t("Pas de réponse", "Geen antwoord")}</span>`}
       </div>
-      <div class="detail">
-        <div class="l"><span>Précision</span><span class="${h.gain.base ? "gagne" : "rien"}">+${h.gain.base}</span></div>
-        <div class="l"><span>Rapidité <span style="opacity:.6">(${h.tSec.toFixed(1)} s)</span></span><span class="${h.gain.vitesse ? "gagne" : "rien"}">+${h.gain.vitesse}</span></div>
-        <div class="l"><span>Série</span><span class="${h.gain.serie ? "gagne" : "rien"}">+${h.gain.serie}</span></div>
-        <div class="l total"><span>Cette manche</span><span class="gagne">+${h.gain.total}</span></div>
+
+      ${demo
+        ? `<div class="grosgain zero" style="font-size:1.15rem;">${t("L'échauffement ne compte pas", "De opwarming telt niet mee")}</div>`
+        : `<div class="grosgain ${d.gain.total ? "gagne" : "zero"}">+${d.gain.total} ${t("pts", "ptn")}</div>
+           <div class="chips">
+             ${d.gain.vitesse ? `<span class="chip">⚡ +${d.gain.vitesse}</span>` : ""}
+             ${d.gain.serie ? `<span class="chip">🔥 +${d.gain.serie}</span>` : ""}
+           </div>`}
+
+      <div style="margin-top:16px">
+        <button class="btn" id="suite">${
+          dernier
+            ? (demo ? t("Passer à la vraie partie", "Naar het echte spel")
+                    : t("Voir mon score", "Bekijk mijn score"))
+            : t("Article suivant", "Volgend artikel")}</button>
       </div>
-      <button class="btn" id="suite" style="margin-top:16px">${dernier ? "Voir mon score" : "Article suivant"}</button>
-      <div style="margin-top:10px"><a class="lien" href="${esc(a.url)}" target="_blank" rel="noopener">Voir l'article sur hermie.com ↗</a></div>
+      <div style="margin-top:10px"><a class="lien" href="${esc(a.url)}" target="_blank" rel="noopener">${t("Voir l'article sur hermie.com ↗", "Bekijk het artikel op hermie.com ↗")}</a></div>
     </div>`;
 
   $("#suite").addEventListener("click", () => {
-    if (dernier) { etat.phase = "fin"; }
-    else { etat.idx++; etat.phase = "manche"; }
+    if (!dernier) { etat.idx++; etat.phase = "manche"; }
+    else if (demo) { etat.mode = "reel"; etat.idx = 0; etat.serie = 0; etat.phase = "annonceReel"; }
+    else { etat.phase = "fin"; }
     rendre();
   });
 }
 
+// ---------- Fin ----------
 function vueFin() {
   arreteMinuteur();
-  const max = (BAREME.paliers[0].pts + BAREME.vitesseMax + BAREME.serieMax) * BAREME.manches;
+  const max = (BAREME.ptsMax + BAREME.vitesseMax + BAREME.serieMax) * BAREME.manches;
   const bonnes = etat.histo.filter(h => h.ecart <= BAREME.serieSeuil).length;
-  const parfaits = etat.histo.filter(h => h.ecart <= BAREME.paliers[0].ecart).length;
+  const pile = etat.histo.filter(h => h.ecart <= 0.02).length;
 
-  let mot = "Il y a de la marge !";
-  if (etat.score >= max * 0.75) mot = "Impressionnant — tu connais la maison 🏆";
-  else if (etat.score >= max * 0.5) mot = "Très bon flair 👏";
-  else if (etat.score >= max * 0.28) mot = "Pas mal du tout 🙂";
+  let mot = t("Il y a de la marge !", "Er is nog werk!");
+  if (etat.score >= max * 0.7) mot = t("Impressionnant — tu connais la maison 🏆", "Indrukwekkend — jij kent de winkel 🏆");
+  else if (etat.score >= max * 0.45) mot = t("Très bon flair 👏", "Goede neus 👏");
+  else if (etat.score >= max * 0.25) mot = t("Pas mal du tout 🙂", "Helemaal niet slecht 🙂");
 
   $("#app").innerHTML = `
+    ${languesHtml()}
     <div class="fin">
       <div style="font-size:2.6rem">🏁</div>
       <div class="score">${aff(etat.score)}</div>
-      <div style="font-size:.95rem;color:#5d7566;margin-bottom:6px;">points sur ${max}</div>
+      <div style="font-size:.95rem;color:#5d7566;margin-bottom:6px;">${t("points sur", "punten op")} ${max}</div>
       <div style="font-size:1.1rem;font-weight:700;margin-bottom:4px;">${mot}</div>
       <div style="font-size:.92rem;color:#5d7566;">
-        ${bonnes} bonne${bonnes > 1 ? "s" : ""} estimation${bonnes > 1 ? "s" : ""} sur ${BAREME.manches}${parfaits ? ` · ${parfaits} pile poil 🎯` : ""}
+        ${t(`${bonnes} bonne${bonnes > 1 ? "s" : ""} estimation${bonnes > 1 ? "s" : ""} sur ${BAREME.manches}`,
+             `${bonnes} goede schatting${bonnes > 1 ? "en" : ""} op ${BAREME.manches}`)}${pile ? ` · ${pile} ${t("pile poil", "precies goed")} 🎯` : ""}
       </div>
 
       <div class="recap">
@@ -435,19 +644,21 @@ function vueFin() {
           <div class="ligne">
             <img src="img/${esc(h.a.img)}" alt="">
             <div class="t">
-              <b>${esc(h.a.nom)}</b>
-              <span style="color:#5d7566;font-size:.85rem;">
-                ${h.propose ? `toi ${euro(h.propose)} · ` : `pas de réponse · `}vrai ${euro(h.a.prix)}
+              <b>${esc(nomDe(h.a))}</b>
+              <span style="color:#5d7566;font-size:.84rem;">
+                ${h.propose
+                  ? t(`toi ${euro(h.propose)} · vrai ${euro(h.a.prix)}`, `jij ${euro(h.propose)} · echt ${euro(h.a.prix)}`)
+                  : t(`pas de réponse · vrai ${euro(h.a.prix)}`, `geen antwoord · echt ${euro(h.a.prix)}`)}
               </span>
             </div>
             <span class="p ${h.gain.total ? "gagne" : "rien"}">+${h.gain.total}</span>
           </div>`).join("")}
       </div>
 
-      <button class="btn" id="rejouer">Rejouer</button>
-      <button class="btn secondaire" id="retour" style="margin-top:10px">Revoir les règles</button>
+      <button class="btn" id="rejouer">${t("Rejouer", "Opnieuw spelen")}</button>
+      <div style="margin-top:10px"><button class="btn secondaire" id="retour">${t("Retour à l'accueil", "Terug naar start")}</button></div>
     </div>`;
-
+  brancheLangues();
   $("#rejouer").addEventListener("click", nouvellePartie);
   $("#retour").addEventListener("click", () => { etat = null; rendre(); });
 }
@@ -455,12 +666,13 @@ function vueFin() {
 // ============================================================
 //  DÉMARRAGE
 // ============================================================
+document.documentElement.lang = LANG;
 fetch("articles.json", { cache: "no-store" })
   .then(r => r.json())
   .then(d => { ARTICLES = d; rendre(); })
   .catch(() => {
     $("#app").innerHTML = `<div class="accueil"><h1>Oups</h1>
-      <div class="sous">Les articles n'ont pas pu être chargés.</div></div>`;
+      <div class="but">${t("Les articles n'ont pas pu être chargés.", "De artikelen konden niet geladen worden.")}</div></div>`;
   });
 </script>
 </body>

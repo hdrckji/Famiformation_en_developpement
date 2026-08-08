@@ -1,700 +1,800 @@
 [
  {
   "id": 1,
-  "nom": "Plante échalote Golden Gourmet 7/15 - échalote jaune d'or",
+  "fr": "Plante échalote Golden Gourmet 7/15 - échalote jaune d'or",
+  "nl": "Plantsjalot Golden Gourmet 7/15 - goudgele sjalot",
   "prix": 1.04,
   "img": "001.jpg",
   "url": "https://hermie.com/fr-fr/202022031/plante-echalote-golden-gourmet-7-15-echalote-jaune-d-or-net-250g"
  },
  {
   "id": 2,
-  "nom": "Prosperplast Pulvérisateur pour arrosoir plastique ISIT1 Sitko - Noir",
+  "fr": "Prosperplast Pulvérisateur pour arrosoir plastique ISIT1 Sitko - Noir",
+  "nl": "Prosperplast Broes voor Kunststof Gieter ISIT1 Sitko - Zwart",
   "prix": 1.59,
   "img": "002.jpg",
   "url": "https://hermie.com/fr-fr/202043046/prosperplast-pulverisateur-pour-arrosoir-plastique-isit1-sitko-noir-3-a-13-litres"
  },
  {
   "id": 3,
-  "nom": "Saxifraga 'Pixie' - pot 9x9 cm",
+  "fr": "Saxifraga 'Pixie' - pot 9x9 cm",
+  "nl": "Saxifraga 'Pixie' - pot 9x9 cm",
   "prix": 1.76,
   "img": "003.jpg",
   "url": "https://hermie.com/fr-fr/201816937/saxifraga-pixie-pot-9x9-cm"
  },
  {
   "id": 4,
-  "nom": "Buzzy® Radis en graines - Cherry Belle",
+  "fr": "Buzzy® Radis en graines - Cherry Belle",
+  "nl": "Buzzy® Radijs zaden - Cherry Belle",
   "prix": 1.95,
   "img": "004.jpg",
   "url": "https://hermie.com/fr-fr/201722641/buzzy-radis-en-graines-cherry-belle"
  },
  {
   "id": 5,
-  "nom": "Plante d'oignon Sturon BIO 10/22 - net",
+  "fr": "Plante d'oignon Sturon BIO 10/22 - net",
+  "nl": "Buzzy plantajuin Sturon BIO 10/22 - netje",
   "prix": 1.99,
   "img": "005.jpg",
   "url": "https://hermie.com/fr-fr/201869702/plante-d-oignon-sturon-bio-10-22-net-250g"
  },
  {
   "id": 6,
-  "nom": "Prosperplast Feeder Sharkie - Distributeur manuel",
+  "fr": "Prosperplast Feeder Sharkie - Distributeur manuel",
+  "nl": "Prosperplast Sharkie Handstrooier - Groen",
   "prix": 2.25,
   "img": "006.jpg",
   "url": "https://hermie.com/fr-fr/201975289/prosperplast-feeder-sharkie-distributeur-manuel-vert-dosage-precis-polyvalent-design-compact"
  },
  {
   "id": 7,
-  "nom": "Buzzy® Aneth en graines - bio",
+  "fr": "Buzzy® Aneth en graines - bio",
+  "nl": "Buzzy® Dille zaden - Bio",
   "prix": 2.35,
   "img": "007.jpg",
   "url": "https://hermie.com/fr-fr/92320/buzzy-aneth-en-graines-bio"
  },
  {
   "id": 8,
-  "nom": "Buzzy® Graines de menthe poivrée",
+  "fr": "Buzzy® Graines de menthe poivrée",
+  "nl": "Buzzy® Pepermuntzaden",
   "prix": 2.35,
   "img": "008.jpg",
   "url": "https://hermie.com/fr-fr/201696705/buzzy-graines-de-menthe-poivree"
  },
  {
   "id": 9,
-  "nom": "Pois Buzzy® Market Conqueror 20g- hauteur de croissance ±150cm",
+  "fr": "Pois Buzzy® Market Conqueror 20g- hauteur de croissance ±150cm",
+  "nl": "Buzzy® Doperwten Marktveroveraar 20g- groeihoogte ±150cm",
   "prix": 2.35,
   "img": "009.jpg",
   "url": "https://hermie.com/fr-fr/201799732/pois-buzzy-market-conqueror-20g-hauteur-de-croissance-150cm"
  },
  {
   "id": 10,
-  "nom": "Lavatera 'Rosea' - pot 9x9 cm",
+  "fr": "Lavatera 'Rosea' - pot 9x9 cm",
+  "nl": "Lavatera 'Rosea' - pot 9x9 cm",
   "prix": 2.68,
   "img": "010.jpg",
   "url": "https://hermie.com/fr-fr/201814032/lavatera-rosea-pot-9x9-cm"
  },
  {
   "id": 11,
-  "nom": "Nepeta 'Cat's Pajamas' - pot 9x9 cm",
+  "fr": "Nepeta 'Cat's Pajamas' - pot 9x9 cm",
+  "nl": "Nepeta 'Cat's Pajamas' - pot 9x9 cm",
   "prix": 2.87,
   "img": "011.jpg",
   "url": "https://hermie.com/fr-fr/201814812/nepeta-cat-s-pajamas-pot-9x9-cm"
  },
  {
   "id": 12,
-  "nom": "Bio Rucola, plante vivace sauvage",
+  "fr": "Bio Rucola, plante vivace sauvage",
+  "nl": "Buzzy® Bio Rucola zaden - Wilde Meerjarige",
   "prix": 2.95,
   "img": "012.jpg",
   "url": "https://hermie.com/fr-fr/92352/bio-rucola-plante-vivace-sauvage"
  },
  {
   "id": 13,
-  "nom": "Plantoir pour bulbes à fleurs",
+  "fr": "Plantoir pour bulbes à fleurs",
+  "nl": "Famiflora bloembollenplanter",
   "prix": 2.99,
   "img": "013.jpg",
   "url": "https://hermie.com/fr-fr/112786/plantoir-pour-bulbes-a-fleurs"
  },
  {
   "id": 14,
-  "nom": "Pulmonaria saccharata 'Mrs Moon' - pot 9x9 cm",
+  "fr": "Pulmonaria saccharata 'Mrs Moon' - pot 9x9 cm",
+  "nl": "Pulmonaria saccharata 'Mrs Moon' - pot 9x9 cm",
   "prix": 3.25,
   "img": "014.jpg",
   "url": "https://hermie.com/fr-fr/201816035/pulmonaria-saccharata-mrs-moon-pot-9x9-cm"
  },
  {
   "id": 15,
-  "nom": "Cache-porte en bois - Beige",
+  "fr": "Cache-porte en bois - Beige",
+  "nl": "5Five Houten Deurwig - Set van 2",
   "prix": 3.49,
   "img": "015.jpg",
   "url": "https://hermie.com/fr-fr/201910303/cache-porte-en-bois-beige-taille-du-cuir-2-5-x-3-5-cm"
  },
  {
   "id": 16,
-  "nom": "5Five Cintres de penderie Pantalon 3x - Bois/Métal",
+  "fr": "5Five Cintres de penderie Pantalon 3x - Bois/Métal",
+  "nl": "5Five Kledinghangers Broeken 3x - Hout/Metaal",
   "prix": 3.99,
   "img": "016.jpg",
   "url": "https://hermie.com/fr-fr/202029174/5five-cintres-de-penderie-pantalon-3x-bois-metal-33x12.8-cm-clips-reglables"
  },
  {
   "id": 17,
-  "nom": "Chapeau de paille Esschert Design pour femme - Diamètre 39cm",
+  "fr": "Chapeau de paille Esschert Design pour femme - Diamètre 39cm",
+  "nl": "Esschert Design strohoed voor vrouwen - Diameter 39cm",
   "prix": 4.19,
   "img": "017.jpg",
   "url": "https://hermie.com/fr-fr/201660680/chapeau-de-paille-esschert-design-pour-femme-diametre-39cm-taille-unique"
  },
  {
   "id": 18,
-  "nom": "Engrais vert Moutarde jaune 140 grammes",
+  "fr": "Engrais vert Moutarde jaune 140 grammes",
+  "nl": "Buzzy® Groenbemester - Gele Mosterd",
   "prix": 4.7,
   "img": "018.jpg",
   "url": "https://hermie.com/fr-fr/50352/engrais-vert-moutarde-jaune-140-grammes"
  },
  {
   "id": 19,
-  "nom": "Gants bleus Edialux - Éliminer les mauvaises herbes en toute sécurité",
+  "fr": "Gants bleus Edialux - Éliminer les mauvaises herbes en toute sécurité",
+  "nl": "Edialux blauwe handschoenen - Veilig onkruid verdelgen",
   "prix": 5,
   "img": "019.jpg",
   "url": "https://hermie.com/fr-fr/201846116/gants-bleus-edialux-eliminer-les-mauvaises-herbes-en-toute-securite"
  },
  {
   "id": 20,
-  "nom": "Les vesces à engrais vert 150 grammes",
+  "fr": "Les vesces à engrais vert 150 grammes",
+  "nl": "Buzzy® Groenbemester - Wikken",
   "prix": 5.85,
   "img": "020.jpg",
   "url": "https://hermie.com/fr-fr/50358/les-vesces-a-engrais-vert-150-grammes"
  },
  {
   "id": 21,
-  "nom": "Coussin d'extérieur Anna's Collection 30x50cm - Anthracite",
+  "fr": "Coussin d'extérieur Anna's Collection 30x50cm - Anthracite",
+  "nl": "Anna's Collection buitenkussen 30x50cm - Antraciet",
   "prix": 5.99,
   "img": "021.jpg",
   "url": "https://hermie.com/fr-fr/201841104/coussin-d-exterieur-anna-s-collection-30x50cm-anthracite"
  },
  {
   "id": 22,
-  "nom": "Gant rebondissant Noir taille 10 Noir",
+  "fr": "Gant rebondissant Noir taille 10 Noir",
+  "nl": "Kixx Handschoen Bouncing Black maat 10 Zwart",
   "prix": 6.35,
   "img": "022.jpg",
   "url": "https://hermie.com/fr-fr/201800455/gant-rebondissant-noir-taille-10-noir"
  },
  {
   "id": 23,
-  "nom": "Terreau DCM pour palmiers - 10l",
+  "fr": "Terreau DCM pour palmiers - 10l",
+  "nl": "DCM potgrond voor palmen - 10l",
   "prix": 6.6,
   "img": "023.jpg",
   "url": "https://hermie.com/fr-fr/201785769/terreau-dcm-pour-palmiers-10l"
  },
  {
   "id": 24,
-  "nom": "Prosperplast Arrosoir de printemps - 8 litres",
+  "fr": "Prosperplast Arrosoir de printemps - 8 litres",
+  "nl": "Prosperplast Spring Gieter - 8 Liter",
   "prix": 6.95,
   "img": "024.jpg",
   "url": "https://hermie.com/fr-fr/202043053/prosperplast-arrosoir-de-printemps-8-litres-vert-avec-tete-d-arrosage"
  },
  {
   "id": 25,
-  "nom": "Baltus 'Allium Aflatunense Purple Sensation' bulbes à floraison printanière",
+  "fr": "Baltus 'Allium Aflatunense Purple Sensation' bulbes à floraison printanière",
+  "nl": "Baltus 'Allium Aflatunense Purple Sensation' - voorjaarsbloeiers",
   "prix": 6.99,
   "img": "025.jpg",
   "url": "https://hermie.com/fr-fr/196510/baltus-allium-aflatunense-purple-sensation-bulbes-a-floraison-printaniere-15-bulbes"
  },
  {
   "id": 26,
-  "nom": "Baltus 'Allium Moly' bulbes à floraison printanière - 100 bulbes",
+  "fr": "Baltus 'Allium Moly' bulbes à floraison printanière - 100 bulbes",
+  "nl": "Baltus 'Allium Moly' - voorjaarsbloeiers",
   "prix": 6.99,
   "img": "026.jpg",
   "url": "https://hermie.com/fr-fr/196522/baltus-allium-moly-bulbes-a-floraison-printaniere-100-bulbes"
  },
  {
   "id": 27,
-  "nom": "Baltus 'Camassia Cusickii' bulbes à floraison printanière - 5 bulbes",
+  "fr": "Baltus 'Camassia Cusickii' bulbes à floraison printanière - 5 bulbes",
+  "nl": "Baltus 'Camassia Cusickii' - voorjaarsbloeiers",
   "prix": 6.99,
   "img": "027.jpg",
   "url": "https://hermie.com/fr-fr/196542/baltus-camassia-cusickii-bulbes-a-floraison-printaniere-5-bulbes"
  },
  {
   "id": 28,
-  "nom": "Tagètes d'engrais vert 50 grammes",
+  "fr": "Tagètes d'engrais vert 50 grammes",
+  "nl": "Buzzy® Groenbemester - Afrikaantjes",
   "prix": 7.05,
   "img": "028.jpg",
   "url": "https://hermie.com/fr-fr/50376/tagetes-d-engrais-vert-50-grammes"
  },
  {
   "id": 29,
-  "nom": "Smoby Seau rempli de vie 'Mickey Mouse'",
+  "fr": "Smoby Seau rempli de vie 'Mickey Mouse'",
+  "nl": "Smoby Life gevulde emmer 'Mickey Mouse'",
   "prix": 7.5,
   "img": "029.jpg",
   "url": "https://hermie.com/fr-fr/201934993/smoby-seau-rempli-de-vie-mickey-mouse-ensemble-complet-avec-double-beche-arrosoir-moule-a-sable-et-tamis"
  },
  {
   "id": 30,
-  "nom": "Oeil platine - Plaque chromée avec oeil",
+  "fr": "Oeil platine - Plaque chromée avec oeil",
+  "nl": "Platinum kussenoog - Chromen plaat met oog",
   "prix": 7.95,
   "img": "030.jpg",
   "url": "https://hermie.com/fr-fr/201932422/oeil-platine-plaque-chromee-avec-oeil-8mm"
  },
  {
   "id": 31,
-  "nom": "Buzzy® Engrais vert - Graines de trèfle rouge",
+  "fr": "Buzzy® Engrais vert - Graines de trèfle rouge",
+  "nl": "Buzzy® Groenbemester - Rode Klaver",
   "prix": 8.1,
   "img": "031.jpg",
   "url": "https://hermie.com/fr-fr/50382/buzzy-engrais-vert-graines-de-trefle-rouge-150g"
  },
  {
   "id": 32,
-  "nom": "Pro-Garden Housse de parasol Pro Garden - 28x50x175cm",
+  "fr": "Pro-Garden Housse de parasol Pro Garden - 28x50x175cm",
+  "nl": "Pro-Garden Pro Garden parasolhoes - 28x50x175cm",
   "prix": 8.79,
   "img": "032.jpg",
   "url": "https://hermie.com/fr-fr/201658301/pro-garden-housse-de-parasol-pro-garden-28x50x175cm-noir"
  },
  {
   "id": 33,
-  "nom": "Piège à colle pour punaises de lit Edialux - 2 pièces",
+  "fr": "Piège à colle pour punaises de lit Edialux - 2 pièces",
+  "nl": "Edialux bedwantsen lijmval - 2 stuks",
   "prix": 8.95,
   "img": "033.jpg",
   "url": "https://hermie.com/fr-fr/202039775/piege-a-colle-pour-punaises-de-lit-edialux-2-pieces"
  },
  {
   "id": 34,
-  "nom": "Famiflora Hydro grains - 10L",
+  "fr": "Famiflora Hydro grains - 10L",
+  "nl": "Famiflora Hydrokorrels - 10L",
   "prix": 9.09,
   "img": "034.jpg",
   "url": "https://hermie.com/fr-fr/201877124/famiflora-hydro-grains-10l"
  },
  {
   "id": 35,
-  "nom": "HG Nettoyant pour four, grill et barbecue - 500 ml",
+  "fr": "HG Nettoyant pour four, grill et barbecue - 500 ml",
+  "nl": "HG Oven-, Grill- & Barbecuereiniger - 500 ml",
   "prix": 9.92,
   "img": "035.jpg",
   "url": "https://hermie.com/fr-fr/32740/hg-nettoyant-pour-four-grill-et-barbecue-500-ml-contre-les-graisses-brulees-egalement-pour-l-acier-inoxydable"
  },
  {
   "id": 36,
-  "nom": "Coussin en peluche Pokémon Pikachu - 40 x 40 cm",
+  "fr": "Coussin en peluche Pokémon Pikachu - 40 x 40 cm",
+  "nl": "Pokémon pluche kussen Pikachu - 40 x 40 cm",
   "prix": 9.99,
   "img": "036.jpg",
   "url": "https://hermie.com/fr-fr/201917543/coussin-en-peluche-pokemon-pikachu-40-x-40-cm"
  },
  {
   "id": 37,
-  "nom": "Engrais DCM pour olives, figues et agrumes 1,5 kg - organique",
+  "fr": "Engrais DCM pour olives, figues et agrumes 1,5 kg - organique",
+  "nl": "DCM meststof voor olijven, vijgen & citrus 1,5 kg - bio",
   "prix": 10.25,
   "img": "037.jpg",
   "url": "https://hermie.com/fr-fr/201691930/engrais-dcm-pour-olives-figues-et-agrumes-1-5-kg-organique"
  },
  {
   "id": 38,
-  "nom": "Wolf-Garten planteur de bulbes de fleurs 6 cm",
+  "fr": "Wolf-Garten planteur de bulbes de fleurs 6 cm",
+  "nl": "WOLF-Garten bloembollenplanter - 6cm",
   "prix": 10.89,
   "img": "038.jpg",
   "url": "https://hermie.com/fr-fr/22730/wolf-garten-planteur-de-bulbes-de-fleurs-6-cm"
  },
  {
   "id": 39,
-  "nom": "Substral Naturen engrais pour rosiers - 1.7kg",
+  "fr": "Substral Naturen engrais pour rosiers - 1.7kg",
+  "nl": "Substral Naturen meststof voor rozen - 1,7kg",
   "prix": 11.29,
   "img": "039.jpg",
   "url": "https://hermie.com/fr-fr/94367/substral-naturen-engrais-pour-rosiers-1.7kg"
  },
  {
   "id": 40,
-  "nom": "Nichoir Esschert Design silhouette de mésange bleue - LxLxH : 17x14.3x25.5cm",
+  "fr": "Nichoir Esschert Design silhouette de mésange bleue - LxLxH : 17x14.3x25.5cm",
+  "nl": "Esschert Design nestkast pimpelmees silhouet - LxBxH: 17x14,3x25,5cm",
   "prix": 11.99,
   "img": "040.jpg",
   "url": "https://hermie.com/fr-fr/201651930/nichoir-esschert-design-silhouette-de-mesange-bleue-lxlxh-17x14.3x25.5cm"
  },
  {
   "id": 41,
-  "nom": "Coussins de chaise Hespéride 'Korai' pour l'intérieur et l'extérieur",
+  "fr": "Coussins de chaise Hespéride 'Korai' pour l'intérieur et l'extérieur",
+  "nl": "Hespéride stoelkussens 'Korai' voor binnen en buiten",
   "prix": 11.99,
   "img": "041.jpg",
   "url": "https://hermie.com/fr-fr/201933054/coussins-de-chaise-hesperide-korai-pour-l-interieur-et-l-exterieur-avec-fermeture-velcro-rouge-40-x-40-x-4-cm-resistant-a-l-eau-et-aux-uv"
  },
  {
   "id": 42,
-  "nom": "Weitech WK8026 Petite bougie à la citronnelle - 90g",
+  "fr": "Weitech WK8026 Petite bougie à la citronnelle - 90g",
+  "nl": "Weitech WK8026 Citronella Kaars Klein - 90g",
   "prix": 12.59,
   "img": "042.jpg",
   "url": "https://hermie.com/fr-fr/202055108/weitech-wk8026-petite-bougie-a-la-citronnelle-90g-25-heures-de-combustion"
  },
  {
   "id": 43,
-  "nom": "Nichoir Esschert Design Mésange charbonnière Toit bitumé",
+  "fr": "Nichoir Esschert Design Mésange charbonnière Toit bitumé",
+  "nl": "Esschert Design nestkast koolmees bitumen dak",
   "prix": 12.99,
   "img": "043.jpg",
   "url": "https://hermie.com/fr-fr/10527/nichoir-esschert-design-mesange-charbonniere-toit-bitume"
  },
  {
   "id": 44,
-  "nom": "Nichoir Esschert Design rouge-gorge - LxLxH : 19.2x21x33.3cm",
+  "fr": "Nichoir Esschert Design rouge-gorge - LxLxH : 19.2x21x33.3cm",
+  "nl": "Esschert Design nestkast roodborst - LxBxH: 19,2x21x33,3cm",
   "prix": 12.99,
   "img": "044.jpg",
   "url": "https://hermie.com/fr-fr/10544/nichoir-esschert-design-rouge-gorge-lxlxh-19.2x21x33.3cm"
  },
  {
   "id": 45,
-  "nom": "Grille de barbecue pour bol de feu 60cm",
+  "fr": "Grille de barbecue pour bol de feu 60cm",
+  "nl": "Esschert Design BBQ-rooster voor vuurschaal 60cm",
   "prix": 13.99,
   "img": "045.jpg",
   "url": "https://hermie.com/fr-fr/165504/grille-de-barbecue-pour-bol-de-feu-60cm"
  },
  {
   "id": 46,
-  "nom": "Bestway tuyau de remplacement 32mm",
+  "fr": "Bestway tuyau de remplacement 32mm",
+  "nl": "Bestway vervangingsslang 32mm - 3M",
   "prix": 13.99,
   "img": "046.jpg",
   "url": "https://hermie.com/fr-fr/201845945/bestway-tuyau-de-remplacement-32mm"
  },
  {
   "id": 47,
-  "nom": "SOGO Pelle à plantes avec long manche - Acier inoxydable et bois FSC",
+  "fr": "SOGO Pelle à plantes avec long manche - Acier inoxydable et bois FSC",
+  "nl": "SOGO Plantschep met Lange Steel - Roestvrijstaal & FSC Hout",
   "prix": 14.95,
   "img": "047.jpg",
   "url": "https://hermie.com/fr-fr/202041137/sogo-pelle-a-plantes-avec-long-manche-acier-inoxydable-et-bois-fsc-55-cm"
  },
  {
   "id": 48,
-  "nom": "Elho Vibes Arrosoir pliable 1,7L - Anthracite",
+  "fr": "Elho Vibes Arrosoir pliable 1,7L - Anthracite",
+  "nl": "Elho Vibes Fold Gieter 1.7L - Antraciet",
   "prix": 14.99,
   "img": "048.jpg",
   "url": "https://hermie.com/fr-fr/202031045/elho-vibes-arrosoir-pliable-1-7l-anthracite-100-plastique-recycle"
  },
  {
   "id": 49,
-  "nom": "Compo semences de gazon 1,2 kg pour 6 m² - Mélange complet",
+  "fr": "Compo semences de gazon 1,2 kg pour 6 m² - Mélange complet",
+  "nl": "Compo graszaad 1,2 kg voor 6 m² - Complete Mix",
   "prix": 15.49,
   "img": "049.jpg",
   "url": "https://hermie.com/fr-fr/22008/compo-semences-de-gazon-1-2-kg-pour-6-m2-melange-complet-pour-reparer-les-pelouses-tres-abimees-4-en-1-semences-de-gazon-terreau-engrais-chaux-germination-rapide"
  },
  {
   "id": 50,
-  "nom": "Hozelock Colour Sticks 15L",
+  "fr": "Hozelock Colour Sticks 15L",
+  "nl": "Hozelock Colour Sticks 15L",
   "prix": 16.74,
   "img": "050.jpg",
   "url": "https://hermie.com/fr-fr/44444/hozelock-colour-sticks-15l-nourriture-flottante-pour-poissons-de-bassin-tels-que-les-poissons-rouges"
  },
  {
   "id": 51,
-  "nom": "Esschert Design mangeoire à écureuil diapositive - LxLxH : 14.9x25x20cm",
+  "fr": "Esschert Design mangeoire à écureuil diapositive - LxLxH : 14.9x25x20cm",
+  "nl": "Esschert Design diapositief eekhoorn voederhuis - LxBxH: 14,9x25x20cm",
   "prix": 16.99,
   "img": "051.jpg",
   "url": "https://hermie.com/fr-fr/201824861/esschert-design-mangeoire-a-ecureuil-diapositive-lxlxh-14.9x25x20cm"
  },
  {
   "id": 52,
-  "nom": "Prosperplast Icanset Kit de raccordement pour tonneaux de pluie - Noir",
+  "fr": "Prosperplast Icanset Kit de raccordement pour tonneaux de pluie - Noir",
+  "nl": "Prosperplast Icanset Verbindingset voor regentonnen - Zwart",
   "prix": 17.89,
   "img": "052.jpg",
   "url": "https://hermie.com/fr-fr/202043103/prosperplast-icanset-kit-de-raccordement-pour-tonneaux-de-pluie-noir-2-raccords-de-tuyau-perceuse-incluse"
  },
  {
   "id": 53,
-  "nom": "Engrais Compo pour haies et buxus - 3,5 kg",
+  "fr": "Engrais Compo pour haies et buxus - 3,5 kg",
+  "nl": "Compo meststof voor hagen & buxus - 3,5 kg",
   "prix": 18.39,
   "img": "053.jpg",
   "url": "https://hermie.com/fr-fr/89669/engrais-compo-pour-haies-et-buxus-3-5-kg-bio"
  },
  {
   "id": 54,
-  "nom": "5Five Panier à linge étroit avec couvercle - Gris foncé",
+  "fr": "5Five Panier à linge étroit avec couvercle - Gris foncé",
+  "nl": "5Five Smalle Wasmand met Deksel – Donkergrijs – Rotan Gevlochten Kunststof – 40 L – Praktisch & Stijlvol",
   "prix": 19.14,
   "img": "054.jpg",
   "url": "https://hermie.com/fr-fr/202029177/5five-panier-a-linge-etroit-avec-couvercle-gris-fonce-plastique-tresse-en-rotin-40-l-pratique-et-elegant"
  },
  {
   "id": 55,
-  "nom": "BSI Buse à fente + capuchon de pulvérisation + coupleur",
+  "fr": "BSI Buse à fente + capuchon de pulvérisation + coupleur",
+  "nl": "BSI Spleetdop + spuitkap + koppelstuk - Geschikt voor ALLE types drukspuiten",
   "prix": 19.95,
   "img": "055.jpg",
   "url": "https://hermie.com/fr-fr/201803218/bsi-buse-a-fente-capuchon-de-pulverisation-coupleur-convient-a-tous-les-types-de-pulverisateurs-a-pression"
  },
  {
   "id": 56,
-  "nom": "Feeric Lights & Christmas Table Nappe - 140 x 360 cm",
+  "fr": "Feeric Lights & Christmas Table Nappe - 140 x 360 cm",
+  "nl": "Feeric Lights & Christmas Tafelkleed – 140 x 360 cm – Rood glitter – Katoen – Feestelijk en elegant",
   "prix": 19.99,
   "img": "056.jpg",
   "url": "https://hermie.com/fr-fr/201895530/feeric-lights-christmas-table-nappe-140-x-360-cm-rouge-paillete-coton-festive-et-elegante"
  },
  {
   "id": 57,
-  "nom": "Adaptateur secteur Edialux - Longueur de câble 11m",
+  "fr": "Adaptateur secteur Edialux - Longueur de câble 11m",
+  "nl": "Edialux Netadapter - 11m Kabellengte",
   "prix": 20.34,
   "img": "057.jpg",
   "url": "https://hermie.com/fr-fr/201922919/adaptateur-secteur-edialux-longueur-de-cable-11m-convient-aux-disperseurs-a-ultrasons"
  },
  {
   "id": 58,
-  "nom": "Support pour plantes grimpantes Nature pour tuyau d'évacuation - 145 x 18 cm",
+  "fr": "Support pour plantes grimpantes Nature pour tuyau d'évacuation - 145 x 18 cm",
+  "nl": "Nature plantenklimrek voor regenpijp - 145 x 18 cm",
   "prix": 22.19,
   "img": "058.jpg",
   "url": "https://hermie.com/fr-fr/63409/support-pour-plantes-grimpantes-nature-pour-tuyau-d-evacuation-145-x-18-cm"
  },
  {
   "id": 59,
-  "nom": "Noxxiez peluche plaid 'Flamingo' avec capuche - 130 x 100 cm",
+  "fr": "Noxxiez peluche plaid 'Flamingo' avec capuche - 130 x 100 cm",
+  "nl": "Noxxiez knuffelplaid 'Flamingo' met capuchon - 130 x 100 cm",
   "prix": 23.99,
   "img": "059.jpg",
   "url": "https://hermie.com/fr-fr/201894675/noxxiez-peluche-plaid-flamingo-avec-capuche-130-x-100-cm"
  },
  {
   "id": 60,
-  "nom": "Nichoir à coucou Esschert Design - LxLxH : 14.4x13.1x25.2cm",
+  "fr": "Nichoir à coucou Esschert Design - LxLxH : 14.4x13.1x25.2cm",
+  "nl": "Esschert Design koekoeksklok-nestkast - LxBxH: 14,4x13,1x25,2cm",
   "prix": 23.99,
   "img": "060.jpg",
   "url": "https://hermie.com/fr-fr/201905979/nichoir-a-coucou-esschert-design-lxlxh-14.4x13.1x25.2cm"
  },
  {
   "id": 61,
-  "nom": "Practo Garden - Banc pliant pour les genoux",
+  "fr": "Practo Garden - Banc pliant pour les genoux",
+  "nl": "Practo Garden — Inklapbaar kniebankje — 2‑in‑1 knielbank en zitbank — EVA kniekussen — Max. 150 kg",
   "prix": 24.99,
   "img": "061.jpg",
   "url": "https://hermie.com/fr-fr/201886787/practo-garden-banc-pliant-pour-les-genoux-banc-et-siege-2-en-1-pour-les-genoux-coussin-pour-les-genoux-en-eva-max.-150-kg"
  },
  {
   "id": 62,
-  "nom": "Atmosphera Tafelkleed - 140x360 cm",
+  "fr": "Atmosphera Tafelkleed - 140x360 cm",
+  "nl": "Atmosphera Tafelkleed - 140x360 cm",
   "prix": 25.95,
   "img": "062.jpg",
   "url": "https://hermie.com/fr-fr/201895529/atmosphera-tafelkleed-140x360-cm-goud-met-pailletten"
  },
  {
   "id": 63,
-  "nom": "Atmosphera lampe suspendue en bambou pour chambre d'enfant - Hauteur 22 cm",
+  "fr": "Atmosphera lampe suspendue en bambou pour chambre d'enfant - Hauteur 22 cm",
+  "nl": "Atmosphera bamboe hanglamp voor kinderkamer - Hoogte 22 cm",
   "prix": 27.79,
   "img": "063.jpg",
   "url": "https://hermie.com/fr-fr/201910372/atmosphera-lampe-suspendue-en-bambou-pour-chambre-d-enfant-hauteur-22-cm-alimentation-secteur-puissance-maximale-40w-raccordement-e27"
  },
  {
   "id": 64,
-  "nom": "Yankee Candle Apres Ski Christmas Classics - Coffret cadeau de 6 bougies",
+  "fr": "Yankee Candle Apres Ski Christmas Classics - Coffret cadeau de 6 bougies",
+  "nl": "Yankee Candle Apres Ski Christmas Classics - 6 Filled Votive Gift Set",
   "prix": 28.89,
   "img": "064.jpg",
   "url": "https://hermie.com/fr-fr/202036319/yankee-candle-apres-ski-christmas-classics-coffret-cadeau-de-6-bougies-sauge-argentee-et-pin-biscuit-de-noel-cannelle-petillante-cupcake-a-la-vanille-sauge-et-agrumes-couronne-de-pommes-rouges-6x37g"
  },
  {
   "id": 65,
-  "nom": "Housse de parasol Platinum Aerocover",
+  "fr": "Housse de parasol Platinum Aerocover",
+  "nl": "Platinum Aerocover parasolhoes",
   "prix": 29.95,
   "img": "065.jpg",
   "url": "https://hermie.com/fr-fr/201881476/housse-de-parasol-platinum-aerocover-housse-respirante-pour-parasols-jusqu-a-300-cm-de-diametre-ou-225-x-225-cm"
  },
  {
   "id": 66,
-  "nom": "Famiflora pulvérisateur à contre-pression 16L",
+  "fr": "Famiflora pulvérisateur à contre-pression 16L",
+  "nl": "Famiflora rugdruksproeier 16L",
   "prix": 29.99,
   "img": "066.jpg",
   "url": "https://hermie.com/fr-fr/201635170/famiflora-pulverisateur-a-contre-pression-16l"
  },
  {
   "id": 67,
-  "nom": "Terreau DCM pour géraniums et plantes fleuries - 60l",
+  "fr": "Terreau DCM pour géraniums et plantes fleuries - 60l",
+  "nl": "DCM potgrond voor geraniums & bloeiende planten - 60l",
   "prix": 30.95,
   "img": "067.jpg",
   "url": "https://hermie.com/fr-fr/201690571/terreau-dcm-pour-geraniums-et-plantes-fleuries-60l"
  },
  {
   "id": 68,
-  "nom": "Terreau DCM pour cultivateurs - 60l",
+  "fr": "Terreau DCM pour cultivateurs - 60l",
+  "nl": "DCM potgrond voor kwekers - 60l",
   "prix": 31.95,
   "img": "068.jpg",
   "url": "https://hermie.com/fr-fr/201699624/terreau-dcm-pour-cultivateurs-60l"
  },
  {
   "id": 69,
-  "nom": "Bougie parfumée WoodWick - Ellipse HearthWick Flame",
+  "fr": "Bougie parfumée WoodWick - Ellipse HearthWick Flame",
+  "nl": "WoodWick geurkaars - Ellipse HearthWick Flame",
   "prix": 32.49,
   "img": "069.jpg",
   "url": "https://hermie.com/fr-fr/201621858/bougie-parfumee-woodwick-ellipse-hearthwick-flame-coastal-sunset"
  },
  {
   "id": 70,
-  "nom": "Bestway \"Comfy Chill\" matelas gonflable avec parasol - 175 x 94 x 40 cm",
+  "fr": "Bestway \"Comfy Chill\" matelas gonflable avec parasol - 175 x 94 x 40 cm",
+  "nl": "Bestway \"Comfy Chill\" opblaasbare luchtmatras met zonnescherm",
   "prix": 32.99,
   "img": "070.jpg",
   "url": "https://hermie.com/fr-fr/201989634/bestway-comfy-chill-matelas-gonflable-avec-parasol-175-x-94-x-40-cm-1-personne"
  },
  {
   "id": 71,
-  "nom": "Bûten Home nichoir à chauve-souris 'Valja' - 44.5x29x12cm",
+  "fr": "Bûten Home nichoir à chauve-souris 'Valja' - 44.5x29x12cm",
+  "nl": "Bûten Home vleermuis nestkast 'Valja' - 44.5x29x12cm",
   "prix": 33.95,
   "img": "071.jpg",
   "url": "https://hermie.com/fr-fr/201900215/buten-home-nichoir-a-chauve-souris-valja-44.5x29x12cm-habitat-pour-chauve-souris"
  },
  {
   "id": 72,
-  "nom": "Atmosphera Hercyna Salontafel - Ø 40 x H42 cm",
+  "fr": "Atmosphera Hercyna Salontafel - Ø 40 x H42 cm",
+  "nl": "Atmosphera Hercyna Salontafel - Ø 40 x H42 cm",
   "prix": 35.99,
   "img": "072.jpg",
   "url": "https://hermie.com/fr-fr/202068250/atmosphera-hercyna-salontafel-oe-40-x-h42-cm-beige-hout-metaal"
  },
  {
   "id": 73,
-  "nom": "Terreau DCM - sans tourbe",
+  "fr": "Terreau DCM - sans tourbe",
+  "nl": "DCM potgrond - turfvrij",
   "prix": 36.99,
   "img": "073.jpg",
   "url": "https://hermie.com/fr-fr/201829590/terreau-dcm-sans-tourbe-60l"
  },
  {
   "id": 74,
-  "nom": "Substral engrais gazon 7kg pour 200m² - greenmax",
+  "fr": "Substral engrais gazon 7kg pour 200m² - greenmax",
+  "nl": "Substral gazonmeststof 7kg voor 200m² - greenmax",
   "prix": 39.95,
   "img": "074.jpg",
   "url": "https://hermie.com/fr-fr/94356/substral-engrais-gazon-7kg-pour-200m2-greenmax"
  },
  {
   "id": 75,
-  "nom": "Château gonflable Intex \"Jump-O-Lene\" 174x174x112cm",
+  "fr": "Château gonflable Intex \"Jump-O-Lene\" 174x174x112cm",
+  "nl": "Intex springkasteel \"Jump-O-Lene\" 174x174x112cm",
   "prix": 43.69,
   "img": "075.jpg",
   "url": "https://hermie.com/fr-fr/201820204/chateau-gonflable-intex-jump-o-lene-174x174x112cm"
  },
  {
   "id": 76,
-  "nom": "Mangeoire automatique à échelons pour poulets 6 kg",
+  "fr": "Mangeoire automatique à échelons pour poulets 6 kg",
+  "nl": "Automatische trapbak voederbak voor kippen 6 kg",
   "prix": 49.95,
   "img": "076.jpg",
   "url": "https://hermie.com/fr-fr/201789562/mangeoire-automatique-a-echelons-pour-poulets-6-kg"
  },
  {
   "id": 77,
-  "nom": "Culotte Pampers Baby-Dry taille 6 (14-19KG) - 84 culottes de protection",
+  "fr": "Culotte Pampers Baby-Dry taille 6 (14-19KG) - 84 culottes de protection",
+  "nl": "Pampers Baby-Dry pants maat 6 (14-19KG) - 84 luierbroekjes",
   "prix": 52.92,
   "img": "077.jpg",
   "url": "https://hermie.com/fr-fr/202003810/culotte-pampers-baby-dry-taille-6-14-19kg-84-culottes-de-protection"
  },
  {
   "id": 78,
-  "nom": "Mangeoire automatique pour poules - 12kg",
+  "fr": "Mangeoire automatique pour poules - 12kg",
+  "nl": "Automatische trapbak voederbak voor kippen - 12kg",
   "prix": 56.99,
   "img": "078.jpg",
   "url": "https://hermie.com/fr-fr/201791121/mangeoire-automatique-pour-poules-12kg-30x30x40cm"
  },
  {
   "id": 79,
-  "nom": "Mangeoire automatique pour poulets - 20kg",
+  "fr": "Mangeoire automatique pour poulets - 20kg",
+  "nl": "Automatische trapbak voederbak voor kippen - 20kg",
   "prix": 59.95,
   "img": "079.jpg",
   "url": "https://hermie.com/fr-fr/201791122/mangeoire-automatique-pour-poulets-20kg-30x30x55cm"
  },
  {
   "id": 80,
-  "nom": "Moderna Litter Box Casetta - 45 x 45 x 76 cm",
+  "fr": "Moderna Litter Box Casetta - 45 x 45 x 76 cm",
+  "nl": "Moderna Kattenbak Casetta - 45 x 45 x 76 cm",
   "prix": 59.95,
   "img": "080.jpg",
   "url": "https://hermie.com/fr-fr/202019305/moderna-litter-box-casetta-45-x-45-x-76-cm-avec-bac-et-pelle-gris-blanc"
  },
  {
   "id": 81,
-  "nom": "Weitech Détecteur d'animaux à ultrasons 200 m² - Capteur infrarouge",
+  "fr": "Weitech Détecteur d'animaux à ultrasons 200 m² - Capteur infrarouge",
+  "nl": "Weitech Ultrasone Dierenverjager 200 m² - Infraroodsensor",
   "prix": 60,
   "img": "081.jpg",
   "url": "https://hermie.com/fr-fr/201840997/weitech-detecteur-d-animaux-a-ultrasons-200-m2-capteur-infrarouge-fonctionne-sur-piles-ou-sur-secteur-protecteur-de-jardin-3-wk0055"
  },
  {
   "id": 82,
-  "nom": "Toile de bassin enveloppée de 4,5 x 4 mètres",
+  "fr": "Toile de bassin enveloppée de 4,5 x 4 mètres",
+  "nl": "Hozelock Vijverfolie verpakt 4,5 x 4 meter",
   "prix": 62.06,
   "img": "082.jpg",
   "url": "https://hermie.com/fr-fr/201801636/toile-de-bassin-enveloppee-de-4-5-x-4-metres"
  },
  {
   "id": 83,
-  "nom": "Hikari Friend Pond Fish Food - 10 kg",
+  "fr": "Hikari Friend Pond Fish Food - 10 kg",
+  "nl": "Hikari Friend Vijvervisvoer - 10 kg",
   "prix": 63.49,
   "img": "083.jpg",
   "url": "https://hermie.com/fr-fr/51608/hikari-friend-pond-fish-food-10-kg-medium-pellet-5-5.5mm-pour-koi-et-poissons-de-bassin"
  },
  {
   "id": 84,
-  "nom": "Esschert Design base de parasol granito gris foncé S",
+  "fr": "Esschert Design base de parasol granito gris foncé S",
+  "nl": "Esschert Design parasolvoet granito donkergrijs S - LxBxH: 25,4x25,4x25,4cm",
   "prix": 65.99,
   "img": "084.jpg",
   "url": "https://hermie.com/fr-fr/201905903/esschert-design-base-de-parasol-granito-gris-fonce-s-lxlxh-25.4x25.4x25.4cm"
  },
  {
   "id": 85,
-  "nom": "Batterie lithium-ion pour le chariot pulvérisateur à pression BSI vert",
+  "fr": "Batterie lithium-ion pour le chariot pulvérisateur à pression BSI vert",
+  "nl": "Lithium-ion batterij voor de groene BSI accu druksproeier trolley",
   "prix": 69.95,
   "img": "085.jpg",
   "url": "https://hermie.com/fr-fr/201842652/batterie-lithium-ion-pour-le-chariot-pulverisateur-a-pression-bsi-vert-12v7ah-plaque-bds8"
  },
  {
   "id": 86,
-  "nom": "SuperFish PondClear UVC 18W - Filtre de bassin",
+  "fr": "SuperFish PondClear UVC 18W - Filtre de bassin",
+  "nl": "SuperFish PondClear UVC 18W - Vijverfilter",
   "prix": 85.99,
   "img": "086.jpg",
   "url": "https://hermie.com/fr-fr/105902/superfish-pondclear-uvc-18w-filtre-de-bassin-jusqu-a-15-000-litres"
  },
  {
   "id": 87,
-  "nom": "Nature Enkelw - écran de jardin 1,5x5m vert 1000g/m²",
+  "fr": "Nature Enkelw - écran de jardin 1,5x5m vert 1000g/m²",
+  "nl": "Nature Enkelw - tuinscherm 1,5x5m groen 1000g/m²",
   "prix": 89,
   "img": "087.jpg",
   "url": "https://hermie.com/fr-fr/201799262/nature-enkelw-ecran-de-jardin-1-5x5m-vert-1000g-m2"
  },
  {
   "id": 88,
-  "nom": "Platinum Sun & Shade parasol lights multicolour LED - Anthracite",
+  "fr": "Platinum Sun & Shade parasol lights multicolour LED - Anthracite",
+  "nl": "Platinum Sun & Shade parasolverlichting multicolour LED - Antraciet",
   "prix": 89.95,
   "img": "088.jpg",
   "url": "https://hermie.com/fr-fr/201925528/platinum-sun-shade-parasol-lights-multicolour-led-anthracite"
  },
  {
   "id": 89,
-  "nom": "Nesling coolfit® blind B0,98 x L2,4m - couleur : vert citron",
+  "fr": "Nesling coolfit® blind B0,98 x L2,4m - couleur : vert citron",
+  "nl": "Nesling rolgordijn Coolfit - 0,98 op 2,40m",
   "prix": 115,
   "img": "089.jpg",
   "url": "https://hermie.com/fr-fr/201802289/nesling-coolfit-blind-b0-98-x-l2-4m-couleur-vert-citron"
  },
  {
   "id": 90,
-  "nom": "Superfish TopClear UV 5000 Filtre à pression - Filtre de bassin",
+  "fr": "Superfish TopClear UV 5000 Filtre à pression - Filtre de bassin",
+  "nl": "Superfish TopClear UV 5000 Drukfilter - Vijverfilter",
   "prix": 124.99,
   "img": "090.jpg",
   "url": "https://hermie.com/fr-fr/193601/superfish-topclear-uv-5000-filtre-a-pression-filtre-de-bassin-7-watts-jusqu-a-5000l"
  },
  {
   "id": 91,
-  "nom": "Platinum premium base de parasol 'Ceramica' - 40KG",
+  "fr": "Platinum premium base de parasol 'Ceramica' - 40KG",
+  "nl": "Platinum premium parasolvoet 'Ceramica' - 40KG",
   "prix": 129,
   "img": "091.jpg",
   "url": "https://hermie.com/fr-fr/201896981/platinum-premium-base-de-parasol-ceramica-40kg-avec-roulettes"
  },
  {
   "id": 92,
-  "nom": "HEAT Premium Kamado Barbecue Fyregg 13 - Noir",
+  "fr": "HEAT Premium Kamado Barbecue Fyregg 13 - Noir",
+  "nl": "HEAT Premium Kamado Barbecue Fyregg 13 - Zwart",
   "prix": 139,
   "img": "092.jpg",
   "url": "https://hermie.com/fr-fr/202047490/heat-premium-kamado-barbecue-fyregg-13-noir-ceramique"
  },
  {
   "id": 93,
-  "nom": "Bassin de fontaine Velda 55 x 55 x 32 cm - Autonome",
+  "fr": "Bassin de fontaine Velda 55 x 55 x 32 cm - Autonome",
+  "nl": "Velda fonteinvijver 55 x 55 x 32 cm - Zelfstandig",
   "prix": 157.99,
   "img": "093.jpg",
   "url": "https://hermie.com/fr-fr/201749221/bassin-de-fontaine-velda-55-x-55-x-32-cm-autonome-decoratif-avec-pompe-de-fontaine-et-panier-a-plantes"
  },
  {
   "id": 94,
-  "nom": "HEAT Four à pizza Ovnhus - Cuisson au feu de bois avec grille de barbecue",
+  "fr": "HEAT Four à pizza Ovnhus - Cuisson au feu de bois avec grille de barbecue",
+  "nl": "HEAT Pizzaoven Ovnhus - Houtgestookt met Barbecue Grill",
   "prix": 179,
   "img": "094.jpg",
   "url": "https://hermie.com/fr-fr/202047464/heat-four-a-pizza-ovnhus-cuisson-au-feu-de-bois-avec-grille-de-barbecue-161-cm"
  },
  {
   "id": 95,
-  "nom": "Pulvérisateur à dos Birchmeier Garden Star 15 L",
+  "fr": "Pulvérisateur à dos Birchmeier Garden Star 15 L",
+  "nl": "Birchmeier garden star 15L rugsproeier - tot 5 bar werkdruk",
   "prix": 179,
   "img": "095.jpg",
   "url": "https://hermie.com/fr-fr/202033480/pulverisateur-a-dos-birchmeier-garden-star-15-l"
  },
  {
   "id": 96,
-  "nom": "Barenbrug Mow Saver - Moins de graines d'herbe à couper 15 kg",
+  "fr": "Barenbrug Mow Saver - Moins de graines d'herbe à couper 15 kg",
+  "nl": "Barenbrug graszaad 15kg tot 600m² - Mow Saver",
   "prix": 198.45,
   "img": "096.jpg",
   "url": "https://hermie.com/fr-fr/201694046/barenbrug-mow-saver-moins-de-graines-d-herbe-a-couper-15-kg"
  },
  {
   "id": 97,
-  "nom": "Arroseur dorsal Birchmeier 'Flox 10 AT1' 10L",
+  "fr": "Arroseur dorsal Birchmeier 'Flox 10 AT1' 10L",
+  "nl": "Birchmeier rugsproeier 'Flox 10 AT1' 10L",
   "prix": 285,
   "img": "097.jpg",
   "url": "https://hermie.com/fr-fr/201802948/arroseur-dorsal-birchmeier-flox-10-at1-10l"
  },
  {
   "id": 98,
-  "nom": "Vitavia Rangement bois Ardor 401 - plat",
+  "fr": "Vitavia Rangement bois Ardor 401 - plat",
+  "nl": "Vitavia Houtopslag Ardor 401 - vlak",
   "prix": 298,
   "img": "098.jpg",
   "url": "https://hermie.com/fr-fr/201962528/vitavia-rangement-bois-ardor-401-plat-granit-rangement-bois-hauteur-l100-cm"
  },
  {
   "id": 99,
-  "nom": "Pompe de bassin multisystème Mpf 6000 - 6 000 L/h",
+  "fr": "Pompe de bassin multisystème Mpf 6000 - 6 000 L/h",
+  "nl": "Messner Vijverpomp multisystem Mpf 6000 - 6.000 L/U",
   "prix": 361.01,
   "img": "099.jpg",
   "url": "https://hermie.com/fr-fr/28167/pompe-de-bassin-multisysteme-mpf-6000-6-000-l-h"
  },
  {
   "id": 100,
-  "nom": "Pompe pour filtre de bassin Messner Multisystem MPF 13000",
+  "fr": "Pompe pour filtre de bassin Messner Multisystem MPF 13000",
+  "nl": "Messner Multisystem MPF 13000 vijverfilterpomp",
   "prix": 584.97,
   "img": "100.jpg",
   "url": "https://hermie.com/fr-fr/28170/pompe-pour-filtre-de-bassin-messner-multisystem-mpf-13000"
