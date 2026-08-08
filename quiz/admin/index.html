@@ -27,12 +27,18 @@
   --corail: #FF6B5E;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
+/* 📐 La page s'adapte à l'écran. Une largeur figée à 900 px avec un corps de
+   16 px se lit très petit sur un moniteur de bureau : on lie la typographie à
+   la largeur disponible et on exprime la colonne en rem, pour que les deux
+   grandissent ensemble. Bornes volontairement prudentes — la page est dense,
+   il ne s'agit pas de tout faire exploser. */
+html { font-size: clamp(16px, 0.28vw + 13.4px, 20px); }
 body {
   min-height: 100vh; background: var(--brume);
   font-family: 'Nunito Sans', system-ui, sans-serif; color: var(--foret);
   padding: 24px 16px 80px;
 }
-.wrap { max-width: 900px; margin: 0 auto; }
+.wrap { max-width: min(76rem, 96vw); margin: 0 auto; }
 h1 { font-family: 'Fredoka', sans-serif; font-size: 1.6rem; color: var(--pousse); }
 h2 { font-family: 'Fredoka', sans-serif; font-size: 1.2rem; margin-bottom: 14px; }
 .sub { opacity: .75; font-weight: 600; font-size: .95rem; margin-bottom: 22px; }
@@ -1454,9 +1460,12 @@ function vueCodes() {
        que vous voyez ici est donc exactement ce que les joueurs verront.
    ------------------------------------------------------------------- */
 
-// Les ventes couvrent les semaines 27 à 30 de 2026. Les dates sont écrites en
-// clair : « semaine 27 » ne parle à personne, « 29 juin » si.
-const JP_PERIODE = { s1: 27, s2: 30, du: "29/06/2026", au: "26/07/2026" };
+// 📅 Les ventes sont celles de JUILLET 2026, et elles viennent de MOUSCRON
+// seulement — La Panne suivra. L'export porte en réalité sur les semaines 27
+// à 30, qui démarrent le 29 juin : on annonce « juillet » parce que c'est ce
+// qui parle, et on précise les dates exactes à côté pour qui vérifierait.
+const JP_PERIODE = { mois: "juillet 2026", s1: 27, s2: 30, du: "29/06/2026", au: "26/07/2026" };
+const JP_MAGASIN = "Mouscron";
 const JP_RAYONS = { deco: "Déco", famigarden: "Famigarden", animalerie: "Animalerie", food: "Food" };
 
 let jpArticles = null;      // null = pas encore chargé
@@ -1505,11 +1514,12 @@ function jpRendre() {
   c.innerHTML = `
     <div class="card">
       <h2 style="margin-top:0">🏷️ Les articles du Juste Prix</h2>
-      <p class="hint">🏬 Cette liste est <b>commune aux deux magasins</b> — contrairement aux questions et
-        aux codes bonus, le choix du magasin en haut de page n'a aucun effet ici.</p>
-      <p class="hint">Les ventes portent sur les <b>semaines ${JP_PERIODE.s1} à ${JP_PERIODE.s2} de 2026</b>,
-        soit du <b>${JP_PERIODE.du}</b> au <b>${JP_PERIODE.au}</b>. Le prix affiché est le
-        <b>prix de vente</b> (colonne PV de l'export).</p>
+      <p class="hint">🏬 Les chiffres de vente sont ceux de <b>${JP_MAGASIN}</b> — La Panne suivra.
+        La liste d'articles, elle, est <b>commune aux deux magasins</b> : le choix du magasin en haut
+        de page n'a aucun effet sur cet onglet.</p>
+      <p class="hint">Ventes du <b>mois de ${JP_PERIODE.mois}</b>
+        <span style="opacity:.75;">(semaines ${JP_PERIODE.s1} à ${JP_PERIODE.s2}, du ${JP_PERIODE.du} au ${JP_PERIODE.au})</span>.
+        Le prix affiché est le <b>prix de vente</b>, colonne PV de l'export.</p>
 
       <div style="display:flex;gap:14px;flex-wrap:wrap;margin:16px 0;">
         <div class="qbloc" style="flex:1;min-width:130px;margin:0;text-align:center;">
@@ -1522,7 +1532,7 @@ function jpRendre() {
         </div>
         <div class="qbloc" style="flex:1;min-width:130px;margin:0;text-align:center;">
           <div style="font-family:'Fredoka',sans-serif;font-size:1.9rem;color:var(--pousse);font-weight:700;">${ventes.toLocaleString("fr-BE")}</div>
-          <div class="hint" style="margin:0;">ventes cumulées</div>
+          <div class="hint" style="margin:0;">ventes en 
         </div>
       </div>
 
@@ -1602,7 +1612,7 @@ const jpEuro = (n) => Number(n).toFixed(2).replace(".", ",") + " €";
 function jpExportCsv(liste) {
   // Point-virgule et BOM : c'est ce qu'Excel en français attend. Avec une
   // virgule, tout atterrit dans une seule colonne.
-  const lignes = [["Article", "Nom NL", "Rayon", "Code EAN", "Prix", "Ventes S27-S30 2026"]];
+  const lignes = [["Article", "Nom NL", "Rayon", "Code EAN", "Prix", "Ventes juillet 2026 (Mouscron)"]];
   for (const a of liste) {
     lignes.push([a.fr, a.nl || "", JP_RAYONS[a.rayon] || a.rayon || "", a.ean,
                  String(a.prix).replace(".", ","), a.ventes]);

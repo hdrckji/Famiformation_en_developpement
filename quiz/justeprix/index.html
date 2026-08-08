@@ -51,6 +51,15 @@ body.demo {
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
+/* 📐 TAILLE D'AFFICHAGE.
+   La page était une colonne de 620 px avec un corps figé à 16 px : parfait sur
+   un téléphone, minuscule au milieu du vide sur un écran de bureau ou une
+   borne. On lie donc la base typographique à la largeur de l'écran et on
+   exprime la colonne en rem : titres, boutons, champ de saisie et photo
+   grandissent ENSEMBLE, au lieu de rester figés à la taille d'un mobile.
+   Le clamp borne des deux côtés — jamais sous 16 px sur un petit écran,
+   jamais au-delà de 24 px sur un très grand. */
+html { font-size: clamp(16px, 0.5vw + 13.2px, 24px); }
 body {
   font-family: 'Nunito Sans', system-ui, sans-serif;
   color: var(--foret);
@@ -66,7 +75,7 @@ h1, h2, h3 { font-family: 'Fredoka', sans-serif; }
   color: #fff; text-align: center; font-weight: 900; font-size: .74rem;
   letter-spacing: .1em; text-transform: uppercase; padding: 6px 10px;
 }
-.wrap { flex: 1; width: 100%; max-width: 620px; margin: 0 auto; padding: 14px 16px 32px; }
+.wrap { flex: 1; width: 100%; max-width: min(42rem, 94vw); margin: 0 auto; padding: 0.9rem 1rem 2rem; }
 
 /* Choix de langue, discret mais toujours atteignable. */
 .langues { display: flex; justify-content: flex-end; gap: 6px; margin-bottom: 6px; }
@@ -108,7 +117,7 @@ h1, h2, h3 { font-family: 'Fredoka', sans-serif; }
   display: flex; align-items: center; justify-content: center; padding: 18px; z-index: 50;
 }
 .modale {
-  background: var(--craie); border-radius: 22px; padding: 22px; max-width: 460px;
+  background: var(--craie); border-radius: 22px; padding: 22px; max-width: 29rem;
   width: 100%; max-height: 86dvh; overflow-y: auto; text-align: left;
   box-shadow: 0 20px 50px rgba(0,0,0,.3);
 }
@@ -148,13 +157,13 @@ h1, h2, h3 { font-family: 'Fredoka', sans-serif; }
 /* Les pointillés doivent RESTER visibles sur le fond sombre : --trait y tombe
    à 1,6:1, autant ne rien dessiner. On prend un vert plus clair (3,6:1). */
 body.demo .carte { border: 3px dashed #4E9E72; }
-.photo { width: 100%; height: min(44vh, 290px); object-fit: contain; background: #fff; border-radius: 14px; display: block; }
+.photo { width: 100%; height: min(46vh, 20rem); object-fit: contain; background: #fff; border-radius: 14px; display: block; }
 .nom { font-size: 1.05rem; font-weight: 700; margin: 14px 0 2px; line-height: 1.35; }
 
 .saisie { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 16px 0 6px; }
 .saisie input {
   font-family: 'Fredoka', sans-serif; font-size: 2.1rem; font-weight: 700;
-  width: 100%; max-width: 210px; text-align: right;
+  width: 100%; max-width: 13rem; text-align: right;
   border: 3px solid var(--trait); border-radius: 14px; padding: 8px 12px;
   color: var(--foret); background: var(--craie); outline: none;
 }
@@ -189,7 +198,7 @@ body.demo .carte { border: 3px dashed #4E9E72; }
   display: flex; align-items: center; gap: 10px; background: var(--craie);
   border-radius: 12px; padding: 8px 12px; margin-bottom: 6px; font-size: .89rem;
 }
-.recap .ligne img { width: 38px; height: 38px; object-fit: contain; border-radius: 8px; flex: none; }
+.recap .ligne img { width: 2.4rem; height: 2.4rem; object-fit: contain; border-radius: 8px; flex: none; }
 .recap .ligne .t { flex: 1; min-width: 0; }
 .recap .ligne .t b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .recap .ligne .p { font-weight: 900; white-space: nowrap; }
@@ -601,7 +610,7 @@ function vueVerdict() {
   $("#app").innerHTML = `
     ${hudHtml()}
     <div class="carte verdict">
-      <img class="photo" style="height:min(26vh,165px)" src="img/${esc(a.img)}" alt="">
+      <img class="photo" style="height:min(26vh,11rem)" src="img/${esc(a.img)}" alt="">
       <div class="titre">${d.titre.emoji} ${esc(d.titre.titre)}</div>
       <div class="libelle">${t("Le vrai prix", "De echte prijs")}</div>
       <div class="prixreel">${euro(a.prix)}</div>
