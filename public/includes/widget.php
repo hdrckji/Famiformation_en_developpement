@@ -73,6 +73,35 @@ if (!function_exists('ensureWidgetTables')) {
                 $db->exec("ALTER TABLE utilisateurs ADD COLUMN site_id INT NULL");
             }
 
+            // 🏬 TROIS SITES : Mouscron, La Panne, Hermie.
+            //
+            // Une CLÉ stable ('mouscron', 'lapanne', 'hermie') en plus de l'id.
+            // L'id auto-incrémenté ne peut pas servir à désigner un site dans le
+            // contenu : supprimer puis recréer une ligne changerait le numéro, et
+            // tous les modules marqués pour ce site basculeraient silencieusement
+            // sur un autre. La clé, elle, ne bouge jamais. C'est aussi le même
+            // vocabulaire que le quiz, qui parle déjà de « mouscron »/« lapanne ».
+            $chkCle = $db->query("SHOW COLUMNS FROM widget_sites LIKE 'cle'");
+            if ($chkCle && !$chkCle->fetch()) {
+                $db->exec("ALTER TABLE widget_sites ADD COLUMN cle VARCHAR(32) NULL");
+                // On renseigne les sites déjà en base, reconnus par leur ville.
+                $db->exec("UPDATE widget_sites SET cle = 'mouscron'
+                            WHERE cle IS NULL AND (ville LIKE '%ouscron%' OR nom LIKE '%ouscron%')");
+                $db->exec("UPDATE widget_sites SET cle = 'lapanne'
+                            WHERE cle IS NULL AND (ville LIKE '%anne%' OR nom LIKE '%anne%')");
+                $db->exec("UPDATE widget_sites SET cle = 'hermie'
+                            WHERE cle IS NULL AND (ville LIKE '%ermie%' OR nom LIKE '%ermie%')");
+            }
+            // Hermie, s'il n'existe pas encore. Pas de coordonnées : on ne les
+            // invente pas. La météo de ce site restera vide jusqu'à ce qu'elles
+            // soient saisies dans les paramètres — le reste fonctionne sans.
+            $chkH = $db->prepare("SELECT COUNT(*) FROM widget_sites WHERE cle = ?");
+            $chkH->execute(['hermie']);
+            if ((int) $chkH->fetchColumn() === 0) {
+                $db->prepare("INSERT INTO widget_sites (nom, ville, cle) VALUES (?, ?, ?)")
+                   ->execute(['Famiflora Hermie', 'Hermie', 'hermie']);
+            }
+
             // Traduction NL : colonne texte_nl sur les phrases
             $chkPnl = $db->query("SHOW COLUMNS FROM widget_phrases LIKE 'texte_nl'");
             if ($chkPnl && !$chkPnl->fetch()) {

@@ -31,6 +31,12 @@ if (!function_exists('ensureModulesTable')) {
             $extraColumns = [
                 'icon'       => "ALTER TABLE modules ADD COLUMN icon VARCHAR(16) NULL",
                 'roles'      => "ALTER TABLE modules ADD COLUMN roles VARCHAR(255) NULL",
+                // 🏬 SITES autorisés, en clés séparées par des virgules
+                // (« mouscron,hermie »). VIDE = visible sur TOUS les sites : le
+                // contenu commun reste UN seul module, et seul ce qui diffère
+                // vraiment est marqué. C'est aussi ce qui permet d'introduire la
+                // notion sans rien faire disparaître de l'existant.
+                'sites'      => "ALTER TABLE modules ADD COLUMN sites VARCHAR(255) NULL",
                 'icon_image' => "ALTER TABLE modules ADD COLUMN icon_image VARCHAR(255) NULL",
                 'is_locked'  => "ALTER TABLE modules ADD COLUMN is_locked TINYINT(1) NOT NULL DEFAULT 0",
                 'uniformized' => "ALTER TABLE modules ADD COLUMN uniformized TINYINT(1) NOT NULL DEFAULT 0",
@@ -821,16 +827,94 @@ if (!function_exists('ensureModulesTable')) {
     }
 
     /**
-     * Un utilisateur de rôle $role peut-il voir ce module ?
-     * roles vide / NULL = visible par tous.
+     * 🏬 LE SITE DE LA PERSONNE CONNECTÉE, en clé stable.
+     *
+     * Mouscron par défaut : un compte dont le site n'a pas encore été renseigné
+     * ne doit pas se retrouver devant un accueil vide. C'est le site principal,
+     * donc le repli le moins surprenant.
+     *
+     * ⚠️ Revers de ce choix : un collaborateur de La Panne ou d'Hermie qu'on
+     * aurait oublié de rattacher verra le contenu de Mouscron sans que rien ne
+     * l'avertisse. C'est pour ça que l'administration affiche le site de chaque
+     * compte : il faut pouvoir repérer les oublis.
+     *
+     * Lu une seule fois par requête (la valeur ne change pas en cours de page).
      */
-    function userCanSeeModule(array $module, $role)
+    function famiSiteCle(PDO $db = null)
+    {
+        static $cle = null;
+        if ($cle !== null) { return $cle; }
+
+        // Aperçu admin : permet de voir le site tel qu'un autre le verrait.
+        if (!empty($_SESSION['apercu_site']) && (($_SESSION['role'] ?? '') === 'admin')) {
+            return $cle = (string) $_SESSION['apercu_site'];
+        }
+        $siteId = (int) ($_SESSION['site_id'] ?? 0);
+        if ($siteId <= 0 && $db instanceof PDO && !empty($_SESSION['user_id'])) {
+            try {
+                $st = $db->prepare('SELECT site_id FROM utilisateurs WHERE id = ? LIMIT 1');
+                $st->execute([(int) $_SESSION['user_id']]);
+                $siteId = (int) $st->fetchColumn();
+                $_SESSION['site_id'] = $siteId;   // évite de redemander à chaque page
+            } catch (Throwable $e) { $siteId = 0; }
+        }
+        if ($siteId > 0 && $db instanceof PDO) {
+            try {
+                $st = $db->prepare('SELECT cle FROM widget_sites WHERE id = ? LIMIT 1');
+                $st->execute([$siteId]);
+                $c = trim((string) $st->fetchColumn());
+                if ($c !== '') { return $cle = $c; }
+            } catch (Throwable $e) { /* colonne pas encore là : on retombe plus bas */ }
+        }
+        return $cle = 'mouscron';   // repli assumé
+    }
+
+    /** La liste des sites, pour les écrans d'administration. */
+    function famiSitesListe(PDO $db)
+    {
+        try {
+            $r = $db->query("SELECT id, cle, nom, ville FROM widget_sites WHERE cle IS NOT NULL AND cle <> '' ORDER BY nom")
+                    ->fetchAll(PDO::FETCH_ASSOC);
+            return $r ?: [];
+        } catch (Throwable $e) { return []; }
+    }
+
+    /**
+     * Ce module concerne-t-il ce site ?
+     * sites vide / NULL = tous les sites (le cas de tout le contenu commun).
+     */
+    function moduleCouvreSite(array $module, $siteCle)
+    {
+        $sites = trim((string) ($module['sites'] ?? ''));
+        if ($sites === '') { return true; }
+        $permis = array_filter(array_map('trim', explode(',', mb_strtolower($sites))));
+        return in_array(mb_strtolower((string) $siteCle), $permis, true);
+    }
+
+    /**
+     * Un utilisateur de rôle $role peut-il voir ce module ?
+     * roles vide / NULL = visible par tous. Idem pour les sites.
+     *
+     * DEUX CONDITIONS INDÉPENDANTES : le profil (ce qu'on est) ET le site (où
+     * l'on travaille). Les mélanger obligeait à créer un rôle par combinaison —
+     * « betalapanne » en était le premier symptôme, et il en aurait fallu un par
+     * profil et par magasin.
+     */
+    function userCanSeeModule(array $module, $role, $siteCle = null)
     {
         // Admin : super-utilisateur, voit tout (c'est lui qui pose les restrictions).
         // Le teamcoach, lui, RESPECTE la visibilité choisie par module : un module
         // réservé « admin » ne doit PAS lui apparaître.
         if ($role === 'admin') {
             return true;
+        }
+        // 🏬 Le site d'abord : un module d'un autre magasin n'a rien à faire là,
+        // quel que soit le profil.
+        if ($siteCle === null && function_exists('famiSiteCle')) {
+            $siteCle = famiSiteCle($GLOBALS['db'] ?? null);
+        }
+        if ($siteCle !== null && !moduleCouvreSite($module, $siteCle)) {
+            return false;
         }
         $roles = trim((string) ($module['roles'] ?? ''));
         if ($roles === '') {

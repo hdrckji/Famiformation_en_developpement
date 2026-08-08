@@ -35,6 +35,28 @@ function sanitizeModuleRoles($input)
     return implode(',', $kept); // vide = tous
 }
 
+/**
+ * 🏬 Les sites cochés pour un module, en clés séparées par des virgules.
+ *
+ * On ne garde que des clés qui EXISTENT vraiment (mouscron, lapanne, hermie) :
+ * une valeur inventée dans le formulaire produirait un module que personne ne
+ * verrait jamais, sans le moindre message d'erreur.
+ *
+ * VIDE = tous les sites. Et si TOUS les sites sont cochés, on enregistre vide
+ * plutôt que la liste complète : ainsi l'ajout d'un quatrième magasin plus tard
+ * n'oublie pas ce module derrière lui.
+ */
+function sanitizeModuleSites($input)
+{
+    global $db;
+    if (!is_array($input)) { return ''; }
+    $valides = function_exists('famiSitesListe') ? array_column(famiSitesListe($db), 'cle') : [];
+    if (!$valides) { return ''; }
+    $gardes = array_values(array_intersect($valides, array_map('strval', $input)));
+    if (!$gardes || count($gardes) === count($valides)) { return ''; }
+    return implode(',', $gardes);
+}
+
 // Sécurise la cible de redirection (pas d'open redirect)
 function safeReturn($value, $default = 'index.php')
 {
@@ -205,6 +227,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $isContainer = !empty($_POST['is_container']) ? 1 : 0;
         $icon = trim((string) ($_POST['icon'] ?? ''));
         $roles = sanitizeModuleRoles($_POST['roles'] ?? []);
+        $sites = sanitizeModuleSites($_POST['sites'] ?? []);
         $parentId = isset($_POST['parent_id']) && $_POST['parent_id'] !== '' ? (int) $_POST['parent_id'] : null;
 
         // Contributeur non-admin : uniquement dans une zone autorisée (jamais à la racine).
@@ -230,7 +253,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Bilingue : on enregistre le FR. Le NL (titre + description) est généré
             // AUTOMATIQUEMENT par Claude en tâche de fond juste après (spawnNlSync).
             $stmt = $db->prepare(
-                "INSERT INTO modules (nom, description, is_container, parent_id, icon, roles, icon_image, nom_nl, description_nl, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?)"
+                "INSERT INTO modules (nom, description, is_container, parent_id, icon, roles, sites, icon_image, nom_nl, description_nl, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?)"
             );
             $stmt->execute([
                 mb_substr($nom, 0, 150),
@@ -239,6 +262,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $parentId,
                 mb_substr($icon, 0, 16),
                 $roles,
+                $sites,
                 $iconImage,
                 $nextSort,
             ]);
@@ -282,6 +306,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } catch (Exception $e) { /* non bloquant */ }
         $icon = trim((string) ($_POST['icon'] ?? ''));
         $roles = sanitizeModuleRoles($_POST['roles'] ?? []);
+        $sites = sanitizeModuleSites($_POST['sites'] ?? []);
 
         if ($id > 0 && $nom !== '') {
             $existing = getModuleById($db, $id);
@@ -296,7 +321,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Bilingue : on met à jour le FR. Le NL (titre + description) est régénéré
                 // AUTOMATIQUEMENT par Claude en tâche de fond (spawnNlSync) si le FR a changé.
                 $stmt = $db->prepare(
-                    "UPDATE modules SET nom = ?, description = ?, is_container = ?, icon = ?, roles = ?, icon_image = ? WHERE id = ?"
+                    "UPDATE modules SET nom = ?, description = ?, is_container = ?, icon = ?, roles = ?, sites = ?, icon_image = ? WHERE id = ?"
                 );
                 $stmt->execute([
                     mb_substr($nom, 0, 150),
@@ -304,6 +329,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $isContainer,
                     mb_substr($icon, 0, 16),
                     $roles,
+                    $sites,
                     $iconImage,
                     $id,
                 ]);
@@ -312,6 +338,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if (trim((string) ($existing['nom'] ?? '')) !== $nom) { $changed[] = 'nom'; }
                 if (trim((string) ($existing['description'] ?? '')) !== $description) { $changed[] = 'description'; }
                 if (trim((string) ($existing['roles'] ?? '')) !== $roles) { $changed[] = 'accès'; }
+                if (trim((string) ($existing['sites'] ?? '')) !== $sites) { $changed[] = 'sites'; }
                 if (trim((string) ($existing['icon'] ?? '')) !== $icon || ($existing['icon_image'] ?? null) !== $iconImage) { $changed[] = 'icône'; }
                 if ($changed) {
                     famiLogChange($db, 'module_updated', (int) $id, '✏️ Module modifié (' . implode(', ', $changed) . ') : ' . $nom);
