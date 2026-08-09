@@ -47,6 +47,30 @@
 		# ou /emails, pour que taper « /famicard » ouvre directement l'accueil.
 		redir /famicard /famicard/ 308
 
+		# 🪪 SOUS-DOMAINE FAMICARD : famicard.famiformation.com.
+		# Meme mecanique que student.famiformation.com plus bas : REECRITURE et
+		# non redirection, l'adresse affichee reste famicard.famiformation.com et
+		# le dossier famicard/ devient la racine du sous-domaine.
+		#
+		# ⚠️ Le cookie de session est pose en host-only (config.php :
+		# 'domain' => ''), il ne suit donc PAS d'un hote a l'autre : sur ce
+		# sous-domaine, le visiteur connecte sur www est vu comme deconnecte.
+		# C'est pourquoi Famicard a desormais SON login (famicard/login.php),
+		# exactement comme FamiJob a le sien sur student. Meme table
+		# `utilisateurs`, mais chaque hote ouvre sa propre session.
+		#
+		# Corollaire, comme pour FamiJob : sur ce sous-domaine « / » EST famicard,
+		# donc aucun lien en dur vers une page du site principal (« /index.php »,
+		# « /favicon.ico ») ne doit rester ecrit tel quel — il serait reecrit ici
+		# et tomberait dans le vide. Ces liens passent par famicardSiteUrl()
+		# (Famicard/config.php), qui rend une URL absolue vers www sur ce host.
+		#
+		# Place AVANT @famicardPrive : l'URI est deja reecrite quand la regle de
+		# blocage l'examine, donc famicard.famiformation.com/includes/carte.php
+		# reste ferme lui aussi.
+		@famicardSousDomaine host famicard.famiformation.com
+		rewrite @famicardSousDomaine /famicard{uri}
+
 		@famicardPrive path /famicard/includes/* /famicard/README.md
 		respond @famicardPrive 403
 

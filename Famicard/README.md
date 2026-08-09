@@ -20,8 +20,13 @@ FamiFormation et FamiJob utilisent déjà, et **reprend leurs libellés** (« Vi
 résidence », « Lieu de travail », « Date d'anniversaire »...). Un même champ ne porte pas
 deux noms selon l'écran.
 
-Conséquence pratique : la session est déjà partagée (même cookie, même domaine). Un
-collaborateur connecté à FamiFormation est connecté à Famicard.
+Conséquence pratique : sur `www.famiformation.com/famicard/`, la session est déjà celle du
+site (même cookie, même hôte). Un collaborateur connecté à FamiFormation est connecté à
+Famicard.
+
+**Sauf sur le sous-domaine.** `famicard.famiformation.com` est un autre hôte pour le
+navigateur, et le cookie de session est posé host-only (`'domain' => ''`) : la session de
+`www` n'y existe pas. D'où `login.php` — voir « Les deux adresses » plus bas.
 
 ---
 
@@ -31,6 +36,8 @@ collaborateur connecté à FamiFormation est connecté à Famicard.
 Famicard/
   config.php           amorçage — réutilise la config du site (session, base, CSRF)
   includes/carte.php   ⭐ LE MODÈLE : les champs et leurs règles
+  login.php            connexion (mêmes identifiants, même session que le site)
+  logout.php           déconnexion
   index.php            la carte du collaborateur
   admin.php            la base des collaborateurs (liste, filtres, badge, export)
   badge.php            le badge imprimable 75 × 36 mm
@@ -63,6 +70,7 @@ tard, ne peut pas exposer ce qu'il ne doit pas.
 ## Ce qui est fait
 
 - [x] Dossier branché sur `/famicard/` (Dockerfile + Caddyfile)
+- [x] **Sous-domaine `famicard.famiformation.com`** + connexion propre à Famicard
 - [x] Amorçage sans duplication de la config
 - [x] Modèle de champs avec règles de visibilité, libellés alignés sur FamiFormation
 - [x] **Photo obligatoire** — la carte signale les champs requis encore vides
@@ -149,11 +157,38 @@ Ce n'est pas une case à cocher : Famicard rassemble les données personnelles d
 
 ---
 
+## Les deux adresses
+
+Famicard se visite de deux façons, et les deux doivent marcher :
+
+| Adresse | Ce que « / » désigne |
+|---|---|
+| `www.famiformation.com/famicard/` | le site principal ; Famicard est un sous-dossier |
+| `famicard.famiformation.com` | **Famicard lui-même** — le Caddyfile réécrit tout vers `famicard/` |
+
+Toute la difficulté tient dans cette bascule. Sur le sous-domaine, un lien écrit
+`/index.php` ou `/favicon.ico` est réécrit vers `famicard/` et tombe dans le vide. FamiJob
+était déjà tombé dans ce piège sur `student.famiformation.com`.
+
+La règle est donc simple, et il n'y en a qu'une :
+
+- **lien vers le site principal** (favicon, fond, photo de profil, `profil.php`) →
+  `famicardSiteUrl()`, qui rend une URL absolue vers `www` quand on est sur le sous-domaine ;
+- **lien interne à Famicard** (`badge.php`, `login.php`) → **relatif**, écrit tel quel.
+  Famicard est un dossier plat : le relatif vise juste dans les deux dispositions.
+
+Et c'est parce que la session de `www` n'existe pas sur le sous-domaine que `login.php`
+existe : il pose exactement les mêmes clés de session que `Famiformation/login.php`, sur la
+même table `utilisateurs`. Deux hôtes, deux sessions, un seul compte. Si la vérification du
+mot de passe change côté site, elle doit changer ici.
+
+---
+
 ## Notes techniques
 
-**Ne pas utiliser `verifierConnexion()` ici.** Elle redirige vers `login.php` en relatif,
-ce qui depuis `/famicard/` vise `/famicard/login.php`. Passer par
-`famicardExigeConnexion()`, qui utilise un chemin absolu.
+**Ne pas utiliser `verifierConnexion()` ici.** Passer par `famicardExigeConnexion()`, qui
+renvoie vers le `login.php` **de Famicard**. Renvoyer vers celui du site enfermerait le
+sous-domaine dans une boucle : on s'y connecterait sans que Famicard le voie jamais.
 
 **Vider les tampons avant d'envoyer un fichier.** `config.php` ouvre un `ob_start()` pour
 injecter le thème ; sans `ob_end_clean()`, le HTML se colle devant le `.xlsx` et Excel

@@ -40,17 +40,75 @@ require_once $__famicardConfig;
 require_once __DIR__ . '/includes/carte.php';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// RACINE DU SITE
-// Famicard vit dans un sous-dossier : tout lien relatif vers le site principal
-// (« login.php », « index.php ») tomberait dans /famicard/ et donc dans le vide.
-// C'est exactement le piège dans lequel verifierConnexion() tombe : il fait
-// header('Location: login.php'), ce qui depuis ici vise /famicard/login.php.
-// On passe donc par des chemins ABSOLUS, calculés une fois.
+// DEUX ADRESSES POUR LES MÊMES PAGES
+// Famicard se visite de deux façons, et les deux doivent marcher :
+//   • www.famiformation.com/famicard/ — Famicard est un sous-dossier du site ;
+//   • famicard.famiformation.com      — le Caddyfile réécrit tout vers famicard/,
+//     qui devient donc LA RACINE de ce sous-domaine.
+//
+// Toute la difficulté tient dans cette bascule. Sur le sous-domaine, « / » n'est
+// plus le site principal : un lien écrit « /index.php » ou « /favicon.ico » est
+// réécrit vers famicard/ et tombe dans le vide. C'est le piège dans lequel
+// FamiJob était déjà tombé sur student.famiformation.com (voir famijobSiteUrl).
+//
+// D'où deux fonctions, à ne pas confondre :
+//   • famicardSiteUrl()  → une page ou un fichier du SITE PRINCIPAL
+//     (login du site, profil.php, favicon, photos de profil). Sur le
+//     sous-domaine, c'est forcément une URL absolue vers www.
+//   • les liens INTERNES à Famicard restent écrits en relatif (« badge.php »,
+//     « login.php ») : Famicard est un dossier plat, donc le relatif vise juste
+//     dans les deux dispositions, sans rien calculer.
 // ─────────────────────────────────────────────────────────────────────────────
+if (!function_exists('famicardSurSousDomaine')) {
+    function famicardSurSousDomaine()
+    {
+        $host = strtolower((string) ($_SERVER['HTTP_HOST'] ?? ''));
+        $host = explode(':', $host)[0];
+
+        return ($host === 'famicard.famiformation.com');
+    }
+}
+
 if (!function_exists('famicardSiteUrl')) {
     function famicardSiteUrl($chemin = '')
     {
-        return '/' . ltrim((string) $chemin, '/');
+        $chemin = ltrim((string) $chemin, '/');
+
+        if (famicardSurSousDomaine()) {
+            return 'https://www.famiformation.com/' . $chemin;
+        }
+
+        return '/' . $chemin;
+    }
+}
+
+if (!function_exists('famicardPageDemandee')) {
+    /**
+     * Page Famicard visée par la requête en cours, en relatif (« badge.php?id=3 »),
+     * pour y revenir une fois la connexion faite.
+     *
+     * Liste blanche volontaire : cette valeur finit dans un en-tête Location. Si
+     * on renvoyait l'URL demandée telle quelle, un lien fabriqué transformerait
+     * la page de connexion en tremplin vers n'importe quel site — un visiteur
+     * verrait le vrai formulaire Famiflora, puis atterrirait ailleurs.
+     */
+    function famicardPageDemandee()
+    {
+        $uri = (string) ($_SERVER['REQUEST_URI'] ?? '');
+        $page = basename((string) parse_url($uri, PHP_URL_PATH));
+
+        if (!in_array($page, ['index.php', 'admin.php', 'admin_champs.php', 'badge.php', 'export.php'], true)) {
+            return '';
+        }
+
+        $query = (string) parse_url($uri, PHP_URL_QUERY);
+        // Caractères d'URL ordinaires uniquement : ni « : » ni « / », donc pas
+        // moyen de reconstruire une adresse absolue, et pas de saut de ligne.
+        if ($query !== '' && preg_match('~^[A-Za-z0-9_=&%.+-]+$~', $query)) {
+            return $page . '?' . $query;
+        }
+
+        return $page;
     }
 }
 
@@ -62,7 +120,12 @@ if (!function_exists('famicardExigeConnexion')) {
     function famicardExigeConnexion(PDO $db)
     {
         if (empty($_SESSION['user_id'])) {
-            header('Location: ' . famicardSiteUrl('login.php'));
+            // Vers le login DE FAMICARD (login.php, en relatif : il est dans le
+            // même dossier). Pas celui du site principal : sur le sous-domaine,
+            // la session de www n'existe pas ici — s'y connecter ne changerait
+            // rien au retour, et la page tournerait en rond.
+            $_SESSION['famicard_apres_login'] = famicardPageDemandee();
+            header('Location: login.php');
             exit();
         }
 
@@ -75,7 +138,7 @@ if (!function_exists('famicardExigeConnexion')) {
         if (!$moi) {
             session_unset();
             session_destroy();
-            header('Location: ' . famicardSiteUrl('login.php'));
+            header('Location: login.php');
             exit();
         }
 

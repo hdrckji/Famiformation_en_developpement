@@ -117,7 +117,9 @@ $socle = famicardChampsSocle();
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Libellés de la fiche - Famicard</title>
-<link rel="shortcut icon" type="image/x-icon" href="/favicon.ico">
+<?php // Favicon du site principal : chemin absolu interdit ici, il serait réécrit
+      // vers famicard/ sur le sous-domaine (voir famicardSiteUrl). ?>
+<link rel="shortcut icon" type="image/x-icon" href="<?= e(famicardSiteUrl('favicon.ico')) ?>">
 <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
     body { font-family: 'Open Sans', sans-serif; background: #eef3ef; margin: 0; padding: 0 0 60px; color: #333; }
