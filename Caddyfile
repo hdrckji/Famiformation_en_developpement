@@ -42,6 +42,11 @@
 		#  • includes/ ne contient que des briques appelees par les pages ;
 		#    y acceder directement n'a aucun usage legitime ;
 		#  • README.md decrit la structure interne et l'etat d'avancement.
+		# Sans la barre finale, /famicard ne correspondait a aucun dossier et
+		# retombait sur l'app principale. Meme redirection que /quiz, /volontaire
+		# ou /emails, pour que taper « /famicard » ouvre directement l'accueil.
+		redir /famicard /famicard/ 308
+
 		@famicardPrive path /famicard/includes/* /famicard/README.md
 		respond @famicardPrive 403
 
