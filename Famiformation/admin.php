@@ -522,8 +522,16 @@ $users = $db->query($query_str)->fetchAll();
                     <?php foreach ($users as $u): ?>
                     <tr>
                         <td class="sticky-name">
-                            <a href="admin_user.php?id=<?php echo $u['id']; ?>" class="name-link"><?php echo htmlspecialchars($u['nom'] . " " . $u['prenom']); ?></a>
-                            <div class="cell-note"><?php echo htmlspecialchars($u['role']); ?></div>
+                            <a href="admin_user.php?id=<?php echo (int) $u['id']; ?>" class="name-link"><?php echo htmlspecialchars($u['nom'] . " " . $u['prenom']); ?></a>
+                            <div class="cell-note">
+                                <?php echo htmlspecialchars($u['role']); ?>
+                                <?php /* Second accès à la fiche, volontairement distinct du nom :
+                                         le clic sur le nom reste sans effet et la cause n'a pas pu
+                                         être identifiée dans le code. Ce lien-ci ne partage ni sa
+                                         position ni son empilement, il aboutit donc même si le
+                                         premier est recouvert par un élément. */ ?>
+                                · <a href="admin_user.php?id=<?php echo (int) $u['id']; ?>" class="fiche-link">fiche ↗</a>
+                            </div>
                         </td>
                         <td><span class="muted-code"><?php echo htmlspecialchars($u['identifiant']); ?></span></td>
                         <td>
