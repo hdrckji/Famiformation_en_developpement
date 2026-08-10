@@ -226,53 +226,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    // ── RATTACHEMENT (secteur / département) ─────────────────────────────
-    // Une seule liste porte les deux niveaux, d'où ce petit codage :
-    //   ''     → aucun rattachement
-    //   's:12' → tout le secteur 12
-    //   'd:37' → le département 37 (son secteur est déduit)
-    // Deux listes liées auraient demandé du JavaScript pour filtrer la seconde
-    // selon la première. Une liste avec des groupes dit la même chose.
+    // ── RATTACHEMENT (secteur puis département) ──────────────────────────
+    // DEUX listes distinctes : le secteur d'abord, le département ensuite,
+    // filtré sur le secteur choisi. C'est la hiérarchie réelle, et elle se lit
+    // à l'écran au lieu d'être devinée dans une liste unique.
+    //
+    // Le filtrage de la seconde liste est fait en JavaScript, mais il ne
+    // PROTÈGE rien : c'est famiAffecteSecteur() qui refuse un département
+    // n'appartenant pas au secteur. Sans ce contrôle serveur, un formulaire
+    // bricolé enregistrerait « secteur Bureau, département Barbecue ».
     $rattachementChange = false;
-    if ($rattachementEditable && array_key_exists('rattachement', $_POST)) {
-        $choix = trim((string) $_POST['rattachement']);
-        $avantLibelle = trim(((string) ($cible['secteur_nom'] ?? '')) . (($cible['departement_nom'] ?? '') !== '' ? ' — ' . $cible['departement_nom'] : ''));
+    if ($rattachementEditable && array_key_exists('secteur_id', $_POST)) {
+        $secteurChoisi     = (int) ($_POST['secteur_id'] ?? 0);
+        $departementChoisi = (int) ($_POST['departement_id'] ?? 0);
 
-        $choixCourant = '';
-        if (!empty($cible['departement_id'])) {
-            $choixCourant = 'd:' . (int) $cible['departement_id'];
-        } elseif (!empty($cible['secteur_id'])) {
-            $choixCourant = 's:' . (int) $cible['secteur_id'];
+        // Un département sans secteur n'a pas de sens : on ignore le premier
+        // plutôt que d'enregistrer une moitié de rattachement.
+        if ($secteurChoisi <= 0) {
+            $departementChoisi = 0;
         }
 
-        if ($choix !== $choixCourant) {
-            $type = substr($choix, 0, 2);
-            $id   = (int) substr($choix, 2);
-            $ok = false;
-            $apresLibelle = '';
+        $avantSecteur     = (int) ($cible['secteur_id'] ?? 0);
+        $avantDepartement = (int) ($cible['departement_id'] ?? 0);
 
-            if ($choix === '') {
-                $ok = famiAffecteSecteur($db, $cibleId, null);
-            } elseif ($type === 's:') {
-                $ok = famiAffecteSecteur($db, $cibleId, $id, null);
-                $apresLibelle = $secteursListe[$id] ?? '';
-            } elseif ($type === 'd:') {
-                // Le secteur du département : la base le sait, on ne le demande
-                // pas à l'utilisateur.
-                $q = $db->prepare("SELECT secteur_id FROM famicard_departements WHERE id = ?");
-                $q->execute([$id]);
-                $secteurId = (int) $q->fetchColumn();
-                if ($secteurId > 0) {
-                    $ok = famiAffecteSecteur($db, $cibleId, $secteurId, $id);
-                    $apresLibelle = trim(($secteursListe[$secteurId] ?? '') . ' — ' . ($departementsParSecteur[$secteurId][$id] ?? ''));
-                }
-            }
+        if ($secteurChoisi !== $avantSecteur || $departementChoisi !== $avantDepartement) {
+            $avantLibelle = trim(((string) ($cible['secteur_nom'] ?? ''))
+                . (($cible['departement_nom'] ?? '') !== '' ? ' — ' . $cible['departement_nom'] : ''));
+
+            $ok = famiAffecteSecteur(
+                $db,
+                $cibleId,
+                $secteurChoisi > 0 ? $secteurChoisi : null,
+                $departementChoisi > 0 ? $departementChoisi : null
+            );
 
             if ($ok) {
+                $apresLibelle = '';
+                if ($secteurChoisi > 0) {
+                    $apresLibelle = (string) ($secteursListe[$secteurChoisi] ?? '');
+                    if ($departementChoisi > 0) {
+                        $apresLibelle .= ' — ' . (string) ($departementsParSecteur[$secteurChoisi][$departementChoisi] ?? '');
+                    }
+                }
                 famicardTraceModification($db, $cibleId, 'secteur', ['libelle' => 'Secteur / Département'], $avantLibelle, $apresLibelle, (int) $moi['id'], false);
                 $rattachementChange = true;
             } else {
-                $erreurs[] = "Ce rattachement n'est pas valide.";
+                $erreurs[] = "Ce département n'appartient pas au secteur choisi.";
             }
         }
     }
@@ -569,12 +568,6 @@ if ($photo !== '') {
                     if (($champ['saisie'] ?? 'texte') === 'photo') {
                         continue;
                     }
-                    // Quand le rattachement est modifiable, une SEULE liste porte
-                    // le secteur ET le département : la ligne « Département » est
-                    // donc sautée, elle ferait doublon avec la liste.
-                    if ($cle === 'departement' && $rattachementEditable) {
-                        continue;
-                    }
                     if (!famicardPeutVoir($champ, $estAdmin, $estSaPropreFiche)) {
                         continue;
                     }
@@ -603,41 +596,36 @@ if ($photo !== '') {
                                   // n'est pas modifiable : sans ce test en premier, un admin
                                   // se verrait proposer un champ texte libre sur une
                                   // pseudo-colonne, qui n'existe pas dans `utilisateurs`. ?>
-                            <?php if ($saisie === 'rattachement' && !($cle === 'secteur' && $rattachementEditable)): ?>
+                            <?php if ($saisie === 'rattachement' && !$rattachementEditable): ?>
                                 <div class="fige"><?= $affichee !== '' ? e($affichee) : '—' ?></div>
                                 <?php // Pour un admin, ce cas ne se produit que si l'organisation
                                       // n'a pas encore été créée en base : le message doit dire
                                       // quoi faire, pas renvoyer ailleurs. ?>
                                 <div class="aide"><?= $estAdmin ? "Aucun secteur n'est encore enregistré." : "Défini par l'entreprise." ?></div>
 
-                            <?php elseif ($saisie === 'rattachement' && $cle === 'secteur' && $rattachementEditable): ?>
-                                <?php
-                                    $choixCourant = '';
-                                    if (!empty($cible['departement_id'])) {
-                                        $choixCourant = 'd:' . (int) $cible['departement_id'];
-                                    } elseif (!empty($cible['secteur_id'])) {
-                                        $choixCourant = 's:' . (int) $cible['secteur_id'];
-                                    }
-                                ?>
-                                <select id="champ_secteur" name="rattachement">
-                                    <option value="" <?= $choixCourant === '' ? 'selected' : '' ?>>— Aucun —</option>
+                            <?php elseif ($cle === 'secteur' && $rattachementEditable): ?>
+                                <?php $secteurCourant = (int) ($cible['secteur_id'] ?? 0); ?>
+                                <select id="champ_secteur" name="secteur_id">
+                                    <option value="" <?= $secteurCourant === 0 ? 'selected' : '' ?>>— Aucun —</option>
                                     <?php foreach ($secteursListe as $secId => $secNom): ?>
-                                        <?php $deps = $departementsParSecteur[(int) $secId] ?? []; ?>
-                                        <?php if (!$deps): ?>
-                                            <option value="s:<?= (int) $secId ?>" <?= $choixCourant === 's:' . (int) $secId ? 'selected' : '' ?>><?= e($secNom) ?></option>
-                                        <?php else: ?>
-                                            <optgroup label="<?= e($secNom) ?>">
-                                                <?php // On peut appartenir à un secteur sans département
-                                                      // précis — le Bureau, par exemple. ?>
-                                                <option value="s:<?= (int) $secId ?>" <?= $choixCourant === 's:' . (int) $secId ? 'selected' : '' ?>>— tout le secteur —</option>
-                                                <?php foreach ($deps as $depId => $depNom): ?>
-                                                    <option value="d:<?= (int) $depId ?>" <?= $choixCourant === 'd:' . (int) $depId ? 'selected' : '' ?>><?= e($depNom) ?></option>
-                                                <?php endforeach; ?>
-                                            </optgroup>
-                                        <?php endif; ?>
+                                        <option value="<?= (int) $secId ?>" <?= $secteurCourant === (int) $secId ? 'selected' : '' ?>><?= e($secNom) ?></option>
                                     <?php endforeach; ?>
                                 </select>
-                                <div class="aide">Choisir un département rattache aussi son secteur.</div>
+
+                            <?php elseif ($cle === 'departement' && $rattachementEditable): ?>
+                                <?php $departementCourant = (int) ($cible['departement_id'] ?? 0); ?>
+                                <?php // La liste porte TOUS les départements ; le JavaScript ne
+                                      // montre que ceux du secteur choisi. L'attribut data-secteur
+                                      // est ce qui lui permet de trier. ?>
+                                <select id="champ_departement" name="departement_id">
+                                    <option value="">— Tout le secteur —</option>
+                                    <?php foreach ($departementsParSecteur as $secId => $deps): ?>
+                                        <?php foreach ($deps as $depId => $depNom): ?>
+                                            <option value="<?= (int) $depId ?>" data-secteur="<?= (int) $secId ?>" <?= $departementCourant === (int) $depId ? 'selected' : '' ?>><?= e($depNom) ?></option>
+                                        <?php endforeach; ?>
+                                    <?php endforeach; ?>
+                                </select>
+                                <div class="aide">Facultatif : on peut appartenir à un secteur sans département précis.</div>
 
                             <?php elseif (!$editable): ?>
                                 <?php // Montré mais figé : le collaborateur voit la valeur et
@@ -699,6 +687,60 @@ if ($photo !== '') {
     <?php endif; ?>
 
 </div>
+
+<?php if ($rattachementEditable): ?>
+<script>
+// La liste des départements suit le secteur choisi.
+//
+// ⚠️ Ce filtrage est un CONFORT, pas une sécurité : le serveur revérifie que le
+// département appartient bien au secteur (famiAffecteSecteur), sans quoi un
+// formulaire bricolé enregistrerait « secteur Bureau, département Barbecue ».
+(function () {
+    var secteur = document.getElementById('champ_secteur');
+    var departement = document.getElementById('champ_departement');
+    if (!secteur || !departement) { return; }
+
+    // On mémorise la liste COMPLÈTE au chargement : une option retirée du DOM
+    // est perdue, et revenir au secteur précédent ne la ramènerait pas.
+    var toutes = Array.prototype.slice.call(departement.options).map(function (o) {
+        return { valeur: o.value, texte: o.text, secteur: o.getAttribute('data-secteur') };
+    });
+
+    function filtrer(garderChoix) {
+        var choisi = secteur.value;
+        var avant = departement.value;
+
+        while (departement.options.length) { departement.remove(0); }
+
+        toutes.forEach(function (o) {
+            // L'entrée « Tout le secteur » n'a pas de data-secteur : elle reste
+            // proposée quel que soit le secteur.
+            if (!o.secteur || o.secteur === choisi) {
+                var opt = document.createElement('option');
+                opt.value = o.valeur;
+                opt.text = o.texte;
+                if (o.secteur) { opt.setAttribute('data-secteur', o.secteur); }
+                departement.add(opt);
+            }
+        });
+
+        if (garderChoix) {
+            departement.value = avant;
+        }
+        if (!garderChoix || !departement.value) {
+            departement.selectedIndex = 0;
+        }
+
+        // Sans secteur, il n'y a pas de département à choisir. Le champ
+        // désactivé n'est pas envoyé, ce qui revient bien à « aucun ».
+        departement.disabled = (choisi === '');
+    }
+
+    filtrer(true);
+    secteur.addEventListener('change', function () { filtrer(false); });
+}());
+</script>
+<?php endif; ?>
 
 <?php if ($photoEditable): ?>
 <script>
