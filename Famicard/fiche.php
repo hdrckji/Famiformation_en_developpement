@@ -117,7 +117,7 @@ if ($photo !== '') {
                 <b>Ta carte est incomplète.</b>
                 Il manque : <?= e(implode(', ', array_map(static function ($c) { return $c['libelle']; }, $manquants))) ?>.
                 <?php if (isset($manquants['photo_profil'])): ?>
-                    <br>Elle se dépose <a href="photo.php">ici même</a>, en deux clics.
+                    <br>Elle se dépose en haut de <a href="modifier.php">Modifier mes informations</a>.
                 <?php endif; ?>
             </div>
         <?php endif; ?>
@@ -162,9 +162,11 @@ if ($photo !== '') {
         <?php endforeach; ?>
 
         <div class="actions">
+            <?php // Deux boutons, pas trois : la photo se change dans le même écran
+                  // que le reste (en haut de modifier.php). Un bouton de plus pour
+                  // un seul champ, c'était un aller-retour pour rien. ?>
             <a class="bouton bouton-plein" href="modifier.php">✏️ Modifier mes informations</a>
             <a class="bouton bouton-vide" href="badge.php">🖨️ Imprimer mon badge</a>
-            <a class="bouton bouton-vide" href="photo.php">📷 Modifier ma photo</a>
             <?php if ($estAdmin): ?>
                 <a class="bouton bouton-vide" href="export.php">📊 Exporter en Excel</a>
                 <a class="bouton bouton-vide" href="admin_champs.php">⚙️ Libellés de la fiche</a>

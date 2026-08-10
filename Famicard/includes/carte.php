@@ -72,7 +72,8 @@ if (!function_exists('famicardChampsSocle')) {
             ],
             // OBLIGATOIRE (décision Jimmy). Le seul champ requis que le
             // collaborateur dépose lui-même. Il ne s'édite pas dans le
-            // formulaire mais sur photo.php, d'où 'saisie' => 'photo'.
+            // formulaire standard mais dans la zone d'envoi en tête de
+            // modifier.php, d'où 'saisie' => 'photo'.
             'photo_profil' => [
                 'libelle' => 'Photo', 'libelle_nl' => 'Foto',
                 'colonne' => 'photo_profil', 'groupe' => 'identite',

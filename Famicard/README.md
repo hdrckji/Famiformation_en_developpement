@@ -19,7 +19,8 @@ l'accueil.** Aucune autre page ne doit renvoyer vers le site — ni lien de reto
 « modifier ceci sur ton profil ». Famicard est le **centre de données utilisateur** :
 toute information qui concerne le collaborateur se consulte et se modifie ici.
 
-C'est pour ça que la photo de profil a quitté `profil.php` du site pour `photo.php`.
+C'est pour ça que la photo de profil a quitté `profil.php` du site : elle se dépose
+maintenant en haut de `modifier.php`, avec le reste de la fiche.
 Les **données**, elles, n'ont pas bougé : même dossier sur le volume, même colonne
 `utilisateurs.photo_profil`, même compression. On déplace l'écran, jamais le stockage —
 sinon la photo affichée par FamiFormation ne serait plus celle déposée ici.
@@ -63,8 +64,8 @@ Famicard/
   logout.php           déconnexion
   index.php            ⭐ L'ACCUEIL DU PORTAIL : 4 tuiles, rien d'autre
   fiche.php            la carte du collaborateur (c'était index.php)
-  photo.php            dépôt de la photo de profil (était profil.php, côté site)
   modifier.php         ⭐ ÉDITION : sa propre fiche, ou celle d'un autre (admin)
+                       — la photo se dépose en haut de cet écran (plus de page à part)
   validations.php      les corrections que l'admin doit confirmer
   includes/modifications.php   écriture des champs + registre des changements
   admin.php            la base des collaborateurs (liste, filtres, badge, export)
@@ -187,9 +188,14 @@ ouvrable qu'une page d'erreur.
 
 ---
 
-## RGPD
+## RGPD — 🚨 CHANTIER OBLIGATOIRE, PAS UNE OPTION
 
-Ce n'est pas une case à cocher : Famicard rassemble les données personnelles des salariés.
+**Décision de Jimmy (2026-08-10) : la mise en conformité RGPD doit être faite.**
+Ce n'est pas un « nice to have » qu'on repousse tant que ça marche : Famicard rassemble
+les données personnelles de tous les salariés, et c'est précisément ce que la loi encadre.
+Plus la base grossit, plus la remise en ordre coûte cher — les décisions ci-dessous
+(durée de conservation, base légale) déterminent ce qu'on a le droit de garder, donc
+elles doivent être prises **avant** d'accumuler des années de fiches.
 
 **En place**
 
@@ -199,6 +205,8 @@ Ce n'est pas une case à cocher : Famicard rassemble les données personnelles d
 - **Suppression propre** — supprimer un libellé efface les réponses (`ON DELETE CASCADE`) :
   on ne garde pas des données rattachées à un champ disparu, donc invisibles et
   impossibles à corriger.
+- **Registre des modifications** — `famicard_modifications` garde qui a changé quoi et
+  quand. C'est la traçabilité, et ça sert aussi au droit de rectification.
 
 **À faire**
 

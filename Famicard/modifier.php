@@ -13,9 +13,17 @@
 // éditable, et à l'enregistrement, pour refuser un champ ajouté à la main dans
 // la requête. Un formulaire n'est pas une autorisation.
 //
+// LA PHOTO EST ICI, en tête, et plus sur une page à part : changer sa photo et
+// corriger son adresse sont le même geste — « je mets ma fiche à jour ». Deux
+// écrans pour ça, c'était un aller-retour pour rien.
+//
 // Ce que le collaborateur change s'applique TOUT DE SUITE et part en
 // validation (voir includes/modifications.php). Ce que l'admin change est
 // tracé mais déjà validé : il n'a personne à qui demander.
+//
+// ⚠️ LA PHOTO ÉCHAPPE À LA VALIDATION, volontairement : elle est libre et
+// illimitée (décision Jimmy). Elle est tracée comme déjà validée — l'historique
+// la garde, mais elle n'encombre pas l'écran des décisions à prendre.
 // ============================================================
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/includes/modifications.php';
@@ -49,15 +57,32 @@ $magasins = famicardMagasins($db);
 $libres   = famicardValeursLibres($db, $cibleId);
 $groupes  = famicardGroupes();
 
-// Les profils proposés. Volontairement sans « agence_interim » : ces comptes
-// ne sont pas des collaborateurs et basculer quelqu'un dedans l'enfermerait
-// hors de Famicard (voir login.php). Le profil actuel est ajouté s'il manque,
-// sinon l'éditer ferait glisser en silence vers le premier de la liste.
-$rolesProposes = ['beta', 'betalapanne', 'etudiant', 'employe_magasin', 'employe_logistique', 'teamcoach', 'mentor', 'evaluateur', 'admin'];
-$roleActuel = (string) ($cible['role'] ?? '');
-if ($roleActuel !== '' && !in_array($roleActuel, $rolesProposes, true)) {
-    $rolesProposes[] = $roleActuel;
+// ─────────────────────────────────────────────────────────────────────────────
+// STOCKAGE DE LA PHOTO — celui du SITE, volontairement : même dossier sur le
+// volume, même colonne `utilisateurs.photo_profil`, même compression. Un second
+// emplacement, et la photo affichée par FamiFormation ne serait plus celle
+// déposée ici. Le repli passe par famicardRacineSite() : « __DIR__ »
+// désignerait Famicard, donc un uploads/ qui n'est pas celui du site.
+// ─────────────────────────────────────────────────────────────────────────────
+$storeBase = defined('FAMI_STORAGE_BASE') ? rtrim(FAMI_STORAGE_BASE, '/') : (famicardRacineSite() . '/uploads');
+$uploadDir = $storeBase . '/divers/profils/';
+
+/** Chemin absolu d'une photo déjà enregistrée (clé volume OU ancien public/uploads). */
+function famicardCheminPhoto($valeur, $storeBase)
+{
+    $valeur = (string) $valeur;
+    if ($valeur === '') {
+        return '';
+    }
+    return (strpos($valeur, 'uploads/') === 0)
+        ? famicardRacineSite() . '/' . $valeur
+        : $storeBase . '/' . $valeur;
 }
+
+// Le champ photo est-il modifiable par le regardeur ? La zone d'envoi n'est
+// affichée que si oui — et le POST est refusé dans le cas contraire.
+$champPhoto = $champs['photo_profil'] ?? null;
+$photoEditable = $champPhoto ? famicardPeutModifier($champPhoto, $estAdmin, $estSaPropreFiche) : false;
 
 $erreurs = [];
 $message = '';
@@ -79,9 +104,97 @@ function famicardValeurBrute($cle, array $champ, array $ligne, array $libres)
     return (string) ($ligne[$colonne] ?? '');
 }
 
+function famicardRetourModif($flash, $estSaPropreFiche, $cibleId)
+{
+    $_SESSION['famicard_modif_flash'] = $flash;
+    header('Location: modifier.php' . ($estSaPropreFiche ? '' : '?id=' . (int) $cibleId));
+    exit();
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     requireValidCSRF();
 
+    // ── RETRAIT DE LA PHOTO ──────────────────────────────────────────────
+    if (isset($_POST['supprimer_photo'])) {
+        if (!$photoEditable) {
+            famicardRetourModif("Tu n'as pas la main sur cette photo.", $estSaPropreFiche, $cibleId);
+        }
+
+        $ancienne = famicardCheminPhoto((string) ($cible['photo_profil'] ?? ''), $storeBase);
+        if ($ancienne !== '' && is_file($ancienne)) {
+            @unlink($ancienne);
+        }
+        $db->prepare("UPDATE utilisateurs SET photo_profil = NULL WHERE id = ?")->execute([$cibleId]);
+        if ($estSaPropreFiche) {
+            $_SESSION['photo_profil'] = null;
+        }
+        famicardTraceModification($db, $cibleId, 'photo_profil', $champPhoto ?: ['libelle' => 'Photo'], 'photo', '', (int) $moi['id'], false);
+
+        famicardRetourModif('✅ Photo supprimée.', $estSaPropreFiche, $cibleId);
+    }
+
+    // ── DÉPÔT D'UNE PHOTO ────────────────────────────────────────────────
+    // Traité avant les champs : si l'image est refusée, on le dit tout de
+    // suite plutôt que d'enregistrer le reste en laissant croire que tout
+    // est passé.
+    $photoDeposee = false;
+    if ($photoEditable && isset($_FILES['photo_profil']) && $_FILES['photo_profil']['error'] !== UPLOAD_ERR_NO_FILE) {
+        $file = $_FILES['photo_profil'];
+        $typesAutorises = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        $tailleMax = 5 * 1024 * 1024; // 5 Mo
+
+        if ($file['error'] !== UPLOAD_ERR_OK) {
+            $erreurs[] = "L'envoi de la photo n'a pas abouti.";
+        } elseif ($file['size'] > $tailleMax) {
+            $erreurs[] = 'Photo trop lourde (5 Mo maximum).';
+        } elseif (!in_array($file['type'], $typesAutorises, true)) {
+            $erreurs[] = 'Format de photo non accepté : JPEG, PNG, GIF ou WebP.';
+        } elseif (!@getimagesize($file['tmp_name'])) {
+            // Le type annoncé par le navigateur se falsifie ; le contenu, non.
+            $erreurs[] = "Ce fichier n'est pas une image.";
+        } else {
+            if (!is_dir($uploadDir)) {
+                @mkdir($uploadDir, 0775, true);
+            }
+
+            $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+            $nomFichier = 'user_' . $cibleId . '_' . time() . '.' . $ext;
+            $destination = $uploadDir . $nomFichier;
+
+            if (move_uploaded_file($file['tmp_name'], $destination)) {
+                // L'ancienne part APRÈS que la nouvelle est en place : dans
+                // l'autre sens, un échec d'écriture laisserait la fiche sans
+                // photo du tout.
+                $ancienne = famicardCheminPhoto((string) ($cible['photo_profil'] ?? ''), $storeBase);
+                if ($ancienne !== '' && is_file($ancienne) && $ancienne !== $destination) {
+                    @unlink($ancienne);
+                }
+
+                $compress = famicardRacineSite() . '/includes/compress.php';
+                if (is_file($compress)) {
+                    require_once $compress;
+                    if (function_exists('famiCompressImageFile')) {
+                        famiCompressImageFile($destination, 600);
+                    }
+                }
+
+                $cheminRelatif = 'divers/profils/' . $nomFichier;
+                $db->prepare("UPDATE utilisateurs SET photo_profil = ? WHERE id = ?")
+                   ->execute([$cheminRelatif, $cibleId]);
+                if ($estSaPropreFiche) {
+                    // Le ruban du site lit la photo dans la session : sans ça,
+                    // l'ancienne resterait affichée jusqu'à la reconnexion.
+                    $_SESSION['photo_profil'] = $cheminRelatif;
+                }
+                famicardTraceModification($db, $cibleId, 'photo_profil', $champPhoto ?: ['libelle' => 'Photo'], '', 'photo', (int) $moi['id'], false);
+                $photoDeposee = true;
+            } else {
+                $erreurs[] = "La photo n'a pas pu être enregistrée.";
+            }
+        }
+    }
+
+    // ── LES AUTRES CHAMPS ────────────────────────────────────────────────
     $aEcrire = [];
 
     foreach ($champs as $cle => $champ) {
@@ -90,8 +203,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!famicardPeutModifier($champ, $estAdmin, $estSaPropreFiche)) {
             continue;
         }
-        // La photo a son propre écran (photo.php) : elle n'est pas dans ce
-        // formulaire, et un POST qui prétendrait la changer est ignoré.
+        // La photo est traitée plus haut, comme fichier.
         if (($champ['saisie'] ?? 'texte') === 'photo') {
             continue;
         }
@@ -123,7 +235,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $q = $db->prepare("SELECT COUNT(*) FROM utilisateurs WHERE email = ? AND id != ?");
                 $q->execute([$nouvelle, $cibleId]);
                 if ((int) $q->fetchColumn() > 0) {
-                    $erreurs[] = "Cette adresse email est déjà utilisée par un autre compte.";
+                    $erreurs[] = 'Cette adresse email est déjà utilisée par un autre compte.';
                     continue;
                 }
             }
@@ -142,7 +254,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 continue;
             }
         } elseif ($cle === 'role') {
-            if (!in_array($nouvelle, $rolesProposes, true)) {
+            if (!in_array($nouvelle, famicardRolesProposes($cible), true)) {
                 $erreurs[] = "Ce profil n'existe pas.";
                 continue;
             }
@@ -156,7 +268,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $aEcrire[$cle] = ['champ' => $champ, 'avant' => $ancienne, 'apres' => $nouvelle];
     }
 
-    if (!$erreurs && $aEcrire) {
+    if (!$erreurs) {
         // L'admin ne se valide pas lui-même : ce qu'il écrit est tracé, mais
         // déjà tranché.
         $aValider = !$estAdmin;
@@ -167,30 +279,71 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         $combien = count($aEcrire);
-        $_SESSION['famicard_modif_flash'] = $aValider
-            ? '✅ ' . $combien . ' modification' . ($combien > 1 ? 's' : '') . ' enregistrée' . ($combien > 1 ? 's' : '') . '. Un administrateur la confirmera.'
-            : '✅ ' . $combien . ' modification' . ($combien > 1 ? 's' : '') . ' enregistrée' . ($combien > 1 ? 's' : '') . '.';
+        if ($combien === 0 && !$photoDeposee) {
+            famicardRetourModif("Rien n'a changé.", $estSaPropreFiche, $cibleId);
+        }
 
-        header('Location: modifier.php' . ($estSaPropreFiche ? '' : '?id=' . $cibleId));
-        exit();
-    }
+        $bouts = [];
+        if ($photoDeposee) {
+            $bouts[] = 'photo mise à jour';
+        }
+        if ($combien > 0) {
+            $bouts[] = $combien . ' champ' . ($combien > 1 ? 's' : '') . ' modifié' . ($combien > 1 ? 's' : '');
+        }
+        $texte = '✅ ' . ucfirst(implode(', ', $bouts)) . '.';
+        if ($aValider && $combien > 0) {
+            $texte .= ' Un administrateur confirmera.';
+        }
 
-    if (!$erreurs && !$aEcrire) {
-        $_SESSION['famicard_modif_flash'] = 'Rien n\'a changé.';
-        header('Location: modifier.php' . ($estSaPropreFiche ? '' : '?id=' . $cibleId));
-        exit();
+        famicardRetourModif($texte, $estSaPropreFiche, $cibleId);
     }
 
     // En cas d'erreur, on réaffiche ce que la personne a saisi plutôt que de
     // lui rendre l'ancienne valeur : elle perdrait sa correction.
     foreach ($aEcrire as $cle => $op) {
-        $cible[$champs[$cle]['colonne'] ?? ''] = $op['apres'];
+        $colonne = (string) ($champs[$cle]['colonne'] ?? '');
+        if ($colonne !== '') {
+            $cible[$colonne] = $op['apres'];
+        } elseif (!empty($champs[$cle]['champ_id'])) {
+            $libres[(int) $champs[$cle]['champ_id']] = $op['apres'];
+        }
     }
 }
+
+/**
+ * Les profils proposables. Volontairement sans « agence intérim » : ces comptes
+ * ne sont pas des collaborateurs et basculer quelqu'un dedans l'enfermerait
+ * hors de Famicard (voir login.php). Le profil actuel est ajouté s'il manque,
+ * sinon l'éditer ferait glisser en silence vers le premier de la liste.
+ */
+function famicardRolesProposes(array $cible)
+{
+    $roles = ['beta', 'betalapanne', 'etudiant', 'employe_magasin', 'employe_logistique', 'teamcoach', 'mentor', 'evaluateur', 'admin'];
+    $actuel = (string) ($cible['role'] ?? '');
+    if ($actuel !== '' && !in_array($actuel, $roles, true)) {
+        $roles[] = $actuel;
+    }
+    return $roles;
+}
+
+$rolesProposes = famicardRolesProposes($cible);
 
 $nomCible = trim(((string) ($cible['prenom'] ?? '')) . ' ' . ((string) ($cible['nom'] ?? '')));
 if ($nomCible === '') {
     $nomCible = (string) ($cible['identifiant'] ?? '');
+}
+
+// Aperçu de la photo actuelle. Le paramètre anti-cache est indispensable :
+// sans lui, le navigateur réaffiche l'ancienne image et on croit que l'envoi
+// a échoué.
+$photo = (string) ($cible['photo_profil'] ?? '');
+$photoUrl = '';
+if ($photo !== '') {
+    $photoUrl = function_exists('moduleFileUrl') ? moduleFileUrl($photo) : $photo;
+    if ($photoUrl !== '' && !preg_match('#^(https?:)?//#i', $photoUrl)) {
+        $photoUrl = famicardSiteUrl($photoUrl);
+    }
+    $photoUrl .= (strpos($photoUrl, '?') === false ? '?' : '&') . 'v=' . time();
 }
 ?>
 <!DOCTYPE html>
@@ -213,6 +366,19 @@ if ($nomCible === '') {
     .boite-tete h1 { margin: 0 0 4px; font-size: 1.3rem; font-weight: 800; }
     .boite-tete .sous { font-size: .86rem; opacity: .92; }
 
+    /* ── ZONE PHOTO ─────────────────────────────────────────────────── */
+    .zone-photo { padding: 28px 26px; text-align: center; background: #f7faf8; border-bottom: 1px solid #eee; }
+    .depose { display: block; cursor: pointer; border: 2px dashed #b9cfc0; border-radius: 18px; padding: 22px; background: #fff; transition: border-color .15s, background .15s; }
+    .depose:hover { border-color: #2d5a37; background: #fbfefc; }
+    .depose input[type="file"] { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; }
+    .apercu { width: 132px; height: 132px; border-radius: 50%; object-fit: cover; border: 5px solid #2d5a37; margin: 0 auto 14px; display: block; background: #e8f5e9; }
+    .apercu-vide { display: flex; align-items: center; justify-content: center; font-size: 3rem; color: #2d5a37; border-style: dashed; }
+    .depose .invite { color: #2d5a37; font-weight: 700; font-size: .95rem; }
+    .depose .format { color: #8a988f; font-size: .78rem; margin-top: 5px; line-height: 1.5; }
+    .depose .choisi { color: #1e5128; font-weight: 700; font-size: .86rem; margin-top: 9px; word-break: break-all; }
+    .retirer { background: none; border: 0; color: #a83232; font-family: inherit; font-size: .84rem; font-weight: 700; cursor: pointer; margin-top: 14px; text-decoration: underline; }
+    .photo-figee { color: #777; font-size: .88rem; margin-top: 12px; }
+
     .groupe { padding: 20px 26px; border-top: 1px solid #eee; }
     .groupe h2 { margin: 0 0 14px; font-size: .8rem; text-transform: uppercase; letter-spacing: .08em; color: #2d5a37; }
     .ligne { margin-bottom: 15px; }
@@ -220,7 +386,6 @@ if ($nomCible === '') {
     .ligne .obl { color: #c0392b; }
     input[type="text"], input[type="email"], input[type="date"], select { width: 100%; padding: 10px 12px; border: 1px solid #ccd6cf; border-radius: 10px; font-family: inherit; font-size: .95rem; background: #fff; }
     .aide { color: #888; font-size: .78rem; margin-top: 4px; line-height: 1.45; }
-
     .fige { background: #f5f7f6; border-radius: 10px; padding: 10px 12px; color: #777; font-size: .92rem; }
 
     .actions { display: flex; gap: 12px; flex-wrap: wrap; padding: 22px 26px; background: #f7faf8; border-top: 1px solid #eee; }
@@ -253,12 +418,14 @@ if ($nomCible === '') {
 
     <?php if ($erreurs): ?>
         <div class="erreurs">
-            <b>Rien n'a été enregistré :</b>
+            <b>À corriger :</b>
             <ul><?php foreach (array_unique($erreurs) as $err): ?><li><?= e($err) ?></li><?php endforeach; ?></ul>
         </div>
     <?php endif; ?>
 
-    <form method="POST">
+    <?php // enctype indispensable : sans lui le fichier n'arrive jamais au
+          // serveur, et le formulaire semble marcher tout en perdant la photo. ?>
+    <form method="POST" enctype="multipart/form-data">
         <?= csrfField() ?>
         <div class="boite">
             <div class="boite-tete">
@@ -272,13 +439,47 @@ if ($nomCible === '') {
                 </div>
             </div>
 
+            <div class="zone-photo">
+                <?php if ($photoEditable): ?>
+                    <label class="depose">
+                        <?php if ($photoUrl !== ''): ?>
+                            <img class="apercu" id="apercuPhoto" src="<?= e($photoUrl) ?>" alt="">
+                        <?php else: ?>
+                            <div class="apercu apercu-vide" id="apercuVide">👤</div>
+                            <img class="apercu" id="apercuPhoto" src="" alt="" style="display:none;">
+                        <?php endif; ?>
+                        <div class="invite">Choisir une photo</div>
+                        <div class="format">JPEG, PNG, GIF ou WebP — 5 Mo maximum.<br>Elle est réduite automatiquement.</div>
+                        <div class="choisi" id="nomFichier"></div>
+                        <input type="file" name="photo_profil" id="champPhoto"
+                               accept="image/jpeg,image/png,image/gif,image/webp">
+                    </label>
+
+                    <?php if ($photo !== ''): ?>
+                        <button type="submit" name="supprimer_photo" value="1" class="retirer"
+                                onclick="return confirm('Supprimer la photo ?');">Supprimer la photo</button>
+                    <?php endif; ?>
+                <?php else: ?>
+                    <?php if ($photoUrl !== ''): ?>
+                        <img class="apercu" src="<?= e($photoUrl) ?>" alt="">
+                    <?php else: ?>
+                        <div class="apercu apercu-vide">👤</div>
+                    <?php endif; ?>
+                    <div class="photo-figee">Seul le collaborateur dépose sa photo.</div>
+                <?php endif; ?>
+            </div>
+
             <?php foreach ($groupes as $cleGroupe => $groupe): ?>
                 <?php
                 // Un groupe n'est dessiné que s'il contient au moins une ligne
                 // à montrer — titre suivi de rien = écran qui a l'air cassé.
+                // La photo est exclue : elle a sa zone, en haut.
                 $lignes = [];
                 foreach ($champs as $cle => $champ) {
                     if (($champ['groupe'] ?? '') !== $cleGroupe) {
+                        continue;
+                    }
+                    if (($champ['saisie'] ?? 'texte') === 'photo') {
                         continue;
                     }
                     if (!famicardPeutVoir($champ, $estAdmin, $estSaPropreFiche)) {
@@ -305,13 +506,7 @@ if ($nomCible === '') {
                                 <?= e($champ['libelle']) ?><?php if (!empty($champ['requis'])): ?> <span class="obl">*</span><?php endif; ?>
                             </label>
 
-                            <?php if ($saisie === 'photo'): ?>
-                                <div class="fige">
-                                    <?= $affichee !== '' ? 'Photo déposée' : 'Aucune photo' ?>
-                                    <?php if ($editable): ?> — <a href="photo.php">la changer</a><?php endif; ?>
-                                </div>
-
-                            <?php elseif (!$editable): ?>
+                            <?php if (!$editable): ?>
                                 <?php // Montré mais figé : le collaborateur voit la valeur et
                                       // comprend qu'elle existe, sans croire qu'il l'a oubliée. ?>
                                 <div class="fige"><?= $affichee !== '' ? e($affichee) : '—' ?></div>
@@ -366,9 +561,43 @@ if ($nomCible === '') {
         <div class="note">
             Ce que tu corriges est visible immédiatement. Un administrateur voit ensuite
             l'ancienne et la nouvelle valeur, et confirme — ou rétablit si c'était une erreur.
+            Ta photo, elle, est libre : personne n'a à la valider.
         </div>
     <?php endif; ?>
 
 </div>
+
+<?php if ($photoEditable): ?>
+<script>
+// Aperçu immédiat de l'image choisie. Sans lui, on ne sait pas si le bon
+// fichier a été pris avant d'avoir enregistré — et sur mobile, le nom seul ne
+// dit rien (« IMG_4821.jpg »).
+(function () {
+    var champ = document.getElementById('champPhoto');
+    if (!champ) { return; }
+
+    champ.addEventListener('change', function () {
+        var f = champ.files && champ.files[0];
+        if (!f) { return; }
+
+        var nom = document.getElementById('nomFichier');
+        if (nom) { nom.textContent = f.name; }
+
+        var img = document.getElementById('apercuPhoto');
+        var vide = document.getElementById('apercuVide');
+        if (img && window.FileReader) {
+            var lecteur = new FileReader();
+            lecteur.onload = function (e) {
+                img.src = e.target.result;
+                img.style.display = 'block';
+                if (vide) { vide.style.display = 'none'; }
+            };
+            lecteur.readAsDataURL(f);
+        }
+    });
+}());
+</script>
+<?php endif; ?>
+
 </body>
 </html>
