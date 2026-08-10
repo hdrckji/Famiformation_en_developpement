@@ -151,10 +151,8 @@ try {
                     <div class="nom">👥 Collaborateurs</div>
                     <div class="desc">Créer un compte, modifier un profil, un mot de passe, une agence ou un lieu de travail. Activer, désactiver, supprimer.</div>
                 </a>
-                <a href="famicard/">
-                    <div class="nom">🪪 Famicard</div>
-                    <div class="desc">La fiche du collaborateur : sa carte, ses champs, son badge, l'export. C'est là que vit la fiche — elle n'est pas dupliquée ici.</div>
-                </a>
+                <?php // Pas d'entrée Famicard ici : c'est un produit distinct,
+                      // avec son propre accueil. On n'y entre pas par le site. ?>
                 <a href="admin_agences_interim.php">
                     <div class="nom">🏢 Agences intérim</div>
                     <div class="desc">La liste des agences proposées à la création d'un compte et dans les filtres.</div>
