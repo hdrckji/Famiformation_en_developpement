@@ -15,6 +15,10 @@ require_once __DIR__ . '/config.php';
 $moi = famicardExigeConnexion($db);
 $estAdmin = famicardEstAdmin();
 
+// Secteur et département : ils ne sont pas dans `utilisateurs`, on les pose
+// dans la ligne pour que le modèle les lise comme les autres champs.
+$moi = famicardAjouteRattachement($moi, famicardRattachements($db, [(int) $moi['id']]));
+
 $champs    = famicardChamps($db);
 $groupes   = famicardGroupes();
 $magasins  = famicardMagasins($db);

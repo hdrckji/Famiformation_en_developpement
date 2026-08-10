@@ -118,6 +118,28 @@ if (!function_exists('famicardChampsSocle')) {
                 'requis' => false, 'nature' => 'service', 'visible' => 'admin',
                 'modifiable' => 'admin', 'saisie' => 'texte', 'badge' => false,
             ],
+            // ── SECTEUR ET DÉPARTEMENT ─────────────────────────────────────
+            // Ces deux-là ne sont NI une colonne de `utilisateurs` NI un champ
+            // libre : ils vivent dans famicard_affectations. Les « colonnes »
+            // ci-dessous sont donc des pseudo-colonnes, remplies dans la ligne
+            // par famicardAjouteRattachement() avant tout affichage.
+            //
+            // 'saisie' => 'rattachement' : ils ne s'éditent pas dans le
+            // formulaire champ par champ (les deux se choisissent ENSEMBLE, un
+            // département impliquant son secteur), mais dans un bloc dédié de
+            // modifier.php — comme la photo.
+            'secteur' => [
+                'libelle' => 'Secteur', 'libelle_nl' => 'Sector',
+                'colonne' => 'secteur_nom', 'groupe' => 'rattachement',
+                'requis' => false, 'nature' => 'service', 'visible' => 'tous',
+                'modifiable' => 'admin', 'saisie' => 'rattachement', 'badge' => false,
+            ],
+            'departement' => [
+                'libelle' => 'Département', 'libelle_nl' => 'Afdeling',
+                'colonne' => 'departement_nom', 'groupe' => 'rattachement',
+                'requis' => false, 'nature' => 'service', 'visible' => 'tous',
+                'modifiable' => 'admin', 'saisie' => 'rattachement', 'badge' => false,
+            ],
 
             // ── COMPTE / ACCÈS AUX SERVICES ────────────────────────────────
             // L'identifiant sert à se connecter : le changer ici couperait
@@ -414,6 +436,87 @@ if (!function_exists('famicardChampsManquants')) {
             }
         }
         return $manquants;
+    }
+}
+
+if (!function_exists('famicardRattachements')) {
+    /**
+     * Le rattachement de plusieurs collaborateurs, en UNE requête :
+     *   user_id => ['secteur_id', 'secteur_nom', 'departement_id', 'departement_nom']
+     *
+     * Une requête par ligne serait invisible sur une fiche et catastrophique
+     * sur la base des collaborateurs, qui en affiche des centaines.
+     *
+     * Le secteur et le département ne sont pas des colonnes de `utilisateurs` :
+     * ils vivent dans famicard_affectations, réglée depuis la page RH du site
+     * (voir Famiformation/includes/organisation.php).
+     */
+    function famicardRattachements(PDO $db, array $userIds)
+    {
+        $ids = array_values(array_unique(array_filter(array_map('intval', $userIds))));
+        if (!$ids) {
+            return [];
+        }
+        // Des entiers castés, jamais du texte : rien à échapper ici.
+        $in = implode(',', $ids);
+
+        $complet = "SELECT a.user_id, a.secteur_id, s.nom AS secteur_nom,
+                           a.departement_id, d.nom AS departement_nom
+                    FROM famicard_affectations a
+                    LEFT JOIN famicard_secteurs s ON s.id = a.secteur_id
+                    LEFT JOIN famicard_departements d ON d.id = a.departement_id
+                    WHERE a.user_id IN ($in)";
+
+        // Repli sans le département : la colonne a été ajoutée après coup, et
+        // son ALTER peut avoir échoué. Le secteur doit rester affiché dans ce
+        // cas plutôt que de disparaître avec lui.
+        $simple = "SELECT a.user_id, a.secteur_id, s.nom AS secteur_nom,
+                          NULL AS departement_id, NULL AS departement_nom
+                   FROM famicard_affectations a
+                   LEFT JOIN famicard_secteurs s ON s.id = a.secteur_id
+                   WHERE a.user_id IN ($in)";
+
+        foreach ([$complet, $simple] as $sql) {
+            try {
+                $res = [];
+                foreach ($db->query($sql)->fetchAll(PDO::FETCH_ASSOC) as $r) {
+                    $res[(int) $r['user_id']] = [
+                        'secteur_id'       => $r['secteur_id'] !== null ? (int) $r['secteur_id'] : null,
+                        'secteur_nom'      => (string) ($r['secteur_nom'] ?? ''),
+                        'departement_id'   => $r['departement_id'] !== null ? (int) $r['departement_id'] : null,
+                        'departement_nom'  => (string) ($r['departement_nom'] ?? ''),
+                    ];
+                }
+                return $res;
+            } catch (Exception $e) {
+                // On tente le repli ; si les deux échouent, les tables n'existent
+                // pas encore et la fiche s'affiche simplement sans rattachement.
+            }
+        }
+
+        return [];
+    }
+}
+
+if (!function_exists('famicardAjouteRattachement')) {
+    /**
+     * Pose les pseudo-colonnes de rattachement dans une ligne `utilisateurs`,
+     * pour que le modèle les lise comme n'importe quel autre champ.
+     *
+     * Les clés sont TOUJOURS posées, même vides : sans ça,
+     * famicardValeurAffichee() ne trouverait pas la colonne et renverrait ''
+     * sans qu'on puisse distinguer « pas rattaché » de « colonne oubliée ».
+     */
+    function famicardAjouteRattachement(array $ligne, array $rattachements)
+    {
+        $r = $rattachements[(int) ($ligne['id'] ?? 0)] ?? [];
+
+        $ligne['secteur_id']      = $r['secteur_id'] ?? null;
+        $ligne['secteur_nom']     = $r['secteur_nom'] ?? '';
+        $ligne['departement_id']  = $r['departement_id'] ?? null;
+        $ligne['departement_nom'] = $r['departement_nom'] ?? '';
+
+        return $ligne;
     }
 }
 

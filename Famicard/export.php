@@ -81,6 +81,12 @@ if ($genere) {
     // c'est une fuite en puissance le jour où on ajoute un champ sensible.
     $colonnesSql = ['id'];
     foreach ($choisies as $cle) {
+        // Secteur et département portent une PSEUDO-colonne (famicard_affectations,
+        // pas `utilisateurs`) : dans le SELECT, elle ferait tomber la requête.
+        // Ils sont ajoutés plus bas, par jointure séparée.
+        if (($proposables[$cle]['saisie'] ?? '') === 'rattachement') {
+            continue;
+        }
         if (!empty($proposables[$cle]['colonne'])) {
             $colonnesSql[] = $proposables[$cle]['colonne'];
         }
@@ -91,6 +97,16 @@ if ($genere) {
     $st = $db->prepare("SELECT $listeSql FROM utilisateurs" . $where . " ORDER BY nom ASC, prenom ASC");
     $st->execute($params);
     $lignes = $st->fetchAll(PDO::FETCH_ASSOC);
+
+    // Secteur et département, en une requête pour toute la liste.
+    if ($lignes) {
+        $rattachements = famicardRattachements($db, array_map(static function ($l) {
+            return (int) $l['id'];
+        }, $lignes));
+        foreach ($lignes as $i => $l) {
+            $lignes[$i] = famicardAjouteRattachement($l, $rattachements);
+        }
+    }
 
     // Les champs libres ne sont pas dans `utilisateurs` : une seule requête
     // pour tout le monde, plutôt qu'une par collaborateur.

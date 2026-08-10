@@ -41,15 +41,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && !empty($_SESSION['user_id'])) {
 
 $erreur = '';
 
-// Page visée avant d'avoir été renvoyé ici (posée par famicardExigeConnexion),
-// pour y revenir directement. Elle vient de famicardPageDemandee(), donc d'une
-// liste blanche de pages Famicard : jamais d'une adresse fournie par le
-// visiteur. C'est aussi pourquoi elle transite par la SESSION et non par
-// l'URL — rien à valider une deuxième fois, rien à falsifier.
-$apres = (string) ($_SESSION['famicard_apres_login'] ?? '');
-if ($apres === '') {
-    $apres = 'index.php';
-}
+// APRÈS CONNEXION : TOUJOURS l'accueil. Jamais la page qu'on avait demandée
+// avant d'être arrêté ici.
+//
+// Ce « retour à la page demandée » existait et paraissait aimable ; en pratique
+// il faisait atterrir sur sa fiche quiconque avait ouvert un lien de fiche
+// avant de se connecter, alors que l'accueil est le point de départ voulu.
+// Une commodité qui contredit le parcours n'est pas une commodité.
+$apres = 'index.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     requireValidCSRF();
@@ -89,6 +88,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Jeton renouvelé après connexion (comme sur le site).
         $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 
+        // Nettoyage d'une session ouverte avant le retrait de ce mécanisme :
+        // sans ça, la clé traînerait indéfiniment sans que rien ne la lise.
         unset($_SESSION['famicard_apres_login']);
 
         header('Location: ' . $apres);

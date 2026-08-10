@@ -52,10 +52,26 @@ if (!$cible) {
 
 famicardAssureModifications($db);
 
+// Secteur et département : posés dans la ligne comme pseudo-colonnes, pour que
+// le modèle les lise comme les autres champs (ils vivent en réalité dans
+// famicard_affectations).
+$cible = famicardAjouteRattachement($cible, famicardRattachements($db, [$cibleId]));
+
 $champs   = famicardChamps($db);
 $magasins = famicardMagasins($db);
 $libres   = famicardValeursLibres($db, $cibleId);
 $groupes  = famicardGroupes();
+
+// L'organisation vient de FamiFormation (includes/organisation.php, chargé par
+// config.php). Si le fichier manque, le rattachement s'affiche en lecture seule
+// plutôt que de faire tomber l'écran d'édition entier.
+$organisationDispo = function_exists('famiSecteurs') && function_exists('famiDepartementsParSecteur');
+$secteursListe = $organisationDispo ? famiSecteurs($db) : [];
+$departementsParSecteur = $organisationDispo ? famiDepartementsParSecteur($db) : [];
+
+// Le rattachement se modifie par l'admin, et par lui seul (c'est de la donnée
+// de gestion, pas une coordonnée personnelle).
+$rattachementEditable = $organisationDispo && $estAdmin && $secteursListe;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // STOCKAGE DE LA PHOTO — celui du SITE, volontairement : même dossier sur le
@@ -194,6 +210,57 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    // ── RATTACHEMENT (secteur / département) ─────────────────────────────
+    // Une seule liste porte les deux niveaux, d'où ce petit codage :
+    //   ''     → aucun rattachement
+    //   's:12' → tout le secteur 12
+    //   'd:37' → le département 37 (son secteur est déduit)
+    // Deux listes liées auraient demandé du JavaScript pour filtrer la seconde
+    // selon la première. Une liste avec des groupes dit la même chose.
+    $rattachementChange = false;
+    if ($rattachementEditable && array_key_exists('rattachement', $_POST)) {
+        $choix = trim((string) $_POST['rattachement']);
+        $avantLibelle = trim(((string) ($cible['secteur_nom'] ?? '')) . (($cible['departement_nom'] ?? '') !== '' ? ' — ' . $cible['departement_nom'] : ''));
+
+        $choixCourant = '';
+        if (!empty($cible['departement_id'])) {
+            $choixCourant = 'd:' . (int) $cible['departement_id'];
+        } elseif (!empty($cible['secteur_id'])) {
+            $choixCourant = 's:' . (int) $cible['secteur_id'];
+        }
+
+        if ($choix !== $choixCourant) {
+            $type = substr($choix, 0, 2);
+            $id   = (int) substr($choix, 2);
+            $ok = false;
+            $apresLibelle = '';
+
+            if ($choix === '') {
+                $ok = famiAffecteSecteur($db, $cibleId, null);
+            } elseif ($type === 's:') {
+                $ok = famiAffecteSecteur($db, $cibleId, $id, null);
+                $apresLibelle = $secteursListe[$id] ?? '';
+            } elseif ($type === 'd:') {
+                // Le secteur du département : la base le sait, on ne le demande
+                // pas à l'utilisateur.
+                $q = $db->prepare("SELECT secteur_id FROM famicard_departements WHERE id = ?");
+                $q->execute([$id]);
+                $secteurId = (int) $q->fetchColumn();
+                if ($secteurId > 0) {
+                    $ok = famiAffecteSecteur($db, $cibleId, $secteurId, $id);
+                    $apresLibelle = trim(($secteursListe[$secteurId] ?? '') . ' — ' . ($departementsParSecteur[$secteurId][$id] ?? ''));
+                }
+            }
+
+            if ($ok) {
+                famicardTraceModification($db, $cibleId, 'secteur', ['libelle' => 'Secteur / Département'], $avantLibelle, $apresLibelle, (int) $moi['id'], false);
+                $rattachementChange = true;
+            } else {
+                $erreurs[] = "Ce rattachement n'est pas valide.";
+            }
+        }
+    }
+
     // ── LES AUTRES CHAMPS ────────────────────────────────────────────────
     $aEcrire = [];
 
@@ -203,8 +270,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!famicardPeutModifier($champ, $estAdmin, $estSaPropreFiche)) {
             continue;
         }
-        // La photo est traitée plus haut, comme fichier.
-        if (($champ['saisie'] ?? 'texte') === 'photo') {
+        // La photo (fichier) et le rattachement (liste unique à deux niveaux)
+        // sont traités plus haut, chacun avec sa mécanique.
+        if (in_array($champ['saisie'] ?? 'texte', ['photo', 'rattachement'], true)) {
             continue;
         }
 
@@ -279,13 +347,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         $combien = count($aEcrire);
-        if ($combien === 0 && !$photoDeposee) {
+        if ($combien === 0 && !$photoDeposee && !$rattachementChange) {
             famicardRetourModif("Rien n'a changé.", $estSaPropreFiche, $cibleId);
         }
 
         $bouts = [];
         if ($photoDeposee) {
             $bouts[] = 'photo mise à jour';
+        }
+        if ($rattachementChange) {
+            $bouts[] = 'rattachement modifié';
         }
         if ($combien > 0) {
             $bouts[] = $combien . ' champ' . ($combien > 1 ? 's' : '') . ' modifié' . ($combien > 1 ? 's' : '');
@@ -482,6 +553,12 @@ if ($photo !== '') {
                     if (($champ['saisie'] ?? 'texte') === 'photo') {
                         continue;
                     }
+                    // Quand le rattachement est modifiable, une SEULE liste porte
+                    // le secteur ET le département : la ligne « Département » est
+                    // donc sautée, elle ferait doublon avec la liste.
+                    if ($cle === 'departement' && $rattachementEditable) {
+                        continue;
+                    }
                     if (!famicardPeutVoir($champ, $estAdmin, $estSaPropreFiche)) {
                         continue;
                     }
@@ -506,7 +583,44 @@ if ($photo !== '') {
                                 <?= e($champ['libelle']) ?><?php if (!empty($champ['requis'])): ?> <span class="obl">*</span><?php endif; ?>
                             </label>
 
-                            <?php if (!$editable): ?>
+                            <?php // Le rattachement passe TOUJOURS par ce bloc, même quand il
+                                  // n'est pas modifiable : sans ce test en premier, un admin
+                                  // se verrait proposer un champ texte libre sur une
+                                  // pseudo-colonne, qui n'existe pas dans `utilisateurs`. ?>
+                            <?php if ($saisie === 'rattachement' && !($cle === 'secteur' && $rattachementEditable)): ?>
+                                <div class="fige"><?= $affichee !== '' ? e($affichee) : '—' ?></div>
+                                <div class="aide"><?= $estAdmin ? 'Se règle depuis la page RH de FamiFormation.' : "Défini par l'entreprise." ?></div>
+
+                            <?php elseif ($saisie === 'rattachement' && $cle === 'secteur' && $rattachementEditable): ?>
+                                <?php
+                                    $choixCourant = '';
+                                    if (!empty($cible['departement_id'])) {
+                                        $choixCourant = 'd:' . (int) $cible['departement_id'];
+                                    } elseif (!empty($cible['secteur_id'])) {
+                                        $choixCourant = 's:' . (int) $cible['secteur_id'];
+                                    }
+                                ?>
+                                <select id="champ_secteur" name="rattachement">
+                                    <option value="" <?= $choixCourant === '' ? 'selected' : '' ?>>— Aucun —</option>
+                                    <?php foreach ($secteursListe as $secId => $secNom): ?>
+                                        <?php $deps = $departementsParSecteur[(int) $secId] ?? []; ?>
+                                        <?php if (!$deps): ?>
+                                            <option value="s:<?= (int) $secId ?>" <?= $choixCourant === 's:' . (int) $secId ? 'selected' : '' ?>><?= e($secNom) ?></option>
+                                        <?php else: ?>
+                                            <optgroup label="<?= e($secNom) ?>">
+                                                <?php // On peut appartenir à un secteur sans département
+                                                      // précis — le Bureau, par exemple. ?>
+                                                <option value="s:<?= (int) $secId ?>" <?= $choixCourant === 's:' . (int) $secId ? 'selected' : '' ?>>— tout le secteur —</option>
+                                                <?php foreach ($deps as $depId => $depNom): ?>
+                                                    <option value="d:<?= (int) $depId ?>" <?= $choixCourant === 'd:' . (int) $depId ? 'selected' : '' ?>><?= e($depNom) ?></option>
+                                                <?php endforeach; ?>
+                                            </optgroup>
+                                        <?php endif; ?>
+                                    <?php endforeach; ?>
+                                </select>
+                                <div class="aide">Choisir un département rattache aussi son secteur.</div>
+
+                            <?php elseif (!$editable): ?>
                                 <?php // Montré mais figé : le collaborateur voit la valeur et
                                       // comprend qu'elle existe, sans croire qu'il l'a oubliée. ?>
                                 <div class="fige"><?= $affichee !== '' ? e($affichee) : '—' ?></div>

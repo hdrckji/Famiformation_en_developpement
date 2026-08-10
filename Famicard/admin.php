@@ -88,6 +88,12 @@ foreach ($champs as $cle => $champ) {
 
 $colonnesSql = ['id'];
 foreach ($colonnesTableau as $champ) {
+    // Secteur et département portent une PSEUDO-colonne : ils ne sont pas dans
+    // `utilisateurs` mais dans famicard_affectations. Les mettre dans le SELECT
+    // ferait tomber la requête entière sur une colonne inexistante.
+    if (($champ['saisie'] ?? '') === 'rattachement') {
+        continue;
+    }
     if (!empty($champ['colonne'])) {
         $colonnesSql[] = $champ['colonne'];
     }
@@ -100,6 +106,17 @@ $listeSql = '`' . implode('`, `', $colonnesSql) . '`';
 $st = $db->prepare("SELECT $listeSql FROM utilisateurs" . $where . " ORDER BY nom ASC, prenom ASC");
 $st->execute($params);
 $lignes = $st->fetchAll(PDO::FETCH_ASSOC);
+
+// Secteur et département : une seule requête pour toute la page, pas une par
+// collaborateur (sur 400 lignes, la différence se voit).
+if ($lignes) {
+    $rattachements = famicardRattachements($db, array_map(static function ($l) {
+        return (int) $l['id'];
+    }, $lignes));
+    foreach ($lignes as $i => $l) {
+        $lignes[$i] = famicardAjouteRattachement($l, $rattachements);
+    }
+}
 
 // Valeurs des champs libres : une seule requête pour toute la page, pas une
 // par collaborateur (sur 400 lignes, la différence se voit).

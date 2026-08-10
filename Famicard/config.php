@@ -39,6 +39,16 @@ if ($__famicardConfig === null) {
 require_once $__famicardConfig;
 require_once __DIR__ . '/includes/carte.php';
 
+// L'organisation (secteurs et départements) vit dans FamiFormation, et c'est
+// voulu : le site principal la règle depuis sa page RH, Famicard l'affiche.
+// Une seconde définition côté Famicard, et les deux listes divergeraient.
+// Le fichier est chargé ici plutôt que dans chaque page qui en a besoin :
+// la fiche, la base, l'export et l'écran d'édition l'utilisent tous.
+$__famicardOrganisation = dirname($__famicardConfig) . '/includes/organisation.php';
+if (is_file($__famicardOrganisation)) {
+    require_once $__famicardOrganisation;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // DEUX ADRESSES POUR LES MÊMES PAGES
 // Famicard se visite de deux façons, et les deux doivent marcher :
@@ -104,36 +114,6 @@ if (!function_exists('famicardSiteUrl')) {
     }
 }
 
-if (!function_exists('famicardPageDemandee')) {
-    /**
-     * Page Famicard visée par la requête en cours, en relatif (« badge.php?id=3 »),
-     * pour y revenir une fois la connexion faite.
-     *
-     * Liste blanche volontaire : cette valeur finit dans un en-tête Location. Si
-     * on renvoyait l'URL demandée telle quelle, un lien fabriqué transformerait
-     * la page de connexion en tremplin vers n'importe quel site — un visiteur
-     * verrait le vrai formulaire Famiflora, puis atterrirait ailleurs.
-     */
-    function famicardPageDemandee()
-    {
-        $uri = (string) ($_SERVER['REQUEST_URI'] ?? '');
-        $page = basename((string) parse_url($uri, PHP_URL_PATH));
-
-        if (!in_array($page, ['index.php', 'fiche.php', 'modifier.php', 'validations.php', 'admin.php', 'admin_champs.php', 'badge.php', 'export.php'], true)) {
-            return '';
-        }
-
-        $query = (string) parse_url($uri, PHP_URL_QUERY);
-        // Caractères d'URL ordinaires uniquement : ni « : » ni « / », donc pas
-        // moyen de reconstruire une adresse absolue, et pas de saut de ligne.
-        if ($query !== '' && preg_match('~^[A-Za-z0-9_=&%.+-]+$~', $query)) {
-            return $page . '?' . $query;
-        }
-
-        return $page;
-    }
-}
-
 if (!function_exists('famicardExigeConnexion')) {
     /**
      * Garde-fou d'accès. Remplace verifierConnexion() pour la raison ci-dessus.
@@ -146,7 +126,11 @@ if (!function_exists('famicardExigeConnexion')) {
             // même dossier). Pas celui du site principal : sur le sous-domaine,
             // la session de www n'existe pas ici — s'y connecter ne changerait
             // rien au retour, et la page tournerait en rond.
-            $_SESSION['famicard_apres_login'] = famicardPageDemandee();
+            //
+            // On NE mémorise PAS la page demandée. Ce mécanisme existait, et il
+            // faisait atterrir sur sa fiche quiconque avait ouvert un lien de
+            // fiche avant de se connecter. Décision de Jimmy : après connexion,
+            // on arrive TOUJOURS sur l'accueil de Famicard, d'où tout part.
             header('Location: login.php');
             exit();
         }
