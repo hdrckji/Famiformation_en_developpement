@@ -584,7 +584,7 @@ if ($wcThemeOn && !empty($siteTheme) && is_array($siteTheme)) {
               // trouve pas est une carte que personne ne complète.
               // Le lien est relatif : /famicard/ sur le site, et il continue de
               // viser la bonne page si le dossier est servi ailleurs. ?>
-        <a href="famicard/" class="tile">
+        <a href="famicard/fiche.php" class="tile">
             <div class="tile-media"><span class="tile-icon">🪪</span></div>
             <div class="tile-title"><?= t('Ma fiche', 'Mijn fiche') ?></div>
             <div class="tile-desc"><?= t('Ta carte d\'identité Famiflora : tes informations et ton badge.', 'Je Famiflora-identiteitskaart: je gegevens en je badge.') ?></div>

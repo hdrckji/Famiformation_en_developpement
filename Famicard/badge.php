@@ -125,7 +125,7 @@ if ($n > 15) { $tailleP = 'p-petit'; }
 
     <div class="barre">
         <button class="bouton bouton-plein" onclick="window.print()">🖨️ Imprimer</button>
-        <a class="bouton bouton-vide" href="index.php">Retour à ma carte</a>
+        <a class="bouton bouton-vide" href="fiche.php">Retour à ma fiche</a>
         <?php if ($estAdmin): ?>
             <a class="bouton bouton-vide" href="admin.php">Base des collaborateurs</a>
         <?php endif; ?>

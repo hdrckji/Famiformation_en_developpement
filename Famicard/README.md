@@ -1,8 +1,16 @@
 # Famicard
 
-La **carte d'identité du collaborateur Famiflora**. À terme, c'est **depuis Famicard**
-qu'on donnera accès aux plateformes de la maison — FamiFormation, FamiJob, et les
-suivantes. Aujourd'hui elle décrit le collaborateur ; demain elle ouvre les portes.
+La **carte d'identité du collaborateur Famiflora**, et le **point d'entrée** des
+plateformes de la maison — FamiFormation, FamiJob, et les suivantes.
+
+Le sens de lecture compte : Famicard n'est pas une page de FamiFormation. C'est
+l'inverse. `index.php` est un accueil de portail à quatre tuiles — Ma fiche, Mes
+collaborateurs, FamiFormation, FamiJob — et aucune page n'affiche de « ← retour à
+FamiFormation », qui dirait au collaborateur qu'il est dans une annexe.
+
+⚠️ Les tuiles d'accès **reflètent** les règles déjà en place sur l'accueil du site
+(FamiJob : admin et teamcoach). On n'ouvre pas un accès depuis ici : une tuile qui
+mène à un refus est pire que pas de tuile.
 
 Deux lectures d'un même objet :
 
@@ -38,7 +46,8 @@ Famicard/
   includes/carte.php   ⭐ LE MODÈLE : les champs et leurs règles
   login.php            connexion (mêmes identifiants, même session que le site)
   logout.php           déconnexion
-  index.php            la carte du collaborateur
+  index.php            ⭐ L'ACCUEIL DU PORTAIL : 4 tuiles, rien d'autre
+  fiche.php            la carte du collaborateur (c'était index.php)
   admin.php            la base des collaborateurs (liste, filtres, badge, export)
   badge.php            le badge imprimable 75 × 36 mm
   export.php           l'export Excel, colonnes au choix

@@ -157,7 +157,8 @@ $socle = famicardChampsSocle();
     <h1>Libellés de la fiche collaborateur</h1>
     <div>
         <a class="pill" href="admin.php">Base des collaborateurs</a>
-        <a class="pill" href="index.php">Ma carte</a>
+        <a class="pill" href="fiche.php">Ma fiche</a>
+        <a class="pill" href="index.php">&larr; Accueil</a>
     </div>
 </div>
 

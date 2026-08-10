@@ -154,10 +154,11 @@ if ($aDesChampsLibres && $lignes) {
 <div class="bandeau">
     <h1>Base des collaborateurs</h1>
     <div>
-        <?php // Pas de lien vers FamiFormation dans ce bandeau : les services
-              // se rejoignent depuis « Mes accès », sur la carte. Voir index.php. ?>
+        <?php // Pas de lien vers FamiFormation dans ce bandeau : les autres
+              // plateformes se rejoignent depuis l'accueil de Famicard. ?>
         <a class="pill" href="admin_champs.php">⚙️ Libellés</a>
-        <a class="pill" href="index.php">Ma carte</a>
+        <a class="pill" href="fiche.php">Ma fiche</a>
+        <a class="pill" href="index.php">&larr; Accueil</a>
     </div>
 </div>
 
