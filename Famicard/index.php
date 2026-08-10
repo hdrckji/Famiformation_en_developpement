@@ -81,12 +81,26 @@ if ($photo !== '') {
 
     .encart { background: rgba(255,255,255,.95); border-left: 5px solid #2d5a37; border-radius: 14px; padding: 16px 20px; margin-top: 22px; font-size: .9rem; line-height: 1.55; box-shadow: 0 6px 18px rgba(0,0,0,.08); }
     .encart h3 { margin: 0 0 8px; font-size: .95rem; color: #2d5a37; }
+
+    .acces { background: rgba(255,255,255,.95); border-radius: 14px; padding: 18px 20px; margin-top: 22px; box-shadow: 0 6px 18px rgba(0,0,0,.08); }
+    .acces h3 { margin: 0 0 4px; font-size: .95rem; color: #2d5a37; }
+    .acces .intro { color: #666; font-size: .86rem; line-height: 1.5; margin-bottom: 14px; }
+    .acces-liste { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
+    .acces-liste a { display: block; border: 1px solid #d3e0d7; border-radius: 12px; padding: 14px 16px; text-decoration: none; color: inherit; transition: border-color .15s, box-shadow .15s; }
+    .acces-liste a:hover { border-color: #2d5a37; box-shadow: 0 6px 16px rgba(0,0,0,.08); }
+    .acces-liste .nom { color: #2d5a37; font-weight: 700; font-size: .95rem; }
+    .acces-liste .quoi { color: #666; font-size: .82rem; margin-top: 4px; line-height: 1.45; }
 </style>
 </head>
 <body>
 
+<?php // Pas de « ← retour à FamiFormation » ici, et ce n'est pas un oubli :
+      // une flèche de retour dit « tu es dans une annexe, la maison est
+      // ailleurs ». C'est l'inverse de ce qu'est Famicard. Le site principal
+      // figure plus bas, dans « Mes accès », au même titre que les autres
+      // services — comme une porte que la carte ouvre, pas comme le lieu d'où
+      // l'on vient. ?>
 <div class="top-nav">
-    <a class="pill" href="<?= e(famicardSiteUrl('index.php')) ?>">&larr; FamiFormation</a>
     <?php if ($estAdmin): ?>
         <a class="pill" href="admin.php">Base des collaborateurs</a>
     <?php endif; ?>
@@ -166,10 +180,35 @@ if ($photo !== '') {
         </div>
     </div>
 
+    <?php // 🔑 MES ACCÈS — le sens de lecture du produit.
+          // Famicard n'est pas une page de FamiFormation : c'est la carte du
+          // collaborateur, et les plateformes sont ce à quoi elle donne accès.
+          // D'où cette liste ici plutôt qu'un lien de retour en haut.
+          // FamiJob suit la règle de l'accueil du site (admin et teamcoach) :
+          // on n'ouvre pas une porte de plus au passage, on reflète celles qui
+          // existent déjà. ?>
+    <?php $roleMoi = (string) ($moi['role'] ?? ''); ?>
+    <div class="acces">
+        <h3>🔑 Mes accès</h3>
+        <div class="intro">Les services auxquels ta carte te donne accès.</div>
+        <div class="acces-liste">
+            <a href="<?= e(famicardSiteUrl('index.php')) ?>">
+                <div class="nom">FamiFormation</div>
+                <div class="quoi">Formations, quiz, onboarding.</div>
+            </a>
+            <?php if (in_array($roleMoi, ['admin', 'teamcoach'], true)): ?>
+            <a href="<?= e(famicardSiteUrl('famijob/index.php')) ?>">
+                <div class="nom">FamiJob</div>
+                <div class="quoi">Horaires et matching des étudiants.</div>
+            </a>
+            <?php endif; ?>
+        </div>
+    </div>
+
     <div class="encart">
         <h3>🔒 Tes données</h3>
-        Famicard n'ouvre <b>aucune nouvelle base</b> : ta carte affiche les informations que
-        FamiFormation et FamiJob utilisent déjà pour te donner accès aux services.
+        Famicard n'ouvre <b>aucune nouvelle base</b> : ta carte affiche des informations qui
+        existent déjà et que les services de la maison utilisent.
         Ton badge ne porte que ton <b>prénom</b> et la mention bilingue — rien d'autre.
     </div>
 

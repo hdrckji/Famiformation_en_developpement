@@ -115,8 +115,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     .boite { background: rgba(255,255,255,.96); border-radius: 22px; box-shadow: 0 10px 30px rgba(0,0,0,.18); padding: 38px 34px; max-width: 430px; width: 100%; margin: auto; }
     .logo { display: flex; justify-content: center; margin-bottom: 16px; }
     .logo img { max-width: 110px; height: auto; }
-    h1 { color: #2d5a37; font-size: 1.25rem; font-weight: 800; margin: 0 0 6px; text-align: center; }
-    .sous-titre { text-align: center; color: #666; font-size: .88rem; margin: 0 0 24px; line-height: 1.5; }
+    <?php // Marge basse reprise du sous-titre retiré : sans elle, le titre
+          // collait au premier champ. ?>
+    h1 { color: #2d5a37; font-size: 1.25rem; font-weight: 800; margin: 0 0 24px; text-align: center; }
     label { display: block; color: #222; font-weight: 600; font-size: .85rem; margin-bottom: 6px; }
     input[type="text"], input[type="password"] { width: 100%; padding: 11px 12px; border: 1px solid #ccd6cf; border-radius: 10px; margin-bottom: 16px; font-family: inherit; font-size: 1rem; }
     button { width: 100%; background: #2d5a37; color: #fff; border: 0; border-radius: 30px; padding: 13px; font-family: inherit; font-size: 1rem; font-weight: 700; cursor: pointer; transition: background .2s; }
@@ -124,8 +125,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     .erreur { background: #fdecea; border-left: 4px solid #d93025; color: #a3271c; border-radius: 8px; padding: 10px 14px; margin-bottom: 18px; font-size: .88rem; }
     .liens { margin-top: 20px; display: flex; flex-direction: column; gap: 8px; text-align: center; }
     .liens a { color: #2d5a37; text-decoration: none; font-weight: 700; font-size: .86rem; }
-    .retour { margin-top: 18px; text-align: center; font-size: .82rem; color: #888; }
-    .retour a { color: #2d5a37; font-weight: 700; text-decoration: none; }
 </style>
 </head>
 <body>
@@ -136,7 +135,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <img src="<?= e(famicardSiteUrl('logo.png')) ?>" alt="Famiflora">
         </div>
         <h1>🪪 Ma Famicard</h1>
-        <p class="sous-titre">Ta carte d'identité Famiflora.<br>Mêmes identifiants que FamiFormation.</p>
 
         <?php if ($erreur !== ''): ?>
             <div class="erreur"><?= e($erreur) ?></div>
@@ -158,9 +156,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <a href="<?= e(famicardSiteUrl('account_help.php?mode=login')) ?>">Identifiant oublié ?</a>
         </div>
 
-        <div class="retour">
-            <a href="<?= e(famicardSiteUrl('index.php')) ?>">&larr; Retour à FamiFormation</a>
-        </div>
     </div>
 </div>
 
