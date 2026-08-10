@@ -119,7 +119,7 @@ if (!function_exists('famicardPageDemandee')) {
         $uri = (string) ($_SERVER['REQUEST_URI'] ?? '');
         $page = basename((string) parse_url($uri, PHP_URL_PATH));
 
-        if (!in_array($page, ['index.php', 'fiche.php', 'photo.php', 'admin.php', 'admin_champs.php', 'badge.php', 'export.php'], true)) {
+        if (!in_array($page, ['index.php', 'fiche.php', 'photo.php', 'modifier.php', 'validations.php', 'admin.php', 'admin_champs.php', 'badge.php', 'export.php'], true)) {
             return '';
         }
 

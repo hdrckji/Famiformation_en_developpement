@@ -162,7 +162,8 @@ if ($photo !== '') {
         <?php endforeach; ?>
 
         <div class="actions">
-            <a class="bouton bouton-plein" href="badge.php">🖨️ Imprimer mon badge</a>
+            <a class="bouton bouton-plein" href="modifier.php">✏️ Modifier mes informations</a>
+            <a class="bouton bouton-vide" href="badge.php">🖨️ Imprimer mon badge</a>
             <a class="bouton bouton-vide" href="photo.php">📷 Modifier ma photo</a>
             <?php if ($estAdmin): ?>
                 <a class="bouton bouton-vide" href="export.php">📊 Exporter en Excel</a>

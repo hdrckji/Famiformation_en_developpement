@@ -2,15 +2,21 @@
 // ============================================================
 // FAMICARD — LA BASE DES COLLABORATEURS (vue administrateur).
 //
-// Consultation seule : on liste, on filtre, on compte, on imprime un badge,
-// on exporte. La MODIFICATION reste dans admin_user.php, qui la gère déjà ;
-// deux façons de changer la même ligne finissent toujours par diverger.
+// On liste, on filtre, on compte, on imprime un badge, on exporte — et on
+// ouvre une fiche pour l'éditer (modifier.php), puisque Famicard est le centre
+// de données du collaborateur.
+//
+// ⚠️ Ne pas confondre avec admin_user.php, côté site, qui gère le COMPTE
+// (identifiant, mot de passe, accès). Deux écrans, deux sujets : la FICHE ici,
+// l'ACCÈS là-bas. Le jour où les deux se mettent à écrire les mêmes colonnes,
+// ils divergeront.
 //
 // Les filtres de cet écran sont AUSSI ceux de l'export : export.php les relit
 // dans l'URL, donc le fichier contient exactement ce qui est à l'écran. C'est
 // ce qui évite le classique « le fichier ne dit pas la même chose que la liste ».
 // ============================================================
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/includes/modifications.php';
 
 famicardExigeConnexion($db);
 
@@ -21,6 +27,11 @@ if (!famicardEstAdmin()) {
 
 $champs   = famicardChamps($db);
 $magasins = famicardMagasins($db);
+
+// Combien de corrections attendent une décision. Compté ici pour l'afficher
+// dans le bandeau : sans ce rappel, la page de validation n'est visitée que
+// par quelqu'un qui pense à y aller — c'est-à-dire jamais.
+$aValider = famicardCompteModificationsEnAttente($db);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // FILTRES. Tout ce qui vient de l'URL est contraint à une liste connue ou
@@ -156,6 +167,11 @@ if ($aDesChampsLibres && $lignes) {
     <div>
         <?php // Pas de lien vers FamiFormation dans ce bandeau : les autres
               // plateformes se rejoignent depuis l'accueil de Famicard. ?>
+        <?php if ($aValider > 0): ?>
+            <a class="pill" href="validations.php" style="background:#E9A93C; border-color:#E9A93C;">⏳ <?= (int) $aValider ?> à confirmer</a>
+        <?php else: ?>
+            <a class="pill" href="validations.php">Modifications</a>
+        <?php endif; ?>
         <a class="pill" href="admin_champs.php">⚙️ Libellés</a>
         <a class="pill" href="fiche.php">Ma fiche</a>
         <a class="pill" href="index.php">&larr; Accueil</a>
@@ -203,6 +219,7 @@ if ($aDesChampsLibres && $lignes) {
                 <thead>
                     <tr>
                         <?php foreach ($colonnesTableau as $champ): ?><th><?= e($champ['libelle']) ?></th><?php endforeach; ?>
+                        <th>Fiche</th>
                         <th>Badge</th>
                     </tr>
                 </thead>
@@ -214,6 +231,13 @@ if ($aDesChampsLibres && $lignes) {
                             <?php $valeur = famicardValeurAffichee($cle, $champ, $ligne, $magasins, $libres); ?>
                             <td><?= $valeur === '' ? '<span class="vide">—</span>' : e($valeur) ?></td>
                         <?php endforeach; ?>
+                        <td>
+                            <?php // La fiche s'édite ICI, dans Famicard. admin_user.php existe
+                                  // toujours côté site et gère le COMPTE (identifiant, mot de
+                                  // passe) : deux écrans, deux sujets. ?>
+                            <a class="badge-lien" href="modifier.php?id=<?= (int) $ligne['id'] ?>"
+                               title="Modifier la fiche de <?= e($ligne['prenom'] ?? '') ?>">✏️</a>
+                        </td>
                         <td>
                             <a class="badge-lien" href="badge.php?id=<?= (int) $ligne['id'] ?>"
                                title="Imprimer le badge de <?= e($ligne['prenom'] ?? '') ?>">🖨️</a>

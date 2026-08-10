@@ -18,10 +18,16 @@
 // depuis ici. Une tuile qui mène à un refus est pire que pas de tuile.
 // ============================================================
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/includes/modifications.php';
 
 $moi = famicardExigeConnexion($db);
 $estAdmin = famicardEstAdmin();
 $roleMoi = (string) ($moi['role'] ?? '');
+
+// Corrections en attente de décision (admins). Affichées sur la tuile plutôt
+// que sur une cinquième : l'accueil doit rester à quatre entrées, et une
+// pastille se voit sans rien ajouter.
+$aValider = $estAdmin ? famicardCompteModificationsEnAttente($db) : 0;
 
 // La carte est-elle complète ? On le dit ICI, sur l'accueil, plutôt que
 // d'attendre que le collaborateur ouvre sa fiche : c'est la seule façon qu'un
@@ -122,6 +128,7 @@ if ($photo !== '') {
 
         <?php if ($estAdmin): ?>
         <a class="tuile" href="admin.php">
+            <?php if ($aValider > 0): ?><span class="pastille"><?= (int) $aValider ?> à confirmer</span><?php endif; ?>
             <span class="ico">📇</span>
             <div class="nom">Mes collaborateurs</div>
             <div class="quoi">Les fiches de l'équipe, leur badge et l'export.</div>

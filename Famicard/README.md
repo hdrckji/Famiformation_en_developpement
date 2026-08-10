@@ -64,6 +64,9 @@ Famicard/
   index.php            ⭐ L'ACCUEIL DU PORTAIL : 4 tuiles, rien d'autre
   fiche.php            la carte du collaborateur (c'était index.php)
   photo.php            dépôt de la photo de profil (était profil.php, côté site)
+  modifier.php         ⭐ ÉDITION : sa propre fiche, ou celle d'un autre (admin)
+  validations.php      les corrections que l'admin doit confirmer
+  includes/modifications.php   écriture des champs + registre des changements
   admin.php            la base des collaborateurs (liste, filtres, badge, export)
   badge.php            le badge imprimable 75 × 36 mm
   export.php           l'export Excel, colonnes au choix
@@ -82,6 +85,27 @@ dans deux tables à part (`famicard_champs`, `famicard_valeurs`).
 > créé, c'est modifier la table dont dépendent FamiFormation, FamiJob et le quiz — pour un
 > besoin d'affichage. Une table de valeurs ne casse personne, et un libellé supprimé ne
 > laisse pas une colonne morte derrière lui.
+
+### Qui modifie quoi
+
+Le collaborateur corrige **ses coordonnées** : email, ville, date d'anniversaire, photo.
+Le reste — profil, statut, lieu de travail, agence, secteur — est de la donnée de gestion
+et reste à l'administrateur. L'identifiant ne se modifie pas depuis Famicard : il sert à
+se connecter, le changer couperait l'accès sans prévenir personne.
+
+**La correction s'applique tout de suite**, et l'administrateur la confirme ensuite
+(`validations.php`, qui montre l'ancienne et la nouvelle valeur). « Rétablir » **réécrit**
+l'ancienne valeur — marquer une modification refusée en laissant la valeur refusée en
+place donnerait une fiche fausse et un registre qui prétend le contraire.
+
+> Un circuit en quatre temps avait été envisagé (demande avec motif → autorisation →
+> modification → validation). Écarté : deux allers-retours administratifs pour corriger
+> une adresse, c'est une fiche que personne ne corrige. Le contrôle existe toujours, il
+> vient après au lieu d'avant.
+
+Comme pour la lecture, c'est **le champ qui porte la règle** (`modifiable`), et
+`famicardPeutModifier()` qui tranche — testée à l'affichage **et** à l'enregistrement,
+parce qu'un formulaire n'est pas une autorisation.
 
 ### La règle voyage avec le champ
 
@@ -113,8 +137,9 @@ tard, ne peut pas exposer ce qu'il ne doit pas.
       libre, donc `famicardValeurAffichee()` ne sait pas encore le résoudre.
 - [ ] **Les départements** — l'échelon sous le secteur. Liste pas encore fournie.
       ⚠️ Ne pas confondre avec la table `departments` de FamiJob (matching étudiants).
-- [ ] **Saisie des champs libres** — ils s'affichent, mais rien ne permet encore de les
-      remplir. Prochaine étape logique.
+- [ ] **Historique consultable** — les modifications sont toutes enregistrées
+      (`famicard_modifications`), mais seules celles en attente sont affichées. « Qui a
+      changé ce champ, et quand » demande encore une requête SQL à la main.
 - [ ] **Famicard comme autorité d'accès** : ouvrir/fermer FamiFormation et FamiJob depuis ici
 - [ ] **Volet RGPD** — voir plus bas
 - [ ] **Bitmoji 3D** — le personnage réutilisé dans les jeux three.js de FamiFormation

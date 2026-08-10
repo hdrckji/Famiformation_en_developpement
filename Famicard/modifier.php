@@ -1,0 +1,374 @@
+<?php
+// ============================================================
+// FAMICARD — MODIFIER UNE FICHE.
+//
+// UN SEUL ÉCRAN pour les deux usages : le collaborateur qui corrige ses
+// coordonnées, et l'administrateur qui édite la fiche de quelqu'un
+// (« modifier.php?id=N »). Deux formulaires auraient fini par diverger, et
+// c'est toujours celui qu'on regarde le moins qui laisse passer une écriture
+// qu'il n'aurait pas dû permettre.
+//
+// C'est famicardPeutModifier() qui décide, champ par champ — pas cette page.
+// Le test est fait DEUX FOIS : à l'affichage, pour ne montrer que ce qui est
+// éditable, et à l'enregistrement, pour refuser un champ ajouté à la main dans
+// la requête. Un formulaire n'est pas une autorisation.
+//
+// Ce que le collaborateur change s'applique TOUT DE SUITE et part en
+// validation (voir includes/modifications.php). Ce que l'admin change est
+// tracé mais déjà validé : il n'a personne à qui demander.
+// ============================================================
+require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/includes/modifications.php';
+
+$moi = famicardExigeConnexion($db);
+$estAdmin = famicardEstAdmin();
+
+// Cible : une autre fiche (admin) ou la sienne.
+$cibleId = isset($_GET['id']) ? (int) $_GET['id'] : (int) $moi['id'];
+if (!$estAdmin && $cibleId !== (int) $moi['id']) {
+    // Un non-admin qui bricole l'URL est renvoyé sur sa propre fiche, sans
+    // message d'erreur : inutile de lui confirmer que la fiche visée existe.
+    header('Location: modifier.php');
+    exit();
+}
+
+$estSaPropreFiche = ($cibleId === (int) $moi['id']);
+
+$st = $db->prepare("SELECT * FROM utilisateurs WHERE id = ? LIMIT 1");
+$st->execute([$cibleId]);
+$cible = $st->fetch(PDO::FETCH_ASSOC);
+if (!$cible) {
+    header('Location: ' . ($estAdmin ? 'admin.php' : 'fiche.php'));
+    exit();
+}
+
+famicardAssureModifications($db);
+
+$champs   = famicardChamps($db);
+$magasins = famicardMagasins($db);
+$libres   = famicardValeursLibres($db, $cibleId);
+$groupes  = famicardGroupes();
+
+// Les profils proposés. Volontairement sans « agence_interim » : ces comptes
+// ne sont pas des collaborateurs et basculer quelqu'un dedans l'enfermerait
+// hors de Famicard (voir login.php). Le profil actuel est ajouté s'il manque,
+// sinon l'éditer ferait glisser en silence vers le premier de la liste.
+$rolesProposes = ['beta', 'betalapanne', 'etudiant', 'employe_magasin', 'employe_logistique', 'teamcoach', 'mentor', 'evaluateur', 'admin'];
+$roleActuel = (string) ($cible['role'] ?? '');
+if ($roleActuel !== '' && !in_array($roleActuel, $rolesProposes, true)) {
+    $rolesProposes[] = $roleActuel;
+}
+
+$erreurs = [];
+$message = '';
+if (!empty($_SESSION['famicard_modif_flash'])) {
+    $message = (string) $_SESSION['famicard_modif_flash'];
+    unset($_SESSION['famicard_modif_flash']);
+}
+
+/** Valeur brute actuelle d'un champ (celle qui est en base, pas celle affichée). */
+function famicardValeurBrute($cle, array $champ, array $ligne, array $libres)
+{
+    if (!empty($champ['champ_id'])) {
+        return (string) ($libres[(int) $champ['champ_id']] ?? '');
+    }
+    $colonne = (string) ($champ['colonne'] ?? '');
+    if ($colonne === '' || !array_key_exists($colonne, $ligne)) {
+        return '';
+    }
+    return (string) ($ligne[$colonne] ?? '');
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    requireValidCSRF();
+
+    $aEcrire = [];
+
+    foreach ($champs as $cle => $champ) {
+        // Le droit d'écrire est revérifié ici : c'est le seul contrôle qui
+        // compte, l'absence du champ dans le formulaire n'en est pas un.
+        if (!famicardPeutModifier($champ, $estAdmin, $estSaPropreFiche)) {
+            continue;
+        }
+        // La photo a son propre écran (photo.php) : elle n'est pas dans ce
+        // formulaire, et un POST qui prétendrait la changer est ignoré.
+        if (($champ['saisie'] ?? 'texte') === 'photo') {
+            continue;
+        }
+
+        $nomChamp = 'champ_' . $cle;
+        if (!array_key_exists($nomChamp, $_POST)) {
+            continue;
+        }
+
+        $nouvelle = trim((string) $_POST[$nomChamp]);
+        $ancienne = famicardValeurBrute($cle, $champ, $cible, $libres);
+
+        // Rien n'a bougé : ni écriture, ni ligne de validation. Sinon
+        // l'administrateur croulerait sous des « modifications » où l'ancienne
+        // et la nouvelle valeur sont identiques.
+        if ($nouvelle === $ancienne) {
+            continue;
+        }
+
+        // ── Contrôles de saisie, par type ────────────────────────────────
+        if ($cle === 'email') {
+            if ($nouvelle !== '' && !filter_var($nouvelle, FILTER_VALIDATE_EMAIL)) {
+                $erreurs[] = "L'adresse email n'est pas valide.";
+                continue;
+            }
+            if ($nouvelle !== '') {
+                // Le site refuse deux comptes avec la même adresse : sans ce
+                // test, on créerait ici le doublon qu'il interdit ailleurs.
+                $q = $db->prepare("SELECT COUNT(*) FROM utilisateurs WHERE email = ? AND id != ?");
+                $q->execute([$nouvelle, $cibleId]);
+                if ((int) $q->fetchColumn() > 0) {
+                    $erreurs[] = "Cette adresse email est déjà utilisée par un autre compte.";
+                    continue;
+                }
+            }
+        } elseif (($champ['saisie'] ?? '') === 'date') {
+            if ($nouvelle !== '') {
+                $d = date_create($nouvelle);
+                if (!$d) {
+                    $erreurs[] = 'La date saisie est incompréhensible.';
+                    continue;
+                }
+                $nouvelle = $d->format('Y-m-d');
+            }
+        } elseif ($cle === 'site_id') {
+            if ($nouvelle !== '' && !isset($magasins[(int) $nouvelle])) {
+                $erreurs[] = "Ce lieu de travail n'existe pas.";
+                continue;
+            }
+        } elseif ($cle === 'role') {
+            if (!in_array($nouvelle, $rolesProposes, true)) {
+                $erreurs[] = "Ce profil n'existe pas.";
+                continue;
+            }
+        } elseif ($cle === 'statut') {
+            if (!in_array($nouvelle, ['', 'inactif'], true)) {
+                $erreurs[] = 'Statut inconnu.';
+                continue;
+            }
+        }
+
+        $aEcrire[$cle] = ['champ' => $champ, 'avant' => $ancienne, 'apres' => $nouvelle];
+    }
+
+    if (!$erreurs && $aEcrire) {
+        // L'admin ne se valide pas lui-même : ce qu'il écrit est tracé, mais
+        // déjà tranché.
+        $aValider = !$estAdmin;
+
+        foreach ($aEcrire as $cle => $op) {
+            famicardEcritValeur($db, $cibleId, $op['champ'], $op['apres']);
+            famicardTraceModification($db, $cibleId, $cle, $op['champ'], $op['avant'], $op['apres'], (int) $moi['id'], $aValider);
+        }
+
+        $combien = count($aEcrire);
+        $_SESSION['famicard_modif_flash'] = $aValider
+            ? '✅ ' . $combien . ' modification' . ($combien > 1 ? 's' : '') . ' enregistrée' . ($combien > 1 ? 's' : '') . '. Un administrateur la confirmera.'
+            : '✅ ' . $combien . ' modification' . ($combien > 1 ? 's' : '') . ' enregistrée' . ($combien > 1 ? 's' : '') . '.';
+
+        header('Location: modifier.php' . ($estSaPropreFiche ? '' : '?id=' . $cibleId));
+        exit();
+    }
+
+    if (!$erreurs && !$aEcrire) {
+        $_SESSION['famicard_modif_flash'] = 'Rien n\'a changé.';
+        header('Location: modifier.php' . ($estSaPropreFiche ? '' : '?id=' . $cibleId));
+        exit();
+    }
+
+    // En cas d'erreur, on réaffiche ce que la personne a saisi plutôt que de
+    // lui rendre l'ancienne valeur : elle perdrait sa correction.
+    foreach ($aEcrire as $cle => $op) {
+        $cible[$champs[$cle]['colonne'] ?? ''] = $op['apres'];
+    }
+}
+
+$nomCible = trim(((string) ($cible['prenom'] ?? '')) . ' ' . ((string) ($cible['nom'] ?? '')));
+if ($nomCible === '') {
+    $nomCible = (string) ($cible['identifiant'] ?? '');
+}
+?>
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title><?= $estSaPropreFiche ? 'Modifier mes informations' : 'Modifier une fiche' ?> - Famicard</title>
+<link rel="shortcut icon" type="image/x-icon" href="<?= e(famicardSiteUrl('favicon.ico')) ?>">
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body { font-family: 'Open Sans', sans-serif; background: url('<?= e(famicardSiteUrl('background.jpg')) ?>') no-repeat center center fixed; background-size: cover; margin: 0; padding: 0 0 40px; color: #333; }
+    .top-nav { display: flex; gap: 12px; flex-wrap: wrap; padding: 12px 16px; }
+    .pill { background: rgba(255,255,255,.92); padding: 10px 20px; border-radius: 30px; box-shadow: 0 4px 10px rgba(0,0,0,.1); text-decoration: none; color: #2d5a37; font-weight: 700; font-size: .9rem; }
+    .wrap { max-width: 700px; margin: 0 auto; padding: 0 16px; }
+
+    .boite { background: rgba(255,255,255,.96); border-radius: 22px; box-shadow: 0 10px 30px rgba(0,0,0,.15); overflow: hidden; }
+    .boite-tete { background: linear-gradient(135deg, #2d5a37, #4a8b5c); color: #fff; padding: 22px 26px; }
+    .boite-tete h1 { margin: 0 0 4px; font-size: 1.3rem; font-weight: 800; }
+    .boite-tete .sous { font-size: .86rem; opacity: .92; }
+
+    .groupe { padding: 20px 26px; border-top: 1px solid #eee; }
+    .groupe h2 { margin: 0 0 14px; font-size: .8rem; text-transform: uppercase; letter-spacing: .08em; color: #2d5a37; }
+    .ligne { margin-bottom: 15px; }
+    .ligne label { display: block; font-weight: 600; font-size: .86rem; color: #444; margin-bottom: 5px; }
+    .ligne .obl { color: #c0392b; }
+    input[type="text"], input[type="email"], input[type="date"], select { width: 100%; padding: 10px 12px; border: 1px solid #ccd6cf; border-radius: 10px; font-family: inherit; font-size: .95rem; background: #fff; }
+    .aide { color: #888; font-size: .78rem; margin-top: 4px; line-height: 1.45; }
+
+    .fige { background: #f5f7f6; border-radius: 10px; padding: 10px 12px; color: #777; font-size: .92rem; }
+
+    .actions { display: flex; gap: 12px; flex-wrap: wrap; padding: 22px 26px; background: #f7faf8; border-top: 1px solid #eee; }
+    .bouton { border: 0; border-radius: 30px; padding: 12px 26px; font-family: inherit; font-weight: 700; font-size: .92rem; cursor: pointer; text-decoration: none; display: inline-block; }
+    .bouton-plein { background: #2d5a37; color: #fff; }
+    .bouton-vide { background: #fff; color: #2d5a37; border: 1px solid #d3e0d7; }
+
+    .flash { border-radius: 12px; padding: 12px 16px; margin: 16px 0; font-size: .9rem; font-weight: 600; background: #e8f5e9; color: #1e5128; }
+    .erreurs { border-radius: 12px; padding: 12px 16px; margin: 16px 0; font-size: .9rem; background: #fdecea; color: #a3271c; }
+    .erreurs ul { margin: 6px 0 0; padding-left: 20px; }
+    .note { background: rgba(255,255,255,.95); border-left: 5px solid #E9A93C; border-radius: 14px; padding: 14px 18px; margin-top: 20px; font-size: .87rem; line-height: 1.55; color: #7a4a11; }
+</style>
+</head>
+<body>
+
+<div class="top-nav">
+    <?php if ($estSaPropreFiche): ?>
+        <a class="pill" href="fiche.php">&larr; Ma fiche</a>
+        <a class="pill" href="index.php">Accueil</a>
+    <?php else: ?>
+        <a class="pill" href="admin.php">&larr; Base des collaborateurs</a>
+    <?php endif; ?>
+</div>
+
+<div class="wrap">
+
+    <?php if ($message !== ''): ?>
+        <div class="flash"><?= e($message) ?></div>
+    <?php endif; ?>
+
+    <?php if ($erreurs): ?>
+        <div class="erreurs">
+            <b>Rien n'a été enregistré :</b>
+            <ul><?php foreach (array_unique($erreurs) as $err): ?><li><?= e($err) ?></li><?php endforeach; ?></ul>
+        </div>
+    <?php endif; ?>
+
+    <form method="POST">
+        <?= csrfField() ?>
+        <div class="boite">
+            <div class="boite-tete">
+                <h1><?= $estSaPropreFiche ? 'Mes informations' : e($nomCible) ?></h1>
+                <div class="sous">
+                    <?php if ($estSaPropreFiche && !$estAdmin): ?>
+                        Tes corrections s'appliquent tout de suite ; un administrateur les confirme ensuite.
+                    <?php else: ?>
+                        Les modifications s'appliquent immédiatement.
+                    <?php endif; ?>
+                </div>
+            </div>
+
+            <?php foreach ($groupes as $cleGroupe => $groupe): ?>
+                <?php
+                // Un groupe n'est dessiné que s'il contient au moins une ligne
+                // à montrer — titre suivi de rien = écran qui a l'air cassé.
+                $lignes = [];
+                foreach ($champs as $cle => $champ) {
+                    if (($champ['groupe'] ?? '') !== $cleGroupe) {
+                        continue;
+                    }
+                    if (!famicardPeutVoir($champ, $estAdmin, $estSaPropreFiche)) {
+                        continue;
+                    }
+                    $lignes[$cle] = $champ;
+                }
+                if (!$lignes) {
+                    continue;
+                }
+                ?>
+                <div class="groupe">
+                    <h2><?= e($groupe['libelle']) ?></h2>
+
+                    <?php foreach ($lignes as $cle => $champ): ?>
+                        <?php
+                        $editable = famicardPeutModifier($champ, $estAdmin, $estSaPropreFiche);
+                        $saisie   = (string) ($champ['saisie'] ?? 'texte');
+                        $brute    = famicardValeurBrute($cle, $champ, $cible, $libres);
+                        $affichee = famicardValeurAffichee($cle, $champ, $cible, $magasins, $libres);
+                        ?>
+                        <div class="ligne">
+                            <label for="champ_<?= e($cle) ?>">
+                                <?= e($champ['libelle']) ?><?php if (!empty($champ['requis'])): ?> <span class="obl">*</span><?php endif; ?>
+                            </label>
+
+                            <?php if ($saisie === 'photo'): ?>
+                                <div class="fige">
+                                    <?= $affichee !== '' ? 'Photo déposée' : 'Aucune photo' ?>
+                                    <?php if ($editable): ?> — <a href="photo.php">la changer</a><?php endif; ?>
+                                </div>
+
+                            <?php elseif (!$editable): ?>
+                                <?php // Montré mais figé : le collaborateur voit la valeur et
+                                      // comprend qu'elle existe, sans croire qu'il l'a oubliée. ?>
+                                <div class="fige"><?= $affichee !== '' ? e($affichee) : '—' ?></div>
+                                <div class="aide">Modifiable par un administrateur.</div>
+
+                            <?php elseif ($cle === 'site_id'): ?>
+                                <select id="champ_<?= e($cle) ?>" name="champ_<?= e($cle) ?>">
+                                    <option value="">— Aucun —</option>
+                                    <?php foreach ($magasins as $mid => $mnom): ?>
+                                        <option value="<?= (int) $mid ?>" <?= ((string) $brute === (string) $mid) ? 'selected' : '' ?>><?= e($mnom) ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+
+                            <?php elseif ($cle === 'role'): ?>
+                                <select id="champ_<?= e($cle) ?>" name="champ_<?= e($cle) ?>">
+                                    <?php foreach ($rolesProposes as $r): ?>
+                                        <option value="<?= e($r) ?>" <?= ($brute === $r) ? 'selected' : '' ?>><?= e(famicardLibelleRole($r)) ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+
+                            <?php elseif ($cle === 'statut'): ?>
+                                <select id="champ_<?= e($cle) ?>" name="champ_<?= e($cle) ?>">
+                                    <option value="" <?= ($brute !== 'inactif') ? 'selected' : '' ?>>Actif</option>
+                                    <option value="inactif" <?= ($brute === 'inactif') ? 'selected' : '' ?>>Inactif</option>
+                                </select>
+
+                            <?php elseif ($saisie === 'date'): ?>
+                                <?php // 0000-00-00 traîne dans les vieilles lignes : ce n'est pas
+                                      // une date, et le champ HTML la refuserait de toute façon. ?>
+                                <input type="date" id="champ_<?= e($cle) ?>" name="champ_<?= e($cle) ?>"
+                                       value="<?= ($brute !== '' && $brute !== '0000-00-00') ? e(substr($brute, 0, 10)) : '' ?>">
+
+                            <?php elseif ($saisie === 'email'): ?>
+                                <input type="email" id="champ_<?= e($cle) ?>" name="champ_<?= e($cle) ?>" value="<?= e($brute) ?>">
+
+                            <?php else: ?>
+                                <input type="text" id="champ_<?= e($cle) ?>" name="champ_<?= e($cle) ?>" value="<?= e($brute) ?>" maxlength="255">
+                            <?php endif; ?>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            <?php endforeach; ?>
+
+            <div class="actions">
+                <button type="submit" class="bouton bouton-plein">Enregistrer</button>
+                <a class="bouton bouton-vide" href="<?= $estSaPropreFiche ? 'fiche.php' : 'admin.php' ?>">Annuler</a>
+            </div>
+        </div>
+    </form>
+
+    <?php if ($estSaPropreFiche && !$estAdmin): ?>
+        <div class="note">
+            Ce que tu corriges est visible immédiatement. Un administrateur voit ensuite
+            l'ancienne et la nouvelle valeur, et confirme — ou rétablit si c'était une erreur.
+        </div>
+    <?php endif; ?>
+
+</div>
+</body>
+</html>

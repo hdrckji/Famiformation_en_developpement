@@ -39,82 +39,114 @@ if (!function_exists('famicardChampsSocle')) {
      *   nature   : 'service'   → nécessaire au fonctionnement (base légale : contrat)
      *              'personnel' → donnée personnelle, réservée à qui de droit
      *   visible  : 'tous' | 'soi' (le collaborateur + les admins) | 'admin'
+     *   modifiable : QUI a le droit d'écrire ce champ.
+     *              'soi'    → le collaborateur sur sa propre fiche (et l'admin)
+     *              'admin'  → l'administrateur seulement
+     *              'jamais' → personne depuis Famicard
+     *   saisie   : comment on l'édite ('texte', 'email', 'date', 'liste', 'photo').
      *   badge    : le champ a-t-il le droit de figurer sur le badge imprimé.
+     *
+     * ⚠️ « visible » et « modifiable » sont DEUX questions distinctes, et il
+     * faut les deux : un champ peut se voir sans se modifier (le profil), et
+     * l'inverse n'a pas de sens — on ne modifie pas ce qu'on ne voit pas, ce
+     * que famicardPeutModifier() vérifie explicitement.
      */
     function famicardChampsSocle()
     {
         return [
             // ── IDENTITÉ ───────────────────────────────────────────────────
+            // Nom et prénom restent à l'admin : ils sont sur le badge, dans
+            // toutes les listes et dans les exports. Une faute de frappe se
+            // corrige en le demandant, ce n'est pas un champ du quotidien.
             'prenom' => [
                 'libelle' => 'Prénom', 'libelle_nl' => 'Voornaam',
                 'colonne' => 'prenom', 'groupe' => 'identite',
-                'requis' => true, 'nature' => 'service', 'visible' => 'tous', 'badge' => true,
+                'requis' => true, 'nature' => 'service', 'visible' => 'tous',
+                'modifiable' => 'admin', 'saisie' => 'texte', 'badge' => true,
             ],
             'nom' => [
                 'libelle' => 'Nom', 'libelle_nl' => 'Naam',
                 'colonne' => 'nom', 'groupe' => 'identite',
-                'requis' => true, 'nature' => 'service', 'visible' => 'tous', 'badge' => false,
+                'requis' => true, 'nature' => 'service', 'visible' => 'tous',
+                'modifiable' => 'admin', 'saisie' => 'texte', 'badge' => false,
             ],
-            // OBLIGATOIRE (décision Jimmy). C'est le seul champ requis que le
-            // collaborateur dépose lui-même : la carte le signale tant qu'il
-            // manque, via profil.php qui gère déjà l'envoi.
+            // OBLIGATOIRE (décision Jimmy). Le seul champ requis que le
+            // collaborateur dépose lui-même. Il ne s'édite pas dans le
+            // formulaire mais sur photo.php, d'où 'saisie' => 'photo'.
             'photo_profil' => [
                 'libelle' => 'Photo', 'libelle_nl' => 'Foto',
                 'colonne' => 'photo_profil', 'groupe' => 'identite',
-                'requis' => true, 'nature' => 'personnel', 'visible' => 'tous', 'badge' => false,
+                'requis' => true, 'nature' => 'personnel', 'visible' => 'tous',
+                'modifiable' => 'soi', 'saisie' => 'photo', 'badge' => false,
             ],
             // Libellé repris de admin_user.php (« Date d'anniversaire ») : le
             // site s'en sert pour le thème d'anniversaire, pas pour l'état civil.
             'date_naissance' => [
                 'libelle' => "Date d'anniversaire", 'libelle_nl' => 'Verjaardag',
                 'colonne' => 'date_naissance', 'groupe' => 'identite',
-                'requis' => false, 'nature' => 'personnel', 'visible' => 'soi', 'badge' => false,
+                'requis' => false, 'nature' => 'personnel', 'visible' => 'soi',
+                'modifiable' => 'soi', 'saisie' => 'date', 'badge' => false,
             ],
 
             // ── CONTACT ────────────────────────────────────────────────────
             'email' => [
                 'libelle' => 'Email', 'libelle_nl' => 'E-mail',
                 'colonne' => 'email', 'groupe' => 'contact',
-                'requis' => true, 'nature' => 'service', 'visible' => 'soi', 'badge' => false,
+                'requis' => true, 'nature' => 'service', 'visible' => 'soi',
+                'modifiable' => 'soi', 'saisie' => 'email', 'badge' => false,
             ],
             'ville' => [
                 'libelle' => 'Ville de résidence', 'libelle_nl' => 'Woonplaats',
                 'colonne' => 'ville', 'groupe' => 'contact',
-                'requis' => false, 'nature' => 'personnel', 'visible' => 'soi', 'badge' => false,
+                'requis' => false, 'nature' => 'personnel', 'visible' => 'soi',
+                'modifiable' => 'soi', 'saisie' => 'texte', 'badge' => false,
             ],
 
             // ── RATTACHEMENT ───────────────────────────────────────────────
+            // Données de GESTION : où la personne travaille et pour quelle
+            // agence. Ce n'est pas au collaborateur de se réaffecter.
             'site_id' => [
                 'libelle' => 'Lieu de travail', 'libelle_nl' => 'Werkplaats',
                 'colonne' => 'site_id', 'groupe' => 'rattachement',
-                'requis' => false, 'nature' => 'service', 'visible' => 'tous', 'badge' => false,
+                'requis' => false, 'nature' => 'service', 'visible' => 'tous',
+                'modifiable' => 'admin', 'saisie' => 'liste', 'badge' => false,
             ],
             'interim' => [
                 'libelle' => 'Agence intérim', 'libelle_nl' => 'Interimkantoor',
                 'colonne' => 'interim', 'groupe' => 'rattachement',
-                'requis' => false, 'nature' => 'service', 'visible' => 'admin', 'badge' => false,
+                'requis' => false, 'nature' => 'service', 'visible' => 'admin',
+                'modifiable' => 'admin', 'saisie' => 'texte', 'badge' => false,
             ],
 
             // ── COMPTE / ACCÈS AUX SERVICES ────────────────────────────────
+            // L'identifiant sert à se connecter : le changer ici couperait
+            // l'accès sans prévenir personne. Il se règle côté site, avec le
+            // mot de passe, dans le même écran.
             'identifiant' => [
                 'libelle' => 'Identifiant', 'libelle_nl' => 'Gebruikersnaam',
                 'colonne' => 'identifiant', 'groupe' => 'compte',
-                'requis' => true, 'nature' => 'service', 'visible' => 'soi', 'badge' => false,
+                'requis' => true, 'nature' => 'service', 'visible' => 'soi',
+                'modifiable' => 'jamais', 'saisie' => 'texte', 'badge' => false,
             ],
             'role' => [
                 'libelle' => 'Profil', 'libelle_nl' => 'Profiel',
                 'colonne' => 'role', 'groupe' => 'compte',
-                'requis' => true, 'nature' => 'service', 'visible' => 'tous', 'badge' => false,
+                'requis' => true, 'nature' => 'service', 'visible' => 'tous',
+                'modifiable' => 'admin', 'saisie' => 'liste', 'badge' => false,
             ],
             'statut' => [
                 'libelle' => 'Statut', 'libelle_nl' => 'Status',
                 'colonne' => 'statut', 'groupe' => 'compte',
-                'requis' => false, 'nature' => 'service', 'visible' => 'admin', 'badge' => false,
+                'requis' => false, 'nature' => 'service', 'visible' => 'admin',
+                'modifiable' => 'admin', 'saisie' => 'liste', 'badge' => false,
             ],
+            // Calculée par le site à chaque connexion : l'écrire à la main
+            // n'aurait aucun sens, la prochaine visite l'écraserait.
             'derniere_visite' => [
                 'libelle' => 'Dernière visite', 'libelle_nl' => 'Laatste bezoek',
                 'colonne' => 'derniere_visite', 'groupe' => 'compte',
-                'requis' => false, 'nature' => 'service', 'visible' => 'admin', 'badge' => false,
+                'requis' => false, 'nature' => 'service', 'visible' => 'admin',
+                'modifiable' => 'jamais', 'saisie' => 'texte', 'badge' => false,
             ],
         ];
     }
@@ -204,6 +236,7 @@ if (!function_exists('famicardChampsLibres')) {
         }
 
         foreach ($lignes as $l) {
+            $visible = (string) $l['visible'];
             $cache['libre_' . (int) $l['id']] = [
                 'libelle'    => (string) $l['libelle'],
                 'libelle_nl' => (string) ($l['libelle_nl'] ?? ''),
@@ -212,7 +245,12 @@ if (!function_exists('famicardChampsLibres')) {
                 'groupe'     => (string) ($l['groupe'] ?: 'libre'),
                 'requis'     => (bool) $l['requis'],
                 'nature'     => (string) $l['nature'],
-                'visible'    => (string) $l['visible'],
+                'visible'    => $visible,
+                // Un champ libre se remplit par la personne concernée — c'est
+                // sa raison d'être. Sauf s'il est réservé aux admins à la
+                // lecture : on ne modifie pas ce qu'on ne peut pas voir.
+                'modifiable' => ($visible === 'admin') ? 'admin' : 'soi',
+                'saisie'     => 'texte',
                 // Le badge ne porte que le prénom et une mention : aucun champ
                 // libre n'y a sa place. Voir badge.php.
                 'badge'      => false,
@@ -273,6 +311,36 @@ if (!function_exists('famicardPeutVoir')) {
             case 'admin':
             default:
                 return (bool) $estAdmin;
+        }
+    }
+}
+
+if (!function_exists('famicardPeutModifier')) {
+    /**
+     * Le regardeur a-t-il le droit d'ÉCRIRE ce champ sur cette fiche ?
+     *
+     * Un seul point de décision, comme famicardPeutVoir() pour la lecture.
+     * L'écran d'édition ne décide de rien : il demande, pour l'affichage ET
+     * au moment d'enregistrer. Un champ absent du formulaire mais posté à la
+     * main est refusé par le même test.
+     */
+    function famicardPeutModifier(array $champ, $estAdmin, $estSaPropreFiche)
+    {
+        // On ne modifie jamais ce qu'on n'a pas le droit de voir : sans ça, un
+        // champ réservé aux admins deviendrait modifiable à l'aveugle par son
+        // titulaire, qui découvrirait son contenu en l'écrasant.
+        if (!famicardPeutVoir($champ, $estAdmin, $estSaPropreFiche)) {
+            return false;
+        }
+
+        switch ($champ['modifiable'] ?? 'admin') {
+            case 'soi':
+                return $estAdmin || $estSaPropreFiche;
+            case 'admin':
+                return (bool) $estAdmin;
+            case 'jamais':
+            default:
+                return false;
         }
     }
 }
