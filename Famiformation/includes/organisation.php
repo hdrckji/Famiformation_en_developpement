@@ -91,7 +91,10 @@ if (!function_exists('famiOrganisationParDefaut')) {
                 'Lollyland',
                 'Kassaplein',
                 'Caisse',
-                'Accueil (+ info prix)',
+                // Accueil et Info prix sont DEUX départements distincts, pas un
+                // seul avec une parenthèse : ce ne sont pas les mêmes équipes.
+                'Accueil',
+                'Info prix',
                 "Feux d'artifice",
             ]],
             ['Bureau', 'Kantoor', [
@@ -235,6 +238,34 @@ if (!function_exists('famiAssureSecteurs')) {
             }
         } catch (Exception $e) {
             // Sans importance : le garnissage ci-dessous ajoutera le nouveau nom.
+        }
+
+        // Départements dont le libellé a changé APRÈS une première mise en
+        // base. Renommer, et non laisser le garnissage créer le nouveau nom à
+        // côté de l'ancien : les collaborateurs déjà rattachés resteraient sur
+        // une entrée périmée, et la liste montrerait les deux.
+        //
+        // « Accueil (+ info prix) » a été scindé : Accueil garde la ligne (donc
+        // les affectations existantes), Info prix est créé par le garnissage
+        // juste après.
+        $renommagesDep = [
+            'Accueil (+ info prix)' => 'Accueil',
+        ];
+        try {
+            $cherche = $db->prepare("SELECT id, secteur_id FROM famicard_departements WHERE nom = ?");
+            $existe  = $db->prepare("SELECT COUNT(*) FROM famicard_departements WHERE secteur_id = ? AND nom = ?");
+            $renomme = $db->prepare("UPDATE famicard_departements SET nom = ? WHERE id = ?");
+            foreach ($renommagesDep as $avant => $apres) {
+                $cherche->execute([$avant]);
+                foreach ($cherche->fetchAll(PDO::FETCH_ASSOC) as $d) {
+                    $existe->execute([(int) $d['secteur_id'], $apres]);
+                    if ((int) $existe->fetchColumn() === 0) {
+                        $renomme->execute([$apres, (int) $d['id']]);
+                    }
+                }
+            }
+        } catch (Exception $e) {
+            // Table absente : le garnissage ci-dessous posera les bons libellés.
         }
 
         // ── GARNISSAGE ───────────────────────────────────────────────────

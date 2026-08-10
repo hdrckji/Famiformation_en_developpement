@@ -160,7 +160,7 @@ tard, ne peut pas exposer ce qu'il ne doit pas.
       `admin_collaborateurs.php` (voir `Famiformation/includes/organisation.php`), mais la
       carte ne l'affiche pas encore : il n'est ni une colonne de `utilisateurs` ni un champ
       libre, donc `famicardValeurAffichee()` ne sait pas encore le résoudre.
-- [ ] **Le rattachement sur la carte** — les 9 secteurs et leurs 53 départements sont en
+- [ ] **Le rattachement sur la carte** — les 9 secteurs et leurs 54 départements sont en
       base (`famicard_secteurs`, `famicard_departements`) et se règlent depuis la page RH
       de FamiFormation. La carte ne les affiche pas encore, et ils devraient à terme se
       régler ici, dans Famicard.
