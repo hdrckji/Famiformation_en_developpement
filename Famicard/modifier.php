@@ -589,7 +589,10 @@ if ($photo !== '') {
                                   // pseudo-colonne, qui n'existe pas dans `utilisateurs`. ?>
                             <?php if ($saisie === 'rattachement' && !($cle === 'secteur' && $rattachementEditable)): ?>
                                 <div class="fige"><?= $affichee !== '' ? e($affichee) : '—' ?></div>
-                                <div class="aide"><?= $estAdmin ? 'Se règle depuis la page RH de FamiFormation.' : "Défini par l'entreprise." ?></div>
+                                <?php // Pour un admin, ce cas ne se produit que si l'organisation
+                                      // n'a pas encore été créée en base : le message doit dire
+                                      // quoi faire, pas renvoyer ailleurs. ?>
+                                <div class="aide"><?= $estAdmin ? "Aucun secteur n'est encore enregistré." : "Défini par l'entreprise." ?></div>
 
                             <?php elseif ($saisie === 'rattachement' && $cle === 'secteur' && $rattachementEditable): ?>
                                 <?php

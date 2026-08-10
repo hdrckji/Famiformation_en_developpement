@@ -6,10 +6,14 @@
 // ouvre une fiche pour l'éditer (modifier.php), puisque Famicard est le centre
 // de données du collaborateur.
 //
-// ⚠️ Ne pas confondre avec admin_user.php, côté site, qui gère le COMPTE
-// (identifiant, mot de passe, accès). Deux écrans, deux sujets : la FICHE ici,
-// l'ACCÈS là-bas. Le jour où les deux se mettent à écrire les mêmes colonnes,
-// ils divergeront.
+// ⚠️ ÉTAT TRANSITOIRE. La gestion des comptes (création, identifiant, mot de
+// passe, activation) est encore côté site, dans admin_collaborateurs.php et
+// admin_user.php. Elle a vocation à REJOINDRE FAMICARD : « la RH de
+// FamiFormation devient Famicard » (décision de Jimmy).
+//
+// En attendant, la répartition est : la FICHE ici, l'ACCÈS là-bas. Tant que ça
+// dure, ne pas faire écrire les mêmes colonnes aux deux endroits — le jour où
+// les deux écrivent l'email, ils divergeront.
 //
 // Les filtres de cet écran sont AUSSI ceux de l'export : export.php les relit
 // dans l'URL, donc le fichier contient exactement ce qui est à l'écran. C'est

@@ -143,8 +143,9 @@ if (!function_exists('famicardChampsSocle')) {
 
             // ── COMPTE / ACCÈS AUX SERVICES ────────────────────────────────
             // L'identifiant sert à se connecter : le changer ici couperait
-            // l'accès sans prévenir personne. Il se règle côté site, avec le
-            // mot de passe, dans le même écran.
+            // l'accès sans prévenir personne. Tant que la gestion des comptes
+            // n'a pas rejoint Famicard, il se règle avec le mot de passe, dans
+            // l'écran qui gère les deux.
             'identifiant' => [
                 'libelle' => 'Identifiant', 'libelle_nl' => 'Gebruikersnaam',
                 'colonne' => 'identifiant', 'groupe' => 'compte',
@@ -448,8 +449,10 @@ if (!function_exists('famicardRattachements')) {
      * sur la base des collaborateurs, qui en affiche des centaines.
      *
      * Le secteur et le département ne sont pas des colonnes de `utilisateurs` :
-     * ils vivent dans famicard_affectations, réglée depuis la page RH du site
-     * (voir Famiformation/includes/organisation.php).
+     * ils vivent dans famicard_affectations, que l'administrateur règle depuis
+     * Famicard (modifier.php). La définition des secteurs et de leurs
+     * départements est dans Famiformation/includes/organisation.php — un
+     * emplacement de fichier, pas un partage des rôles.
      */
     function famicardRattachements(PDO $db, array $userIds)
     {

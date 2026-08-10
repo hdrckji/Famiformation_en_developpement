@@ -12,6 +12,30 @@ FamiFormation », qui dirait au collaborateur qu'il est dans une annexe.
 (FamiJob : admin et teamcoach). On n'ouvre pas un accès depuis ici : une tuile qui
 mène à un refus est pire que pas de tuile.
 
+### Où va-t-on : la RH de FamiFormation devient Famicard
+
+Décision de Jimmy. Ce qui vit encore dans `Famiformation/admin_collaborateurs.php`
+(création de compte, identifiant, mot de passe, activation, suppression) **rejoindra
+Famicard**. Il n'y a pas deux produits qui se partagent le collaborateur : il y en a un,
+et c'est celui-ci.
+
+État actuel, transitoire :
+
+| Sujet | Aujourd'hui | Cible |
+|---|---|---|
+| Fiche, champs, photo, badge, export | **Famicard** | Famicard |
+| Secteur / département | **Famicard** (+ page RH) | Famicard |
+| Création de compte, mot de passe, activation | page RH du site | **Famicard** |
+| Rôle, statut, agence, lieu de travail | les deux | **Famicard** |
+
+⚠️ Tant que la bascule n'est pas faite, **ne pas faire écrire la même colonne aux deux
+endroits**. Deux écrans qui écrivent l'email finissent toujours par diverger, et c'est
+celui qu'on regarde le moins qui gagne.
+
+Ce qui reste vrai après la bascule : la définition des secteurs
+(`Famiformation/includes/organisation.php`) est un **emplacement de fichier**, pas un
+partage des rôles — Famicard le charge parce qu'il charge déjà la configuration du site.
+
 ### La règle de navigation
 
 **La seule porte de Famicard vers FamiFormation est la tuile « FamiFormation » de

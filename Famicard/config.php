@@ -39,11 +39,17 @@ if ($__famicardConfig === null) {
 require_once $__famicardConfig;
 require_once __DIR__ . '/includes/carte.php';
 
-// L'organisation (secteurs et départements) vit dans FamiFormation, et c'est
-// voulu : le site principal la règle depuis sa page RH, Famicard l'affiche.
-// Une seconde définition côté Famicard, et les deux listes divergeraient.
-// Le fichier est chargé ici plutôt que dans chaque page qui en a besoin :
-// la fiche, la base, l'export et l'écran d'édition l'utilisent tous.
+// L'organisation (secteurs et départements) : le FICHIER vit dans
+// Famiformation/includes/, mais c'est un détail d'implantation, pas une
+// répartition des rôles. Famicard est le centre de données du collaborateur —
+// c'est ici qu'on consulte et qu'on règle son rattachement.
+//
+// Le fichier reste là-bas parce que Famicard charge déjà la configuration du
+// site, donc il y a accès gratuitement ; l'inverse mettrait la dépendance à
+// l'envers. Il migrera avec le reste de la RH (voir README).
+//
+// Chargé ici plutôt que dans chaque page : la fiche, la base, l'export et
+// l'écran d'édition l'utilisent tous.
 $__famicardOrganisation = dirname($__famicardConfig) . '/includes/organisation.php';
 if (is_file($__famicardOrganisation)) {
     require_once $__famicardOrganisation;
