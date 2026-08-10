@@ -12,6 +12,21 @@ FamiFormation », qui dirait au collaborateur qu'il est dans une annexe.
 (FamiJob : admin et teamcoach). On n'ouvre pas un accès depuis ici : une tuile qui
 mène à un refus est pire que pas de tuile.
 
+### La règle de navigation
+
+**La seule porte de Famicard vers FamiFormation est la tuile « FamiFormation » de
+l'accueil.** Aucune autre page ne doit renvoyer vers le site — ni lien de retour, ni
+« modifier ceci sur ton profil ». Famicard est le **centre de données utilisateur** :
+toute information qui concerne le collaborateur se consulte et se modifie ici.
+
+C'est pour ça que la photo de profil a quitté `profil.php` du site pour `photo.php`.
+Les **données**, elles, n'ont pas bougé : même dossier sur le volume, même colonne
+`utilisateurs.photo_profil`, même compression. On déplace l'écran, jamais le stockage —
+sinon la photo affichée par FamiFormation ne serait plus celle déposée ici.
+
+Exception connue, à trancher : la page de connexion renvoie encore vers
+`account_help.php` (mot de passe / identifiant oubliés), qui vit côté site.
+
 Deux lectures d'un même objet :
 
 | Qui | Ce que Famicard est pour lui |
@@ -48,6 +63,7 @@ Famicard/
   logout.php           déconnexion
   index.php            ⭐ L'ACCUEIL DU PORTAIL : 4 tuiles, rien d'autre
   fiche.php            la carte du collaborateur (c'était index.php)
+  photo.php            dépôt de la photo de profil (était profil.php, côté site)
   admin.php            la base des collaborateurs (liste, filtres, badge, export)
   badge.php            le badge imprimable 75 × 36 mm
   export.php           l'export Excel, colonnes au choix

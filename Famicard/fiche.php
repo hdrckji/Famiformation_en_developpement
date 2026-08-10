@@ -117,7 +117,7 @@ if ($photo !== '') {
                 <b>Ta carte est incomplète.</b>
                 Il manque : <?= e(implode(', ', array_map(static function ($c) { return $c['libelle']; }, $manquants))) ?>.
                 <?php if (isset($manquants['photo_profil'])): ?>
-                    <br>La photo se dépose depuis <a href="<?= e(famicardSiteUrl('profil.php')) ?>">ton profil</a>.
+                    <br>Elle se dépose <a href="photo.php">ici même</a>, en deux clics.
                 <?php endif; ?>
             </div>
         <?php endif; ?>
@@ -163,7 +163,7 @@ if ($photo !== '') {
 
         <div class="actions">
             <a class="bouton bouton-plein" href="badge.php">🖨️ Imprimer mon badge</a>
-            <a class="bouton bouton-vide" href="<?= e(famicardSiteUrl('profil.php')) ?>">Modifier ma photo</a>
+            <a class="bouton bouton-vide" href="photo.php">📷 Modifier ma photo</a>
             <?php if ($estAdmin): ?>
                 <a class="bouton bouton-vide" href="export.php">📊 Exporter en Excel</a>
                 <a class="bouton bouton-vide" href="admin_champs.php">⚙️ Libellés de la fiche</a>

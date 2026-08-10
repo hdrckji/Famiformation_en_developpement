@@ -59,6 +59,28 @@ require_once __DIR__ . '/includes/carte.php';
 //     « login.php ») : Famicard est un dossier plat, donc le relatif vise juste
 //     dans les deux dispositions, sans rien calculer.
 // ─────────────────────────────────────────────────────────────────────────────
+if (!function_exists('famicardRacineSite')) {
+    /**
+     * Le DOSSIER de FamiFormation sur le disque — celui qui contient config.php,
+     * media.php, includes/ et uploads/.
+     *
+     * À ne pas confondre avec famicardSiteUrl(), qui rend une URL. Ici c'est un
+     * chemin de fichiers : il sert à lire des briques du site (compression
+     * d'image) et à retomber sur son dossier uploads/ quand le volume n'est pas
+     * monté. On retient la disposition RÉELLEMENT trouvée au chargement plutôt
+     * que d'en supposer une : le dépôt et le conteneur ne rangent pas Famicard
+     * au même endroit (voir en tête de fichier).
+     */
+    function famicardRacineSite()
+    {
+        static $racine = null;
+        if ($racine === null) {
+            $racine = dirname((string) ($GLOBALS['__famicardConfig'] ?? __DIR__ . '/../config.php'));
+        }
+        return $racine;
+    }
+}
+
 if (!function_exists('famicardSurSousDomaine')) {
     function famicardSurSousDomaine()
     {
@@ -97,7 +119,7 @@ if (!function_exists('famicardPageDemandee')) {
         $uri = (string) ($_SERVER['REQUEST_URI'] ?? '');
         $page = basename((string) parse_url($uri, PHP_URL_PATH));
 
-        if (!in_array($page, ['index.php', 'fiche.php', 'admin.php', 'admin_champs.php', 'badge.php', 'export.php'], true)) {
+        if (!in_array($page, ['index.php', 'fiche.php', 'photo.php', 'admin.php', 'admin_champs.php', 'badge.php', 'export.php'], true)) {
             return '';
         }
 
