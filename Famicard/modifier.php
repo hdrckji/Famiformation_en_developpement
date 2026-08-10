@@ -66,6 +66,22 @@ $groupes  = famicardGroupes();
 // config.php). Si le fichier manque, le rattachement s'affiche en lecture seule
 // plutôt que de faire tomber l'écran d'édition entier.
 $organisationDispo = function_exists('famiSecteurs') && function_exists('famiDepartementsParSecteur');
+
+// C'est FAMICARD qui installe l'organisation, pas le site. Elle ne l'était que
+// depuis la page RH de FamiFormation : quiconque ne l'ouvrait jamais — ce qui
+// est le but, la RH devant rejoindre Famicard — n'avait tout simplement aucun
+// secteur à choisir, sans qu'aucun message ne l'explique.
+//
+// Réservé aux admins (c'est de la DDL) et sous garde : si la création échoue,
+// l'écran d'édition doit continuer à faire le reste de son travail.
+if ($organisationDispo && $estAdmin && function_exists('famiAssureSecteurs')) {
+    try {
+        famiAssureSecteurs($db);
+    } catch (Exception $e) {
+        // Droits insuffisants : le rattachement s'affichera en lecture seule.
+    }
+}
+
 $secteursListe = $organisationDispo ? famiSecteurs($db) : [];
 $departementsParSecteur = $organisationDispo ? famiDepartementsParSecteur($db) : [];
 

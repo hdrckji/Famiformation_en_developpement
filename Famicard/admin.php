@@ -29,6 +29,17 @@ if (!famicardEstAdmin()) {
     exit();
 }
 
+// L'organisation (secteurs et départements) est installée par FAMICARD, depuis
+// ses pages d'administration — celle-ci et l'écran d'édition. Elle ne l'était
+// que par la page RH du site, que plus personne n'a de raison d'ouvrir.
+if (function_exists('famiAssureSecteurs')) {
+    try {
+        famiAssureSecteurs($db);
+    } catch (Exception $e) {
+        // Droits insuffisants : la colonne s'affichera vide, le reste marche.
+    }
+}
+
 $champs   = famicardChamps($db);
 $magasins = famicardMagasins($db);
 
