@@ -521,7 +521,7 @@ if (($user['role'] ?? '') === 'etudiant') {
 </head>
 <body>
 <div class="container">
-    <a href="admin.php" class="back-link">⬅ Retour à la liste</a>
+    <a href="admin_collaborateurs.php" class="back-link">⬅ Retour à la liste</a>
     <h1>Fiche collaborateur</h1>
     <?php echo $pageMessage; ?>
     <div class="section">

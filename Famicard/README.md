@@ -82,6 +82,12 @@ tard, ne peut pas exposer ce qu'il ne doit pas.
 
 ## Ce qui reste
 
+- [ ] **Le secteur sur la carte** — le rattachement existe et se règle depuis
+      `admin_collaborateurs.php` (voir `Famiformation/includes/organisation.php`), mais la
+      carte ne l'affiche pas encore : il n'est ni une colonne de `utilisateurs` ni un champ
+      libre, donc `famicardValeurAffichee()` ne sait pas encore le résoudre.
+- [ ] **Les départements** — l'échelon sous le secteur. Liste pas encore fournie.
+      ⚠️ Ne pas confondre avec la table `departments` de FamiJob (matching étudiants).
 - [ ] **Saisie des champs libres** — ils s'affichent, mais rien ne permet encore de les
       remplir. Prochaine étape logique.
 - [ ] **Famicard comme autorité d'accès** : ouvrir/fermer FamiFormation et FamiJob depuis ici

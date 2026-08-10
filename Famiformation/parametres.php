@@ -731,7 +731,7 @@ foreach ($db->query("SELECT interim, COUNT(*) AS c FROM utilisateurs WHERE inter
                 <h2 style="margin:0; color:#2d5a37;">Utilisateurs (<?= count($usersList) ?>)</h2>
                 <div style="display:flex; gap:8px;">
                     <button type="button" class="btn bulk-toggle" style="background:#eef7f0; color:#2d5a37; border:1px solid #cfe3d5;" data-bulk-toggle="users" data-bulk-entity="user" data-bulk-label="utilisateur">☑️ Sélectionner</button>
-                    <a href="admin.php" class="btn btn-primary">Gérer dans RH</a>
+                    <a href="admin_collaborateurs.php" class="btn btn-primary">Gérer dans RH</a>
                 </div>
             </div>
             <input type="text" id="userSearch" onkeyup="filterUsers()" placeholder="🔍 Rechercher par nom, identifiant ou agence..." style="width:100%; box-sizing:border-box; margin:14px 0; padding:10px 12px; border:1px solid #cfdad3; border-radius:10px; font-size:0.95rem;">
