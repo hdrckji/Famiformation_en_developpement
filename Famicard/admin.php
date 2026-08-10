@@ -158,6 +158,9 @@ if ($aDesChampsLibres && $lignes) {
     .vide { color: #b8b8b8; font-style: italic; }
     .rien { padding: 40px; text-align: center; color: #888; }
     .badge-lien { text-decoration: none; font-size: 1.05rem; }
+    .lien-fiche { color: #2d5a37; font-weight: 700; text-decoration: none; }
+    .lien-fiche:hover { text-decoration: underline; }
+    .aide-tableau { color: #5a6b60; font-size: .85rem; margin: 0 0 10px; }
 </style>
 </head>
 <body>
@@ -211,6 +214,8 @@ if ($aDesChampsLibres && $lignes) {
 
     <p class="compte"><b><?= count($lignes) ?></b> collaborateur<?= count($lignes) > 1 ? 's' : '' ?><?= ($fRole !== '' || $fSite !== '' || $fTexte !== '') ? ' pour ces critères' : ' au total' ?>.</p>
 
+    <p class="aide-tableau">Clique sur un nom pour ouvrir sa fiche et la modifier.</p>
+
     <div class="tableau-boite">
         <?php if (!$lignes): ?>
             <div class="rien">Aucun collaborateur ne correspond à ces critères.</div>
@@ -227,9 +232,21 @@ if ($aDesChampsLibres && $lignes) {
                 <?php foreach ($lignes as $ligne): ?>
                     <?php $libres = $libresParUser[(int) $ligne['id']] ?? []; ?>
                     <tr>
+                        <?php $premiere = true; ?>
                         <?php foreach ($colonnesTableau as $cle => $champ): ?>
                             <?php $valeur = famicardValeurAffichee($cle, $champ, $ligne, $magasins, $libres); ?>
-                            <td><?= $valeur === '' ? '<span class="vide">—</span>' : e($valeur) ?></td>
+                            <?php if ($premiere): $premiere = false; ?>
+                                <?php // La PREMIÈRE colonne ouvre la fiche. Le tableau compte une
+                                      // dizaine de colonnes et défile horizontalement : une action
+                                      // rangée tout à droite est invisible tant qu'on ne fait pas
+                                      // défiler, donc introuvable. Ici, elle est sous le curseur. ?>
+                                <td>
+                                    <a class="lien-fiche" href="modifier.php?id=<?= (int) $ligne['id'] ?>"
+                                       title="Modifier cette fiche"><?= $valeur === '' ? '—' : e($valeur) ?></a>
+                                </td>
+                            <?php else: ?>
+                                <td><?= $valeur === '' ? '<span class="vide">—</span>' : e($valeur) ?></td>
+                            <?php endif; ?>
                         <?php endforeach; ?>
                         <td>
                             <?php // La fiche s'édite ICI, dans Famicard. admin_user.php existe
