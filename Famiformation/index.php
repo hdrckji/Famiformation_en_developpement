@@ -578,6 +578,29 @@ if ($wcThemeOn && !empty($siteTheme) && is_array($siteTheme)) {
     <?php endif; ?>
 
     <div class="tiles-container">
+        <?php // 🪪 FAMICARD — en TÊTE de l'accueil, et pour tout le monde.
+              // Jusqu'ici la fiche n'était atteignable qu'en tapant son adresse :
+              // aucune page du site n'y menait. Une carte d'identité qu'on ne
+              // trouve pas est une carte que personne ne complète.
+              // Le lien est relatif : /famicard/ sur le site, et il continue de
+              // viser la bonne page si le dossier est servi ailleurs. ?>
+        <a href="famicard/" class="tile">
+            <div class="tile-media"><span class="tile-icon">🪪</span></div>
+            <div class="tile-title"><?= t('Ma fiche', 'Mijn fiche') ?></div>
+            <div class="tile-desc"><?= t('Ta carte d\'identité Famiflora : tes informations et ton badge.', 'Je Famiflora-identiteitskaart: je gegevens en je badge.') ?></div>
+        </a>
+
+        <?php // La base des fiches existe déjà (famicard/admin.php) et vérifie
+              // elle-même le profil ; la garde ici ne fait qu'éviter d'afficher
+              // une tuile qui mènerait à un refus. ?>
+        <?php if ($role === 'admin'): ?>
+        <a href="famicard/admin.php" class="tile tile-admin">
+            <div class="tile-media"><span class="tile-icon">📇</span></div>
+            <div class="tile-title"><?= t('Mes collaborateurs', 'Mijn medewerkers') ?></div>
+            <div class="tile-desc"><?= t('Les fiches des collaborateurs, leur badge et l\'export.', 'De fiches van de medewerkers, hun badge en de export.') ?></div>
+        </a>
+        <?php endif; ?>
+
         <?php if ($role !== 'etudiant' || $onboarding_unlocked): ?>
         <a href="onboarding.php" class="tile">
             <div class="tile-media"><span class="tile-icon">🚀</span></div>
