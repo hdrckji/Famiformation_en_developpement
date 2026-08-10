@@ -41,6 +41,20 @@ try {
 }
 $secteursListe = $secteursActifs ? famiSecteurs($db) : [];
 
+// La colonne departement_id a été ajoutée après coup à une table qui existait
+// déjà en production. On vérifie sa présence RÉELLE au lieu de supposer que
+// l'ALTER a réussi : la requête principale la lit, et une colonne absente
+// ferait tomber toute la page pour un affichage d'appoint.
+$departementsActifs = false;
+if ($secteursActifs) {
+    try {
+        $departementsActifs = (bool) $db->query("SHOW COLUMNS FROM famicard_affectations LIKE 'departement_id'")->fetch();
+    } catch (Exception $e) {
+        $departementsActifs = false;
+    }
+}
+$departementsParSecteur = $departementsActifs ? famiDepartementsParSecteur($db) : [];
+
 if (!isAdminOrTeamcoach()) {
     header('Location: index.php');
     exit();
@@ -306,14 +320,43 @@ if (isset($_POST['update_site']) && isset($_POST['user_id'])) {
 if (isset($_POST['update_secteur']) && isset($_POST['user_id'])) {
     requireValidCSRF();
     $uid = (int) $_POST['user_id'];
-    $depVal = trim((string) ($_POST['nouveau_secteur'] ?? ''));
+
+    // Une seule liste déroulante porte les deux niveaux, d'où ce petit codage :
+    //   ''      → aucun rattachement
+    //   's:12'  → tout le secteur 12, sans préciser le département
+    //   'd:37'  → le département 37 (son secteur est déduit)
+    // Deux listes liées auraient demandé du JavaScript pour filtrer la seconde
+    // selon la première, dans chaque ligne du tableau. Une seule liste avec des
+    // groupes dit la même chose et marche sans script.
+    $choix = trim((string) ($_POST['nouveau_secteur'] ?? ''));
+
     try {
-        famiAffecteSecteur($db, $uid, $depVal === '' ? null : (int) $depVal);
-        adminRedirect($depVal === ''
-            ? "<div class='alert success'>✅ Secteur retiré.</div>"
-            : "<div class='alert success'>✅ Secteur modifié.</div>");
+        if ($choix === '') {
+            famiAffecteSecteur($db, $uid, null);
+            adminRedirect("<div class='alert success'>✅ Rattachement retiré.</div>");
+        }
+
+        $type = substr($choix, 0, 2);
+        $id   = (int) substr($choix, 2);
+
+        if ($type === 's:') {
+            famiAffecteSecteur($db, $uid, $id, null);
+            adminRedirect("<div class='alert success'>✅ Secteur modifié.</div>");
+        } elseif ($type === 'd:') {
+            // Le secteur du département choisi : on ne le demande pas à
+            // l'utilisateur, la base le sait déjà.
+            $q = $db->prepare("SELECT secteur_id FROM famicard_departements WHERE id = ?");
+            $q->execute([$id]);
+            $secteurId = (int) $q->fetchColumn();
+            if ($secteurId > 0 && famiAffecteSecteur($db, $uid, $secteurId, $id)) {
+                adminRedirect("<div class='alert success'>✅ Département modifié.</div>");
+            }
+            adminRedirect("<div class='alert error'>❌ Ce département n'existe pas.</div>");
+        }
+
+        adminRedirect("<div class='alert error'>❌ Choix de rattachement invalide.</div>");
     } catch (Exception $e) {
-        adminRedirect("<div class='alert error'>❌ Secteur non enregistré : " . e($e->getMessage()) . "</div>");
+        adminRedirect("<div class='alert error'>❌ Rattachement non enregistré : " . e($e->getMessage()) . "</div>");
     }
 }
 
@@ -369,6 +412,11 @@ $joinSecteur = $secteursActifs
     ? " LEFT JOIN famicard_affectations aff ON aff.user_id = u.id
         LEFT JOIN famicard_secteurs sec ON sec.id = aff.secteur_id"
     : '';
+
+if ($departementsActifs) {
+    $selectSecteur .= ", aff.departement_id AS departement_id, dep.nom AS departement";
+    $joinSecteur   .= " LEFT JOIN famicard_departements dep ON dep.id = aff.departement_id";
+}
 
 $query_str = "SELECT u.*,
       (SELECT COUNT(DISTINCT nom_page)
@@ -443,7 +491,7 @@ $users = $db->query($query_str)->fetchAll();
         .col-login { width: 9%; }
         .col-email { width: 12%; }
         .col-interim { width: 12%; }
-        .col-secteur { width: 11%; }
+        .col-secteur { width: 15%; }
         .col-quiz { width: 8%; text-align: center; }
         .col-role { width: 17%; }
         .col-status { width: 10%; }
@@ -589,7 +637,7 @@ $users = $db->query($query_str)->fetchAll();
                         <th class="col-email">Email</th>
                         <th class="col-interim">Intérim</th>
                         <th class="col-site">Lieu de travail</th>
-                        <?php if ($secteursActifs): ?><th class="col-secteur">Secteur</th><?php endif; ?>
+                        <?php if ($secteursActifs): ?><th class="col-secteur"><?= $departementsActifs ? 'Secteur / Département' : 'Secteur' ?></th><?php endif; ?>
                         <th class="col-quiz">Quiz</th>
                         <th class="col-role">Profil</th>
                         <th class="col-status">Statut</th>
@@ -654,13 +702,35 @@ $users = $db->query($query_str)->fetchAll();
                         <td>
                             <?php // Secteur : les 8 ensembles de l'entreprise. Le département (l'échelon
                                   // en dessous) n'existe pas encore — voir includes/organisation.php. ?>
-                            <form method="POST" class="stack-form" onsubmit="return confirm('Modifier le secteur de ce collaborateur ?');">
+                            <form method="POST" class="stack-form" onsubmit="return confirm('Modifier le rattachement de ce collaborateur ?');">
                                 <?php echo csrfField(); ?>
                                 <input type="hidden" name="user_id" value="<?php echo $u['id']; ?>">
-                                <select name="nouveau_secteur" class="input-mini" style="width:150px;">
-                                    <option value="" <?php if (empty($u['secteur_id'])) echo 'selected'; ?>>— Aucun —</option>
+                                <?php
+                                    // Sélection courante, dans le codage décrit plus haut :
+                                    // un département s'il y en a un, sinon le secteur seul.
+                                    $choixCourant = '';
+                                    if (!empty($u['departement_id'])) {
+                                        $choixCourant = 'd:' . (int) $u['departement_id'];
+                                    } elseif (!empty($u['secteur_id'])) {
+                                        $choixCourant = 's:' . (int) $u['secteur_id'];
+                                    }
+                                ?>
+                                <select name="nouveau_secteur" class="input-mini" style="width:210px;">
+                                    <option value="" <?php if ($choixCourant === '') echo 'selected'; ?>>— Aucun —</option>
                                     <?php foreach ($secteursListe as $secId => $secNom): ?>
-                                        <option value="<?php echo (int) $secId; ?>" <?php if ((int) ($u['secteur_id'] ?? 0) === (int) $secId) echo 'selected'; ?>><?php echo htmlspecialchars($secNom); ?></option>
+                                        <?php $deps = $departementsParSecteur[(int) $secId] ?? []; ?>
+                                        <?php if (!$deps): ?>
+                                            <option value="s:<?php echo (int) $secId; ?>" <?php if ($choixCourant === 's:' . (int) $secId) echo 'selected'; ?>><?php echo htmlspecialchars($secNom); ?></option>
+                                        <?php else: ?>
+                                            <optgroup label="<?php echo htmlspecialchars($secNom); ?>">
+                                                <?php // « Tout le secteur » d'abord : on peut appartenir à un
+                                                      // secteur sans département précis (Bureau, par exemple). ?>
+                                                <option value="s:<?php echo (int) $secId; ?>" <?php if ($choixCourant === 's:' . (int) $secId) echo 'selected'; ?>>— tout le secteur —</option>
+                                                <?php foreach ($deps as $depId => $depNom): ?>
+                                                    <option value="d:<?php echo (int) $depId; ?>" <?php if ($choixCourant === 'd:' . (int) $depId) echo 'selected'; ?>><?php echo htmlspecialchars($depNom); ?></option>
+                                                <?php endforeach; ?>
+                                            </optgroup>
+                                        <?php endif; ?>
                                     <?php endforeach; ?>
                                 </select>
                                 <button type="submit" name="update_secteur" class="btn-save" style="padding:2px 8px; font-size:0.9em;">🏬</button>

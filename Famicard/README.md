@@ -136,8 +136,12 @@ tard, ne peut pas exposer ce qu'il ne doit pas.
       `admin_collaborateurs.php` (voir `Famiformation/includes/organisation.php`), mais la
       carte ne l'affiche pas encore : il n'est ni une colonne de `utilisateurs` ni un champ
       libre, donc `famicardValeurAffichee()` ne sait pas encore le résoudre.
-- [ ] **Les départements** — l'échelon sous le secteur. Liste pas encore fournie.
-      ⚠️ Ne pas confondre avec la table `departments` de FamiJob (matching étudiants).
+- [ ] **Le rattachement sur la carte** — les 9 secteurs et leurs 53 départements sont en
+      base (`famicard_secteurs`, `famicard_departements`) et se règlent depuis la page RH
+      de FamiFormation. La carte ne les affiche pas encore, et ils devraient à terme se
+      régler ici, dans Famicard.
+      ⚠️ Ne pas confondre `famicard_departements` avec la table `departments` de FamiJob
+      (matching étudiants) : même mot, deux choses.
 - [ ] **Historique consultable** — les modifications sont toutes enregistrées
       (`famicard_modifications`), mais seules celles en attente sont affichées. « Qui a
       changé ce champ, et quand » demande encore une requête SQL à la main.
