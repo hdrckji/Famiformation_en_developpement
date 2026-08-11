@@ -1950,7 +1950,15 @@ if (!function_exists('secteursCharge')) {
         $pistes = [
             __DIR__ . '/secteurs.php',
             __DIR__ . '/../../includes/secteurs.php',          // deploiement
-            __DIR__ . '/../../public/includes/secteurs.php',   // depot
+            // ⚠️ Le dossier du site s'appelle « public » dans le depot live et
+            // « Famiformation » dans celui de developpement (renomme, le
+            // Dockerfile copie Famiformation/ vers /app/public/). Sans cette
+            // piste-la, aucune ne trouvait le fichier ICI : secteursCharge()
+            // tombait sur les replis, secteursListe() renvoyait un tableau
+            // vide, et TOUS les menus de departements de FamiJob s'affichaient
+            // sans une seule option — sans le moindre message d'erreur.
+            __DIR__ . '/../../Famiformation/includes/secteurs.php',
+            __DIR__ . '/../../public/includes/secteurs.php',   // depot live
             __DIR__ . '/../includes/secteurs.php',
         ];
         foreach ($pistes as $piste) {

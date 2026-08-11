@@ -1290,6 +1290,13 @@ foreach ($weekDays as $weekDay) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ── Départements rangés sous leur secteur ────────────────────────────────────
+// secteursCharge() D'ABORD : c'est elle qui va chercher includes/secteurs.php.
+// Sans cet appel, secteursListe() n'est même pas définie et le test
+// function_exists() échouait en silence — toute la semaine s'affichait alors
+// sous « Sans secteur », sans que rien ne signale pourquoi.
+if (function_exists('secteursCharge')) {
+    secteursCharge();
+}
 $arbreSecteurs = function_exists('secteursListe') ? secteursListe($db) : [];
 
 $secteurParDept = [];   // nom de département => nom de secteur
