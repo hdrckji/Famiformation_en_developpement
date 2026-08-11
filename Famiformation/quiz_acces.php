@@ -122,14 +122,7 @@ if ($siteDevine) { $site = 'mouscron'; }
 
 // Construction du jeton, à l'identique de faitJeton().
 $secret = quizAccesSecret();
-// ⬅️ « ff=1 » : on arrive DEPUIS FamiFormation, par la tuile. Le quiz affichera
-// alors un lien de retour — sans lui, une fois dans /quiz/<magasin> il n'y avait
-// plus aucun moyen de revenir, sinon en retapant l'adresse.
-//
-// Ce repère n'est posé QUE sur ce chemin. Une borne, un QR code, ou quelqu'un
-// qui ouvre /quiz/mouscron directement ne l'auront pas : ces écrans-là ne
-// doivent surtout pas proposer une sortie vers le site.
-$params = ['espace' => '1', 'ff' => '1'];   // on entre DIRECTEMENT dans l'espace jardin
+$params = ['espace' => '1'];   // on entre DIRECTEMENT dans l'espace jardin
 if ($secret !== '' && $identifiant !== '') {
     $exp = time() + 60 * 86400;
     $corps = $uid . '|' . $exp . '|' . rawurlencode($identifiant);

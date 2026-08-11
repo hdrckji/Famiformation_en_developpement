@@ -1398,7 +1398,7 @@ $JUSTEPRIX_REJEU_MAX  = 50;    // graines de jardin créditées par partie rejou
 // ne suffit pas, l'API doit refuser elle aussi.
 // ⚠️ À basculer EN MÊME TEMPS que « pret » sur la ligne justeprix de PROGRAMME,
 // dans quiz/index.html : l'un ferme la porte, l'autre cache le bouton.
-$JUSTEPRIX_OUVERT = true;
+$JUSTEPRIX_OUVERT = false;
 
 /**
  * Solde de graines DISPONIBLES pour planter :
@@ -1682,24 +1682,6 @@ function writeJson($file, $data) {
   $ok = famiEcritJsonAtomique($file, $data);
   famiRendVerrou($verrou);
   return $ok;
-}
-
-// 🏆 LA PLACE DE QUELQU'UN AU CLASSEMENT.
-//
-// On applique EXACTEMENT les mêmes règles que le classement affiché : seuls
-// les joueurs ayant fait le quiz comptent, les comptes de test sont écartés,
-// et le tri est celui de sortBoard (score décroissant, le plus rapide devant).
-// Sans cette symétrie, on annoncerait à quelqu'un une place qu'il ne verrait
-// pas en ouvrant le classement.
-//
-// Renvoie 0 si la personne n'y figure pas — compte de test, ou quiz pas fait.
-function rangAuClassement($board, $name) {
-  $classe = array_values(array_filter($board, fn($p) => ($p['quiz_fait'] ?? true) && !estCompteTest($p)));
-  sortBoard($classe);
-  foreach ($classe as $i => $p) {
-    if (mb_strtolower((string) ($p['name'] ?? '')) === mb_strtolower((string) $name)) { return $i + 1; }
-  }
-  return 0;
 }
 
 function sortBoard(&$board) {
@@ -2118,28 +2100,6 @@ function dejaPrevenu($cle) {
 }
 
 /**
- * 🎁 OÙ EN EST LA RÉCOMPENSE DE QUELQU'UN, pour un motif donné.
- *
- * Renvoie :
- *   'prete'   — le mail « c'est prêt » est parti : la personne peut venir la
- *               chercher. C'est ce qui doit changer le message dans le jardin.
- *   'attente' — seul le mail « on prépare » est parti.
- *   ''        — rien n'est encore parti.
- *
- * On lit le MÊME fichier que la page RH, et les mêmes compteurs : l'écran du
- * joueur ne peut donc pas raconter autre chose que ce que les RH voient.
- */
-function etatRecompense($cle, $motif = 'jardin') {
-  global $rhFile;
-  $d = readJson($rhFile);
-  $b = $d['mails'][mb_strtolower((string) $cle)][$motif] ?? ($d['mails'][(string) $cle][$motif] ?? null);
-  if (!is_array($b)) { return ''; }
-  if (!empty($b['prete'])) { return 'prete'; }
-  if (!empty($b['attente'])) { return 'attente'; }
-  return '';
-}
-
-/**
  * 📨 Enregistre qu'un mail de récompense est parti, pour que la page RH le voie.
  *
  * ⚠️ Ce comptage était fait UNIQUEMENT dans l'action rh_mail. Résultat : le mail
@@ -2257,20 +2217,6 @@ $MESSAGES_DEFAUT = [
           . "<b>Je tuin is nu open</b> 🌼: plant er je zaadjes. Ze zullen afnemen — <b>dat is normaal, het geldt enkel voor de tuin</b>, <b>je score in de ranking verandert niet</b>.\n"
           . "🎁 En vooral: <b>werk je tuin af en jij wint ook een beloning</b>, ook zonder op het podium te staan!"],
 
-  // ── 🎁 Fenêtre affichée quand la récompense est PRÊTE ─────────────────
-  // Ce texte remplace celui du jardin terminé dès que les RH ont envoyé le mail
-  // « c'est prêt ». Sans lui, quelqu'un qui a reçu le mail revenait dans son
-  // jardin et y lisait encore « ta récompense est en cours de préparation » —
-  // de quoi croire que le mail était une erreur.
-  'jardin_prete_titre' => ['groupe' => '🎁 Fenêtre — récompense prête', 'libelle' => 'Titre de la fenêtre',
-    'fr' => 'Ta récompense t\'attend !', 'nl' => 'Je beloning wacht op je!'],
-  'jardin_prete_corps' => ['groupe' => '🎁 Fenêtre — récompense prête', 'libelle' => 'Message',
-    'lignes' => true,
-    'fr' => "Ton jardin est complet, et <b>ta récompense est prête</b> 🎁\n"
-          . "Passe la chercher <b>auprès des RH</b> du magasin — elle t'attend&nbsp;!",
-    'nl' => "Je tuin is af, en <b>je beloning ligt klaar</b> 🎁\n"
-          . "Haal ze op <b>bij de HR-dienst</b> van de winkel — ze wacht op je&nbsp;!"],
-
   // ── 🏆 Fenêtre affichée quand le jardin est terminé ───────────────────
   'jardin_gagne_titre' => ['groupe' => '🏆 Fenêtre — jardin terminé', 'libelle' => 'Titre de la fenêtre',
     'fr' => 'Bravo, tu as gagné !', 'nl' => 'Bravo, je hebt gewonnen!'],
@@ -2294,62 +2240,34 @@ $MESSAGES_DEFAUT = [
     'fr' => 'Bravo, tu finis <b>{rang}</b> du classement ! Ta récompense est en cours de préparation — tu recevras un mail dès que tu pourras venir la chercher.',
     'nl' => 'Proficiat, je eindigt <b>{rang}</b> in de ranking! Je beloning wordt klaargemaakt — je krijgt een mail zodra je ze mag komen ophalen.'],
 
-  // ── 🌱 Mot d'accueil pour qui arrive depuis FamiFormation ────────────
-  // Affiché en haut du tableau de bord, UNIQUEMENT quand on est entré par la
-  // tuile de la plateforme. Il dit pourquoi ce jardin existe — le lancement du
-  // site — et ce qu'il y a à venir chercher. Il est modifiable ici parce qu'il
-  // n'a pas vocation à rester : une fois le lancement passé, il se vide en
-  // effaçant simplement les deux cases.
-  'accueil_ff_titre' => ['groupe' => '🌱 Mot d\'accueil (arrivée depuis FamiFormation)', 'libelle' => 'Titre',
-    'fr' => 'Ça pousse chez FamiFormation !', 'nl' => 'Het groeit bij FamiFormation!'],
-  'accueil_ff_corps' => ['groupe' => '🌱 Mot d\'accueil (arrivée depuis FamiFormation)',
-    'libelle' => 'Message (vider la case pour retirer le bandeau)', 'lignes' => true,
-    'fr' => "Ce module accompagne le <b>lancement du site</b> : épreuves, codes cachés en magasin et récompenses. Du nouveau arrive au fil des semaines 🌿",
-    'nl' => "Deze module hoort bij de <b>lancering van de site</b>: proeven, codes verstopt in de winkel en beloningen. Er komt geregeld nieuws bij 🌿"],
-
   // ── ✉️ Mail « on prépare », version podium ────────────────────────────
-  // 🇧🇪 Les mails partent en FRANÇAIS PUIS EN NÉERLANDAIS, dans le même envoi :
-  // on ne connaît pas la langue de chaque personne (la base ne la stocke pas),
-  // et un mail de félicitations qu'on ne comprend pas ne félicite personne.
   'mail_podium_sujet' => ['groupe' => '✉️ Mail — podium', 'libelle' => 'Objet du mail',
-    'fr' => '🏆 Bravo — on prépare ta récompense !',
-    'nl' => '🏆 Proficiat — we maken je beloning klaar!'],
+    'fr' => '🏆 Bravo — on prépare ta récompense !', 'nl' => null],
   'mail_podium_corps' => ['groupe' => '✉️ Mail — podium', 'libelle' => 'Message', 'lignes' => true, 'trous' => '{place}',
     'fr' => "L'équipe Famiformation te félicite pour ta <b>{place}</b> au grand quiz&nbsp;! 🏆\n"
-          . "On <b>prépare ta récompense</b>. Nous t'enverrons un mail une fois que tu pourras venir la chercher.",
-    'nl' => "Het Famiformation-team feliciteert je met je <b>{place}</b> in de grote quiz&nbsp;! 🏆\n"
-          . "We <b>maken je beloning klaar</b>. Je krijgt een mail zodra je ze mag komen ophalen."],
+          . "On <b>prépare ta récompense</b>. Nous t'enverrons un mail une fois que tu pourras venir la chercher.", 'nl' => null],
 
   // ── ✉️ Mail « on prépare », version jardin ────────────────────────────
   'mail_jardin_sujet' => ['groupe' => '✉️ Mail — jardin terminé', 'libelle' => 'Objet du mail',
-    'fr' => '🌼 Bravo — on prépare ta récompense !',
-    'nl' => '🌼 Proficiat — we maken je beloning klaar!'],
+    'fr' => '🌼 Bravo — on prépare ta récompense !', 'nl' => null],
   'mail_jardin_corps' => ['groupe' => '✉️ Mail — jardin terminé', 'libelle' => 'Message', 'lignes' => true,
     'fr' => "L'équipe Famiformation te félicite pour avoir <b>terminé ton jardin</b>&nbsp;! 🌼\n"
-          . "On <b>prépare ta récompense</b>. Nous t'enverrons un mail une fois que tu pourras venir la chercher.",
-    'nl' => "Het Famiformation-team feliciteert je omdat je <b>je tuin hebt afgewerkt</b>&nbsp;! 🌼\n"
-          . "We <b>maken je beloning klaar</b>. Je krijgt een mail zodra je ze mag komen ophalen."],
+          . "On <b>prépare ta récompense</b>. Nous t'enverrons un mail une fois que tu pourras venir la chercher.", 'nl' => null],
 
   // ── ✉️ Mail « c'est prêt », envoyé par les RH ─────────────────────────
   // Deux versions, comme pour « on prépare » : quelqu'un peut être sur le
   // podium ET avoir terminé son jardin. Il recevra alors deux mails, et doit
   // pouvoir dire lequel concerne quoi.
   'mail_prete_podium_sujet' => ['groupe' => "✉️ Mail — podium : c'est prêt", 'libelle' => 'Objet du mail',
-    'fr' => '🏆 Ta récompense du podium est prête !',
-    'nl' => '🏆 Je podiumbeloning ligt klaar!'],
+    'fr' => '🏆 Ta récompense du podium est prête !', 'nl' => null],
   'mail_prete_podium_corps' => ['groupe' => "✉️ Mail — podium : c'est prêt", 'libelle' => 'Message', 'lignes' => true,
     'fr' => "Bonne nouvelle : <b>ta récompense du podium est prête</b>&nbsp;! 🏆\n"
-          . "Pour la récupérer, présente-toi <b>auprès des RH</b> du magasin.",
-    'nl' => "Goed nieuws: <b>je podiumbeloning ligt klaar</b>&nbsp;! 🏆\n"
-          . "Meld je aan <b>bij de HR-dienst</b> van de winkel om ze op te halen."],
+          . "Pour la récupérer, présente-toi <b>auprès des RH</b> du magasin.", 'nl' => null],
   'mail_prete_jardin_sujet' => ['groupe' => "✉️ Mail — jardin : c'est prêt", 'libelle' => 'Objet du mail',
-    'fr' => '🌼 Ta récompense du jardin est prête !',
-    'nl' => '🌼 Je tuinbeloning ligt klaar!'],
+    'fr' => '🌼 Ta récompense du jardin est prête !', 'nl' => null],
   'mail_prete_jardin_corps' => ['groupe' => "✉️ Mail — jardin : c'est prêt", 'libelle' => 'Message', 'lignes' => true,
     'fr' => "Bonne nouvelle : <b>ta récompense pour ton jardin terminé est prête</b>&nbsp;! 🌼\n"
-          . "Pour la récupérer, présente-toi <b>auprès des RH</b> du magasin.",
-    'nl' => "Goed nieuws: <b>je beloning voor je afgewerkte tuin ligt klaar</b>&nbsp;! 🌼\n"
-          . "Meld je aan <b>bij de HR-dienst</b> van de winkel om ze op te halen."],
+          . "Pour la récupérer, présente-toi <b>auprès des RH</b> du magasin.", 'nl' => null],
 
   // Les MODALITÉS (le « Comment ça marche ») ne sont volontairement PAS ici :
   // ce sont les règles du jeu, pas un message de félicitations. Les mettre à
@@ -2411,22 +2329,14 @@ function mailRecompense(PDO $db, $cle, $info, $modele = 'attente', $origine = 'a
     // 1️⃣ ON PRÉPARE. Envoyé dès que la personne devient gagnante : on félicite,
     // on annonce qu'un second mail suivra. Sans ça, quelqu'un qui gagne le
     // 20/08 n'entendait plus parler de rien jusqu'au 01/09.
-    $cleSujet = $estPodium ? 'mail_podium_sujet' : 'mail_jardin_sujet';
-    $cleCorps = $estPodium ? 'mail_podium_corps' : 'mail_jardin_corps';
-    $sujet   = msgTexte($cleSujet, 'fr');
-    $sujetNl = msgTexte($cleSujet, 'nl');
-    $corps   = msgTexte($cleCorps, 'fr', ['place' => $place]);
-    $corpsNl = msgTexte($cleCorps, 'nl', ['place' => $place]);
+    $sujet = msgTexte($estPodium ? 'mail_podium_sujet' : 'mail_jardin_sujet');
+    $corps = msgTexte($estPodium ? 'mail_podium_corps' : 'mail_jardin_corps', 'fr', ['place' => $place]);
   } else {
     // 2️⃣ C'EST PRÊT. Envoyé par les RH le jour où la récompense est disponible.
     // Plus de rappel du classement ici : à ce stade la seule information utile,
     // c'est qu'elle est prête et où la chercher.
-    $cleSujet = $estPodium ? 'mail_prete_podium_sujet' : 'mail_prete_jardin_sujet';
-    $cleCorps = $estPodium ? 'mail_prete_podium_corps' : 'mail_prete_jardin_corps';
-    $sujet   = msgTexte($cleSujet, 'fr');
-    $sujetNl = msgTexte($cleSujet, 'nl');
-    $corps   = msgTexte($cleCorps, 'fr');
-    $corpsNl = msgTexte($cleCorps, 'nl');
+    $sujet = msgTexte($estPodium ? 'mail_prete_podium_sujet' : 'mail_prete_jardin_sujet');
+    $corps = msgTexte($estPodium ? 'mail_prete_podium_corps' : 'mail_prete_jardin_corps');
 
     // 🎟️ LE BON CADEAU NE CONCERNE QUE LE JARDIN TERMINÉ.
     //
@@ -2458,75 +2368,37 @@ function mailRecompense(PDO $db, $cle, $info, $modele = 'attente', $origine = 'a
 
   // Une ligne du message = un paragraphe. Les lignes vides sont ignorées, pour
   // qu'un retour à la ligne en trop ne fabrique pas un blanc dans le mail.
-  $enParagraphes = function ($texte) {
-    $out = '';
-    foreach (preg_split('/\R/u', (string) $texte) as $ligne) {
-      $ligne = trim($ligne);
-      if ($ligne === '') { continue; }
-      $out .= '<p style="font-size:16px;line-height:1.6;">' . $ligne . '</p>';
-    }
-    return $out;
-  };
-  $paragraphes = $enParagraphes($corps);
-
-  // 🇧🇪 La version néerlandaise, dans le MÊME mail. On ne connaît pas la langue
-  // de chaque personne (la base ne la stocke pas) : envoyer deux mails séparés
-  // reviendrait à en envoyer un de trop, ou le mauvais. Si la traduction est
-  // vide — un magasin a pu effacer le champ NL depuis l'admin — on n'ajoute
-  // rien plutôt qu'un séparateur suivi du blanc.
-  $blocNl = '';
-  $parasNl = $enParagraphes($corpsNl);
-  if (trim($parasNl) !== '' && trim($corpsNl) !== trim($corps)) {
-    $blocNl =
-      '<div style="border-top:2px dashed #d6dfd8;margin:26px 0 6px;"></div>'
-      . '<p style="font-size:13px;font-weight:bold;color:#617268;letter-spacing:1px;margin:0 0 10px;">🇳🇱 NEDERLANDS</p>'
-      . '<p style="font-size:16px;">Hallo ' . htmlspecialchars($bonjour, ENT_QUOTES, 'UTF-8') . ',</p>'
-      . $parasNl;
+  $paragraphes = '';
+  foreach (preg_split('/\R/u', $corps) as $i => $ligne) {
+    $ligne = trim($ligne);
+    if ($ligne === '') { continue; }
+    $paragraphes .= '<p style="font-size:16px;line-height:1.6;">' . $ligne . '</p>';
   }
 
   // 🎟️ LE BON CADEAU. Le code est écrit EN TOUTES LETTRES en plus du
   // code-barres : la plupart des clients mail bloquent les images distantes par
   // défaut, et un bon illisible ne sert à rien. La caisse peut donc le saisir à
   // la main si l'image ne s'affiche pas.
-  //
-  // 🍬 CE QUE LE BON DONNE est écrit noir sur blanc — une boîte Fun chez
-  // Lollyland, 5 €. Sans ça, la personne se présente en caisse sans savoir à
-  // quoi elle a droit, et c'est le comptoir qui doit l'expliquer à chaque fois.
   $blocCode = '';
   if (!empty($codeRecompense)) {
     $bar = (string) $codeRecompense['barcode'];
     $blocCode =
       '<div style="margin:24px 0;padding:20px;border:2px dashed #d6a21a;border-radius:14px;background:#fffbf0;text-align:center;">'
-      . '<div style="font-size:13px;font-weight:bold;color:#8a6d1a;letter-spacing:.06em;text-transform:uppercase;">Ton bon cadeau&nbsp;· Jouw cadeaubon</div>'
-      . '<div style="margin:8px 0 4px;font-size:19px;font-weight:bold;color:#244230;">🍬 Une boîte Fun chez Lollyland</div>'
-      . '<div style="font-size:14px;color:#8a6d1a;">d\'une valeur de 5&nbsp;€, offerte par la maison</div>'
-      . '<div style="margin-top:6px;font-size:17px;font-weight:bold;color:#244230;">🍬 Een Fun-box bij Lollyland</div>'
-      . '<div style="font-size:14px;color:#8a6d1a;">ter waarde van 5&nbsp;€, aangeboden door het huis</div>'
-      . '<div style="margin:14px 0 6px;"><img src="' . htmlspecialchars(recompenseUrlCodeBarre($bar), ENT_QUOTES, 'UTF-8')
+      . '<div style="font-size:13px;font-weight:bold;color:#8a6d1a;letter-spacing:.06em;text-transform:uppercase;">Ton bon cadeau</div>'
+      . '<div style="margin:12px 0 6px;"><img src="' . htmlspecialchars(recompenseUrlCodeBarre($bar), ENT_QUOTES, 'UTF-8')
       . '" alt="' . htmlspecialchars($bar, ENT_QUOTES, 'UTF-8') . '" width="300" style="max-width:100%;height:auto;"></div>'
       . '<div style="font-family:monospace;font-size:19px;font-weight:bold;color:#244230;letter-spacing:.04em;">'
       . htmlspecialchars($bar, ENT_QUOTES, 'UTF-8') . '</div>'
-      . '<div style="margin-top:10px;font-size:13px;color:#617268;">Présente ce code en caisse. Il est personnel et utilisable une seule fois.<br>'
-      . 'Toon deze code aan de kassa. Hij is persoonlijk en één keer bruikbaar.</div>'
+      . '<div style="margin-top:10px;font-size:13px;color:#617268;">Présente ce code en caisse. Il est personnel et utilisable une seule fois.</div>'
       . '</div>';
   }
 
-  // 🎟️ Le bon cadeau est placé APRÈS les deux langues : il est unique, et le
-  // répéter donnerait l'impression d'avoir reçu deux bons.
   $body = '<div style="font-family:Arial,sans-serif;color:#244230;max-width:560px;margin:0 auto;padding:24px;">'
     . '<p style="font-size:16px;">Bonjour ' . htmlspecialchars($bonjour, ENT_QUOTES, 'UTF-8') . ',</p>'
     . $paragraphes
-    . $blocNl
     . $blocCode
-    . '<p style="font-size:16px;line-height:1.6;">Une question&nbsp;? Écris à <a href="mailto:admin@famiformation.com">admin@famiformation.com</a>.<br>'
-    . 'Een vraag&nbsp;? Mail naar <a href="mailto:admin@famiformation.com">admin@famiformation.com</a>.</p>'
-    . '<p style="font-size:15px;color:#617268;">Merci d\'avoir joué, et à bientôt&nbsp;! 🌱 · Bedankt om mee te spelen, tot binnenkort&nbsp;! 🌱<br>L\'équipe Famiflora · Famiformation</p></div>';
-
-  // L'OBJET aussi porte les deux langues, séparées par «&nbsp;·&nbsp;» : c'est
-  // la seule ligne visible avant d'ouvrir, elle doit parler à tout le monde.
-  if (trim((string) $sujetNl) !== '' && trim((string) $sujetNl) !== trim((string) $sujet)) {
-    $sujet = $sujet . ' · ' . $sujetNl;
-  }
+    . '<p style="font-size:16px;line-height:1.6;">Une question&nbsp;? Écris à <a href="mailto:admin@famiformation.com">admin@famiformation.com</a>.</p>'
+    . '<p style="font-size:15px;color:#617268;">Merci d\'avoir joué, et à bientôt&nbsp;! 🌱<br>L\'équipe Famiflora · Famiformation</p></div>';
   $ok = function_exists('sendMail') ? sendMail($email, $sujet, $body, true) : false;
   // Tracé ICI, donc pour TOUS les envois — automatiques comme manuels, et
   // séparément selon qu'il s'agit du podium ou du jardin.
@@ -2841,9 +2713,7 @@ switch ($action) {
         if (mb_strtolower($p['name'] ?? '') === mb_strtolower($name)) {
           if ((string)($p['code'] ?? '') === $code4) {
             return ['ok' => true, 'exist' => true, 'name' => $p['name'],
-                    'quiz_fait' => ($p['quiz_fait'] ?? true), 'justeprix_fait' => !empty($p['justeprix_fait']),
-          'recompense_jardin' => etatRecompense($p['name'] ?? '', 'jardin'),
-          'recompense_podium' => etatRecompense($p['name'] ?? '', 'podium'), 'recoltees' => round(floatval($p['score'] ?? 0), 1),
+                    'quiz_fait' => ($p['quiz_fait'] ?? true), 'justeprix_fait' => !empty($p['justeprix_fait']), 'recoltees' => round(floatval($p['score'] ?? 0), 1),
                     'solde' => soldeDe($p), 'nbCodes' => intval($p['codes'] ?? 0)];
           }
           return ['pris' => true];
@@ -2914,9 +2784,7 @@ switch ($action) {
           $p['uid'] = (int) $u['id'];
           $p['prenom'] = $u['prenom']; $p['nom'] = $u['nom'];
           $write = true;
-          return ['quiz_fait' => ($p['quiz_fait'] ?? true), 'justeprix_fait' => !empty($p['justeprix_fait']),
-          'recompense_jardin' => etatRecompense($p['name'] ?? '', 'jardin'),
-          'recompense_podium' => etatRecompense($p['name'] ?? '', 'podium'), 'recoltees' => round(floatval($p['score'] ?? 0), 1),
+          return ['quiz_fait' => ($p['quiz_fait'] ?? true), 'justeprix_fait' => !empty($p['justeprix_fait']), 'recoltees' => round(floatval($p['score'] ?? 0), 1),
                   'solde' => soldeDe($p), 'nbCodes' => intval($p['codes'] ?? 0), 'pseudo' => ($p['pseudo'] ?? '')];
         }
       }
@@ -2945,9 +2813,7 @@ switch ($action) {
         echo json_encode(['ok' => true, 'joueur' => [
           'name' => $p['name'], 'uid' => intval($p['uid'] ?? 0),
           'prenom' => $p['prenom'] ?? '', 'nom' => $p['nom'] ?? '', 'pseudo' => $p['pseudo'] ?? '',
-          'quiz_fait' => ($p['quiz_fait'] ?? true), 'justeprix_fait' => !empty($p['justeprix_fait']),
-          'recompense_jardin' => etatRecompense($p['name'] ?? '', 'jardin'),
-          'recompense_podium' => etatRecompense($p['name'] ?? '', 'podium'), 'recoltees' => round(floatval($p['score'] ?? 0), 1),
+          'quiz_fait' => ($p['quiz_fait'] ?? true), 'justeprix_fait' => !empty($p['justeprix_fait']), 'recoltees' => round(floatval($p['score'] ?? 0), 1),
           'solde' => soldeDe($p), 'nbCodes' => intval($p['codes'] ?? 0),
         ]], JSON_UNESCAPED_UNICODE);
         exit;
@@ -2984,9 +2850,7 @@ switch ($action) {
       // créer deux fiches pour la même personne.
       foreach ($board as &$p) {
         if (mb_strtolower((string) ($p['name'] ?? '')) === mb_strtolower((string) $uMoi['identifiant'])) {
-          return ['quiz_fait' => ($p['quiz_fait'] ?? true), 'justeprix_fait' => !empty($p['justeprix_fait']),
-          'recompense_jardin' => etatRecompense($p['name'] ?? '', 'jardin'),
-          'recompense_podium' => etatRecompense($p['name'] ?? '', 'podium'), 'recoltees' => round(floatval($p['score'] ?? 0), 1),
+          return ['quiz_fait' => ($p['quiz_fait'] ?? true), 'justeprix_fait' => !empty($p['justeprix_fait']), 'recoltees' => round(floatval($p['score'] ?? 0), 1),
                   'solde' => soldeDe($p), 'nbCodes' => intval($p['codes'] ?? 0), 'pseudo' => ($p['pseudo'] ?? '')];
         }
       }
@@ -3875,21 +3739,10 @@ case 'rh_mail': {
   // peut se donner 200 points au premier essai. Le plafond garantit au moins
   // qu'il ne peut pas s'en donner 10 000.
   case 'justeprix': {
+    // L'épreuve n'est pas encore ouverte : on refuse AVANT tout le reste.
+    if (!$JUSTEPRIX_OUVERT) { echo json_encode(['ok' => false, 'reason' => 'ferme']); break; }
     $auth = litJeton($input['jeton'] ?? '');
     if (!$auth) { http_response_code(401); echo json_encode(['ok' => false, 'reason' => 'auth']); break; }
-
-    // 🧪 LE COMPTE DE TEST PASSE MÊME QUAND L'ÉPREUVE EST FERMÉE.
-    // Il doit pouvoir vérifier le chemin COMPLET — jusqu'à l'enregistrement du
-    // score et au message de fin — avant l'ouverture au public. Sans ça, on ne
-    // pourrait tester qu'à moitié, ou il faudrait ouvrir à tout le magasin pour
-    // s'en assurer.
-    // Le test se fait sur le JETON, jamais sur un champ envoyé par le client :
-    // sinon n'importe qui se déclarerait compte de test pour forcer la porte.
-    $estTest = in_array(mb_strtolower(trim((string) $auth['identifiant'])), $COMPTES_TEST, true);
-    if (!$JUSTEPRIX_OUVERT && !$estTest) {
-      echo json_encode(['ok' => false, 'reason' => 'ferme']);
-      break;
-    }
     $points = max(0, min($JUSTEPRIX_MAX_PARTIE, round(floatval($input['points'] ?? 0), 1)));
     $name = $auth['identifiant'];
 
@@ -3906,11 +3759,6 @@ case 'rh_mail': {
         // Le compte de test rejoue indéfiniment en 1re partie : il sert à vérifier.
         $premiere = empty($board[$i]['justeprix_fait']) || estCompteTest($board[$i]);
 
-        // 🏆 La place AVANT d'ajouter les points : c'est elle qui permettra de
-        // dire « tu as gagné 3 places » plutôt qu'un rang sec dont on ne sait
-        // pas s'il est bon ou mauvais.
-        $rangAvant = rangAuClassement($board, $name);
-
         if ($premiere) {
           // Classement + jardin : « score » alimente les deux.
           $board[$i]['score'] = round(floatval($board[$i]['score'] ?? 0) + $points, 1);
@@ -3926,22 +3774,15 @@ case 'rh_mail': {
         }
 
         $write = true;
-        // La place APRÈS, calculée sur le tableau déjà modifié : c'est celle
-        // que la personne verra en ouvrant le classement.
-        $rang = rangAuClassement($board, $name);
-        $total = count(array_filter($board, fn($p) => ($p['quiz_fait'] ?? true) && !estCompteTest($p)));
-
         // Après sortBoard, l'index a pu changer : on relit par le nom.
         foreach ($board as $q) {
           if (mb_strtolower($q['name'] ?? '') === mb_strtolower($name)) {
             return ['ok' => true, 'type' => $type, 'gain' => $gain,
                     'plafond' => $JUSTEPRIX_REJEU_MAX,
-                    'rang' => $rang, 'rangAvant' => $rangAvant, 'joueurs' => $total,
                     'solde' => soldeDe($q), 'recoltees' => round(floatval($q['score'] ?? 0), 1)];
           }
         }
-        return ['ok' => true, 'type' => $type, 'gain' => $gain, 'plafond' => $JUSTEPRIX_REJEU_MAX,
-                'rang' => $rang, 'rangAvant' => $rangAvant, 'joueurs' => $total];
+        return ['ok' => true, 'type' => $type, 'gain' => $gain, 'plafond' => $JUSTEPRIX_REJEU_MAX];
       }
       return ['ok' => false, 'reason' => 'inconnu'];
     });

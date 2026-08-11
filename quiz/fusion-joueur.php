@@ -18,11 +18,9 @@
 
 header('Content-Type: text/plain; charset=utf-8');
 
-// --- Garde-fou : même mot de passe que l'admin du quiz, lu dans la variable
-// d'environnement QUIZ_ADMIN_PWD (jamais écrit ici, ce dépôt est public).
-// Une variable absente REFUSE l'accès, au lieu de laisser passer un ?pin= vide.
-$ADMIN_PWD = (string) (getenv('QUIZ_ADMIN_PWD') ?: ($_SERVER['QUIZ_ADMIN_PWD'] ?? ''));
-if ($ADMIN_PWD === '' || !hash_equals($ADMIN_PWD, (string) ($_GET['pin'] ?? ''))) {
+// --- Garde-fou : même mot de passe que l'admin du quiz (api.php, $ADMIN_PWD).
+$ADMIN_PWD = 'a';
+if (($_GET['pin'] ?? '') !== $ADMIN_PWD) {
     http_response_code(403);
     exit("Accès refusé : ajoutez ?pin=... à l'adresse.\n");
 }
