@@ -1300,7 +1300,9 @@ if (function_exists('secteursCharge')) {
 $arbreSecteurs = function_exists('secteursListe') ? secteursListe($db) : [];
 
 $secteurParDept = [];   // nom de département => nom de secteur
+$nomsSecteurs   = [];   // nom de secteur => lui-même (pour reconnaître un secteur)
 foreach ($arbreSecteurs as $sec) {
+    $nomsSecteurs[(string) $sec['nom']] = (string) $sec['nom'];
     foreach ($sec['departements'] as $dep) {
         $secteurParDept[(string) $dep['nom']] = (string) $sec['nom'];
     }
@@ -1315,9 +1317,31 @@ foreach ($requests as $request) {
     $jour = (string) $request['shift_date'];
     $rid  = (int) $request['id'];
 
-    // Un département inconnu du rangement n'est pas caché : il tombe dans
-    // « Sans secteur », visible, plutôt que de disparaître de la semaine.
-    $secteur = $secteurParDept[$dept] ?? fjhT('Sans secteur', 'Zonder sector');
+    // ⚠️ LA RÈGLE, et elle vaut la peine d'être comprise : `department_name`
+    // ne porte PAS toujours un département. Quand une demande d'horaire ne
+    // précise pas le département, elle porte le nom du SECTEUR — « Famizoo »,
+    // « Plantes extérieures ». Ces créneaux-là se rangent directement sous le
+    // bandeau vert du secteur, sans bandeau jaune.
+    //
+    // Trois cas, dans cet ordre :
+    //   1. c'est un SECTEUR          → sous le vert, pas de jaune ;
+    //   2. c'est un DÉPARTEMENT      → sous le vert de son secteur, puis jaune ;
+    //   3. inconnu                   → « Sans secteur », visible plutôt que
+    //      disparu de la semaine.
+    //
+    // Cas 2 particulier : un département qui porte le MÊME nom que son secteur
+    // (« Plantes intérieures ») ne redonne pas un bandeau jaune identique au
+    // vert juste au-dessus — ses lignes rejoignent celles du secteur.
+    if (isset($nomsSecteurs[$dept])) {
+        $secteur = $dept;
+        $sousTitre = '';                    // rien à afficher en jaune
+    } elseif (isset($secteurParDept[$dept])) {
+        $secteur = $secteurParDept[$dept];
+        $sousTitre = ($dept === $secteur) ? '' : $dept;
+    } else {
+        $secteur = fjhT('Sans secteur', 'Zonder sector');
+        $sousTitre = $dept;
+    }
 
     $affectations = $assignmentsByRequest[$rid] ?? [];
     $places = max((int) $request['seats_required'], count($affectations));
@@ -1334,7 +1358,7 @@ foreach ($requests as $request) {
             $agence = (string) ($a['agency_name'] ?? ($a['interim'] ?? ''));
         }
 
-        $grille[$secteur][$dept][$jour][] = [
+        $grille[$secteur][$sousTitre][$jour][] = [
             'horaire'       => (string) $request['time_slot'],
             'nom'           => $nom,
             'agence'        => $agence,
@@ -1395,6 +1419,9 @@ $semaineUrl = 'interim_horaires.php?week=' . urlencode($selectedWeekKey);
     td.horaire { background: #fbfdfb; color: #33443a; text-align: center; font-variant-numeric: tabular-nums; }
     td.nom { min-width: 130px; }
     td.agence { min-width: 62px; color: #55665c; text-align: center; }
+    /* Une barre nette a la fin de chaque jour : sur sept colonnes triples,
+       l'oeil perd sinon la limite entre mardi et mercredi. */
+    th.fin-jour, td.fin-jour { border-right: 3px solid #2d5a37; }
     td.vide-jour { background: #f7f9f8; }
 
     .place-libre { display: block; width: 100%; border: 1px dashed #b9cfc0; background: #fff; color: #2d5a37; border-radius: 5px; padding: 2px 6px; font-family: inherit; font-size: .7rem; font-weight: 700; cursor: pointer; text-align: left; }
@@ -1465,14 +1492,14 @@ $semaineUrl = 'interim_horaires.php?week=' . urlencode($selectedWeekKey);
     <thead>
         <tr>
             <?php foreach ($weekDays as $jour): ?>
-                <th class="jour-tete" colspan="3"><?php echo e($jour['label']); ?></th>
+                <th class="jour-tete fin-jour" colspan="3"><?php echo e($jour['label']); ?></th>
             <?php endforeach; ?>
         </tr>
         <tr>
             <?php foreach ($weekDays as $jour): ?>
                 <th class="sous-tete"><?php echo e(fjhT('horaire', 'uren')); ?></th>
                 <th class="sous-tete"><?php echo e(fjhT('nom', 'naam')); ?></th>
-                <th class="sous-tete"><?php echo e(fjhT('agence', 'kantoor')); ?></th>
+                <th class="sous-tete fin-jour"><?php echo e(fjhT('agence', 'kantoor')); ?></th>
             <?php endforeach; ?>
         </tr>
     </thead>
@@ -1483,8 +1510,23 @@ $semaineUrl = 'interim_horaires.php?week=' . urlencode($selectedWeekKey);
 
         <tr class="l-secteur"><td colspan="<?php echo (int) $colonnes; ?>"><?php echo e($secteur); ?></td></tr>
 
-        <?php foreach ($grille[$secteur] as $dept => $parJour): ?>
+        <?php
+        // Les créneaux SANS département (clé vide) passent en premier : ils
+        // appartiennent au secteur lui-même et doivent suivre son bandeau vert,
+        // pas se retrouver après la liste des départements.
+        $blocs = $grille[$secteur];
+        $sansDept = [];
+        if (isset($blocs[''])) {
+            $sansDept[''] = $blocs[''];
+            unset($blocs['']);
+        }
+        $blocs = $sansDept + $blocs;   // l'ordre des départements reste celui de la base
+        ?>
+
+        <?php foreach ($blocs as $dept => $parJour): ?>
+            <?php if ($dept !== ''): ?>
             <tr class="l-departement"><td colspan="<?php echo (int) $colonnes; ?>"><?php echo e($dept); ?></td></tr>
+            <?php endif; ?>
 
             <?php
             // Autant de lignes que le jour le plus chargé : les colonnes ne
@@ -1503,7 +1545,7 @@ $semaineUrl = 'interim_horaires.php?week=' . urlencode($selectedWeekKey);
                         <?php if (!$place): ?>
                             <td class="vide-jour"></td>
                             <td class="vide-jour"></td>
-                            <td class="vide-jour"></td>
+                            <td class="vide-jour fin-jour"></td>
                         <?php else: ?>
                             <td class="horaire"><?php echo e($place['horaire']); ?></td>
                             <td class="nom">
@@ -1531,7 +1573,7 @@ $semaineUrl = 'interim_horaires.php?week=' . urlencode($selectedWeekKey);
                                     <span style="color:#aab;">—</span>
                                 <?php endif; ?>
                             </td>
-                            <td class="agence"><?php echo e($place['agence']); ?></td>
+                            <td class="agence fin-jour"><?php echo e($place['agence']); ?></td>
                         <?php endif; ?>
                     <?php endforeach; ?>
                 </tr>
@@ -1553,24 +1595,23 @@ $semaineUrl = 'interim_horaires.php?week=' . urlencode($selectedWeekKey);
             <?php echo csrfField(); ?>
             <input type="hidden" name="request_id" id="fenetreRequest" value="">
 
-            <label for="student_id"><?php echo e(fjhT('Dans la liste', 'Uit de lijst')); ?></label>
-            <select name="student_id" id="student_id">
-                <option value="0">— <?php echo e(fjhT('choisir', 'kiezen')); ?> —</option>
-                <?php // $studentOptions porte 'label' (prénom + nom déjà assemblés),
-                      // pas 'prenom'/'nom' séparés. ?>
+            <?php // UN SEUL CHAMP, deux usages : on tape et la liste se filtre,
+                  // ou on écrit un nom qui n'y figure pas. Le traitement sait
+                  // déjà retrouver un inscrit par son nom et, à défaut,
+                  // l'affecter en texte libre — c'est ce qui permet d'inscrire
+                  // quelqu'un sans compte, comme dans le classeur.
+                  //
+                  // Le <datalist> propose sans imposer : à la différence d'un
+                  // menu déroulant, il n'empêche pas d'écrire autre chose. ?>
+            <label for="student_name"><?php echo e(fjhT('Qui ?', 'Wie?')); ?></label>
+            <input type="text" name="student_name" id="student_name" list="listeEtudiants"
+                   autocomplete="off" placeholder="<?php echo e(fjhT('Taper un nom, ou choisir dans la liste', 'Een naam typen of kiezen uit de lijst')); ?>">
+            <datalist id="listeEtudiants">
+                <?php // $studentOptions porte 'label' (prénom + nom assemblés). ?>
                 <?php foreach ($studentOptions as $etu): ?>
-                    <option value="<?php echo (int) $etu['id']; ?>">
-                        <?php echo e(trim((string) $etu['label'])); ?><?php echo !empty($etu['interim']) ? ' — ' . e($etu['interim']) : ''; ?>
-                    </option>
+                    <option value="<?php echo e(trim((string) $etu['label'])); ?>"><?php echo !empty($etu['interim']) ? e($etu['interim']) : ''; ?></option>
                 <?php endforeach; ?>
-            </select>
-
-            <?php // Champ libre conservé : le traitement sait déjà retrouver un
-                  // inscrit par son nom, et affecter en texte libre s'il n'en est
-                  // pas un. C'est ce qui permet d'écrire quelqu'un qui n'a pas
-                  // encore de compte, comme dans le classeur. ?>
-            <label for="student_name"><?php echo e(fjhT('Ou taper un nom', 'Of een naam typen')); ?></label>
-            <input type="text" name="student_name" id="student_name" autocomplete="off" placeholder="<?php echo e(fjhT('Prénom Nom', 'Voornaam Naam')); ?>">
+            </datalist>
 
             <div class="actions">
                 <button type="button" class="btn btn-non" id="fermer"><?php echo e(fjhT('Annuler', 'Annuleren')); ?></button>
@@ -1590,10 +1631,9 @@ $semaineUrl = 'interim_horaires.php?week=' . urlencode($selectedWeekKey);
     function ouvrir(bouton) {
         champRequest.value = bouton.getAttribute('data-request');
         ou.textContent = bouton.getAttribute('data-ou') || '';
-        document.getElementById('student_id').value = '0';
         document.getElementById('student_name').value = '';
         voile.classList.add('ouvert');
-        document.getElementById('student_id').focus();
+        document.getElementById('student_name').focus();
     }
 
     function fermer() { voile.classList.remove('ouvert'); }
