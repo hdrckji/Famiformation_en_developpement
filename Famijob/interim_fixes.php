@@ -11,6 +11,7 @@ if ($role !== 'admin') {
 // ─── Créer / s'assurer des tables ──────────────────────────────────────────
 ensureDepartmentsTable($db);
 try { syncDepartmentsFromPlanningDb($db); } catch (Exception $e) {}
+secteursCharge();   // 🗂️ secteurs > départements (menu en cascade)
 
 $db->exec(
     "CREATE TABLE IF NOT EXISTS interim_fixed_schedules (
@@ -965,14 +966,13 @@ $csrfField = csrfField();
                 <!-- Département -->
                 <div class="form-row">
                     <label for="department"><?= e(famiT('interim_fixes.department.label')) ?></label>
+                    <?= secteursFiltreHtml($db, 'department') ?>
                     <select id="department" name="department" class="form-select">
                         <option value=""><?= e(famiT('interim_fixes.department.undefined')) ?></option>
-                        <?php foreach ($departments as $dept): ?>
-                        <option value="<?= e($dept) ?>"
-                            <?= ($selectedUserDept === $dept) ? 'selected' : '' ?>>
-                            <?= e($dept) ?>
-                        </option>
-                        <?php endforeach; ?>
+                        <?= secteursOptionsHtml($db, (string) $selectedUserDept) ?>
+                        <?php // Le département déjà enregistré peut ne plus exister dans la liste
+                              // (renommé, retiré). On le garde visible plutôt que de le remplacer
+                              // silencieusement par « non défini » au premier enregistrement. ?>
                         <?php if (!empty($selectedUserDept) && !in_array($selectedUserDept, $departments, true)): ?>
                         <option value="<?= e($selectedUserDept) ?>" selected><?= e($selectedUserDept) ?> <?= e(famiT('interim_fixes.department.custom_suffix')) ?></option>
                         <?php endif; ?>
@@ -1273,5 +1273,6 @@ if (window.location.hash === '#schedule-editor') {
 refreshHours();
 </script>
 
+<?php echo secteursScript(); ?>
 </body>
 </html>

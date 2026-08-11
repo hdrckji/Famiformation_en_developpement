@@ -538,6 +538,17 @@ if (!function_exists('purgeExcludedDepartments')) {
 if (!function_exists('syncDepartmentsFromPlanningDb')) {
     function syncDepartmentsFromPlanningDb(PDO $db)
     {
+        // 🚫 SYNCHRO COUPÉE. Elle recopiait les départements de la base planning
+        // vers `departments`. Depuis la mise en place des SECTEURS, la liste est
+        // tenue à la main (FamiJob > Paramètres > Départements) : laisser la
+        // synchro tourner réinjecterait à chaque page les anciens noms — Bassin,
+        // Garden, Food… — sans secteur, et le rangement serait à refaire sans fin.
+        //
+        // Réactivable sans toucher au code : PLANNING_DEPARTMENTS_SYNC=on.
+        if (strtolower((string) famiGetEnv('PLANNING_DEPARTMENTS_SYNC', 'off')) !== 'on') {
+            return [];
+        }
+
         $planningDb = getPlanningDbConnection();
         if (!$planningDb instanceof PDO) {
             return [];
@@ -584,6 +595,19 @@ if (!function_exists('ensureDepartmentsTable')) {
                 UNIQUE KEY uniq_department_name (department_name)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
         );
+
+        // 🗂️ LES SECTEURS. Les departements sont ranges sous 9 secteurs, et
+        // choisir un secteur restreint la liste proposee. Le schema vit dans
+        // includes/secteurs.php, PARTAGE avec FamiJob : le code des departements
+        // est deja duplique entre les deux applications, on n'en ajoute pas une
+        // troisieme copie.
+        //
+        // Ici on ne fait qu'assurer le SCHEMA. Le semis, lui, appartient a
+        // FamiJob (secteursInstalleUneFois) : c'est la que les secteurs se
+        // gerent, et deux semis concurrents se marcheraient dessus.
+        if (function_exists('secteursCharge') && secteursCharge()) {
+            try { secteursAssureSchema($db); } catch (Exception $e) {}
+        }
 
         $tableReady = true;
         return true;
@@ -1905,5 +1929,22 @@ if (!function_exists('sendUsernameReminderEmail')) {
             . '</div></div>';
 
         return sendMail($email, $subject, $body, true);
+    }
+}
+
+if (!function_exists('secteursCharge')) {
+    /** Charge le module des secteurs (partage avec FamiJob). */
+    function secteursCharge()
+    {
+        if (function_exists('secteursInstalle')) { return true; }
+        foreach ([__DIR__ . '/secteurs.php',
+                  __DIR__ . '/../famijob/includes/secteurs.php',
+                  __DIR__ . '/../../Famijob/includes/secteurs.php'] as $piste) {
+            if (is_file($piste)) { require_once $piste; return true; }
+        }
+        // Introuvable : versions degradees plutot qu'une erreur fatale (voir le
+        // meme filet cote FamiJob, ecrit apres une page 500 en production).
+        if (function_exists('secteursReplide')) { secteursReplide(); }
+        return false;
     }
 }

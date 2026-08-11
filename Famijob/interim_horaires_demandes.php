@@ -87,6 +87,7 @@ $db->exec(
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
 );
 
+secteursCharge();   // 🗂️ secteurs > départements (menus en cascade)
 $departmentStmt = $db->query(
     "SELECT department_name
      FROM departments
@@ -1017,11 +1018,10 @@ if (isset($_POST['create_requests']) && $createFailed) {
 
                         <div style="margin-bottom:12px;max-width:420px;">
                             <label for="department_name"><?php echo e(fjdT('Département', 'Afdeling')); ?></label>
-                            <select id="department_name" name="department_name" required>
+                            <?php echo secteursFiltreHtml($db, 'department_name'); ?>
+                                <select id="department_name" name="department_name" required>
                                 <option value=""><?php echo e(fjdT('Sélectionner', 'Selecteren')); ?></option>
-                                <?php foreach ($departmentOptions as $departmentName): ?>
-                                    <option value="<?php echo e($departmentName); ?>" <?php echo (($_POST['department_name'] ?? '') === $departmentName) ? 'selected' : ''; ?>><?php echo e($departmentName); ?></option>
-                                <?php endforeach; ?>
+                                <?php echo secteursOptionsHtml($db, (string) ($_POST['department_name'] ?? '')); ?>
                             </select>
                         </div>
 
@@ -1097,11 +1097,10 @@ if (isset($_POST['create_requests']) && $createFailed) {
 
                             <div style="margin-bottom:12px;max-width:420px;">
                                 <label for="department_name_byday"><?php echo e(fjdT('Département', 'Afdeling')); ?></label>
+                                <?php echo secteursFiltreHtml($db, 'department_name_byday'); ?>
                                 <select id="department_name_byday" name="department_name_byday" required>
                                     <option value=""><?php echo e(fjdT('Sélectionner', 'Selecteren')); ?></option>
-                                    <?php foreach ($departmentOptions as $bydayDept): ?>
-                                        <option value="<?php echo e($bydayDept); ?>" <?php echo (($_POST['department_name_byday'] ?? '') === $bydayDept) ? 'selected' : ''; ?>><?php echo e($bydayDept); ?></option>
-                                    <?php endforeach; ?>
+                                    <?php echo secteursOptionsHtml($db, (string) ($_POST['department_name_byday'] ?? '')); ?>
                                 </select>
                             </div>
 
@@ -1453,5 +1452,6 @@ if (isset($_POST['create_requests']) && $createFailed) {
     .fjd-mbtn-ok { background:#2d5a37; color:#fff; }
     .fjd-mbtn-ok:hover { background:#24492c; }
 </style>
+<?php echo secteursScript(); ?>
 </body>
 </html>

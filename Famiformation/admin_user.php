@@ -683,8 +683,15 @@ if (($user['role'] ?? '') === 'etudiant') {
             <?php echo csrfField(); ?>
             <div>
                 <label for="department_name" style="font-weight:700; color:#1d6f42; display:block; margin-bottom:6px;">Département</label>
-                <input type="text" name="department_name" id="department_name" class="input-control" list="department_suggestions" placeholder="Exemple : Caisse, Garden, Animalerie..." required>
-                <datalist id="department_suggestions">
+                <?php // 🗂️ Deux menus : le secteur restreint la liste des départements.
+                      // Une liste fermée remplace l'ancien champ libre : on y tapait
+                      // « Garden » ou « garden » et le second créait un doublon. ?>
+                <?php secteursCharge(); echo secteursFiltreHtml($db, 'department_name'); ?>
+                <select name="department_name" id="department_name" class="input-control" required>
+                    <option value="">— Choisir un département —</option>
+                    <?php echo secteursOptionsHtml($db); ?>
+                </select>
+                <datalist id="department_suggestions" hidden>
                     <?php foreach ($availableDepartments as $departmentOption): ?>
                         <option value="<?php echo htmlspecialchars($departmentOption['department_name']); ?>"></option>
                     <?php endforeach; ?>
@@ -881,5 +888,6 @@ if (($user['role'] ?? '') === 'etudiant') {
         </table>
     </div>
 </div>
+<?php echo secteursScript(); ?>
 </body>
 </html>

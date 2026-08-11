@@ -461,6 +461,17 @@ if (!function_exists('purgeExcludedDepartments')) {
 if (!function_exists('syncDepartmentsFromPlanningDb')) {
     function syncDepartmentsFromPlanningDb(PDO $db)
     {
+        // 🚫 SYNCHRO COUPÉE. Elle recopiait les départements de la base planning
+        // vers `departments`. Depuis la mise en place des SECTEURS, la liste est
+        // tenue à la main (FamiJob > Paramètres > Départements) : laisser la
+        // synchro tourner réinjecterait à chaque page les anciens noms — Bassin,
+        // Garden, Food… — sans secteur, et le rangement serait à refaire sans fin.
+        //
+        // Réactivable sans toucher au code : PLANNING_DEPARTMENTS_SYNC=on.
+        if (strtolower((string) famiGetEnv('PLANNING_DEPARTMENTS_SYNC', 'off')) !== 'on') {
+            return [];
+        }
+
         $planningDb = getPlanningDbConnection();
         if (!$planningDb instanceof PDO) {
             return [];
@@ -516,6 +527,13 @@ if (!function_exists('ensureDepartmentsTable')) {
         // faite par l'admin ne soit jamais rejouee.
         famijobDepartmentsMigrationOnce($db);
         famijobDepartmentsCleanupOnce($db);
+
+        // 🗂️ LES SECTEURS. Les departements ne sont plus une liste plate : ils
+        // sont ranges sous 9 secteurs, et choisir un secteur restreint la liste
+        // proposee. Le schema et le semis vivent dans includes/secteurs.php,
+        // partage avec le site principal pour ne pas dupliquer une troisieme
+        // fois le code des departements.
+        secteursInstalleUneFois($db);
 
         $tableReady = true;
         return true;
@@ -1911,5 +1929,99 @@ if (!function_exists('sendUsernameReminderEmail')) {
             . '</div></div>';
 
         return sendMail($email, $subject, $body, true);
+    }
+}
+
+if (!function_exists('secteursCharge')) {
+    /**
+     * Charge le module des secteurs, PARTAGE entre FamiJob et le site principal.
+     * Deux emplacements possibles selon l'application appelante — le meme motif
+     * que pour le dictionnaire neerlandais (voir Famijob/config.php).
+     */
+    function secteursCharge()
+    {
+        if (function_exists('secteursInstalle')) { return true; }
+        // ⚠️ DEUX ARBORESCENCES DIFFERENTES, et c'est ce qui a casse la page des
+        // demandes d'horaires en production :
+        //   depot      Famijob/includes/          -> ../../public/includes/
+        //   deploiement /app/public/famijob/includes/ -> ../../includes/
+        // (Dockerfile : COPY Famijob/ /app/public/famijob/). Une seule des deux
+        // pistes marche selon l'endroit, il faut donc les essayer toutes.
+        $pistes = [
+            __DIR__ . '/secteurs.php',
+            __DIR__ . '/../../includes/secteurs.php',          // deploiement
+            __DIR__ . '/../../public/includes/secteurs.php',   // depot
+            __DIR__ . '/../includes/secteurs.php',
+        ];
+        foreach ($pistes as $piste) {
+            if (is_file($piste)) { require_once $piste; return true; }
+        }
+        secteursReplide();   // introuvable : on degrade, on ne plante pas
+        return false;
+    }
+}
+
+if (!function_exists('secteursInstalleUneFois')) {
+    /**
+     * Met la base en conformite avec l'arbre des secteurs, UNE SEULE FOIS.
+     *
+     * Pas a chaque requete : l'installation fait une trentaine d'ecritures, et
+     * surtout elle RATTACHE les departements a leur secteur — la rejouer sans
+     * cesse annulerait un rangement fait a la main dans l'administration.
+     * Le bouton « Reinstaller » des parametres l'appelle directement, lui.
+     */
+    function secteursInstalleUneFois(PDO $db)
+    {
+        if (!secteursCharge()) { return; }
+        secteursAssureSchema($db);
+        if (!function_exists('famijobAppFlagIsSet')) { return; }
+        if (famijobAppFlagIsSet($db, 'secteurs_v3')) { return; }
+        try { secteursInstalle($db); } catch (Exception $e) { return; }
+        famijobAppFlagSet($db, 'secteurs_v3');
+    }
+}
+
+if (!function_exists('secteursReplide')) {
+    /**
+     * FILET DE SECURITE : si le module des secteurs est introuvable, on definit
+     * des versions degradees de ce que les pages appellent, pour qu'elles
+     * retombent sur l'ancien comportement — une liste plate — au lieu de
+     * s'arreter sur une erreur fatale.
+     *
+     * C'est exactement ce qui est arrive : un chemin de secours faux, et la page
+     * des demandes d'horaires renvoyait une erreur 500. Une liste sans filtre
+     * est une gene ; une page morte empeche de travailler.
+     */
+    function secteursReplide()
+    {
+        if (!function_exists('secteursOptionsHtml')) {
+            function secteursOptionsHtml(PDO $db, $valeur = '', $par = 'nom', $avecSansSecteur = true)
+            {
+                $html = '';
+                try {
+                    $rows = $db->query("SELECT id, department_name FROM departments WHERE is_active = 1 ORDER BY department_name ASC")
+                              ->fetchAll(PDO::FETCH_ASSOC);
+                } catch (Exception $e) { return ''; }
+                foreach ($rows as $r) {
+                    $v = ($par === 'id') ? (string) $r['id'] : (string) $r['department_name'];
+                    $sel = ((string) $valeur !== '' && (string) $valeur === $v) ? ' selected' : '';
+                    $html .= '<option value="' . htmlspecialchars($v, ENT_QUOTES, 'UTF-8') . '"' . $sel . '>'
+                           . htmlspecialchars((string) $r['department_name'], ENT_QUOTES, 'UTF-8') . '</option>';
+                }
+                return $html;
+            }
+        }
+        if (!function_exists('secteursFiltreHtml')) {
+            function secteursFiltreHtml(PDO $db, $cibleId, $libelle = 'Secteur') { return ''; }
+        }
+        if (!function_exists('secteursScript')) {
+            function secteursScript() { return ''; }
+        }
+        if (!function_exists('secteursListe')) {
+            function secteursListe(PDO $db, $inclureVides = false) { return []; }
+        }
+        if (!function_exists('secteursSansSecteur')) {
+            function secteursSansSecteur(PDO $db) { return []; }
+        }
     }
 }

@@ -15,6 +15,11 @@ $message = '';
 $error = '';
 
 // Onglet actif du hub Paramètres.
+// 🗂️ Le module des secteurs, chargé AVANT le traitement du formulaire : les
+// actions « renommer », « ranger » et « réinstaller » s'en servent, et ce bloc
+// redirige avant d'arriver plus bas dans la page.
+secteursCharge();
+
 $section = (string) ($_GET['section'] ?? 'departements');
 $allowedSections = ['departements'];
 if (!in_array($section, $allowedSections, true)) {
@@ -45,12 +50,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     if ((int) $existing['is_active'] === 1) {
                         $error = 'Le département « ' . $existing['department_name'] . ' » existe déjà.';
                     } else {
-                        $db->prepare("UPDATE departments SET is_active = 1, updated_at = NOW() WHERE id = ?")->execute([(int) $existing['id']]);
+                        $sid = (int) ($_POST['sector_id'] ?? 0);
+                        if ($sid > 0) {
+                            $db->prepare("UPDATE departments SET is_active = 1, sector_id = ?, updated_at = NOW() WHERE id = ?")
+                               ->execute([$sid, (int) $existing['id']]);
+                        } else {
+                            $db->prepare("UPDATE departments SET is_active = 1, updated_at = NOW() WHERE id = ?")->execute([(int) $existing['id']]);
+                        }
                         $message = 'Département « ' . $existing['department_name'] . ' » réactivé.';
                     }
                 } else {
-                    $db->prepare("INSERT INTO departments (department_name, is_active) VALUES (?, 1)")->execute([$name]);
-                    $message = 'Département « ' . $name . ' » ajouté.';
+                    $sid = (int) ($_POST['sector_id'] ?? 0);
+                    $db->prepare("INSERT INTO departments (department_name, is_active, sector_id) VALUES (?, 1, ?)")
+                       ->execute([$name, $sid > 0 ? $sid : null]);
+                    $message = 'Département « ' . $name . ' » ajouté'
+                             . ($sid > 0 ? '.' : ' — il est « à ranger », pense à lui choisir un secteur.');
                 }
             } catch (Exception $e) {
                 $error = "Impossible d'enregistrer le département : " . $e->getMessage();
@@ -83,6 +97,77 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif (isset($_POST['capitalize_all'])) {
         $n = famijobCapitalizeAllDepartments($db);
         $message = 'Casse normalisée (' . $n . ' département(s) modifié(s)).';
+
+    // -------- Secteurs --------
+    } elseif (isset($_POST['set_sector'])) {
+        // Ranger un département sous un secteur — ou l'en sortir (secteur vide).
+        $id = (int) ($_POST['department_id'] ?? 0);
+        $sid = (int) ($_POST['sector_id'] ?? 0);
+        if ($id > 0) {
+            $db->prepare("UPDATE departments SET sector_id = ?, updated_at = NOW() WHERE id = ?")
+               ->execute([$sid > 0 ? $sid : null, $id]);
+            $message = $sid > 0 ? 'Département rangé.' : 'Département sorti de son secteur.';
+        }
+    } elseif (isset($_POST['rename_department'])) {
+        // ⚠️ Passe par secteursRenommeDepartement() et JAMAIS par un simple
+        // UPDATE : deux autres tables stockent le nom en clair (affectations
+        // d'intérimaires, demandes de créneaux). Un UPDATE direct les
+        // détacherait sans erreur et sans trace.
+        $id = (int) ($_POST['department_id'] ?? 0);
+        $nouveau = famijobCapitalizeDepartmentName((string) ($_POST['new_name'] ?? ''));
+        if ($id > 0 && $nouveau !== '') {
+            $q = $db->prepare("SELECT department_name FROM departments WHERE id = ? LIMIT 1");
+            $q->execute([$id]);
+            $ancien = (string) $q->fetchColumn();
+            if ($ancien === '') {
+                $error = 'Département introuvable.';
+            } elseif ($ancien === $nouveau) {
+                $message = 'Aucun changement.';
+            } else {
+                $r = secteursRenommeDepartement($db, $ancien, $nouveau);
+                $message = $r === 'fusion'
+                    ? '« ' . $ancien . ' » fusionné dans « ' . $nouveau . ' » (liens étudiants reportés).'
+                    : '« ' . $ancien . ' » renommé en « ' . $nouveau . ' ».';
+            }
+        }
+    } elseif (isset($_POST['add_sector'])) {
+        $nom = trim((string) ($_POST['sector_name'] ?? ''));
+        if ($nom === '') {
+            $error = 'Indiquez un nom de secteur.';
+        } else {
+            try {
+                $pos = (int) $db->query("SELECT COALESCE(MAX(position), 0) + 1 FROM sectors")->fetchColumn();
+                $db->prepare("INSERT INTO sectors (sector_name, position, is_active) VALUES (?, ?, 1)
+                              ON DUPLICATE KEY UPDATE is_active = 1")->execute([$nom, $pos]);
+                $message = 'Secteur « ' . $nom . ' » ajouté.';
+            } catch (Exception $e) {
+                $error = "Impossible d'ajouter le secteur : " . $e->getMessage();
+            }
+        }
+    } elseif (isset($_POST['delete_sector'])) {
+        // On ne supprime QUE le secteur : ses départements repassent « à
+        // ranger », avec tous leurs liens étudiants. Supprimer un secteur ne
+        // doit jamais faire disparaître un département par ricochet.
+        $sid = (int) ($_POST['sector_id'] ?? 0);
+        if ($sid > 0) {
+            $db->prepare("UPDATE departments SET sector_id = NULL WHERE sector_id = ?")->execute([$sid]);
+            $db->prepare("DELETE FROM sectors WHERE id = ?")->execute([$sid]);
+            $message = 'Secteur supprimé. Ses départements sont « à ranger ».';
+        }
+    } elseif (isset($_POST['install_sectors'])) {
+        try {
+            $b = secteursInstalle($db);
+            $message = 'Arbre réinstallé : ' . $b['secteurs'] . ' secteurs, ' . $b['crees'] . ' département(s) créé(s), '
+                     . $b['renommes'] . ' renommé(s), ' . $b['fusions'] . ' fusionné(s), '
+                     . $b['supprimes'] . ' supprimé(s), ' . count($b['aRanger']) . ' à ranger.';
+            // Ce qui a été perdu se dit, ça ne se devine pas.
+            if (!empty($b['supprimesAvecLiens'])) {
+                $message .= ' ⚠️ ' . $b['liensPerdus'] . ' rattachement(s) étudiant supprimé(s) avec : '
+                          . implode(', ', $b['supprimesAvecLiens']) . '.';
+            }
+        } catch (Exception $e) {
+            $error = "Réinstallation impossible : " . $e->getMessage();
+        }
     }
 
     $params = ['section' => 'departements'];
@@ -101,6 +186,14 @@ $activeDepartments = $db->query(
 $inactiveDepartments = $db->query(
     "SELECT id, department_name FROM departments WHERE is_active = 0 ORDER BY department_name ASC"
 )->fetchAll(PDO::FETCH_ASSOC);
+
+// 🗂️ L'arbre : les secteurs et ce qu'ils contiennent, plus ce qui n'est rangé
+// nulle part. On demande les secteurs VIDES aussi : un secteur fraîchement créé
+// doit apparaître, sinon on ne peut rien y mettre.
+$secteurs = secteursListe($db, true);
+$aRanger = secteursSansSecteur($db);
+$nbRanges = 0;
+foreach ($secteurs as $sct) { $nbRanges += count($sct['departements']); }
 ?>
 <!DOCTYPE html>
 <html lang="<?= e(famiLang()) ?>">
@@ -137,6 +230,17 @@ $inactiveDepartments = $db->query(
         .btn-ko { background:#fae4e1; color:#a13e35; }
         .alert { padding:11px 14px; border-radius:12px; font-weight:700; margin-bottom:16px; background:#dff3e3; color:#1d6a39; }
         .alert.err { background:#fae4e1; color:#a13e35; }
+        /* 🗂️ Arbre secteurs > départements */
+        .secteur-bloc { border:1px solid var(--line); border-radius:12px; padding:10px 12px; margin-top:12px; background:#fbfdfc; }
+        .secteur-tete { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+        .secteur-nb { background:#e6efe9; color:#3d6b48; border-radius:999px; padding:1px 8px; font-size:.78rem; font-weight:700; }
+        .secteur-tete .sect-x { margin-left:auto; background:none; border:none; color:#b3554b; cursor:pointer; font-size:.95rem; }
+        .chip-sel { border:none; background:transparent; font-size:.72rem; color:var(--muted); max-width:104px; cursor:pointer; }
+        .dep-liste { display:flex; flex-direction:column; gap:8px; margin-top:10px; }
+        .dep-ligne { display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:8px 10px; background:#fff; border:1px solid var(--line); border-radius:10px; }
+        .dep-nom { font-weight:700; min-width:190px; display:flex; flex-direction:column; gap:2px; }
+        .dep-echo { font-weight:500; font-size:.74rem; color:#8a5a12; }
+        .dep-form { display:inline-flex; align-items:center; gap:6px; margin:0; }
         .chips { display:flex; flex-wrap:wrap; gap:8px; margin-top:4px; }
         .chip { display:inline-flex; align-items:center; gap:8px; background:#f3f8f5; border:1px solid #e0ebe3; border-radius:999px; padding:6px 6px 6px 14px; font-weight:700; font-size:.9rem; }
         .chip.off { opacity:.7; }
@@ -175,34 +279,137 @@ $inactiveDepartments = $db->query(
                     <form method="post" class="add-row">
                         <?= csrfField() ?>
                         <input type="text" name="department_name" maxlength="120" placeholder="Nom du département (ex. Abbaye)" required>
+                        <select name="sector_id">
+                            <option value="">— Sans secteur —</option>
+                            <?php foreach ($secteurs as $sct): ?>
+                                <option value="<?= (int) $sct['id'] ?>"><?= e($sct['nom']) ?></option>
+                            <?php endforeach; ?>
+                        </select>
                         <button class="btn btn-primary" type="submit" name="add_department" value="1">Ajouter</button>
                     </form>
                 </div>
 
+                <?php if (!empty($aRanger)): ?>
+                <div class="card" style="border:2px solid #e0a33c; background:#fffaf0;">
+                    <h2 style="margin:0 0 4px;">⚠️ À ranger (<?= count($aRanger) ?>)</h2>
+                    <p class="sub">
+                        Ces départements existaient avant les secteurs et <b>n'ont pas d'équivalent évident</b> dans
+                        la nouvelle liste — les ranger au hasard déplacerait des étudiants dans un rayon qui n'est pas
+                        le leur. Ils fonctionnent normalement et gardent leurs liens étudiants&nbsp;: choisis leur
+                        secteur, ou renomme-les vers un département existant pour les fusionner.
+                    </p>
+                    <div class="dep-liste">
+                        <?php foreach ($aRanger as $d): ?>
+                            <div class="dep-ligne">
+                                <span class="dep-nom">
+                                    <?= e((string) $d['department_name']) ?>
+                                    <?php $res = secteursRessemblances($db, (string) $d['department_name'], (int) $d['id']);
+                                          $echos = [];
+                                          foreach ($res['secteurs'] as $sn) { $echos[] = 'secteur « ' . $sn . ' »'; }
+                                          foreach ($res['departements'] as $dn) { $echos[] = '« ' . $dn['nom'] . ' »'; }
+                                          if ($echos): ?>
+                                        <small class="dep-echo">ressemble à <?= e(implode(', ', array_slice($echos, 0, 3))) ?><?= count($echos) > 3 ? '…' : '' ?> — mais c'est une autre ligne</small>
+                                    <?php endif; ?>
+                                </span>
+                                <form method="post" class="dep-form">
+                                    <?= csrfField() ?>
+                                    <input type="hidden" name="department_id" value="<?= (int) $d['id'] ?>">
+                                    <select name="sector_id" onchange="this.form.submit()">
+                                        <option value="">Ranger dans…</option>
+                                        <?php foreach ($secteurs as $sct): ?>
+                                            <option value="<?= (int) $sct['id'] ?>"><?= e($sct['nom']) ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <input type="hidden" name="set_sector" value="1">
+                                </form>
+                                <form method="post" class="dep-form"
+                                      onsubmit="return this.new_name.value === '' || confirm('Fusionner « <?= e((string) $d['department_name']) ?> » dans « ' + this.new_name.value + ' » ?
+
+Ses étudiants, affectations et demandes de créneaux basculent sur ce rayon.');">
+                                    <?= csrfField() ?>
+                                    <input type="hidden" name="department_id" value="<?= (int) $d['id'] ?>">
+                                    <select name="new_name">
+                                        <option value="">Fusionner dans…</option>
+                                        <?php foreach ($secteurs as $s2): ?>
+                                            <?php if (empty($s2['departements'])) { continue; } ?>
+                                            <optgroup label="<?= e($s2['nom']) ?>">
+                                                <?php foreach ($s2['departements'] as $dd): ?>
+                                                    <option value="<?= e($dd['nom']) ?>"><?= e($dd['nom']) ?></option>
+                                                <?php endforeach; ?>
+                                            </optgroup>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <button class="btn btn-soft" type="submit" name="rename_department" value="1">OK</button>
+                                </form>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+                <?php endif; ?>
+
                 <div class="card">
                     <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
-                        <h2 style="margin:0;">Départements actifs (<?= count($activeDepartments) ?>)</h2>
-                        <form method="post">
-                            <?= csrfField() ?>
-                            <button class="btn btn-soft" type="submit" name="capitalize_all" value="1" title="Mettre une majuscule initiale à tous">Aa Normaliser la casse</button>
-                        </form>
-                    </div>
-                    <?php if (empty($activeDepartments)): ?>
-                        <div class="empty" style="margin-top:12px;">Aucun département actif.</div>
-                    <?php else: ?>
-                        <div class="chips">
-                            <?php foreach ($activeDepartments as $dept): ?>
-                                <span class="chip">
-                                    <span class="cn"><?= e((string) $dept['department_name']) ?></span>
-                                    <form method="post" onsubmit="return confirm('Retirer « <?= e((string) $dept['department_name']) ?> » ? (réactivable ensuite)');">
-                                        <?= csrfField() ?>
-                                        <input type="hidden" name="department_id" value="<?= (int) $dept['id'] ?>">
-                                        <button type="submit" name="deactivate_department" value="1" title="Retirer">✕</button>
-                                    </form>
-                                </span>
-                            <?php endforeach; ?>
+                        <h2 style="margin:0;">Secteurs (<?= count($secteurs) ?>) et départements (<?= $nbRanges ?>)</h2>
+                        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                            <form method="post">
+                                <?= csrfField() ?>
+                                <button class="btn btn-soft" type="submit" name="capitalize_all" value="1" title="Mettre une majuscule initiale à tous">Aa Normaliser la casse</button>
+                            </form>
+                            <form method="post" onsubmit="return confirm('Réinstaller l\'arbre de référence ?\n\nLes secteurs et départements manquants sont (re)créés et rattachés. Rien n\'est supprimé, et les départements « à ranger » ne bougent pas.');">
+                                <?= csrfField() ?>
+                                <button class="btn btn-soft" type="submit" name="install_sectors" value="1" title="Recréer secteurs et départements manquants">↻ Réinstaller l'arbre</button>
+                            </form>
                         </div>
-                    <?php endif; ?>
+                    </div>
+                    <p class="sub">Dans les formulaires, choisir un secteur restreint la liste des départements proposés.</p>
+
+                    <?php foreach ($secteurs as $sct): ?>
+                        <div class="secteur-bloc">
+                            <div class="secteur-tete">
+                                <b><?= e($sct['nom']) ?></b>
+                                <span class="secteur-nb"><?= count($sct['departements']) ?></span>
+                                <form method="post" class="dep-form"
+                                      onsubmit="return confirm('Supprimer le secteur « <?= e($sct['nom']) ?> » ?\n\nSes <?= count($sct['departements']) ?> département(s) ne sont PAS supprimés : ils repassent « à ranger » avec leurs liens étudiants.');">
+                                    <?= csrfField() ?>
+                                    <input type="hidden" name="sector_id" value="<?= (int) $sct['id'] ?>">
+                                    <button type="submit" name="delete_sector" value="1" class="sect-x" title="Supprimer le secteur">✕</button>
+                                </form>
+                            </div>
+                            <?php if (empty($sct['departements'])): ?>
+                                <div class="empty" style="margin:6px 0 0;">Aucun département dans ce secteur.</div>
+                            <?php else: ?>
+                                <div class="chips">
+                                    <?php foreach ($sct['departements'] as $d): ?>
+                                        <span class="chip">
+                                            <span class="cn"><?= e($d['nom']) ?></span>
+                                            <form method="post" class="dep-form" title="Déplacer vers un autre secteur">
+                                                <?= csrfField() ?>
+                                                <input type="hidden" name="department_id" value="<?= (int) $d['id'] ?>">
+                                                <input type="hidden" name="set_sector" value="1">
+                                                <select name="sector_id" onchange="this.form.submit()" class="chip-sel">
+                                                    <?php foreach ($secteurs as $s2): ?>
+                                                        <option value="<?= (int) $s2['id'] ?>"<?= $s2['id'] === $sct['id'] ? ' selected' : '' ?>><?= e($s2['nom']) ?></option>
+                                                    <?php endforeach; ?>
+                                                    <option value="">— Sortir du secteur —</option>
+                                                </select>
+                                            </form>
+                                            <form method="post" onsubmit="return confirm('Retirer « <?= e($d['nom']) ?> » ? (réactivable ensuite)');">
+                                                <?= csrfField() ?>
+                                                <input type="hidden" name="department_id" value="<?= (int) $d['id'] ?>">
+                                                <button type="submit" name="deactivate_department" value="1" title="Retirer">✕</button>
+                                            </form>
+                                        </span>
+                                    <?php endforeach; ?>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                    <?php endforeach; ?>
+
+                    <form method="post" class="add-row" style="margin-top:14px;">
+                        <?= csrfField() ?>
+                        <input type="text" name="sector_name" maxlength="120" placeholder="Nouveau secteur (ex. Logistique)" required>
+                        <button class="btn btn-soft" type="submit" name="add_sector" value="1">+ Secteur</button>
+                    </form>
                 </div>
 
                 <?php if (!empty($inactiveDepartments)): ?>
