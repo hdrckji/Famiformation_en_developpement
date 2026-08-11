@@ -20,3 +20,9 @@ public/emails/.env
 # pas exclure les jeux de données du quiz (quiz/seed/*.sql), qui eux sont du
 # contenu de projet sans donnée personnelle.
 /*.sql
+
+# Copies du VOLUME (photos de profil, PDF et vidéos des modules). Même raison
+# que les exports SQL : données personnelles et centaines de Mo de médias, qui
+# vivent sur le stockage objet et n'ont rien à faire dans le dépôt.
+/backup_fami_dev/
+/backup_fami_live/
