@@ -693,30 +693,19 @@ if ($wcThemeOn && !empty($siteTheme) && is_array($siteTheme)) {
             <div class="tile-desc"><?= t('Accéder à la plateforme Famijob (gestion des jobs étudiants).', 'Toegang tot het Famijob-platform (beheer van studentenjobs).') ?></div>
         </a>
         <?php if ($role === 'admin'): ?>
-        <a href="interim_horaires_demandes.php" class="tile tile-admin">
-            <div class="tile-media"><span class="tile-icon">📝</span></div>
-            <div class="tile-title"><?= t('Demandes Horaires Intérim', 'Aanvragen uren interim') ?></div>
-            <div class="tile-desc"><?= t('Créer, modifier ou supprimer les demandes d\'horaires pour les agences intérim.', 'Uuraanvragen voor de interimkantoren aanmaken, wijzigen of verwijderen.') ?></div>
-        </a>
-        <a href="interim_horaires.php" class="tile tile-admin">
-            <div class="tile-media"><span class="tile-icon">🤝</span></div>
-            <div class="tile-title"><?= t('Matching Intérim', 'Matching interim') ?></div>
-            <div class="tile-desc"><?= t('Assigner les étudiants aux créneaux intérim, matching manuel ou automatique.', 'Studenten toewijzen aan interim-tijdslots, handmatig of automatisch.') ?></div>
-        </a>
-        <a href="validation_demandes_horaires.php" class="tile tile-admin">
-            <div class="tile-media"><span class="tile-icon">✅</span></div>
-            <div class="tile-title"><?= t('Validation demandes horaires', 'Validatie uuraanvragen') ?></div>
-            <div class="tile-desc"><?= t('Valider ou refuser les demandes d\'horaires avant publication dans le matching.', 'Uuraanvragen goedkeuren of weigeren vóór publicatie in de matching.') ?></div>
-        </a>
+        <?php // 💼 LES ÉCRANS D'HORAIRES SONT PARTIS, sauf la tuile Famijob
+              // ci-dessus : « Demandes Horaires Intérim », « Matching Intérim »,
+              // « Validation demandes horaires » et « Dispos Étudiants »
+              // existent DÉJÀ dans FamiJob. Deux portes vers le même écran,
+              // c'est une porte de trop — et celle qu'on regarde le moins finit
+              // par ne plus être maintenue.
+              //
+              // Les PAGES restent en place côté site : d'autres liens y mènent
+              // encore, et les supprimer dépasserait ce qui a été demandé. ?>
         <a href="admin.php" class="tile tile-admin">
             <div class="tile-media"><span class="tile-icon">👥</span></div>
             <div class="tile-title"><?= t('RH', 'HR') ?></div>
             <div class="tile-desc"><?= t('Gestion des comptes et scores.', 'Beheer van accounts en scores.') ?></div>
-        </a>
-        <a href="admin_disponibilites_etudiants.php" class="tile tile-admin">
-            <div class="tile-media"><span class="tile-icon">🗓️</span></div>
-            <div class="tile-title"><?= t('Dispos Etudiants', 'Beschikbaarheid studenten') ?></div>
-            <div class="tile-desc"><?= t('Vue par semaine et par secteur des disponibilités étudiantes.', 'Overzicht per week en per sector van de beschikbaarheid van studenten.') ?></div>
         </a>
         <?php endif; ?>
         <a href="gestion_quiz.php" class="tile tile-admin">
