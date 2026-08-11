@@ -1269,7 +1269,7 @@ foreach ($weekDays as $weekDay) {
 
     $visibleWeekDays[] = $weekDay;
 }
-?>
+// (le PHP reste ouvert : la vue qui suit est du code, pas du texte)
 // ─────────────────────────────────────────────────────────────────────────────
 // VUE SEMAINE — la grille du fichier Excel, reprise à l'écran.
 //
