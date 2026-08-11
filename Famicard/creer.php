@@ -64,6 +64,9 @@ $moiId = (int) ($_SESSION['user_id'] ?? 0);
 // chemin chaud : la DDL y est admise (même choix que relance_mdp.php).
 ensureUserAccountAccessColumns($db);
 famicardAssureModifications($db);
+// Les colonnes `employeur` et `contrat` (voir includes/emploi.php). Absentes,
+// les deux champs disparaissent du formulaire au lieu de le casser.
+famicardAssureEmploi($db);
 try {
     famicardAssureServices($db);
 } catch (Exception $e) {
@@ -80,17 +83,14 @@ try {
 // l'enregistrement tout entier. Sans ça, une base un peu ancienne renverrait
 // « colonne inconnue » au moment précis où l'on crée un collaborateur.
 // ─────────────────────────────────────────────────────────────────────────────
-$colonnes = [];
-try {
-    foreach ($db->query("SHOW COLUMNS FROM utilisateurs")->fetchAll(PDO::FETCH_ASSOC) as $c) {
-        $colonnes[(string) $c['Field']] = true;
-    }
-} catch (Exception $e) {
-    $colonnes = [];
-}
+// Lue une seule fois pour toute la requête, et relue après les migrations
+// ci-dessus : sans ça, on nierait une colonne créée trois lignes plus haut.
+$colonnes    = famicardColonnesUtilisateurs($db);
 $aInterim    = isset($colonnes['interim']);
 $aSiteId     = isset($colonnes['site_id']);
 $aStatutDate = isset($colonnes['statut_date']);
+$aEmployeur  = isset($colonnes['employeur']);
+$aContrat    = isset($colonnes['contrat']);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // LES LISTES PROPOSÉES
@@ -103,15 +103,12 @@ $ROLES_CREATION = [
     'employe_logistique', 'teamcoach', 'mentor', 'evaluateur', 'admin',
 ];
 
-$agences = [];
-try {
-    if ($db->query("SHOW TABLES LIKE 'interim_agences'")->fetch()) {
-        $agences = $db->query("SELECT nom_agence FROM interim_agences ORDER BY nom_agence ASC")
-                      ->fetchAll(PDO::FETCH_COLUMN);
-    }
-} catch (Exception $e) {
-    $agences = [];
-}
+// Les agences viennent de `interim_agences` (la page « Agences Intérim » du
+// site), jamais d'une seconde liste tenue ici. « Famiflora » en fait partie et
+// n'est PAS une agence : c'est le dossier suivi en interne par Honorine.
+$agences   = famicardAgences($db);
+$employeurs = famicardOptionsEmployeur();
+$contrats   = famicardOptionsContrat();
 
 $magasins = famicardMagasins($db);
 $services = famicardServices($db);
@@ -126,7 +123,8 @@ $services = famicardServices($db);
 // ─────────────────────────────────────────────────────────────────────────────
 $saisie = [
     'identifiant' => '', 'nom' => '', 'prenom' => '', 'email' => '',
-    'role' => 'beta', 'interim' => '', 'site_id' => '', 'departement' => '',
+    'role' => 'beta', 'employeur' => 'interne', 'contrat' => '',
+    'interim' => '', 'site_id' => '', 'departement' => '',
     'acces' => [], 'envoyer_mail' => true,
 ];
 
@@ -150,6 +148,8 @@ if (($_POST['action'] ?? '') === 'creer') {
     $email       = trim((string) ($_POST['email'] ?? ''));
     $mdp         = (string) ($_POST['mot_de_passe'] ?? '');
     $role        = (string) ($_POST['role'] ?? '');
+    $employeur   = (string) ($_POST['employeur'] ?? '');
+    $contrat     = (string) ($_POST['contrat'] ?? '');
     $interim     = trim((string) ($_POST['interim'] ?? ''));
     $siteId      = trim((string) ($_POST['site_id'] ?? ''));
     $departement = (int) ($_POST['departement'] ?? 0);
@@ -159,6 +159,8 @@ if (($_POST['action'] ?? '') === 'creer') {
     $saisie = [
         'identifiant' => $identifiant, 'nom' => $nom, 'prenom' => $prenom,
         'email' => $email, 'role' => $role !== '' ? $role : 'beta',
+        'employeur' => $employeur !== '' ? $employeur : 'interne',
+        'contrat' => $contrat,
         'interim' => $interim, 'site_id' => $siteId,
         'departement' => $departement > 0 ? (string) $departement : '',
         'acces' => $accesChoisi, 'envoyer_mail' => $envoyerMail,
@@ -172,10 +174,36 @@ if (($_POST['action'] ?? '') === 'creer') {
     if ($nom === '')         { $erreurs[] = 'le nom'; }
     if ($prenom === '')      { $erreurs[] = 'le prénom'; }
     if (!in_array($role, $ROLES_CREATION, true)) { $erreurs[] = 'le profil'; }
-    // L'agence n'est exigée que si la colonne existe : sans elle, le champ n'est
-    // même pas proposé, et l'exiger rendrait tout étudiant impossible à créer.
+    if ($aEmployeur && !isset($employeurs[$employeur])) { $erreurs[] = "l'employeur"; }
+
+    // ── CE QUI NE PEUT PAS ÊTRE VRAI EN MÊME TEMPS ───────────────────────
+    // Les trois questions sont indépendantes, mais pas n'importe quelles
+    // réponses vont ensemble. On refuse ici plutôt que de laisser naître une
+    // fiche qu'il faudra corriger — et que personne ne relira.
+    $contradictions = [];
+    if ($aContrat && $contrat !== '' && !isset($contrats[$contrat])) {
+        $contradictions[] = "Ce type de contrat n'existe pas.";
+    }
+    if ($aInterim && $interim !== '' && !in_array($interim, $agences, true)) {
+        $contradictions[] = "Ce dossier ne correspond à aucune agence connue.";
+    }
+    if ($aEmployeur && $employeur === 'interim') {
+        if ($interim === '') {
+            $contradictions[] = "Un intérimaire vient d'une agence : indique laquelle suit son dossier.";
+        } elseif (famicardEstAgenceInterne($interim)) {
+            $contradictions[] = 'Famiflora est l\'entreprise, pas une agence : un intérimaire vient d\'une agence extérieure.';
+        }
+    }
+    if ($aEmployeur && $employeur !== 'interim' && $interim !== '' && !famicardEstAgenceInterne($interim)) {
+        $contradictions[] = 'Employeur « ' . ($employeurs[$employeur] ?? $employeur) . ' » mais dossier suivi par '
+                          . $interim . ' : une agence extérieure ne suit que des intérimaires.';
+    }
+    // ⚠️ Honorine ne voit ses étudiants QUE par cette colonne (FamiJob compare
+    // le nom du dossier au sien). Un étudiant créé sans dossier n'apparaîtrait
+    // chez personne — c'est la panne la plus difficile à voir de tout l'écran.
     if ($aInterim && $role === 'etudiant' && $interim === '') {
-        $erreurs[] = "l'agence intérim (obligatoire pour un étudiant)";
+        $contradictions[] = 'Un étudiant doit avoir un dossier : son agence, ou Famiflora'
+                          . ' s\'il a été recruté en direct. Sans ça, personne ne le verra dans ses étudiants.';
     }
 
     $siteStore = ($siteId !== '' && isset($magasins[(int) $siteId])) ? (int) $siteId : null;
@@ -183,6 +211,8 @@ if (($_POST['action'] ?? '') === 'creer') {
 
     if ($erreurs) {
         $flash = "<div class='flash err'>❌ Il manque " . e(implode(', ', $erreurs)) . '.</div>';
+    } elseif ($contradictions) {
+        $flash = "<div class='flash err'>❌ " . implode('<br>❌ ', array_map('e', $contradictions)) . '</div>';
     } elseif ($email === '' && $mdp === '') {
         $flash = "<div class='flash err'>❌ Renseigne au moins un <b>email</b> ou un <b>mot de passe</b> :"
                . ' sans l\'un des deux, personne ne peut se connecter à ce compte.</div>';
@@ -224,6 +254,10 @@ if (($_POST['action'] ?? '') === 'creer') {
                 'account_activation_pending' => ($mdp === '') ? 1 : 0,
             ];
             if ($aInterim)    { $donnees['interim'] = $interimStore; }
+            if ($aEmployeur)  { $donnees['employeur'] = $employeur; }
+            // Vide = « à préciser », et c'est une réponse acceptable : mieux
+            // vaut un contrat qu'on sait manquant qu'un contrat inventé.
+            if ($aContrat)    { $donnees['contrat'] = ($contrat === '') ? null : $contrat; }
             if ($aSiteId)     { $donnees['site_id'] = $siteStore; }
             // NOW() serait équivalent, mais une valeur liée garde la requête
             // construite d'une seule façon — colonnes connues, valeurs liées.
@@ -506,22 +540,66 @@ try {
             </p>
         </div>
 
+        <?php // ── EMPLOI ──────────────────────────────────────────────────
+              // Trois questions distinctes, et c'est tout l'intérêt : « chez
+              // qui », « comment engagée », « qui suit son dossier ». Aucune
+              // ne décide d'un accès — ça, c'est le profil, au-dessus. ?>
+        <?php if ($aEmployeur || $aContrat || $aInterim): ?>
         <div class="card">
-            <h2>Où travaille-t-il ?</h2>
+            <h2>Interne ou externe ?</h2>
             <div class="grille">
-                <?php if ($aInterim): ?>
+                <?php if ($aEmployeur): ?>
                 <div class="champ">
-                    <label for="interim">Agence intérim
-                        <span class="aide">— obligatoire pour un étudiant</span></label>
-                    <select id="interim" name="interim">
-                        <option value="">— Aucune agence —</option>
-                        <?php foreach ($agences as $a): ?>
-                            <option value="<?= e($a) ?>"<?= $saisie['interim'] === $a ? ' selected' : '' ?>><?= e($a) ?></option>
+                    <label for="employeur">Employeur <span class="requis">*</span></label>
+                    <select id="employeur" name="employeur" required>
+                        <?php foreach ($employeurs as $val => $lib): ?>
+                            <option value="<?= e($val) ?>"<?= $saisie['employeur'] === $val ? ' selected' : '' ?>><?= e($lib) ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>
                 <?php endif; ?>
 
+                <?php if ($aContrat): ?>
+                <div class="champ">
+                    <label for="contrat">Type de contrat
+                        <span class="aide">— peut être précisé plus tard</span></label>
+                    <select id="contrat" name="contrat">
+                        <option value="">— À préciser —</option>
+                        <?php foreach ($contrats as $val => $lib): ?>
+                            <option value="<?= e($val) ?>"<?= $saisie['contrat'] === $val ? ' selected' : '' ?>><?= e($lib) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <?php endif; ?>
+
+                <?php if ($aInterim): ?>
+                <div class="champ">
+                    <label for="interim">Dossier suivi par
+                        <span class="aide">— son agence, ou Famiflora</span></label>
+                    <select id="interim" name="interim">
+                        <option value="">— Personne —</option>
+                        <?php foreach ($agences as $a): ?>
+                            <option value="<?= e($a) ?>"<?= $saisie['interim'] === $a ? ' selected' : '' ?>>
+                                <?= e($a) ?><?= famicardEstAgenceInterne($a) ? ' — recrutement direct' : '' ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <?php endif; ?>
+            </div>
+            <p class="rappel">
+                <b>Famiflora n'est pas une agence</b> : c'est l'entreprise. Un collaborateur recruté en direct est
+                <b>interne</b>, et son dossier est suivi par <b>Famiflora</b> — c'est ce qui le fait apparaître chez
+                Honorine. Une vraie agence (Konvert, Ago…) veut dire <b>intérim</b>.<br>
+                Le contrat est une <b>troisième question</b> : un intérimaire peut être étudiant, flexi ou fixe,
+                et un interne aussi.
+            </p>
+        </div>
+        <?php endif; ?>
+
+        <div class="card">
+            <h2>Où travaille-t-il ?</h2>
+            <div class="grille">
                 <?php if ($aSiteId && $magasins): ?>
                 <div class="champ">
                     <label for="site_id">Lieu de travail</label>

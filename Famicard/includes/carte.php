@@ -112,11 +112,35 @@ if (!function_exists('famicardChampsSocle')) {
                 'requis' => false, 'nature' => 'service', 'visible' => 'tous',
                 'modifiable' => 'admin', 'saisie' => 'liste', 'badge' => false,
             ],
+            // ── EMPLOI : CHEZ QUI, ET COMMENT ──────────────────────────────
+            // Trois questions distinctes, trois champs, et aucun qui décide
+            // d'un accès — c'est `role` et lui seul qui ouvre des portes.
+            // Voir includes/emploi.php pour le raisonnement complet.
+            'employeur' => [
+                'libelle' => 'Employeur', 'libelle_nl' => 'Werkgever',
+                'colonne' => 'employeur', 'groupe' => 'rattachement',
+                'requis' => false, 'nature' => 'service', 'visible' => 'soi',
+                'modifiable' => 'admin', 'saisie' => 'liste', 'badge' => false,
+                'aide' => 'Chez qui elle travaille. « Externe » n\'est pas une valeur : c\'est tout ce qui n\'est pas interne.',
+            ],
+            'contrat' => [
+                'libelle' => 'Type de contrat', 'libelle_nl' => 'Contracttype',
+                'colonne' => 'contrat', 'groupe' => 'rattachement',
+                'requis' => false, 'nature' => 'service', 'visible' => 'soi',
+                'modifiable' => 'admin', 'saisie' => 'liste', 'badge' => false,
+                'aide' => 'Comment elle est engagée. Indépendant de l\'employeur : un intérimaire peut être étudiant, flexi ou fixe.',
+            ],
+            // ⚠️ CE CHAMP NE DIT PAS « est-elle intérimaire ». Il dit QUI SUIT
+            // SON DOSSIER : son agence si elle est externe, « Famiflora »
+            // (c'est-à-dire Honorine, qui a une ligne dans `interim_agences` et
+            // un compte à ce nom) si elle a été recrutée en direct. C'est
+            // `employeur` qui répond à la question du statut.
             'interim' => [
-                'libelle' => 'Agence intérim', 'libelle_nl' => 'Interimkantoor',
+                'libelle' => 'Dossier suivi par', 'libelle_nl' => 'Dossier beheerd door',
                 'colonne' => 'interim', 'groupe' => 'rattachement',
                 'requis' => false, 'nature' => 'service', 'visible' => 'admin',
-                'modifiable' => 'admin', 'saisie' => 'texte', 'badge' => false,
+                'modifiable' => 'admin', 'saisie' => 'liste', 'badge' => false,
+                'aide' => 'Son agence si elle est en intérim, Famiflora (Honorine) si elle a été recrutée en direct.',
             ],
             // ── SECTEUR ET DÉPARTEMENT ─────────────────────────────────────
             // Ces deux-là ne sont NI une colonne de `utilisateurs` NI un champ
@@ -285,15 +309,97 @@ if (!function_exists('famicardChampsLibres')) {
     }
 }
 
+if (!function_exists('famicardColonnesUtilisateurs')) {
+    /**
+     * Les colonnes que `utilisateurs` porte VRAIMENT, en cache.
+     *
+     * Famicard ne possède pas cette table : elle est celle de FamiFormation et
+     * de FamiJob, et toutes les bases ne sont pas au même point. On lit donc
+     * son état au lieu de le supposer.
+     *
+     * @param bool $rafraichir à passer après un ALTER : sans ça, le cache
+     *                         continuerait de nier une colonne qui vient
+     *                         d'être créée, pour toute la durée de la requête.
+     */
+    function famicardColonnesUtilisateurs(PDO $db, $rafraichir = false)
+    {
+        static $cache = null;
+        if ($cache !== null && !$rafraichir) {
+            return $cache;
+        }
+        $cache = [];
+        try {
+            foreach ($db->query("SHOW COLUMNS FROM utilisateurs")->fetchAll(PDO::FETCH_ASSOC) as $c) {
+                $cache[(string) $c['Field']] = true;
+            }
+        } catch (Exception $e) {
+            // Base indisponible : on ne filtre rien plutôt que de tout masquer.
+            $cache = [];
+        }
+        return $cache;
+    }
+}
+
 if (!function_exists('famicardChamps')) {
-    /** Socle + libres. La liste complète, dans l'ordre d'affichage. */
+    /**
+     * Socle + libres. La liste complète, dans l'ordre d'affichage.
+     *
+     * ⚠️ UN CHAMP DONT LA COLONNE N'EXISTE PAS EST RETIRÉ ICI, et c'est un
+     * garde-fou, pas un détail : `admin.php` et `export.php` CONSTRUISENT leur
+     * SELECT à partir de cette liste. Un champ déclaré avant que sa colonne
+     * n'existe (le temps qu'un admin passe par l'accueil, où la migration se
+     * fait) ferait tomber la base des collaborateurs entière sur « Unknown
+     * column ». Le champ réapparaît tout seul dès que la colonne est là.
+     */
     function famicardChamps(PDO $db = null)
     {
         $champs = famicardChampsSocle();
-        if ($db instanceof PDO) {
-            $champs += famicardChampsLibres($db);
+
+        if (!($db instanceof PDO)) {
+            return $champs;
         }
-        return $champs;
+
+        $colonnes = famicardColonnesUtilisateurs($db);
+        if ($colonnes) {
+            foreach ($champs as $cle => $champ) {
+                // Les pseudo-colonnes (secteur, département) ne sont pas dans
+                // `utilisateurs` par construction : elles ne se testent pas.
+                if (($champ['saisie'] ?? '') === 'rattachement') {
+                    continue;
+                }
+                $colonne = (string) ($champ['colonne'] ?? '');
+                if ($colonne !== '' && !isset($colonnes[$colonne])) {
+                    unset($champs[$cle]);
+                }
+            }
+        }
+
+        // Les listes déroulantes dont le contenu vit en base. Elles sont
+        // posées ICI plutôt que dans chaque écran : la fiche, la création et
+        // l'export doivent proposer exactement les mêmes valeurs, sinon un
+        // écran finit par accepter ce qu'un autre refuse.
+        if (isset($champs['employeur']) && function_exists('famicardOptionsEmployeur')) {
+            $champs['employeur']['options'] = famicardOptionsEmployeur();
+        }
+        if (isset($champs['contrat']) && function_exists('famicardOptionsContrat')) {
+            $champs['contrat']['options'] = famicardOptionsContrat();
+        }
+        if (isset($champs['interim']) && function_exists('famicardAgences')) {
+            $options = [];
+            foreach (famicardAgences($db) as $agence) {
+                // Le nom NU, tel qu'il est en base : c'est cette chaîne exacte
+                // que FamiJob compare pour donner à une agence la vue sur ses
+                // gens. Un libellé enjolivé ici finirait recopié dans la
+                // colonne, et la comparaison ne tomberait plus juste.
+                $options[$agence] = $agence;
+            }
+            $champs['interim']['options'] = $options;
+            // Une agence disparue de la table ne doit pas s'effacer en silence
+            // de la fiche de quelqu'un : l'écran d'édition rajoute la valeur
+            // courante si elle manque (voir modifier.php).
+        }
+
+        return $champs + famicardChampsLibres($db);
     }
 }
 
@@ -391,6 +497,14 @@ if (!function_exists('famicardValeurAffichee')) {
         $valeur = $ligne[$colonne];
         if ($valeur === null || $valeur === '') {
             return '';
+        }
+
+        // Un champ à liste montre son LIBELLÉ, pas son code : « Intérim
+        // (agence) » et non « interim ». Règle générale plutôt qu'un cas par
+        // champ — sinon le prochain champ à liste s'affichera en brut, et
+        // personne ne saura pourquoi celui-là seulement.
+        if (!empty($champ['options']) && isset($champ['options'][(string) $valeur])) {
+            return (string) $champ['options'][(string) $valeur];
         }
 
         if ($cle === 'role') {

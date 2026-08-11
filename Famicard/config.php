@@ -38,6 +38,11 @@ if ($__famicardConfig === null) {
 
 require_once $__famicardConfig;
 require_once __DIR__ . '/includes/carte.php';
+// L'emploi (employeur, contrat, agence) fait partie du MODÈLE, au même titre
+// que la carte : carte.php lui demande ses listes déroulantes. Chargé ici, donc,
+// et pas page par page — un écran qui l'oublierait afficherait des champs à
+// liste sans liste.
+require_once __DIR__ . '/includes/emploi.php';
 
 // L'organisation (secteurs et départements) vient de `includes/secteurs.php`,
 // repris du dépôt LIVE — c'est lui la référence.

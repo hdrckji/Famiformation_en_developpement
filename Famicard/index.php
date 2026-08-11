@@ -33,6 +33,11 @@ if ($estAdmin) {
     } catch (Exception $e) {
         // Droits insuffisants : on retombe sur les règles historiques.
     }
+    // Les colonnes `employeur` et `contrat`, et la reprise des fiches
+    // existantes — une seule fois, à la création des colonnes. Voir
+    // includes/emploi.php : rien n'est deviné, tout ce qui n'est pas déductible
+    // reste vide et se voit dans « Contrats et employeurs ».
+    famicardAssureEmploi($db);
 }
 
 // ⚠️ Les accès ne sont plus écrits en dur ici. Ils viennent de la base, et
@@ -45,6 +50,10 @@ $mesServices = famicardServicesDuCollaborateur($db, (int) $moi['id'], $roleMoi);
 // que sur une cinquième : l'accueil doit rester à quatre entrées, et une
 // pastille se voit sans rien ajouter.
 $aValider = $estAdmin ? famicardCompteModificationsEnAttente($db) : 0;
+
+// Combien de fiches n'ont pas encore de type de contrat. Le chiffre disparaît
+// quand le travail est fini : c'est la seule façon qu'une reprise se termine.
+$sansContrat = $estAdmin ? famicardCompteContratsAPreciser($db) : 0;
 
 // La carte est-elle complète ? On le dit ICI, sur l'accueil, plutôt que
 // d'attendre que le collaborateur ouvre sa fiche : c'est la seule façon qu'un
@@ -189,6 +198,16 @@ if ($photo !== '') {
                 <span class="ico">✅</span>
                 <div class="nom">Modifications à confirmer</div>
                 <div class="quoi">Les corrections faites par les collaborateurs sur leur propre fiche.</div>
+            </a>
+
+            <?php // Interne / intérim / indépendant, et le type de contrat. Deux
+                  // questions que le PROFIL ne sait pas poser — et qui n'ouvrent
+                  // aucun accès, contrairement à lui. ?>
+            <a class="tuile" href="contrats.php">
+                <?php if ($sansContrat > 0): ?><span class="pastille"><?= (int) $sansContrat ?> à préciser</span><?php endif; ?>
+                <span class="ico">🧩</span>
+                <div class="nom">Contrats et employeurs</div>
+                <div class="quoi">Qui est interne, qui vient d'une agence, et avec quel contrat : étudiant, flexi ou fixe.</div>
             </a>
 
             <a class="tuile" href="tri_profils.php">

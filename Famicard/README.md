@@ -67,6 +67,7 @@ classés par priorité : c'est le matching qui l'impose, et Famicard doit en ten
 | Création de compte | **Famicard** (`creer.php`) — le site en a encore une | Famicard |
 | Mot de passe, activation | les deux | **Famicard** |
 | Rôle, statut, agence, lieu de travail | les deux | **Famicard** |
+| Employeur, type de contrat | **Famicard** | Famicard |
 
 ⚠️ Tant que la bascule n'est pas faite, **ne pas faire écrire la même colonne aux deux
 endroits**. Deux écrans qui écrivent l'email finissent toujours par diverger, et c'est
@@ -76,6 +77,82 @@ celui qu'on regarde le moins qui gagne.
 `sectors` et `departments.sector_id`). Famicard avait développé sa propre implantation en
 parallèle, sans savoir que le live en avait déjà une : elle a été abandonnée. Deux
 systèmes pour la même chose, c'est celui qui ne tourne pas qui gagne les données perdues.
+
+---
+
+## EMPLOYEUR, CONTRAT, PROFIL — trois questions, jamais une seule colonne
+
+Le point de départ, décidé par Jimmy : **Famiflora n'est pas une agence, c'est
+l'entreprise qui recrute.** Qui travaille pour elle est *interne*, qui vient d'une
+agence est *intérimaire*, et il y a aussi des *indépendants*. Chacun d'eux, en plus,
+est étudiant, flexi ou fixe. Et par-dessus, il y a les profils.
+
+Une seule colonne, `interim`, portait tout ça — d'où le bazar. Le code s'était même
+fabriqué sa propre définition, recopiée à deux endroits (`admin_user.php`,
+`interim_fixes.php`) :
+
+```
+interim non vide  ET  interim != 'famiflora'  ET  role != 'etudiant'
+```
+
+Une règle métier écrite dans un `WHERE`, c'est le symptôme : la question n'avait pas
+de colonne pour la porter. Elle en a trois maintenant, et elles ne se recouvrent jamais.
+
+| Question | Colonne | Valeurs | Ouvre un accès ? |
+|---|---|---|---|
+| **Chez qui travaille-t-elle ?** | `employeur` | interne · intérim · indépendant | non |
+| **Comment est-elle engagée ?** | `contrat` | étudiant · flexi · fixe | non |
+| **Qui suit son dossier ?** | `interim` | Konvert, Ago… ou Famiflora | non |
+| **Qu'a-t-elle le droit d'ouvrir ?** | `role` | admin, teamcoach, mentor… | **oui, et lui seul** |
+
+⚠️ **Le RBAC n'est pas touché.** Aucune ligne qui lit `role` n'a changé. `employeur` et
+`contrat` sont **descriptifs** : ils répondent à des questions que `role` n'a jamais su
+répondre. Le jour où FamiJob voudra travailler sur `contrat = 'etudiant'` plutôt que sur
+`role = 'etudiant'`, la donnée sera là — et ce sera sa décision, pas la nôtre.
+
+La preuve que les deux axes sont indépendants est dans la base : **1 admin chez Ago**,
+**1 teamcoach chez Da Jobs**, **1 employé magasin chez Da Jobs**. Un profil interne avec
+un employeur externe — une seule colonne ne pourra jamais dire les deux.
+
+**« Externe » ne se stocke pas.** C'est `employeur != interne`, donc une déduction
+(`famicardEstExterne()`). Une colonne de plus, et on aurait un jour une fiche marquée
+interne **et** externe.
+
+### ⚠️ `interim` ne dit pas « est-elle intérimaire »
+
+Elle dit **qui suit son dossier**. Pour un externe, c'est son agence. Pour un
+recrutement direct, c'est `Famiflora` — c'est-à-dire **Honorine**, qui a une ligne dans
+`interim_agences`, un compte `agence_interim` à ce nom, et qui reçoit à ce titre les
+mails des étudiants recrutés en direct.
+
+**Cette colonne n'est donc jamais vidée.** Y retirer « Famiflora » aurait paru propre et
+aurait coûté deux choses invisibles : la vue d'Honorine sur ses étudiants, et leurs
+mails d'agence. 443 références y touchent dans FamiFormation et FamiJob : on ajoute à
+côté, on ne déplace rien.
+
+Conséquence : **un étudiant sans dossier n'apparaît chez personne**. Pas de message
+d'erreur, il est simplement absent des listes. `creer.php` le refuse, et
+`famicardIncoherencesEmploi()` signale les fiches existantes dans ce cas (il y en avait
+10 au moment de l'écriture).
+
+### La reprise
+
+`famicardAssureEmploi()` crée les deux colonnes et déduit **une seule fois**, à leur
+création. Elle ne devine rien d'autre :
+
+| Ce qu'on lit | Ce qu'on en déduit | Combien |
+|---|---|---|
+| agence vide | employeur = interne | 231 |
+| agence « Famiflora » | employeur = interne | 47 |
+| une vraie agence | employeur = intérim | 72 |
+| profil « étudiant » | contrat = étudiant | 109 |
+
+Le reste des contrats reste **vide**, et c'est volontaire. Deviner « fixe » pour les 168
+employés magasin remplirait l'écran d'une donnée RH que personne n'a vérifiée, et qui
+aurait ensuite l'air d'avoir été saisie. « À préciser » se voit ; une valeur fausse, non.
+C'est à ça que sert `contrats.php` : un tableau croisé pour voir où on en est, et une
+saisie **par paquets** (« tous les employés magasin sont fixes ») pour que la reprise
+se termine un jour.
 
 ---
 
@@ -147,6 +224,7 @@ navigateur, et le cookie de session est posé host-only (`'domain' => ''`) : la 
 Famicard/
   config.php           amorçage — réutilise la config du site (session, base, CSRF)
   includes/carte.php   ⭐ LE MODÈLE : les champs et leurs règles
+  includes/emploi.php  ⭐ EMPLOYEUR, CONTRAT, DOSSIER — et pourquoi pas le profil
   login.php            connexion (mêmes identifiants, même session que le site)
   logout.php           déconnexion
   index.php            ⭐ L'ACCUEIL DU PORTAIL : 4 tuiles, rien d'autre
@@ -157,6 +235,7 @@ Famicard/
   validations.php      les corrections que l'admin doit confirmer
   includes/modifications.php   écriture des champs + registre des changements
   includes/services.php        ⭐ LES ACCÈS : quels services pour qui
+  contrats.php         interne/intérim/indépendant + type de contrat, et ce qui se contredit
   tri_profils.php      passer les comptes beta en profil employé (venu du site)
   relance_mdp.php      renvoyer le lien de création de mot de passe (venu du site)
   admin.php            la base des collaborateurs (liste, filtres, badge, export)
@@ -222,6 +301,9 @@ tard, ne peut pas exposer ce qu'il ne doit pas.
 - [x] **Libellés créés par l'admin**, obligatoires ou non
 - [x] **Création d'un collaborateur** (`creer.php`, tuile de l'accueil) — compte,
       rattachement et accès aux services d'un seul geste
+- [x] **Employeur et type de contrat** séparés du profil (`includes/emploi.php`,
+      `contrats.php`) — interne / intérim / indépendant, étudiant / flexi / fixe,
+      **sans toucher au RBAC**
 
 ## Ce qui reste
 
@@ -230,6 +312,10 @@ tard, ne peut pas exposer ce qu'il ne doit pas.
       n'est pas une divergence de données (une création est un INSERT, pas deux écritures
       de la même colonne), mais tant que les deux écrans existent, un compte peut naître
       sans passer par Famicard. Le retrait se fait côté live, pas d'ici.
+- [ ] **Faire lire `contrat` par FamiJob** — le matching travaille encore sur
+      `role = 'etudiant'`, qui répond donc à deux questions à la fois. La donnée propre
+      existe maintenant à côté ; la bascule est une décision de FamiJob, pas d'ici, et
+      elle ne peut se faire qu'une fois les contrats renseignés (voir `contrats.php`).
 - [ ] **Écran d'attribution des accès sur un compte EXISTANT** — les cases existent à la
       création (`creer.php`), mais rien ne permet encore de les modifier ensuite. En
       attendant, les règles historiques s'appliquent à qui n'a aucun accès enregistré.

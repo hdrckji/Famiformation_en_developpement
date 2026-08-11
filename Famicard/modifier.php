@@ -52,6 +52,14 @@ if (!$cible) {
 
 famicardAssureModifications($db);
 
+// Les colonnes d'emploi (employeur, contrat) sont créées par un ADMIN qui
+// passe ici : c'est de la DDL sur `utilisateurs`, on ne la fait pas exécuter
+// par tout le monde. Tant qu'elles manquent, famicardChamps() retire
+// simplement les deux champs — l'écran ne casse pas, il est juste plus court.
+if ($estAdmin) {
+    famicardAssureEmploi($db);
+}
+
 // Secteur et département : posés dans la ligne comme pseudo-colonnes, pour que
 // le modèle les lise comme les autres champs (ils vivent en réalité dans
 // student_department_links).
@@ -281,6 +289,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif ($cle === 'statut') {
             if (!in_array($nouvelle, ['', 'inactif'], true)) {
                 $erreurs[] = 'Statut inconnu.';
+                continue;
+            }
+        } elseif (!empty($champ['options'])) {
+            // Champ à liste (employeur, contrat, agence) : on n'accepte que ce
+            // que la liste proposait — plus la valeur DÉJÀ en place, qu'une
+            // agence retirée de `interim_agences` rendrait sinon impossible à
+            // conserver, et donc effacée au premier enregistrement.
+            $permises = array_keys($champ['options']);
+            if ($ancienne !== '') {
+                $permises[] = $ancienne;
+            }
+            if ($nouvelle !== '' && !in_array($nouvelle, $permises, true)) {
+                $erreurs[] = 'Valeur inconnue pour « ' . $champ['libelle'] . ' ».';
                 continue;
             }
         }
@@ -567,6 +588,23 @@ if ($photo !== '') {
                                     <option value="inactif" <?= ($brute === 'inactif') ? 'selected' : '' ?>>Inactif</option>
                                 </select>
 
+                            <?php elseif (!empty($champ['options'])): ?>
+                                <?php // Champ à liste posé par le modèle (employeur, contrat,
+                                      // agence). Aucun cas particulier ici : le jour où un
+                                      // champ à liste s'ajoute, il s'affiche tout seul. ?>
+                                <select id="champ_<?= e($cle) ?>" name="champ_<?= e($cle) ?>">
+                                    <option value="">— À préciser —</option>
+                                    <?php foreach ($champ['options'] as $val => $lib): ?>
+                                        <option value="<?= e((string) $val) ?>" <?= ($brute === (string) $val) ? 'selected' : '' ?>><?= e((string) $lib) ?></option>
+                                    <?php endforeach; ?>
+                                    <?php // La valeur actuelle si la liste ne la contient plus
+                                          // (agence supprimée) : sans elle, ouvrir la fiche et
+                                          // enregistrer effacerait une donnée qu'on n'a pas touchée. ?>
+                                    <?php if ($brute !== '' && !isset($champ['options'][$brute])): ?>
+                                        <option value="<?= e($brute) ?>" selected><?= e($brute) ?> (n'est plus dans la liste)</option>
+                                    <?php endif; ?>
+                                </select>
+
                             <?php elseif ($saisie === 'date'): ?>
                                 <?php // 0000-00-00 traîne dans les vieilles lignes : ce n'est pas
                                       // une date, et le champ HTML la refuserait de toute façon. ?>
@@ -578,6 +616,13 @@ if ($photo !== '') {
 
                             <?php else: ?>
                                 <input type="text" id="champ_<?= e($cle) ?>" name="champ_<?= e($cle) ?>" value="<?= e($brute) ?>" maxlength="255">
+                            <?php endif; ?>
+
+                            <?php // L'explication voyage AVEC le champ, dans le modèle.
+                                  // Elle n'est montrée qu'à qui peut écrire : figée, la ligne
+                                  // dit déjà « modifiable par un administrateur ». ?>
+                            <?php if ($editable && $saisie !== 'rattachement' && !empty($champ['aide'])): ?>
+                                <div class="aide"><?= e((string) $champ['aide']) ?></div>
                             <?php endif; ?>
                         </div>
                     <?php endforeach; ?>
