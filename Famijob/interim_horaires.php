@@ -1299,14 +1299,41 @@ if (function_exists('secteursCharge')) {
 }
 $arbreSecteurs = function_exists('secteursListe') ? secteursListe($db) : [];
 
-$secteurParDept = [];   // nom de département => nom de secteur
-$nomsSecteurs   = [];   // nom de secteur => lui-même (pour reconnaître un secteur)
+// ⚠️ LES NOMS DANS LES DEMANDES NE SONT PAS PROPRES. `department_name` est du
+// texte libre saisi au fil des années : « Plantes extérieur » au singulier pour
+// le secteur « Plantes extérieures », « Garden » pour un rayon qui a changé de
+// nom. Une comparaison stricte laissait 126 créneaux sur le carreau, rangés en
+// « Sans secteur ».
+//
+// On compare donc sur une forme NORMALISÉE (sans accent, sans casse, sans
+// ponctuation) — secteursNormalise() fait déjà ce travail pour le reste du
+// site, on ne réinvente pas la sienne.
+$secteurParDept = [];   // clé normalisée => nom de secteur
+$nomsSecteurs   = [];   // clé normalisée => nom de secteur
+$libelleDept    = [];   // clé normalisée => libellé propre du département
+
+$cle = function ($s) {
+    return function_exists('secteursNormalise') ? secteursNormalise($s) : strtolower(trim((string) $s));
+};
+
 foreach ($arbreSecteurs as $sec) {
-    $nomsSecteurs[(string) $sec['nom']] = (string) $sec['nom'];
+    $nomsSecteurs[$cle($sec['nom'])] = (string) $sec['nom'];
     foreach ($sec['departements'] as $dep) {
-        $secteurParDept[(string) $dep['nom']] = (string) $sec['nom'];
+        $secteurParDept[$cle($dep['nom'])] = (string) $sec['nom'];
+        $libelleDept[$cle($dep['nom'])]    = (string) $dep['nom'];
     }
 }
+
+// Ce que la normalisation ne rattrape pas : un pluriel manquant, un nom
+// abandonné. Ces cas-là s'écrivent à la main, une fois, plutôt que de laisser
+// des créneaux invisibles.
+//
+// ⚠️ Ces alias ne CORRIGENT PAS la base : ils la lisent telle qu'elle est. Le
+// jour où `interim_shift_requests` sera nettoyée, ils deviendront inutiles sans
+// rien casser.
+$aliasSecteurs = [
+    'plantes exterieur' => 'Plantes extérieures',   // singulier, 81 créneaux
+];
 
 // ── La grille : secteur > département > jour > lignes ────────────────────────
 // Une « ligne » = une place sur un créneau : soit quelqu'un d'affecté, soit un
@@ -1332,12 +1359,18 @@ foreach ($requests as $request) {
     // Cas 2 particulier : un département qui porte le MÊME nom que son secteur
     // (« Plantes intérieures ») ne redonne pas un bandeau jaune identique au
     // vert juste au-dessus — ses lignes rejoignent celles du secteur.
-    if (isset($nomsSecteurs[$dept])) {
-        $secteur = $dept;
+    $k = $cle($dept);
+    if (isset($aliasSecteurs[$k])) {
+        // Nom abandonné ou mal orthographié, rattaché à la main à son secteur.
+        $secteur = $aliasSecteurs[$k];
+        $sousTitre = '';
+    } elseif (isset($nomsSecteurs[$k])) {
+        $secteur = $nomsSecteurs[$k];       // libellé propre, pas celui de la demande
         $sousTitre = '';                    // rien à afficher en jaune
-    } elseif (isset($secteurParDept[$dept])) {
-        $secteur = $secteurParDept[$dept];
-        $sousTitre = ($dept === $secteur) ? '' : $dept;
+    } elseif (isset($secteurParDept[$k])) {
+        $secteur = $secteurParDept[$k];
+        $propre = $libelleDept[$k] ?? $dept;
+        $sousTitre = ($cle($propre) === $cle($secteur)) ? '' : $propre;
     } else {
         $secteur = fjhT('Sans secteur', 'Zonder sector');
         $sousTitre = $dept;
@@ -1419,9 +1452,13 @@ $semaineUrl = 'interim_horaires.php?week=' . urlencode($selectedWeekKey);
     td.horaire { background: #fbfdfb; color: #33443a; text-align: center; font-variant-numeric: tabular-nums; }
     td.nom { min-width: 130px; }
     td.agence { min-width: 62px; color: #55665c; text-align: center; }
-    /* Une barre nette a la fin de chaque jour : sur sept colonnes triples,
-       l'oeil perd sinon la limite entre mardi et mercredi. */
-    th.fin-jour, td.fin-jour { border-right: 3px solid #2d5a37; }
+    /* SÉPARATION DES JOURS. Une bordure fine se noyait dans le quadrillage :
+       sur sept colonnes triples, l'oeil perdait la limite entre mardi et
+       mercredi. D'où une barre épaisse ET un fond alterné — deux repères
+       valent mieux qu'un quand le tableau est dense. */
+    th.fin-jour, td.fin-jour { border-right: 6px solid #1d3d24 !important; }
+    td.jour-pair, th.jour-pair { background: #e8efe9; }
+    td.jour-pair.horaire { background: #dfe8e1; }
     td.vide-jour { background: #f7f9f8; }
 
     .place-libre { display: block; width: 100%; border: 1px dashed #b9cfc0; background: #fff; color: #2d5a37; border-radius: 5px; padding: 2px 6px; font-family: inherit; font-size: .7rem; font-weight: 700; cursor: pointer; text-align: left; }
@@ -1491,15 +1528,16 @@ $semaineUrl = 'interim_horaires.php?week=' . urlencode($selectedWeekKey);
 <table class="semaine">
     <thead>
         <tr>
-            <?php foreach ($weekDays as $jour): ?>
+            <?php foreach ($weekDays as $iJour => $jour): ?>
                 <th class="jour-tete fin-jour" colspan="3"><?php echo e($jour['label']); ?></th>
             <?php endforeach; ?>
         </tr>
         <tr>
-            <?php foreach ($weekDays as $jour): ?>
-                <th class="sous-tete"><?php echo e(fjhT('horaire', 'uren')); ?></th>
-                <th class="sous-tete"><?php echo e(fjhT('nom', 'naam')); ?></th>
-                <th class="sous-tete fin-jour"><?php echo e(fjhT('agence', 'kantoor')); ?></th>
+            <?php foreach ($weekDays as $iJour => $jour): ?>
+                <?php $pair = ($iJour % 2 === 1) ? ' jour-pair' : ''; ?>
+                <th class="sous-tete<?php echo $pair; ?>"><?php echo e(fjhT('horaire', 'uren')); ?></th>
+                <th class="sous-tete<?php echo $pair; ?>"><?php echo e(fjhT('nom', 'naam')); ?></th>
+                <th class="sous-tete fin-jour<?php echo $pair; ?>"><?php echo e(fjhT('agence', 'kantoor')); ?></th>
             <?php endforeach; ?>
         </tr>
     </thead>
@@ -1540,15 +1578,16 @@ $semaineUrl = 'interim_horaires.php?week=' . urlencode($selectedWeekKey);
 
             <?php for ($ligne = 0; $ligne < $hauteur; $ligne++): ?>
                 <tr>
-                    <?php foreach ($weekDays as $jour): ?>
+                    <?php foreach ($weekDays as $iJour => $jour): ?>
                         <?php $place = $parJour[$jour['key']][$ligne] ?? null; ?>
+                        <?php $pair = ($iJour % 2 === 1) ? ' jour-pair' : ''; ?>
                         <?php if (!$place): ?>
-                            <td class="vide-jour"></td>
-                            <td class="vide-jour"></td>
-                            <td class="vide-jour fin-jour"></td>
+                            <td class="vide-jour<?php echo $pair; ?>"></td>
+                            <td class="vide-jour<?php echo $pair; ?>"></td>
+                            <td class="vide-jour fin-jour<?php echo $pair; ?>"></td>
                         <?php else: ?>
-                            <td class="horaire"><?php echo e($place['horaire']); ?></td>
-                            <td class="nom">
+                            <td class="horaire<?php echo $pair; ?>"><?php echo e($place['horaire']); ?></td>
+                            <td class="nom<?php echo $pair; ?>">
                                 <?php if ($place['nom'] !== ''): ?>
                                     <span class="occupe">
                                         <span><?php echo e($place['nom']); ?></span>
@@ -1573,7 +1612,7 @@ $semaineUrl = 'interim_horaires.php?week=' . urlencode($selectedWeekKey);
                                     <span style="color:#aab;">—</span>
                                 <?php endif; ?>
                             </td>
-                            <td class="agence fin-jour"><?php echo e($place['agence']); ?></td>
+                            <td class="agence fin-jour<?php echo $pair; ?>"><?php echo e($place['agence']); ?></td>
                         <?php endif; ?>
                     <?php endforeach; ?>
                 </tr>
