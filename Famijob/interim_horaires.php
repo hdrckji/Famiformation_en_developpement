@@ -1270,795 +1270,340 @@ foreach ($weekDays as $weekDay) {
     $visibleWeekDays[] = $weekDay;
 }
 ?>
+// ─────────────────────────────────────────────────────────────────────────────
+// VUE SEMAINE — la grille du fichier Excel, reprise à l'écran.
+//
+// POURQUOI CETTE FORME. La collaboratrice qui fait le matching travaillait
+// depuis des années sur un classeur : une colonne par jour, les départements en
+// lignes, groupés par secteur, et dans chaque case l'horaire, le nom et
+// l'agence. L'ancienne présentation (une carte par créneau) l'obligeait à
+// reconstruire cette image de tête à chaque fois. On change l'écran, pas sa
+// méthode.
+//
+// ⚠️ SEUL L'AFFICHAGE EST NEUF. Tout ce qui écrit en base — affecter, retirer,
+// auto-matching — reste le traitement d'origine, plus haut dans ce fichier. Une
+// seconde implantation de l'affectation aurait fini par diverger de la
+// première, et c'est toujours celle qu'on regarde le moins qui se trompe.
+//
+// La hiérarchie secteur > département vient de `sectors` / `departments`
+// (secteursListe), la même que partout ailleurs.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ── Départements rangés sous leur secteur ────────────────────────────────────
+$arbreSecteurs = function_exists('secteursListe') ? secteursListe($db) : [];
+
+$secteurParDept = [];   // nom de département => nom de secteur
+foreach ($arbreSecteurs as $sec) {
+    foreach ($sec['departements'] as $dep) {
+        $secteurParDept[(string) $dep['nom']] = (string) $sec['nom'];
+    }
+}
+
+// ── La grille : secteur > département > jour > lignes ────────────────────────
+// Une « ligne » = une place sur un créneau : soit quelqu'un d'affecté, soit un
+// siège libre. C'est exactement ce que le classeur montrait.
+$grille = [];
+foreach ($requests as $request) {
+    $dept = (string) $request['department_name'];
+    $jour = (string) $request['shift_date'];
+    $rid  = (int) $request['id'];
+
+    // Un département inconnu du rangement n'est pas caché : il tombe dans
+    // « Sans secteur », visible, plutôt que de disparaître de la semaine.
+    $secteur = $secteurParDept[$dept] ?? fjhT('Sans secteur', 'Zonder sector');
+
+    $affectations = $assignmentsByRequest[$rid] ?? [];
+    $places = max((int) $request['seats_required'], count($affectations));
+
+    for ($i = 0; $i < $places; $i++) {
+        $a = $affectations[$i] ?? null;
+        $nom = '';
+        $agence = '';
+        if ($a) {
+            $nom = trim((string) ($a['prenom'] ?? '') . ' ' . (string) ($a['nom'] ?? ''));
+            if ($nom === '') {
+                $nom = (string) ($a['external_name'] ?? '');
+            }
+            $agence = (string) ($a['agency_name'] ?? ($a['interim'] ?? ''));
+        }
+
+        $grille[$secteur][$dept][$jour][] = [
+            'horaire'       => (string) $request['time_slot'],
+            'nom'           => $nom,
+            'agence'        => $agence,
+            'request_id'    => $rid,
+            'seat'          => $i + 1,
+            'assignment_id' => $a ? (int) $a['assignment_id'] : 0,
+            'commentaire'   => (string) ($request['comment'] ?? ''),
+        ];
+    }
+}
+
+// Ordre d'affichage : celui des secteurs en base, tel qu'il y est rangé.
+$ordreSecteurs = [];
+foreach ($arbreSecteurs as $sec) {
+    $ordreSecteurs[] = (string) $sec['nom'];
+}
+$ordreSecteurs[] = fjhT('Sans secteur', 'Zonder sector');
+
+$semaineUrl = 'interim_horaires.php?week=' . urlencode($selectedWeekKey);
+?>
 <!DOCTYPE html>
 <html lang="<?php echo e($pageLang); ?>">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo e(fjhT('Horaires Intérim', 'Interim uurroosters')); ?></title>
-    <link rel="shortcut icon" type="image/x-icon" href="famijob_.ico">
-    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --bg: #f4f7f6;
-            --card: #ffffff;
-            --line: #e6ece8;
-            --text: #21362a;
-            --muted: #63756a;
-            --accent: #2d5a37;
-            --accent-soft: #edf5ef;
-            --warn: #a13e35;
-            --ok: #1d6a39;
-            --shadow: 0 14px 34px rgba(22, 49, 33, 0.1);
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title><?php echo e(fjhT('Matching intérim', 'Matching interim')); ?></title>
+<link rel="shortcut icon" type="image/x-icon" href="famijob_.ico">
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body { font-family: 'Open Sans', sans-serif; background: #eef3ef; margin: 0; padding: 0 0 40px; color: #222; }
 
-        body {
-            margin: 0;
-            padding: 24px;
-            background: var(--bg);
-            font-family: 'Open Sans', sans-serif;
-            color: var(--text);
-        }
+    .bandeau { background: linear-gradient(135deg, #2d5a37, #4a8b5c); color: #fff; padding: 14px 20px; display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap; }
+    .bandeau h1 { margin: 0; font-size: 1.15rem; font-weight: 800; }
+    .pill { background: rgba(255,255,255,.18); border: 1px solid rgba(255,255,255,.45); padding: 7px 16px; border-radius: 30px; text-decoration: none; color: #fff; font-weight: 700; font-size: .82rem; }
+    .barre { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 12px 20px; background: #fff; border-bottom: 1px solid #dde5e0; }
+    .barre select, .barre button { font-family: inherit; font-size: .88rem; padding: 7px 12px; border-radius: 8px; border: 1px solid #ccd6cf; background: #fff; }
+    .barre button { background: #2d5a37; color: #fff; border: 0; font-weight: 700; cursor: pointer; }
+    .alert { margin: 12px 20px; padding: 11px 16px; border-radius: 10px; font-weight: 600; font-size: .9rem; }
+    .alert.success { background: #e7f6ea; color: #1e7a46; }
+    .alert.error { background: #fdecea; color: #a3271c; }
 
-        .page {
-            max-width: 1500px;
-            margin: 0 auto;
-        }
+    /* ── LA GRILLE ───────────────────────────────────────────────────────
+       Reprise du classeur : une colonne par jour, chacune découpée en
+       horaire / nom / agence. Le tableau défile horizontalement plutôt que
+       de comprimer les colonnes jusqu'à l'illisible. */
+    .cadre { overflow-x: auto; padding: 0 12px; }
+    table.semaine { border-collapse: collapse; font-size: .72rem; width: max-content; min-width: 100%; }
+    table.semaine th, table.semaine td { border: 1px solid #c8d3cc; padding: 2px 5px; white-space: nowrap; }
 
-        .hero {
-            background: linear-gradient(135deg, #264e35, #3f6b4d);
-            color: #fff;
-            border-radius: 20px;
-            box-shadow: var(--shadow);
-            padding: 22px 24px;
-            margin-bottom: 20px;
-        }
+    .jour-tete { background: #2d5a37; color: #fff; font-size: .78rem; font-weight: 800; text-align: center; padding: 6px 4px; }
+    .sous-tete { background: #f0f4f1; color: #55665c; font-size: .65rem; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; text-align: center; }
 
-        .hero-top {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 14px;
-        }
+    /* Les couleurs du classeur : secteur en vert, département en jaune. */
+    .l-secteur td { background: #7ed321; color: #1d3d12; font-weight: 800; text-align: center; font-size: .78rem; padding: 3px; }
+    .l-departement td { background: #ffff66; color: #4a4a00; font-weight: 700; text-align: center; font-size: .74rem; padding: 2px; }
 
-        .hero h1 {
-            margin: 8px 0 6px;
-            font-size: 1.8rem;
-        }
+    td.horaire { background: #fbfdfb; color: #33443a; text-align: center; font-variant-numeric: tabular-nums; }
+    td.nom { min-width: 130px; }
+    td.agence { min-width: 62px; color: #55665c; text-align: center; }
+    td.vide-jour { background: #f7f9f8; }
 
-        .hero p {
-            margin: 0;
-            opacity: 0.95;
-            line-height: 1.5;
-            max-width: 980px;
-        }
+    .place-libre { display: block; width: 100%; border: 1px dashed #b9cfc0; background: #fff; color: #2d5a37; border-radius: 5px; padding: 2px 6px; font-family: inherit; font-size: .7rem; font-weight: 700; cursor: pointer; text-align: left; }
+    .place-libre:hover { background: #eef7f0; border-color: #2d5a37; }
+    .occupe { display: flex; align-items: center; justify-content: space-between; gap: 5px; }
+    .retirer { border: 0; background: none; color: #b23; cursor: pointer; font-size: .78rem; padding: 0 2px; line-height: 1; }
+    .retirer:hover { color: #7d1616; }
 
-        .hero-actions {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-        }
+    .rien { padding: 30px 20px; text-align: center; color: #667; }
 
-        .link-pill {
-            text-decoration: none;
-            border-radius: 999px;
-            padding: 10px 16px;
-            font-weight: 700;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            background: rgba(255, 255, 255, 0.15);
-            color: #fff;
-        }
-
-        .toolbar {
-            display: flex;
-            justify-content: space-between;
-            align-items: end;
-            gap: 14px;
-            background: var(--card);
-            border-radius: 18px;
-            box-shadow: var(--shadow);
-            padding: 16px;
-            margin-bottom: 18px;
-        }
-
-        .toolbar form {
-            display: flex;
-            gap: 12px;
-            align-items: end;
-            flex-wrap: wrap;
-        }
-
-        label {
-            display: block;
-            margin-bottom: 6px;
-            font-size: 0.82rem;
-            text-transform: uppercase;
-            letter-spacing: .05em;
-            color: var(--muted);
-            font-weight: 700;
-        }
-
-        input,
-        select,
-        textarea {
-            width: 100%;
-            box-sizing: border-box;
-            border: 1px solid #cfdad3;
-            border-radius: 12px;
-            padding: 10px 11px;
-            font-size: 0.95rem;
-            font-family: inherit;
-            background: #fff;
-        }
-
-        textarea {
-            min-height: 96px;
-            resize: vertical;
-        }
-
-        .btn {
-            border: none;
-            border-radius: 12px;
-            padding: 10px 14px;
-            font-weight: 700;
-            cursor: pointer;
-            font-size: 0.9rem;
-        }
-
-        .btn-primary {
-            background: var(--accent);
-            color: #fff;
-        }
-
-        .btn-soft {
-            background: var(--accent-soft);
-            color: var(--accent);
-        }
-
-        .btn-danger {
-            background: #fae4e1;
-            color: var(--warn);
-        }
-
-        .alert {
-            padding: 12px 14px;
-            border-radius: 12px;
-            font-weight: 700;
-            margin-bottom: 14px;
-        }
-
-        .alert.success {
-            background: #dff3e3;
-            color: var(--ok);
-        }
-
-        .alert.error {
-            background: #fae4e1;
-            color: var(--warn);
-        }
-
-        .layout {
-            display: block;
-        }
-
-        .card {
-            background: var(--card);
-            border-radius: 18px;
-            box-shadow: var(--shadow);
-            overflow: hidden;
-        }
-
-        .card-head {
-            background: #f7fbf8;
-            border-bottom: 1px solid var(--line);
-            padding: 14px 16px;
-            font-weight: 700;
-        }
-
-        .card-body {
-            padding: 16px;
-        }
-
-        .helper {
-            margin-top: 10px;
-            color: var(--muted);
-            font-size: 0.86rem;
-            line-height: 1.5;
-        }
-
-        .day-card {
-            border: 1px solid var(--line);
-            border-radius: 14px;
-            margin-bottom: 12px;
-            overflow: hidden;
-            background: #fff;
-        }
-
-        .day-head {
-            background: #f7fbf8;
-            border-bottom: 1px solid var(--line);
-            padding: 10px 12px;
-            font-weight: 700;
-            color: #2b4f38;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .day-count {
-            background: #e8f2ea;
-            color: #2d5a37;
-            border-radius: 999px;
-            padding: 4px 10px;
-            font-size: 0.78rem;
-            font-weight: 700;
-        }
-
-        .table-wrap {
-            overflow-x: auto;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            min-width: 820px;
-        }
-
-        th,
-        td {
-            border-bottom: 1px solid var(--line);
-            padding: 10px 10px;
-            text-align: left;
-            vertical-align: top;
-            font-size: 0.9rem;
-        }
-
-        th {
-            background: #fbfdfb;
-            color: var(--muted);
-            text-transform: uppercase;
-            letter-spacing: .04em;
-            font-size: 0.76rem;
-        }
-
-        .slot-meta {
-            color: var(--muted);
-            font-size: 0.82rem;
-            margin-top: 3px;
-        }
-
-        .badges {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
-        }
-
-        .badge {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 999px;
-            padding: 4px 10px;
-            font-size: 0.76rem;
-            font-weight: 700;
-        }
-
-        .badge-open {
-            background: #fff2d8;
-            color: #8b6400;
-        }
-
-        .badge-full {
-            background: #dff3e3;
-            color: #1d6a39;
-        }
-
-        .fill-form {
-            display: grid;
-            grid-template-columns: minmax(0, 1fr) auto;
-            gap: 8px;
-            align-items: center;
-        }
-
-        .assigned-list {
-            margin: 0;
-            padding-left: 18px;
-        }
-
-        .assigned-list li {
-            margin-bottom: 4px;
-        }
-
-        .suggestion-list {
-            margin: 8px 0 0;
-            padding-left: 18px;
-            color: var(--muted);
-            font-size: 0.82rem;
-            line-height: 1.4;
-        }
-
-        .suggestion-list li {
-            margin-bottom: 4px;
-        }
-
-        .recap-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 12px;
-            margin-bottom: 16px;
-        }
-
-        .recap-card {
-            border: 1px solid var(--line);
-            border-radius: 14px;
-            padding: 12px 14px;
-            background: #fbfdfb;
-        }
-
-        .recap-title {
-            font-weight: 700;
-            color: #2b4f38;
-            margin-bottom: 8px;
-        }
-
-        .recap-chevron { float:right; transition:transform .2s; }
-        .recap-toggle.open .recap-chevron { transform:rotate(180deg); }
-        .recap-row {
-            display: flex;
-            justify-content: space-between;
-            gap: 12px;
-            font-size: 0.88rem;
-            margin-bottom: 4px;
-        }
-
-        .unassign-form {
-            display: inline-block;
-            margin-left: 8px;
-        }
-
-        .btn-mini {
-            border: none;
-            border-radius: 8px;
-            padding: 4px 8px;
-            font-size: 0.75rem;
-            font-weight: 700;
-            cursor: pointer;
-            background: #ffe9d8;
-            color: #8b4f00;
-        }
-
-        .empty {
-            padding: 16px;
-            color: var(--muted);
-        }
-
-        .fami-lang-switcher {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            background: rgba(255, 255, 255, 0.16);
-            border: 1px solid rgba(255, 255, 255, 0.26);
-            border-radius: 999px;
-            padding: 4px;
-        }
-
-        .fami-lang-option {
-            display: inline-block;
-            text-decoration: none;
-            color: #ffffff;
-            font-weight: 800;
-            font-size: 0.78rem;
-            letter-spacing: 0.04em;
-            padding: 5px 9px;
-            border-radius: 999px;
-        }
-
-        .fami-lang-option.is-active {
-            background: #ffffff;
-            color: var(--accent);
-        }
-
-        .tabs {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 16px;
-        }
-
-        .tab {
-            text-decoration: none;
-            border-radius: 12px 12px 0 0;
-            padding: 12px 20px;
-            font-weight: 700;
-            font-size: 0.92rem;
-            color: var(--muted);
-            background: #eef3f0;
-            border: 1px solid var(--line);
-            border-bottom: none;
-        }
-
-        .tab.is-active {
-            background: var(--card);
-            color: var(--accent);
-            box-shadow: 0 -3px 0 var(--accent) inset;
-        }
-
-        .modal-overlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(20, 40, 28, 0.55);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-            padding: 20px;
-        }
-
-        .modal-box {
-            background: var(--card);
-            border-radius: 18px;
-            box-shadow: 0 24px 60px rgba(15, 40, 25, 0.35);
-            max-width: 460px;
-            width: 100%;
-            padding: 24px;
-        }
-
-        .modal-title {
-            font-weight: 800;
-            font-size: 1.05rem;
-            color: var(--accent);
-            margin-bottom: 10px;
-        }
-
-        .modal-text {
-            color: var(--text);
-            line-height: 1.5;
-            margin-bottom: 20px;
-        }
-
-        .modal-actions {
-            display: flex;
-            gap: 10px;
-            justify-content: flex-end;
-        }
-
-        @media (max-width: 1200px) {
-            .layout {
-                display: block;
-            }
-        }
-    </style>
+    /* ── FENÊTRE D'AFFECTATION ───────────────────────────────────────────
+       UNE seule liste d'étudiants pour toute la page. Un menu déroulant par
+       case, sur 7 jours et des dizaines de départements, aurait produit un
+       document de plusieurs mégaoctets. */
+    .voile { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: none; align-items: center; justify-content: center; z-index: 50; padding: 16px; }
+    .voile.ouvert { display: flex; }
+    .fenetre { background: #fff; border-radius: 16px; padding: 22px 24px; width: 100%; max-width: 430px; box-shadow: 0 20px 50px rgba(0,0,0,.3); }
+    .fenetre h2 { margin: 0 0 4px; font-size: 1.05rem; color: #2d5a37; }
+    .fenetre .ou { color: #667; font-size: .84rem; margin-bottom: 16px; }
+    .fenetre label { display: block; font-weight: 700; font-size: .8rem; margin-bottom: 5px; color: #444; }
+    .fenetre select, .fenetre input[type="text"] { width: 100%; padding: 9px 11px; border: 1px solid #ccd6cf; border-radius: 9px; font-family: inherit; font-size: .9rem; margin-bottom: 13px; }
+    .fenetre .actions { display: flex; gap: 9px; justify-content: flex-end; }
+    .btn { border: 0; border-radius: 22px; padding: 9px 18px; font-family: inherit; font-weight: 700; font-size: .85rem; cursor: pointer; }
+    .btn-ok { background: #2d5a37; color: #fff; }
+    .btn-non { background: #eef2ef; color: #445; }
+</style>
 </head>
 <body>
-<?php require_once __DIR__ . "/includes/topbar.php"; famijobRibbon($db); ?>
-    <div class="page">
-        <section class="hero">
-            <div class="hero-top">
-                <div>
-                    <div style="text-transform:uppercase;letter-spacing:.08em;font-size:.78rem;opacity:.86;"><?php echo $isAdmin ? e(fjhT('Administration', 'Administratie')) : e(fjhT('Agence intérim', 'Interimkantoor')); ?></div>
-                    <h1><?php echo e(fjhT('Horaires à pourvoir', 'In te vullen uurroosters')); ?></h1>
-                </div>
-                <div class="hero-actions">
-                    <?php if ($isAdmin): ?>
-                        <a href="interim_horaires_demandes.php" class="link-pill"><?php echo e(fjhT('Demandes horaires', 'Uurroosteraanvragen')); ?></a>
-                        <a href="validation_demandes_horaires.php" class="link-pill"><?php echo e(fjhT('Validation demandes', 'Aanvragen valideren')); ?></a>
-                    <?php endif; ?>
-                    <a href="admin_disponibilites_etudiants.php" class="link-pill"><?php echo e(fjhT('Disponibilités étudiants', 'Beschikbaarheden studenten')); ?></a>
-                    <a href="<?php echo $isAdmin ? 'index.php' : 'logout.php'; ?>" class="link-pill"><?php echo $isAdmin ? e(fjhT('Retour accueil', 'Terug naar start')) : e(fjhT('Se déconnecter', 'Uitloggen')); ?></a>
-                    <?php echo famiRenderLanguageSwitcher(); ?>
-                </div>
-            </div>
-            <p>
-                <?php if ($isAdmin): ?>
-                    <?php echo e(fjhT('Crée les besoins horaires en quelques lignes. Les agences voient tous les créneaux, mais ne peuvent compléter que les places encore libres.', 'Maak uurbehoeften in enkele regels. Kantoren zien alle tijdsblokken, maar kunnen alleen vrije plaatsen invullen.')); ?>
-                <?php else: ?>
-                    <?php echo e(fjhT('Tous les horaires à pourvoir sont visibles. Une place déjà complétée par une autre agence est verrouillée, avec anonymisation des étudiants externes à votre agence.', 'Alle in te vullen uurroosters zijn zichtbaar. Een plaats die al werd ingevuld door een ander kantoor is vergrendeld; studenten van andere kantoren worden geanonimiseerd.')); ?>
-                <?php endif; ?>
-            </p>
-        </section>
 
-        <?php echo $message; ?>
-
-        <?php if ($pendingConfirm !== null): ?>
-            <div class="modal-overlay" id="confirmModal">
-                <div class="modal-box">
-                    <div class="modal-title"><?php echo e(fjhT('Confirmation', 'Bevestiging')); ?></div>
-                    <div class="modal-text"><?php echo e($pendingConfirm['message']); ?></div>
-                    <div class="modal-actions">
-                        <button type="button" class="btn btn-soft" onclick="document.getElementById('confirmModal').style.display='none';"><?php echo e(fjhT('Non', 'Nee')); ?></button>
-                        <form method="POST" style="display:inline;">
-                            <?php echo csrfField(); ?>
-                            <?php $confirmMode = (string) ($pendingConfirm['matching_mode'] ?? 'name'); ?>
-                            <input type="hidden" name="assign_student" value="1">
-                            <input type="hidden" name="request_id" value="<?php echo (int) $pendingConfirm['request_id']; ?>">
-                            <input type="hidden" name="matching_mode" value="<?php echo e($confirmMode); ?>">
-                            <?php if ($confirmMode === 'list'): ?>
-                                <input type="hidden" name="student_id" value="<?php echo (int) ($pendingConfirm['student_id'] ?? 0); ?>">
-                            <?php else: ?>
-                                <input type="hidden" name="student_name" value="<?php echo e($pendingConfirm['student_name']); ?>">
-                            <?php endif; ?>
-                            <input type="hidden" name="confirm_assign" value="1">
-                            <button type="submit" class="btn btn-primary"><?php echo e(fjhT('Oui, affecter', 'Ja, toewijzen')); ?></button>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        <?php endif; ?>
-
-        <section class="toolbar">
-            <form method="GET">
-                <div>
-                    <label for="week"><?php echo e(fjhT('Semaine', 'Week')); ?></label>
-                    <select id="week" name="week">
-                        <?php foreach ($weekOptions as $weekKey => $weekOption): ?>
-                            <option value="<?php echo e($weekKey); ?>" <?php echo $selectedWeekKey === $weekKey ? 'selected' : ''; ?>><?php echo e($weekOption['label']); ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-                <div>
-                    <label for="day"><?php echo e(fjhT('Jour', 'Dag')); ?></label>
-                    <select id="day" name="day">
-                        <option value="all" <?php echo $selectedDayFilter === 'all' ? 'selected' : ''; ?>><?php echo e(fjhT('Tous les jours', 'Alle dagen')); ?></option>
-                        <?php foreach ($weekDays as $weekDay): ?>
-                            <option value="<?php echo e($weekDay['key']); ?>" <?php echo $selectedDayFilter === $weekDay['key'] ? 'selected' : ''; ?>>
-                                <?php echo e($weekDay['label']); ?> (<?php echo e($weekDay['date']); ?>)
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-                <div>
-                    <label for="department"><?php echo e(fjhT('Département', 'Afdeling')); ?></label>
-                    <select id="department" name="department">
-                        <option value="all" <?php echo $selectedDepartmentFilter === 'all' ? 'selected' : ''; ?>><?php echo e(fjhT('Tous les départements', 'Alle afdelingen')); ?></option>
-                        <?php foreach ($departmentFilterOptions as $departmentFilterName): ?>
-                            <option value="<?php echo e($departmentFilterName); ?>" <?php echo $selectedDepartmentFilter === $departmentFilterName ? 'selected' : ''; ?>>
-                                <?php echo e($departmentFilterName); ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-                <div>
-                    <label for="vue"><?php echo e(fjhT('Vue', 'Weergave')); ?></label>
-                    <select id="vue" name="vue">
-                        <option value="all" <?php echo $selectedVueFilter === 'all' ? 'selected' : ''; ?>><?php echo e(fjhT('Tous les horaires', 'Alle uurroosters')); ?></option>
-                        <option value="a_pourvoir" <?php echo $selectedVueFilter === 'a_pourvoir' ? 'selected' : ''; ?>><?php echo e(fjhT('Encore à pourvoir', 'Nog in te vullen')); ?></option>
-                        <option value="attribue" <?php echo $selectedVueFilter === 'attribue' ? 'selected' : ''; ?>><?php echo e(fjhT('Déjà attribués', 'Reeds toegewezen')); ?></option>
-                    </select>
-                </div>
-                <input type="hidden" name="matching_mode" value="<?php echo e($matchingMode); ?>">
-                <button type="submit" class="btn btn-soft"><?php echo e(fjhT('Afficher', 'Tonen')); ?></button>
-            </form>
-            <?php if ($isAdmin): ?>
-                <form method="POST" style="display:flex;align-items:end;gap:10px;">
-                    <?php echo csrfField(); ?>
-                    <input type="hidden" name="auto_match_week" value="1">
-                    <input type="hidden" name="week" value="<?php echo e($selectedWeekKey); ?>">
-                    <button type="submit" class="btn btn-primary"><?php echo e(fjhT('Auto-matching semaine', 'Automatische matching week')); ?></button>
-                </form>
-            <?php endif; ?>
-            <a class="btn-export" href="export_matching.php?week=<?php echo e($selectedWeekKey); ?>" title="<?php echo e(fjhT('Exporter le planning de la semaine dans Excel', 'Weekplanning naar Excel exporteren')); ?>">
-                <span class="btn-export-ic">↓</span>
-                <span><?php echo e(fjhT('Exporter Excel', 'Naar Excel')); ?></span>
-            </a>
-            <style>
-                .btn-export { display:inline-flex; align-items:center; gap:8px; text-decoration:none;
-                    background:linear-gradient(135deg,#1f7a3d,#2fa757); color:#fff; font-weight:800; font-size:.92rem;
-                    padding:11px 18px; border-radius:12px; box-shadow:0 6px 16px rgba(31,122,61,.28);
-                    transition:transform .15s ease, box-shadow .15s ease; border:none; }
-                .btn-export:hover { transform:translateY(-2px); box-shadow:0 10px 22px rgba(31,122,61,.38); }
-                .btn-export .btn-export-ic { display:inline-flex; align-items:center; justify-content:center;
-                    width:22px; height:22px; border-radius:50%; background:rgba(255,255,255,.22); font-size:.95rem; font-weight:900; }
-            </style>
-            <div style="text-align:right;color:var(--muted);line-height:1.5;">
-                <strong><?php echo e(fjhT('Période', 'Periode')); ?></strong><br>
-                <?php echo $selectedWeek['start']->format('d/m/Y'); ?> - <?php echo $selectedWeek['end']->format('d/m/Y'); ?>
-            </div>
-        </section>
-
-        <section class="layout">
-            <div>
-                <?php if (!empty($remainingByDayDept)): ?>
-                    <section class="card" style="margin-bottom:16px;">
-                        <div class="card-head recap-toggle" onclick="toggleRecap(this)" style="cursor:pointer;user-select:none;"><?php echo e(fjhT('Récap des horaires à pourvoir (reste à couvrir)', 'Overzicht van in te vullen uurroosters (nog te dekken)')); ?> <span class="recap-chevron">&#9660;</span></div>
-                        <div class="card-body recap-body" style="display:none;">
-                            <div class="recap-grid">
-                                <?php foreach ($weekDays as $weekDay): ?>
-                                    <?php $dayRecap = $remainingByDayDept[$weekDay['key']] ?? []; ?>
-                                    <?php if (empty($dayRecap)): ?>
-                                        <?php continue; ?>
-                                    <?php endif; ?>
-                                    <div class="recap-card">
-                                        <div class="recap-title"><?php echo e($weekDay['label']); ?> <?php echo e($weekDay['date']); ?></div>
-                                        <?php foreach ($dayRecap as $deptName => $remainingTotal): ?>
-                                            <div class="recap-row">
-                                                <span><?php echo e($deptName); ?></span>
-                                                <strong><?php echo (int) $remainingTotal; ?> <?php echo e(fjhT('poste(s)', 'plaats(en)')); ?></strong>
-                                            </div>
-                                        <?php endforeach; ?>
-                                    </div>
-                                <?php endforeach; ?>
-                            </div>
-                        </div>
-                    </section>
-                <?php endif; ?>
-
-                <?php if (empty($visibleWeekDays)): ?>
-                    <section class="day-card">
-                        <div class="empty"><?php echo e(fjhT('Aucun créneau à afficher pour les filtres sélectionnés.', 'Geen tijdsblok om te tonen voor de geselecteerde filters.')); ?></div>
-                    </section>
-                <?php endif; ?>
-
-                <?php foreach ($visibleWeekDays as $weekDay): ?>
-                    <?php
-                    $dayRequests = $requestsByDate[$weekDay['key']] ?? [];
-                    ?>
-                    <section class="day-card">
-                        <div class="day-head">
-                            <span><?php echo e($weekDay['label']); ?> <?php echo e($weekDay['date']); ?></span>
-                            <span class="day-count"><?php echo count($dayRequests); ?> <?php echo e(fjhT('demande(s)', 'aanvraag/aanvragen')); ?></span>
-                        </div>
-
-                        <?php if (!empty($dayRequests)): ?>
-                            <div class="table-wrap">
-                                <table>
-                                    <thead>
-                                        <tr>
-                                            <th><?php echo e(fjhT('Département / Horaire', 'Afdeling / Uurrooster')); ?></th>
-                                            <th><?php echo e(fjhT('État', 'Status')); ?></th>
-                                            <th><?php echo e(fjhT('Affectations', 'Toewijzingen')); ?></th>
-                                            <th><?php echo e(fjhT('Action', 'Actie')); ?></th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <?php foreach ($dayRequests as $request): ?>
-                                            <?php
-                                            $requestId = (int) $request['id'];
-                                            $seatsRequired = (int) $request['seats_required'];
-                                            $assignments = $assignmentsByRequest[$requestId] ?? [];
-                                            $filledSeats = count($assignments);
-                                            $remainingSeats = max(0, $seatsRequired - $filledSeats);
-                                            $isFull = ($remainingSeats === 0);
-                                            $rankedCandidates = !$isFull
-                                                ? interimGetRankedCandidatesForRequest($db, $request, $isAdmin, $agencyName)
-                                                : [];
-                                            $eligibleCandidates = array_values(array_filter($rankedCandidates, static function ($candidate) {
-                                                return !empty($candidate['eligible']);
-                                            }));
-                                            $manualEligibleCandidates = array_values(array_filter($rankedCandidates, static function ($candidate) {
-                                                return !empty($candidate['manual_eligible']);
-                                            }));
-                                            $topSuggestions = array_slice($eligibleCandidates, 0, 3);
-                                            $hasManualEligibleCandidates = !empty($manualEligibleCandidates);
-                                            ?>
-                                            <tr>
-                                                <td>
-                                                    <strong><?php echo e($request['department_name']); ?></strong>
-                                                    <div class="slot-meta"><?php echo e($request['time_slot']); ?></div>
-                                                    <?php if (!empty($request['comment'])): ?>
-                                                        <div class="slot-meta"><?php echo e($request['comment']); ?></div>
-                                                    <?php endif; ?>
-                                                </td>
-                                                <td>
-                                                    <div class="badges">
-                                                        <span class="badge <?php echo $isFull ? 'badge-full' : 'badge-open'; ?>">
-                                                            <?php echo $filledSeats; ?> / <?php echo $seatsRequired; ?> pourvu(s)
-                                                        </span>
-                                                        <?php if (!$isFull): ?>
-                                                            <span class="badge badge-open"><?php echo $remainingSeats; ?> place(s) libre(s)</span>
-                                                        <?php endif; ?>
-                                                    </div>
-                                                </td>
-                                                <td>
-                                                    <?php if (empty($assignments)): ?>
-                                                        <span class="slot-meta">Aucun étudiant assigné</span>
-                                                    <?php else: ?>
-                                                        <ul class="assigned-list">
-                                                            <?php foreach ($assignments as $assignment): ?>
-                                                                <?php
-                                                                $isExternalAssign = empty($assignment['student_id']);
-                                                                if ($isExternalAssign) {
-                                                                    $studentName = trim((string) ($assignment['external_name'] ?? ''));
-                                                                    $studentAgency = trim((string) ($assignment['agency_name'] ?? ''));
-                                                                } else {
-                                                                    $studentName = trim((string) ($assignment['prenom'] ?? '')) . ' ' . trim((string) ($assignment['nom'] ?? ''));
-                                                                    $studentAgency = trim((string) ($assignment['interim'] ?? ''));
-                                                                }
-                                                                $canSeeIdentity = $isAdmin || ($studentAgency !== '' && $studentAgency === $agencyName);
-                                                                $canUnassign = $canSeeIdentity;
-                                                                ?>
-                                                                <li>
-                                                                    <?php if ($canSeeIdentity): ?>
-                                                                        <?php echo e($studentName); ?>
-                                                                        <?php if ($isExternalAssign): ?>
-                                                                            <span class="badge badge-open" style="margin-left:4px;"><?php echo e(fjhT('externe', 'extern')); ?></span>
-                                                                        <?php endif; ?>
-                                                                        <?php if ($isAdmin): ?>
-                                                                            <span class="slot-meta">(<?php echo e($studentAgency !== '' ? $studentAgency : ($isExternalAssign ? 'Non inscrit' : 'Sans agence')); ?>)</span>
-                                                                        <?php endif; ?>
-                                                                        <?php if ($canUnassign): ?>
-                                                                            <form method="POST" class="unassign-form" onsubmit="return confirm('Retirer cet étudiant de ce créneau ?');">
-                                                                                <?php echo csrfField(); ?>
-                                                                                <input type="hidden" name="unassign_student" value="1">
-                                                                                <input type="hidden" name="request_id" value="<?php echo $requestId; ?>">
-                                                                                <input type="hidden" name="assignment_id" value="<?php echo (int) ($assignment['assignment_id'] ?? 0); ?>">
-                                                                                <button type="submit" class="btn-mini">Désaffecter</button>
-                                                                            </form>
-                                                                        <?php endif; ?>
-                                                                    <?php else: ?>
-                                                                        Pourvu (autre agence)
-                                                                    <?php endif; ?>
-                                                                </li>
-                                                            <?php endforeach; ?>
-                                                        </ul>
-                                                    <?php endif; ?>
-                                                </td>
-                                                <td>
-                                                    <?php if (!$isFull): ?>
-                                                        <?php if (!empty($topSuggestions)): ?>
-                                                            <ul class="suggestion-list">
-                                                                <?php foreach ($topSuggestions as $suggestion): ?>
-                                                                    <?php $availabilityLabel = $statusLabels[$suggestion['availability_status']] ?? $suggestion['availability_status']; ?>
-                                                                    <li>
-                                                                        <?php echo e($suggestion['name']); ?>
-                                                                        <?php if ($isAdmin): ?>(P<?php echo (int) $suggestion['priority_rank']; ?> - <?php echo e($availabilityLabel); ?>)<?php else: ?>(P<?php echo (int) $suggestion['priority_rank']; ?>)<?php endif; ?>
-                                                                    </li>
-                                                                <?php endforeach; ?>
-                                                            </ul>
-                                                        <?php endif; ?>
-
-                                                        <form method="POST" class="fill-form">
-                                                            <?php echo csrfField(); ?>
-                                                            <input type="hidden" name="assign_student" value="1">
-                                                            <input type="hidden" name="request_id" value="<?php echo $requestId; ?>">
-
-                                                            <label style="display:block;font-size:.74rem;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:#5c6f67;margin-bottom:5px;"><?php echo e(fjhT('Rechercher un étudiant ou taper un nom', 'Zoek een student of typ een naam')); ?></label>
-                                                            <input type="text" name="student_name" list="fjm-cand-<?php echo $requestId; ?>" placeholder="<?php echo e(fjhT('Tapez pour rechercher, ou un nom libre…', 'Typ om te zoeken, of een vrije naam…')); ?>" autocomplete="off" style="width:100%;padding:13px 14px;font-size:1.05rem;border:1px solid #cfdad3;border-radius:10px;">
-                                                            <datalist id="fjm-cand-<?php echo $requestId; ?>">
-                                                                <?php foreach ($rankedCandidates as $candidate): ?>
-                                                                <?php
-                                                                $candidateStatusLabel = $statusLabels[$candidate['availability_status']] ?? $candidate['availability_status'];
-                                                                $optLabel = 'P' . (int) $candidate['priority_rank'] . ' · ' . $candidateStatusLabel;
-                                                                if (!empty($candidate['manual_eligible']) && empty($candidate['eligible'])) { $optLabel .= ' · manuel'; }
-                                                                ?>
-                                                                <option value="<?php echo e((string) $candidate['name']); ?>"><?php echo e($optLabel); ?></option>
-                                                                <?php endforeach; ?>
-                                                            </datalist>
-                                                            <div class="slot-meta" style="margin-top:6px;"><?php echo e(fjhT('La liste se filtre pendant la saisie. Un nom absent de la liste sera ajouté en externe.', 'De lijst filtert tijdens het typen. Een naam die niet in de lijst staat, wordt als extern toegevoegd.')); ?></div>
-
-                                                            <button type="submit" class="btn btn-primary" style="width:100%;margin-top:10px;">Affecter</button>
-                                                        </form>
-
-                                                        <?php if ($isAdmin): ?>
-                                                            <form method="POST" style="margin-top:8px;">
-                                                                <?php echo csrfField(); ?>
-                                                                <input type="hidden" name="auto_match_request" value="1">
-                                                                <input type="hidden" name="request_id" value="<?php echo $requestId; ?>">
-                                                                <button type="submit" class="btn btn-soft" style="width:100%;">Auto-matching créneau</button>
-                                                            </form>
-                                                        <?php endif; ?>
-                                                    <?php else: ?>
-                                                        <span class="slot-meta">Créneau verrouillé (complet)</span>
-                                                    <?php endif; ?>
-                                                </td>
-                                            </tr>
-                                        <?php endforeach; ?>
-                                    </tbody>
-                                </table>
-                            </div>
-                        <?php endif; ?>
-                    </section>
-                <?php endforeach; ?>
-            </div>
-        </section>
+<div class="bandeau">
+    <h1><?php echo e(fjhT('Matching intérim — la semaine', 'Matching interim — de week')); ?></h1>
+    <div>
+        <a class="pill" href="interim_horaires_demandes.php"><?php echo e(fjhT('Demandes', 'Aanvragen')); ?></a>
+        <a class="pill" href="index.php">&larr; <?php echo e(fjhT('Accueil', 'Onthaal')); ?></a>
     </div>
+</div>
+
+<div class="barre">
+    <form method="GET" style="display:flex; gap:9px; align-items:center;">
+        <label for="week" style="font-weight:700; font-size:.85rem;"><?php echo e(fjhT('Semaine', 'Week')); ?></label>
+        <select name="week" id="week" onchange="this.form.submit()">
+            <?php foreach ($weekOptions as $key => $option): ?>
+                <option value="<?php echo e($key); ?>" <?php echo $key === $selectedWeekKey ? 'selected' : ''; ?>>
+                    <?php echo e($option['label'] ?? $key); ?>
+                </option>
+            <?php endforeach; ?>
+        </select>
+    </form>
+
+    <?php // L'auto-matching existe toujours dans le traitement : sans ce bouton,
+          // la fonction serait devenue inatteignable en changeant d'écran. ?>
+    <?php if ($isAdmin): ?>
+    <form method="POST" onsubmit="return confirm('<?php echo e(fjhT('Lancer l\'auto-matching sur toute la semaine ?', 'Auto-matching voor de hele week starten?')); ?>');">
+        <?php echo csrfField(); ?>
+        <input type="hidden" name="week" value="<?php echo e($selectedWeekKey); ?>">
+        <button type="submit" name="auto_match_week" value="1">⚡ <?php echo e(fjhT('Auto-matching de la semaine', 'Auto-matching van de week')); ?></button>
+    </form>
+    <?php endif; ?>
+</div>
+
+<?php if (!empty($message)) { echo $message; } ?>
+
+<?php if (!$grille): ?>
+    <div class="rien"><?php echo e(fjhT('Aucun créneau demandé cette semaine.', 'Geen aangevraagde tijdslots deze week.')); ?></div>
+<?php else: ?>
+<div class="cadre">
+<table class="semaine">
+    <thead>
+        <tr>
+            <?php foreach ($weekDays as $jour): ?>
+                <th class="jour-tete" colspan="3"><?php echo e($jour['label']); ?></th>
+            <?php endforeach; ?>
+        </tr>
+        <tr>
+            <?php foreach ($weekDays as $jour): ?>
+                <th class="sous-tete"><?php echo e(fjhT('horaire', 'uren')); ?></th>
+                <th class="sous-tete"><?php echo e(fjhT('nom', 'naam')); ?></th>
+                <th class="sous-tete"><?php echo e(fjhT('agence', 'kantoor')); ?></th>
+            <?php endforeach; ?>
+        </tr>
+    </thead>
+    <tbody>
+    <?php $colonnes = count($weekDays) * 3; ?>
+    <?php foreach ($ordreSecteurs as $secteur): ?>
+        <?php if (empty($grille[$secteur])) { continue; } ?>
+
+        <tr class="l-secteur"><td colspan="<?php echo (int) $colonnes; ?>"><?php echo e($secteur); ?></td></tr>
+
+        <?php foreach ($grille[$secteur] as $dept => $parJour): ?>
+            <tr class="l-departement"><td colspan="<?php echo (int) $colonnes; ?>"><?php echo e($dept); ?></td></tr>
+
+            <?php
+            // Autant de lignes que le jour le plus chargé : les colonnes ne
+            // sont pas alignées entre elles, exactement comme dans le classeur.
+            $hauteur = 0;
+            foreach ($weekDays as $jour) {
+                $n = isset($parJour[$jour['key']]) ? count($parJour[$jour['key']]) : 0;
+                if ($n > $hauteur) { $hauteur = $n; }
+            }
+            ?>
+
+            <?php for ($ligne = 0; $ligne < $hauteur; $ligne++): ?>
+                <tr>
+                    <?php foreach ($weekDays as $jour): ?>
+                        <?php $place = $parJour[$jour['key']][$ligne] ?? null; ?>
+                        <?php if (!$place): ?>
+                            <td class="vide-jour"></td>
+                            <td class="vide-jour"></td>
+                            <td class="vide-jour"></td>
+                        <?php else: ?>
+                            <td class="horaire"><?php echo e($place['horaire']); ?></td>
+                            <td class="nom">
+                                <?php if ($place['nom'] !== ''): ?>
+                                    <span class="occupe">
+                                        <span><?php echo e($place['nom']); ?></span>
+                                        <?php if ($isAdmin): ?>
+                                        <form method="POST" style="display:inline;" onsubmit="return confirm('<?php echo e(fjhT('Retirer cette personne ?', 'Deze persoon verwijderen?')); ?>');">
+                                            <?php echo csrfField(); ?>
+                                            <input type="hidden" name="assignment_id" value="<?php echo (int) $place['assignment_id']; ?>">
+                                            <input type="hidden" name="request_id" value="<?php echo (int) $place['request_id']; ?>">
+                                            <button type="submit" name="unassign_student" value="1" class="retirer" title="<?php echo e(fjhT('Retirer', 'Verwijderen')); ?>">×</button>
+                                        </form>
+                                        <?php endif; ?>
+                                    </span>
+                                <?php elseif ($isAdmin): ?>
+                                    <?php // La case vide EST le bouton : c'est le geste du classeur,
+                                          // on clique là où le nom doit apparaître. ?>
+                                    <button type="button" class="place-libre"
+                                            data-request="<?php echo (int) $place['request_id']; ?>"
+                                            data-ou="<?php echo e($dept . ' · ' . $jour['label'] . ' · ' . $place['horaire']); ?>">
+                                        + <?php echo e(fjhT('à pourvoir', 'in te vullen')); ?>
+                                    </button>
+                                <?php else: ?>
+                                    <span style="color:#aab;">—</span>
+                                <?php endif; ?>
+                            </td>
+                            <td class="agence"><?php echo e($place['agence']); ?></td>
+                        <?php endif; ?>
+                    <?php endforeach; ?>
+                </tr>
+            <?php endfor; ?>
+        <?php endforeach; ?>
+    <?php endforeach; ?>
+    </tbody>
+</table>
+</div>
+<?php endif; ?>
+
+<?php if ($isAdmin): ?>
+<div class="voile" id="voile">
+    <div class="fenetre">
+        <h2><?php echo e(fjhT('Affecter quelqu\'un', 'Iemand toewijzen')); ?></h2>
+        <div class="ou" id="fenetreOu"></div>
+
+        <form method="POST">
+            <?php echo csrfField(); ?>
+            <input type="hidden" name="request_id" id="fenetreRequest" value="">
+
+            <label for="student_id"><?php echo e(fjhT('Dans la liste', 'Uit de lijst')); ?></label>
+            <select name="student_id" id="student_id">
+                <option value="0">— <?php echo e(fjhT('choisir', 'kiezen')); ?> —</option>
+                <?php // $studentOptions porte 'label' (prénom + nom déjà assemblés),
+                      // pas 'prenom'/'nom' séparés. ?>
+                <?php foreach ($studentOptions as $etu): ?>
+                    <option value="<?php echo (int) $etu['id']; ?>">
+                        <?php echo e(trim((string) $etu['label'])); ?><?php echo !empty($etu['interim']) ? ' — ' . e($etu['interim']) : ''; ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+
+            <?php // Champ libre conservé : le traitement sait déjà retrouver un
+                  // inscrit par son nom, et affecter en texte libre s'il n'en est
+                  // pas un. C'est ce qui permet d'écrire quelqu'un qui n'a pas
+                  // encore de compte, comme dans le classeur. ?>
+            <label for="student_name"><?php echo e(fjhT('Ou taper un nom', 'Of een naam typen')); ?></label>
+            <input type="text" name="student_name" id="student_name" autocomplete="off" placeholder="<?php echo e(fjhT('Prénom Nom', 'Voornaam Naam')); ?>">
+
+            <div class="actions">
+                <button type="button" class="btn btn-non" id="fermer"><?php echo e(fjhT('Annuler', 'Annuleren')); ?></button>
+                <button type="submit" name="assign_student" value="1" class="btn btn-ok"><?php echo e(fjhT('Affecter', 'Toewijzen')); ?></button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
-function toggleRecap(el) {
-    el.classList.toggle('open');
-    var body = el.nextElementSibling;
-    body.style.display = body.style.display === 'none' ? '' : 'none';
-}
+(function () {
+    var voile = document.getElementById('voile');
+    var champRequest = document.getElementById('fenetreRequest');
+    var ou = document.getElementById('fenetreOu');
+    if (!voile) { return; }
+
+    function ouvrir(bouton) {
+        champRequest.value = bouton.getAttribute('data-request');
+        ou.textContent = bouton.getAttribute('data-ou') || '';
+        document.getElementById('student_id').value = '0';
+        document.getElementById('student_name').value = '';
+        voile.classList.add('ouvert');
+        document.getElementById('student_id').focus();
+    }
+
+    function fermer() { voile.classList.remove('ouvert'); }
+
+    // Délégation : les cases se comptent par centaines, on ne pose pas un
+    // écouteur sur chacune.
+    document.addEventListener('click', function (e) {
+        var b = e.target.closest ? e.target.closest('.place-libre') : null;
+        if (b) { ouvrir(b); }
+    });
+
+    document.getElementById('fermer').addEventListener('click', fermer);
+    voile.addEventListener('click', function (e) { if (e.target === voile) { fermer(); } });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { fermer(); } });
+}());
 </script>
+<?php endif; ?>
+
 </body>
 </html>
