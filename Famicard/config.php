@@ -39,20 +39,24 @@ if ($__famicardConfig === null) {
 require_once $__famicardConfig;
 require_once __DIR__ . '/includes/carte.php';
 
-// L'organisation (secteurs et départements) : le FICHIER vit dans
-// Famiformation/includes/, mais c'est un détail d'implantation, pas une
-// répartition des rôles. Famicard est le centre de données du collaborateur —
-// c'est ici qu'on consulte et qu'on règle son rattachement.
+// L'organisation (secteurs et départements) vient de `includes/secteurs.php`,
+// repris du dépôt LIVE — c'est lui la référence.
 //
-// Le fichier reste là-bas parce que Famicard charge déjà la configuration du
-// site, donc il y a accès gratuitement ; l'inverse mettrait la dépendance à
-// l'envers. Il migrera avec le reste de la RH (voir README).
+// ⚠️ Famicard avait sa propre implantation (`organisation.php`,
+// `famicard_secteurs`, `famicard_departements`, `famicard_affectations`),
+// développée en parallèle sans savoir que le live en avait déjà une. Deux
+// systèmes pour la même chose, sur des tables différentes : celui d'ici a été
+// abandonné au profit de celui qui tourne déjà.
 //
-// Chargé ici plutôt que dans chaque page : la fiche, la base, l'export et
-// l'écran d'édition l'utilisent tous.
-$__famicardOrganisation = dirname($__famicardConfig) . '/includes/organisation.php';
-if (is_file($__famicardOrganisation)) {
-    require_once $__famicardOrganisation;
+// Structure retenue, donc : `sectors`, `departments` (étendue d'un `sector_id`)
+// et `student_department_links` pour le rattachement — qui est MULTIPLE et
+// ordonné par priorité, parce que le matching intérim en dépend.
+//
+// Chargé ici plutôt que dans chaque page : la fiche, la base et l'export
+// l'utilisent tous.
+$__famicardSecteurs = dirname($__famicardConfig) . '/includes/secteurs.php';
+if (is_file($__famicardSecteurs)) {
+    require_once $__famicardSecteurs;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

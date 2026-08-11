@@ -29,16 +29,9 @@ if (!famicardEstAdmin()) {
     exit();
 }
 
-// L'organisation (secteurs et départements) est installée par FAMICARD, depuis
-// ses pages d'administration — celle-ci et l'écran d'édition. Elle ne l'était
-// que par la page RH du site, que plus personne n'a de raison d'ouvrir.
-if (function_exists('famiAssureSecteurs')) {
-    try {
-        famiAssureSecteurs($db);
-    } catch (Exception $e) {
-        // Droits insuffisants : la colonne s'affichera vide, le reste marche.
-    }
-}
+// L'organisation (secteurs et départements) vient du dépôt live et vit dans
+// `sectors` / `departments` — Famicard la LIT, il ne l'installe pas.
+// secteursAssureSchema() est appelée par secteursListe() côté site.
 
 $champs   = famicardChamps($db);
 $magasins = famicardMagasins($db);
@@ -104,7 +97,7 @@ foreach ($champs as $cle => $champ) {
 $colonnesSql = ['id'];
 foreach ($colonnesTableau as $champ) {
     // Secteur et département portent une PSEUDO-colonne : ils ne sont pas dans
-    // `utilisateurs` mais dans famicard_affectations. Les mettre dans le SELECT
+    // `utilisateurs` mais dans student_department_links. Les mettre dans le SELECT
     // ferait tomber la requête entière sur une colonne inexistante.
     if (($champ['saisie'] ?? '') === 'rattachement') {
         continue;

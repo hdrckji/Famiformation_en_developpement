@@ -120,7 +120,7 @@ if (!function_exists('famicardChampsSocle')) {
             ],
             // ── SECTEUR ET DÉPARTEMENT ─────────────────────────────────────
             // Ces deux-là ne sont NI une colonne de `utilisateurs` NI un champ
-            // libre : ils vivent dans famicard_affectations. Les « colonnes »
+            // libre : ils vivent dans student_department_links. Les « colonnes »
             // ci-dessous sont donc des pseudo-colonnes, remplies dans la ligne
             // par famicardAjouteRattachement() avant tout affichage.
             //
@@ -449,10 +449,10 @@ if (!function_exists('famicardRattachements')) {
      * sur la base des collaborateurs, qui en affiche des centaines.
      *
      * Le secteur et le département ne sont pas des colonnes de `utilisateurs` :
-     * ils vivent dans famicard_affectations, que l'administrateur règle depuis
-     * Famicard (modifier.php). La définition des secteurs et de leurs
-     * départements est dans Famiformation/includes/organisation.php — un
-     * emplacement de fichier, pas un partage des rôles.
+     * ils vivent dans `student_department_links`, la table du matching intérim,
+     * avec plusieurs départements possibles par personne. La définition des
+     * secteurs et de leurs départements est dans
+     * Famiformation/includes/secteurs.php, repris du dépôt live.
      */
     function famicardRattachements(PDO $db, array $userIds)
     {
@@ -463,41 +463,45 @@ if (!function_exists('famicardRattachements')) {
         // Des entiers castés, jamais du texte : rien à échapper ici.
         $in = implode(',', $ids);
 
-        $complet = "SELECT a.user_id, a.secteur_id, s.nom AS secteur_nom,
-                           a.departement_id, d.nom AS departement_nom
-                    FROM famicard_affectations a
-                    LEFT JOIN famicard_secteurs s ON s.id = a.secteur_id
-                    LEFT JOIN famicard_departements d ON d.id = a.departement_id
-                    WHERE a.user_id IN ($in)";
+        // Le rattachement est MULTIPLE : `student_department_links` porte
+        // plusieurs départements par personne, classés par priority_rank —
+        // c'est ce dont le matching intérim se sert. On lit tout, et on garde
+        // le premier comme rattachement principal pour l'affichage de la fiche,
+        // sans perdre les autres.
+        $sql = "SELECT l.student_id AS user_id, l.priority_rank,
+                       d.id AS departement_id, d.department_name AS departement_nom,
+                       s.id AS secteur_id, s.sector_name AS secteur_nom
+                FROM student_department_links l
+                JOIN departments d ON d.id = l.department_id
+                LEFT JOIN sectors s ON s.id = d.sector_id
+                WHERE l.student_id IN ($in)
+                ORDER BY l.student_id ASC, l.priority_rank ASC, d.department_name ASC";
 
-        // Repli sans le département : la colonne a été ajoutée après coup, et
-        // son ALTER peut avoir échoué. Le secteur doit rester affiché dans ce
-        // cas plutôt que de disparaître avec lui.
-        $simple = "SELECT a.user_id, a.secteur_id, s.nom AS secteur_nom,
-                          NULL AS departement_id, NULL AS departement_nom
-                   FROM famicard_affectations a
-                   LEFT JOIN famicard_secteurs s ON s.id = a.secteur_id
-                   WHERE a.user_id IN ($in)";
+        $res = [];
+        try {
+            foreach ($db->query($sql)->fetchAll(PDO::FETCH_ASSOC) as $r) {
+                $uid = (int) $r['user_id'];
 
-        foreach ([$complet, $simple] as $sql) {
-            try {
-                $res = [];
-                foreach ($db->query($sql)->fetchAll(PDO::FETCH_ASSOC) as $r) {
-                    $res[(int) $r['user_id']] = [
-                        'secteur_id'       => $r['secteur_id'] !== null ? (int) $r['secteur_id'] : null,
-                        'secteur_nom'      => (string) ($r['secteur_nom'] ?? ''),
-                        'departement_id'   => $r['departement_id'] !== null ? (int) $r['departement_id'] : null,
-                        'departement_nom'  => (string) ($r['departement_nom'] ?? ''),
+                // Le premier de la liste (priorité la plus haute) devient le
+                // rattachement affiché ; les suivants s'ajoutent à la liste.
+                if (!isset($res[$uid])) {
+                    $res[$uid] = [
+                        'secteur_id'      => $r['secteur_id'] !== null ? (int) $r['secteur_id'] : null,
+                        'secteur_nom'     => (string) ($r['secteur_nom'] ?? ''),
+                        'departement_id'  => (int) $r['departement_id'],
+                        'departement_nom' => (string) $r['departement_nom'],
+                        'tous'            => [],
                     ];
                 }
-                return $res;
-            } catch (Exception $e) {
-                // On tente le repli ; si les deux échouent, les tables n'existent
-                // pas encore et la fiche s'affiche simplement sans rattachement.
+                $res[$uid]['tous'][] = (string) $r['departement_nom'];
             }
+        } catch (Exception $e) {
+            // Tables absentes (base pas encore à jour) : la fiche s'affiche
+            // simplement sans rattachement, plutôt que de ne pas s'afficher.
+            return [];
         }
 
-        return [];
+        return $res;
     }
 }
 
@@ -517,7 +521,13 @@ if (!function_exists('famicardAjouteRattachement')) {
         $ligne['secteur_id']      = $r['secteur_id'] ?? null;
         $ligne['secteur_nom']     = $r['secteur_nom'] ?? '';
         $ligne['departement_id']  = $r['departement_id'] ?? null;
-        $ligne['departement_nom'] = $r['departement_nom'] ?? '';
+
+        // Quelqu'un peut tenir plusieurs départements (le matching intérim s'en
+        // sert). Les afficher tous plutôt que le seul principal : une fiche qui
+        // montre « Bougies » alors que la personne fait aussi « Festif » est
+        // fausse à moitié, ce qui est pire que muette.
+        $tous = $r['tous'] ?? [];
+        $ligne['departement_nom'] = $tous ? implode(' · ', $tous) : ($r['departement_nom'] ?? '');
 
         return $ligne;
     }

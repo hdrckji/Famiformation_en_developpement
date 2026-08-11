@@ -40,8 +40,10 @@ Autrement dit : ce qu'un collaborateur *fait* sur la plateforme, pas ce qu'il *e
 
 ### Ce qui appartient à FamiJob
 
-Les horaires, les disponibilités, le matching intérim. Sa table `departments` lui est
-propre et **n'a rien à voir** avec `famicard_departements` — même mot, deux choses.
+Les horaires, les disponibilités, le matching intérim — et la table `departments`, que
+les secteurs ÉTENDENT (`sector_id`) au lieu d'en créer une seconde. Le rattachement d'une
+personne vit dans `student_department_links`, avec plusieurs départements possibles
+classés par priorité : c'est le matching qui l'impose, et Famicard doit en tenir compte.
 
 ### Les cas frontière, tranchés
 
@@ -69,9 +71,10 @@ propre et **n'a rien à voir** avec `famicard_departements` — même mot, deux 
 endroits**. Deux écrans qui écrivent l'email finissent toujours par diverger, et c'est
 celui qu'on regarde le moins qui gagne.
 
-Ce qui reste vrai après la bascule : la définition des secteurs
-(`Famiformation/includes/organisation.php`) est un **emplacement de fichier**, pas un
-partage des rôles — Famicard le charge parce qu'il charge déjà la configuration du site.
+⚠️ **Les secteurs viennent du dépôt LIVE** (`Famiformation/includes/secteurs.php`, tables
+`sectors` et `departments.sector_id`). Famicard avait développé sa propre implantation en
+parallèle, sans savoir que le live en avait déjà une : elle a été abandonnée. Deux
+systèmes pour la même chose, c'est celui qui ne tourne pas qui gagne les données perdues.
 
 ---
 
@@ -229,16 +232,12 @@ tard, ne peut pas exposer ce qu'il ne doit pas.
       part). À brancher au moment où la suppression rejoindra Famicard, sinon un futur
       compte réutilisant le même id hérite des accès du précédent.
 
-- [ ] **Le secteur sur la carte** — le rattachement existe et se règle depuis
-      `admin_collaborateurs.php` (voir `Famiformation/includes/organisation.php`), mais la
-      carte ne l'affiche pas encore : il n'est ni une colonne de `utilisateurs` ni un champ
-      libre, donc `famicardValeurAffichee()` ne sait pas encore le résoudre.
-- [ ] **Le rattachement sur la carte** — les 9 secteurs et leurs 54 départements sont en
-      base (`famicard_secteurs`, `famicard_departements`) et se règlent depuis la page RH
-      de FamiFormation. La carte ne les affiche pas encore, et ils devraient à terme se
-      régler ici, dans Famicard.
-      ⚠️ Ne pas confondre `famicard_departements` avec la table `departments` de FamiJob
-      (matching étudiants) : même mot, deux choses.
+- [ ] **Rendre le rattachement modifiable depuis Famicard** — il est AFFICHÉ sur la fiche
+      (secteur + départements), mais en lecture seule. Il vit dans
+      `student_department_links`, la table du matching intérim, avec plusieurs
+      départements par personne classés par priorité : y écrire depuis un écran qui n'en
+      connaît qu'un effacerait les autres. Il faut d'abord décider comment Famicard
+      présente et modifie une liste ordonnée.
 - [ ] **Historique consultable** — les modifications sont toutes enregistrées
       (`famicard_modifications`), mais seules celles en attente sont affichées. « Qui a
       changé ce champ, et quand » demande encore une requête SQL à la main.

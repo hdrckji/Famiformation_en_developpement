@@ -54,7 +54,7 @@ famicardAssureModifications($db);
 
 // Secteur et département : posés dans la ligne comme pseudo-colonnes, pour que
 // le modèle les lise comme les autres champs (ils vivent en réalité dans
-// famicard_affectations).
+// student_department_links).
 $cible = famicardAjouteRattachement($cible, famicardRattachements($db, [$cibleId]));
 
 $champs   = famicardChamps($db);
@@ -62,32 +62,16 @@ $magasins = famicardMagasins($db);
 $libres   = famicardValeursLibres($db, $cibleId);
 $groupes  = famicardGroupes();
 
-// L'organisation vient de FamiFormation (includes/organisation.php, chargé par
-// config.php). Si le fichier manque, le rattachement s'affiche en lecture seule
-// plutôt que de faire tomber l'écran d'édition entier.
-$organisationDispo = function_exists('famiSecteurs') && function_exists('famiDepartementsParSecteur');
-
-// C'est FAMICARD qui installe l'organisation, pas le site. Elle ne l'était que
-// depuis la page RH de FamiFormation : quiconque ne l'ouvrait jamais — ce qui
-// est le but, la RH devant rejoindre Famicard — n'avait tout simplement aucun
-// secteur à choisir, sans qu'aucun message ne l'explique.
+// ⚠️ LE RATTACHEMENT EST EN LECTURE SEULE ICI, et c'est un choix, pas un
+// manque. Il vit dans `student_department_links` — la table dont le MATCHING
+// INTÉRIM de FamiJob se sert, avec plusieurs départements par personne classés
+// par priorité. Écrire dedans depuis cet écran, qui ne connaît qu'un
+// département à la fois, effacerait les autres et fausserait le matching sans
+// que personne ne s'en aperçoive avant de chercher des remplaçants.
 //
-// Réservé aux admins (c'est de la DDL) et sous garde : si la création échoue,
-// l'écran d'édition doit continuer à faire le reste de son travail.
-if ($organisationDispo && $estAdmin && function_exists('famiAssureSecteurs')) {
-    try {
-        famiAssureSecteurs($db);
-    } catch (Exception $e) {
-        // Droits insuffisants : le rattachement s'affichera en lecture seule.
-    }
-}
-
-$secteursListe = $organisationDispo ? famiSecteurs($db) : [];
-$departementsParSecteur = $organisationDispo ? famiDepartementsParSecteur($db) : [];
-
-// Le rattachement se modifie par l'admin, et par lui seul (c'est de la donnée
-// de gestion, pas une coordonnée personnelle).
-$rattachementEditable = $organisationDispo && $estAdmin && $secteursListe;
+// Le rattachement se règle donc là où il est maîtrisé (admin_user.php côté
+// site, qui gère la liste complète et les priorités). Le ramener dans Famicard
+// demande d'abord de décider ce qu'on fait des rattachements multiples.
 
 // ─────────────────────────────────────────────────────────────────────────────
 // STOCKAGE DE LA PHOTO — celui du SITE, volontairement : même dossier sur le
@@ -226,55 +210,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    // ── RATTACHEMENT (secteur puis département) ──────────────────────────
-    // DEUX listes distinctes : le secteur d'abord, le département ensuite,
-    // filtré sur le secteur choisi. C'est la hiérarchie réelle, et elle se lit
-    // à l'écran au lieu d'être devinée dans une liste unique.
-    //
-    // Le filtrage de la seconde liste est fait en JavaScript, mais il ne
-    // PROTÈGE rien : c'est famiAffecteSecteur() qui refuse un département
-    // n'appartenant pas au secteur. Sans ce contrôle serveur, un formulaire
-    // bricolé enregistrerait « secteur Bureau, département Barbecue ».
+    // Le rattachement ne s'écrit pas depuis cet écran (voir plus haut).
     $rattachementChange = false;
-    if ($rattachementEditable && array_key_exists('secteur_id', $_POST)) {
-        $secteurChoisi     = (int) ($_POST['secteur_id'] ?? 0);
-        $departementChoisi = (int) ($_POST['departement_id'] ?? 0);
-
-        // Un département sans secteur n'a pas de sens : on ignore le premier
-        // plutôt que d'enregistrer une moitié de rattachement.
-        if ($secteurChoisi <= 0) {
-            $departementChoisi = 0;
-        }
-
-        $avantSecteur     = (int) ($cible['secteur_id'] ?? 0);
-        $avantDepartement = (int) ($cible['departement_id'] ?? 0);
-
-        if ($secteurChoisi !== $avantSecteur || $departementChoisi !== $avantDepartement) {
-            $avantLibelle = trim(((string) ($cible['secteur_nom'] ?? ''))
-                . (($cible['departement_nom'] ?? '') !== '' ? ' — ' . $cible['departement_nom'] : ''));
-
-            $ok = famiAffecteSecteur(
-                $db,
-                $cibleId,
-                $secteurChoisi > 0 ? $secteurChoisi : null,
-                $departementChoisi > 0 ? $departementChoisi : null
-            );
-
-            if ($ok) {
-                $apresLibelle = '';
-                if ($secteurChoisi > 0) {
-                    $apresLibelle = (string) ($secteursListe[$secteurChoisi] ?? '');
-                    if ($departementChoisi > 0) {
-                        $apresLibelle .= ' — ' . (string) ($departementsParSecteur[$secteurChoisi][$departementChoisi] ?? '');
-                    }
-                }
-                famicardTraceModification($db, $cibleId, 'secteur', ['libelle' => 'Secteur / Département'], $avantLibelle, $apresLibelle, (int) $moi['id'], false);
-                $rattachementChange = true;
-            } else {
-                $erreurs[] = "Ce département n'appartient pas au secteur choisi.";
-            }
-        }
-    }
 
     // ── LES AUTRES CHAMPS ────────────────────────────────────────────────
     $aEcrire = [];
@@ -596,36 +533,12 @@ if ($photo !== '') {
                                   // n'est pas modifiable : sans ce test en premier, un admin
                                   // se verrait proposer un champ texte libre sur une
                                   // pseudo-colonne, qui n'existe pas dans `utilisateurs`. ?>
-                            <?php if ($saisie === 'rattachement' && !$rattachementEditable): ?>
+                            <?php if ($saisie === 'rattachement'): ?>
                                 <div class="fige"><?= $affichee !== '' ? e($affichee) : '—' ?></div>
-                                <?php // Pour un admin, ce cas ne se produit que si l'organisation
-                                      // n'a pas encore été créée en base : le message doit dire
-                                      // quoi faire, pas renvoyer ailleurs. ?>
-                                <div class="aide"><?= $estAdmin ? "Aucun secteur n'est encore enregistré." : "Défini par l'entreprise." ?></div>
-
-                            <?php elseif ($cle === 'secteur' && $rattachementEditable): ?>
-                                <?php $secteurCourant = (int) ($cible['secteur_id'] ?? 0); ?>
-                                <select id="champ_secteur" name="secteur_id">
-                                    <option value="" <?= $secteurCourant === 0 ? 'selected' : '' ?>>— Aucun —</option>
-                                    <?php foreach ($secteursListe as $secId => $secNom): ?>
-                                        <option value="<?= (int) $secId ?>" <?= $secteurCourant === (int) $secId ? 'selected' : '' ?>><?= e($secNom) ?></option>
-                                    <?php endforeach; ?>
-                                </select>
-
-                            <?php elseif ($cle === 'departement' && $rattachementEditable): ?>
-                                <?php $departementCourant = (int) ($cible['departement_id'] ?? 0); ?>
-                                <?php // La liste porte TOUS les départements ; le JavaScript ne
-                                      // montre que ceux du secteur choisi. L'attribut data-secteur
-                                      // est ce qui lui permet de trier. ?>
-                                <select id="champ_departement" name="departement_id">
-                                    <option value="">— Tout le secteur —</option>
-                                    <?php foreach ($departementsParSecteur as $secId => $deps): ?>
-                                        <?php foreach ($deps as $depId => $depNom): ?>
-                                            <option value="<?= (int) $depId ?>" data-secteur="<?= (int) $secId ?>" <?= $departementCourant === (int) $depId ? 'selected' : '' ?>><?= e($depNom) ?></option>
-                                        <?php endforeach; ?>
-                                    <?php endforeach; ?>
-                                </select>
-                                <div class="aide">Facultatif : on peut appartenir à un secteur sans département précis.</div>
+                                <?php // Le rattachement vit dans la table du matching intérim,
+                                      // avec plusieurs départements possibles par personne : il
+                                      // ne se règle pas ici, où l'on n'en verrait qu'un. ?>
+                                <div class="aide">Se règle avec les départements du collaborateur.</div>
 
                             <?php elseif (!$editable): ?>
                                 <?php // Montré mais figé : le collaborateur voit la valeur et
@@ -688,59 +601,6 @@ if ($photo !== '') {
 
 </div>
 
-<?php if ($rattachementEditable): ?>
-<script>
-// La liste des départements suit le secteur choisi.
-//
-// ⚠️ Ce filtrage est un CONFORT, pas une sécurité : le serveur revérifie que le
-// département appartient bien au secteur (famiAffecteSecteur), sans quoi un
-// formulaire bricolé enregistrerait « secteur Bureau, département Barbecue ».
-(function () {
-    var secteur = document.getElementById('champ_secteur');
-    var departement = document.getElementById('champ_departement');
-    if (!secteur || !departement) { return; }
-
-    // On mémorise la liste COMPLÈTE au chargement : une option retirée du DOM
-    // est perdue, et revenir au secteur précédent ne la ramènerait pas.
-    var toutes = Array.prototype.slice.call(departement.options).map(function (o) {
-        return { valeur: o.value, texte: o.text, secteur: o.getAttribute('data-secteur') };
-    });
-
-    function filtrer(garderChoix) {
-        var choisi = secteur.value;
-        var avant = departement.value;
-
-        while (departement.options.length) { departement.remove(0); }
-
-        toutes.forEach(function (o) {
-            // L'entrée « Tout le secteur » n'a pas de data-secteur : elle reste
-            // proposée quel que soit le secteur.
-            if (!o.secteur || o.secteur === choisi) {
-                var opt = document.createElement('option');
-                opt.value = o.valeur;
-                opt.text = o.texte;
-                if (o.secteur) { opt.setAttribute('data-secteur', o.secteur); }
-                departement.add(opt);
-            }
-        });
-
-        if (garderChoix) {
-            departement.value = avant;
-        }
-        if (!garderChoix || !departement.value) {
-            departement.selectedIndex = 0;
-        }
-
-        // Sans secteur, il n'y a pas de département à choisir. Le champ
-        // désactivé n'est pas envoyé, ce qui revient bien à « aucun ».
-        departement.disabled = (choisi === '');
-    }
-
-    filtrer(true);
-    secteur.addEventListener('change', function () { filtrer(false); });
-}());
-</script>
-<?php endif; ?>
 
 <?php if ($photoEditable): ?>
 <script>

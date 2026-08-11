@@ -81,7 +81,7 @@ if ($genere) {
     // c'est une fuite en puissance le jour où on ajoute un champ sensible.
     $colonnesSql = ['id'];
     foreach ($choisies as $cle) {
-        // Secteur et département portent une PSEUDO-colonne (famicard_affectations,
+        // Secteur et département portent une PSEUDO-colonne (student_department_links,
         // pas `utilisateurs`) : dans le SELECT, elle ferait tomber la requête.
         // Ils sont ajoutés plus bas, par jointure séparée.
         if (($proposables[$cle]['saisie'] ?? '') === 'rattachement') {
