@@ -2,6 +2,12 @@
 // ============================================================
 // tri_profils.php — FAIRE LE TRI ENTRE VISITEURS ET PERSONNEL.
 //
+// ⚠️ CETTE PAGE A DÉMÉNAGÉ DEPUIS FAMIFORMATION. Elle change le PROFIL d'une
+// personne : c'est une propriété du collaborateur, donc du centre de données
+// utilisateur, pas de la plateforme de formation (voir README.md, « LE TRI »).
+// Le code est celui du site, repris tel quel ; seul l'amorçage change —
+// configuration de Famicard, famicardExigeConnexion(), famicardEstAdmin().
+//
 // Tous les nouveaux comptes entrent en « beta ». Or une partie de ces gens
 // travaille déjà chez Famiflora : ils n'ont rien à faire en beta, ils doivent
 // avoir le profil employé et l'accès qui va avec.
@@ -18,14 +24,14 @@
 // création (voir roleInscription() dans quiz/api.php). Cette page sert donc à
 // rattraper les comptes créés AVANT la mise en place de la règle.
 // ============================================================
-require_once 'config.php';
-verifierConnexion($db);
-require_once 'includes/csrf.php';
-require_once 'includes/personnel_liste.php';
-require_once 'includes/events.php';   // logEvent() : trace des changements de profil
+require_once __DIR__ . '/config.php';
+famicardExigeConnexion($db); // et non verifierConnexion() : voir Famicard/README
+// csrf.php est déjà chargé par la configuration du site.
+require_once famicardRacineSite() . '/includes/personnel_liste.php';
+require_once famicardRacineSite() . '/includes/events.php';   // logEvent() : trace des changements de profil
 
 $role = function_exists('getCurrentRole') ? getCurrentRole() : ($_SESSION['role'] ?? '');
-if ($role !== 'admin') {
+if (!famicardEstAdmin()) {
     header('Location: index.php');
     exit();
 }
@@ -149,7 +155,7 @@ $nbListe = count(personnelListe());
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tri des profils - FamiFormation</title>
-    <link rel="shortcut icon" type="image/x-icon" href="favicon.ico">
+    <link rel="shortcut icon" type="image/x-icon" href="<?= e(famicardSiteUrl('favicon.ico')) ?>">
     <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         *, *::before, *::after { box-sizing: border-box; }

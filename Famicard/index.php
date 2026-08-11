@@ -19,10 +19,27 @@
 // ============================================================
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/includes/modifications.php';
+require_once __DIR__ . '/includes/services.php';
 
 $moi = famicardExigeConnexion($db);
 $estAdmin = famicardEstAdmin();
 $roleMoi = (string) ($moi['role'] ?? '');
+
+// Les services sont installés par un ADMIN qui passe ici : c'est de la DDL, on
+// ne la fait pas exécuter par tout le monde à chaque affichage.
+if ($estAdmin) {
+    try {
+        famicardAssureServices($db);
+    } catch (Exception $e) {
+        // Droits insuffisants : on retombe sur les règles historiques.
+    }
+}
+
+// ⚠️ Les accès ne sont plus écrits en dur ici. Ils viennent de la base, et
+// tant que rien n'y est enregistré pour ce collaborateur, des règles
+// historiques prennent le relais (voir includes/services.php). Ajouter un
+// service demande donc une ligne en base, pas une modification de cette page.
+$mesServices = famicardServicesDuCollaborateur($db, (int) $moi['id'], $roleMoi);
 
 // Corrections en attente de décision (admins). Affichées sur la tuile plutôt
 // que sur une cinquième : l'accueil doit rester à quatre entrées, et une
@@ -136,26 +153,54 @@ if ($photo !== '') {
         <?php endif; ?>
     </div>
 
-    <div class="titre-groupe">Mes accès</div>
+    <?php if ($mesServices): ?>
+        <div class="titre-groupe">Mes accès</div>
 
-    <div class="tuiles">
-        <a class="tuile" href="<?= e(famicardSiteUrl('index.php')) ?>">
-            <span class="ico">🎓</span>
-            <div class="nom">FamiFormation</div>
-            <div class="quoi">Formations, quiz, onboarding.</div>
-        </a>
+        <div class="tuiles">
+            <?php foreach ($mesServices as $service): ?>
+                <a class="tuile" href="<?= e(famicardSiteUrl((string) $service['url'])) ?>">
+                    <span class="ico"><?= e((string) ($service['icone'] ?: '🔗')) ?></span>
+                    <div class="nom"><?= e((string) $service['nom']) ?></div>
+                    <div class="quoi"><?= e((string) ($service['description'] ?? '')) ?></div>
+                </a>
+            <?php endforeach; ?>
+        </div>
+    <?php endif; ?>
 
-        <?php // Même règle que l'accueil du site (admin et teamcoach). Les
-              // étudiants passent par student.famiformation.com, qui a son
-              // propre login : leur proposer ce lien-ci les enverrait sur un mur. ?>
-        <?php if (in_array($roleMoi, ['admin', 'teamcoach'], true)): ?>
-        <a class="tuile" href="<?= e(famicardSiteUrl('famijob/index.php')) ?>">
-            <span class="ico">🗓️</span>
-            <div class="nom">FamiJob</div>
-            <div class="quoi">Horaires et matching des étudiants.</div>
-        </a>
-        <?php endif; ?>
-    </div>
+    <?php // ── ADMINISTRATION ─────────────────────────────────────────────
+          // Les outils qui agissent sur les PERSONNES : leur profil, leur accès,
+          // leur fiche. Ils étaient dispersés sur l'accueil de FamiFormation ;
+          // ils appartiennent ici (voir README.md, « LE TRI »). ?>
+    <?php if ($estAdmin): ?>
+        <div class="titre-groupe">Administration</div>
+
+        <div class="tuiles">
+            <a class="tuile" href="validations.php">
+                <?php if ($aValider > 0): ?><span class="pastille"><?= (int) $aValider ?></span><?php endif; ?>
+                <span class="ico">✅</span>
+                <div class="nom">Modifications à confirmer</div>
+                <div class="quoi">Les corrections faites par les collaborateurs sur leur propre fiche.</div>
+            </a>
+
+            <a class="tuile" href="tri_profils.php">
+                <span class="ico">👥</span>
+                <div class="nom">Tri des profils</div>
+                <div class="quoi">Passer en profil employé les comptes beta qui figurent dans la liste du personnel.</div>
+            </a>
+
+            <a class="tuile" href="relance_mdp.php">
+                <span class="ico">🔑</span>
+                <div class="nom">Relance mot de passe</div>
+                <div class="quoi">Renvoyer son lien de création de mot de passe, pour n'importe quel profil.</div>
+            </a>
+
+            <a class="tuile" href="admin_champs.php">
+                <span class="ico">⚙️</span>
+                <div class="nom">Libellés de la fiche</div>
+                <div class="quoi">Créer les champs que porte la carte, obligatoires ou non.</div>
+            </a>
+        </div>
+    <?php endif; ?>
 
 </div>
 </body>

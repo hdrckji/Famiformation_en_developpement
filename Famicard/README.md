@@ -12,19 +12,56 @@ FamiFormation », qui dirait au collaborateur qu'il est dans une annexe.
 (FamiJob : admin et teamcoach). On n'ouvre pas un accès depuis ici : une tuile qui
 mène à un refus est pire que pas de tuile.
 
-### Où va-t-on : la RH de FamiFormation devient Famicard
+## LE TRI — qui possède quoi
 
-Décision de Jimmy. Ce qui vit encore dans `Famiformation/admin_collaborateurs.php`
-(création de compte, identifiant, mot de passe, activation, suppression) **rejoindra
-Famicard**. Il n'y a pas deux produits qui se partagent le collaborateur : il y en a un,
-et c'est celui-ci.
+Décision de Jimmy. **Famicard possède la personne. FamiFormation possède la formation.**
+Tout se déduit de cette phrase, et c'est le seul critère à appliquer devant un écran
+nouveau : est-ce que ça parle du collaborateur, ou de ce qu'il vient y faire ?
 
-État actuel, transitoire :
+### Ce qui appartient à Famicard
+
+- **L'identité** — fiche, champs, photo, badge, export, libellés.
+- **Le compte** — création d'un utilisateur, identifiant, mot de passe, activation,
+  relance, désactivation, suppression.
+- **Le rattachement** — secteur, département, lieu de travail, agence.
+- **Les accès** — à quels services ce collaborateur a droit (voir plus bas).
+- **La traçabilité** — qui a changé quoi, quand ; validations ; RGPD.
+
+**C'est depuis Famicard qu'on crée un utilisateur.** Pas ailleurs, et à terme nulle part
+ailleurs.
+
+### Ce qui appartient à FamiFormation
+
+- Les **modules de formation**, le guide, les vidéos, les quiz et leurs résultats.
+- L'**onboarding**, le planning des formations, les évaluations.
+- Le **jardin**, le classement, les jeux.
+
+Autrement dit : ce qu'un collaborateur *fait* sur la plateforme, pas ce qu'il *est*.
+
+### Ce qui appartient à FamiJob
+
+Les horaires, les disponibilités, le matching intérim. Sa table `departments` lui est
+propre et **n'a rien à voir** avec `famicard_departements` — même mot, deux choses.
+
+### Les cas frontière, tranchés
+
+| Sujet | Où | Pourquoi |
+|---|---|---|
+| Rôle / profil | **Famicard** | C'est une propriété de la personne, pas d'un service |
+| Statut actif/inactif | **Famicard** | Idem — et il conditionne tous les accès |
+| Tri des profils (beta → employé) | **Famicard** | Ça change le profil d'une personne |
+| Relance de mot de passe | **Famicard** | Ça touche l'accès d'une personne |
+| Progression aux quiz | FamiFormation | C'est un résultat, pas une identité |
+| Disponibilités, horaires | FamiJob | Idem |
+
+### État de la bascule
 
 | Sujet | Aujourd'hui | Cible |
 |---|---|---|
 | Fiche, champs, photo, badge, export | **Famicard** | Famicard |
-| Secteur / département | **Famicard** (+ page RH) | Famicard |
+| Secteur / département | **Famicard** | Famicard |
+| Accès aux services | **Famicard** | Famicard |
+| Tri des profils, relance mot de passe | **Famicard** | Famicard |
 | Création de compte, mot de passe, activation | page RH du site | **Famicard** |
 | Rôle, statut, agence, lieu de travail | les deux | **Famicard** |
 
@@ -35,6 +72,28 @@ celui qu'on regarde le moins qui gagne.
 Ce qui reste vrai après la bascule : la définition des secteurs
 (`Famiformation/includes/organisation.php`) est un **emplacement de fichier**, pas un
 partage des rôles — Famicard le charge parce qu'il charge déjà la configuration du site.
+
+---
+
+## LES ACCÈS AUX SERVICES
+
+Aujourd'hui deux services, FamiFormation et FamiJob. **Il y en aura d'autres**, et c'est
+la contrainte qui a dicté la structure : ajouter un service ne doit demander ni migration
+ni modification d'écran.
+
+D'où une **table** (`famicard_services`) et non une liste écrite dans le code : un
+service = une ligne (code, nom, description, adresse, ordre, actif). Les accès d'un
+collaborateur sont dans `famicard_acces` (user_id, service_id).
+
+> **Pourquoi pas le rôle ?** Parce que `utilisateurs.role` répond à « qui est cette
+> personne », pas à « où a-t-elle le droit d'aller ». Un mentor et un teamcoach peuvent
+> avoir les mêmes accès ; deux admins peuvent en avoir de différents. Confondre les deux,
+> c'est se condamner à créer un rôle par combinaison le jour où il y aura cinq services.
+
+**Migration douce**, indispensable pour ne casser personne : tant qu'aucun accès explicite
+n'est enregistré pour quelqu'un, on applique les règles historiques — FamiFormation pour
+tous, FamiJob pour les admins et teamcoachs. Dès qu'un accès explicite existe, il fait
+foi. Personne ne perd un accès du jour au lendemain parce qu'une table vient d'être créée.
 
 ### La règle de navigation
 
@@ -92,6 +151,9 @@ Famicard/
                        — la photo se dépose en haut de cet écran (plus de page à part)
   validations.php      les corrections que l'admin doit confirmer
   includes/modifications.php   écriture des champs + registre des changements
+  includes/services.php        ⭐ LES ACCÈS : quels services pour qui
+  tri_profils.php      passer les comptes beta en profil employé (venu du site)
+  relance_mdp.php      renvoyer le lien de création de mot de passe (venu du site)
   admin.php            la base des collaborateurs (liste, filtres, badge, export)
   badge.php            le badge imprimable 75 × 36 mm
   export.php           l'export Excel, colonnes au choix
@@ -155,6 +217,17 @@ tard, ne peut pas exposer ce qu'il ne doit pas.
 - [x] **Libellés créés par l'admin**, obligatoires ou non
 
 ## Ce qui reste
+
+- [ ] **Créer un utilisateur depuis Famicard** — le formulaire de création vit encore dans
+      `Famiformation/admin_collaborateurs.php`. C'est la pièce maîtresse du tri : tant
+      qu'elle n'a pas bougé, un compte peut naître ailleurs qu'ici.
+- [ ] **Écran d'attribution des accès** — la structure existe (`famicard_services`,
+      `famicard_acces`), mais rien ne permet encore de cocher les services d'un
+      collaborateur. En attendant, les règles historiques s'appliquent.
+- [ ] **Nettoyage à la suppression d'un compte** — la suppression est encore côté site et
+      n'efface pas `famicard_acces` (`famicardOublieAcces()` existe et n'est appelée nulle
+      part). À brancher au moment où la suppression rejoindra Famicard, sinon un futur
+      compte réutilisant le même id hérite des accès du précédent.
 
 - [ ] **Le secteur sur la carte** — le rattachement existe et se règle depuis
       `admin_collaborateurs.php` (voir `Famiformation/includes/organisation.php`), mais la
