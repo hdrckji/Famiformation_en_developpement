@@ -724,11 +724,11 @@ if ($wcThemeOn && !empty($siteTheme) && is_array($siteTheme)) {
             <div class="tile-title"><?= t('Gestion Quiz', 'Quizbeheer') ?></div>
             <div class="tile-desc"><?= t('Contrôler et corriger tous les quiz.', 'Alle quizzen nakijken en corrigeren.') ?></div>
         </a>
-        <a href="gestion-beta.php" class="tile tile-admin">
-            <div class="tile-media"><span class="tile-icon">🧪</span></div>
-            <div class="tile-title"><?= t('Espace Beta', 'Beta-ruimte') ?></div>
-            <div class="tile-desc"><?= t('Ton espace pour déposer le contenu de la version beta (PDF + vidéos).', 'Jouw ruimte om de inhoud van de betaversie te uploaden (PDF + video\'s).') ?></div>
-        </a>
+        <?php // Tuile « Espace Beta » retirée de l'accueil (demande de Jimmy).
+              // La PAGE gestion-beta.php reste en place, et ce n'est pas un
+              // oubli : le parcours beta s'en sert comme point de repli quand
+              // un module n'existe pas encore (beta.php, beta-magasin.php). La
+              // supprimer casserait ces liens. ?>
         <?php // « Tri des profils » et « Relance mot de passe » sont partis dans
               // Famicard : ils changent le profil et l'accès d'une PERSONNE, ce
               // qui appartient au centre de données utilisateur, pas à la
