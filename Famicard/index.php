@@ -175,6 +175,15 @@ if ($photo !== '') {
         <div class="titre-groupe">Administration</div>
 
         <div class="tuiles">
+            <?php // En PREMIER, et ce n'est pas un hasard : « c'est depuis Famicard
+                  // qu'on crée un utilisateur » (README.md, « LE TRI »). Un compte
+                  // naît ici, le reste de cette section ne fait que l'entretenir. ?>
+            <a class="tuile" href="creer.php">
+                <span class="ico">➕</span>
+                <div class="nom">Nouveau collaborateur</div>
+                <div class="quoi">Créer le compte d'un arrivant : identifiant, profil, accès, et son mail d'activation.</div>
+            </a>
+
             <a class="tuile" href="validations.php">
                 <?php if ($aValider > 0): ?><span class="pastille"><?= (int) $aValider ?></span><?php endif; ?>
                 <span class="ico">✅</span>

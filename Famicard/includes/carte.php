@@ -559,6 +559,10 @@ if (!function_exists('famicardLibelleRole')) {
     {
         $libelles = [
             'beta'               => 'Beta',
+            // 🏬 Sans cette ligne, une fiche « betalapanne » affichait son nom
+            // technique — et l'écran de création aurait proposé un profil
+            // illisible dans une liste où tous les autres ont un vrai libellé.
+            'betalapanne'        => 'Beta La Panne',
             'etudiant'           => 'Étudiant',
             'employe_magasin'    => 'Magasin',
             'employe_logistique' => 'Logistique',

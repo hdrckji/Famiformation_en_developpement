@@ -64,7 +64,8 @@ classés par priorité : c'est le matching qui l'impose, et Famicard doit en ten
 | Secteur / département | **Famicard** | Famicard |
 | Accès aux services | **Famicard** | Famicard |
 | Tri des profils, relance mot de passe | **Famicard** | Famicard |
-| Création de compte, mot de passe, activation | page RH du site | **Famicard** |
+| Création de compte | **Famicard** (`creer.php`) — le site en a encore une | Famicard |
+| Mot de passe, activation | les deux | **Famicard** |
 | Rôle, statut, agence, lieu de travail | les deux | **Famicard** |
 
 ⚠️ Tant que la bascule n'est pas faite, **ne pas faire écrire la même colonne aux deux
@@ -149,6 +150,7 @@ Famicard/
   login.php            connexion (mêmes identifiants, même session que le site)
   logout.php           déconnexion
   index.php            ⭐ L'ACCUEIL DU PORTAIL : 4 tuiles, rien d'autre
+  creer.php            ⭐ CRÉATION D'UN COLLABORATEUR : compte, rattachement, accès
   fiche.php            la carte du collaborateur (c'était index.php)
   modifier.php         ⭐ ÉDITION : sa propre fiche, ou celle d'un autre (admin)
                        — la photo se dépose en haut de cet écran (plus de page à part)
@@ -218,22 +220,27 @@ tard, ne peut pas exposer ce qu'il ne doit pas.
 - [x] **Badge 75 × 36 mm** imprimable
 - [x] **Export Excel** avec choix des colonnes
 - [x] **Libellés créés par l'admin**, obligatoires ou non
+- [x] **Création d'un collaborateur** (`creer.php`, tuile de l'accueil) — compte,
+      rattachement et accès aux services d'un seul geste
 
 ## Ce qui reste
 
-- [ ] **Créer un utilisateur depuis Famicard** — le formulaire de création vit encore dans
-      `Famiformation/admin_collaborateurs.php`. C'est la pièce maîtresse du tri : tant
-      qu'elle n'a pas bougé, un compte peut naître ailleurs qu'ici.
-- [ ] **Écran d'attribution des accès** — la structure existe (`famicard_services`,
-      `famicard_acces`), mais rien ne permet encore de cocher les services d'un
-      collaborateur. En attendant, les règles historiques s'appliquent.
+- [ ] **Retirer la création côté site** — `creer.php` existe, mais
+      `Famiformation/admin_collaborateurs.php` crée toujours des comptes lui aussi. Ce
+      n'est pas une divergence de données (une création est un INSERT, pas deux écritures
+      de la même colonne), mais tant que les deux écrans existent, un compte peut naître
+      sans passer par Famicard. Le retrait se fait côté live, pas d'ici.
+- [ ] **Écran d'attribution des accès sur un compte EXISTANT** — les cases existent à la
+      création (`creer.php`), mais rien ne permet encore de les modifier ensuite. En
+      attendant, les règles historiques s'appliquent à qui n'a aucun accès enregistré.
 - [ ] **Nettoyage à la suppression d'un compte** — la suppression est encore côté site et
       n'efface pas `famicard_acces` (`famicardOublieAcces()` existe et n'est appelée nulle
       part). À brancher au moment où la suppression rejoindra Famicard, sinon un futur
       compte réutilisant le même id hérite des accès du précédent.
 
-- [ ] **Rendre le rattachement modifiable depuis Famicard** — il est AFFICHÉ sur la fiche
-      (secteur + départements), mais en lecture seule. Il vit dans
+- [ ] **Rendre le rattachement modifiable depuis Famicard** — il se POSE à la création
+      (`creer.php` : aucune priorité existante à écraser, la personne vient de naître),
+      mais sur une fiche existante il reste en lecture seule. Il vit dans
       `student_department_links`, la table du matching intérim, avec plusieurs
       départements par personne classés par priorité : y écrire depuis un écran qui n'en
       connaît qu'un effacerait les autres. Il faut d'abord décider comment Famicard
