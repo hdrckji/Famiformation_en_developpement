@@ -103,6 +103,17 @@ h1, h2, h3 { font-family: 'Fredoka', sans-serif; }
   font-weight: 900; font-size: .92rem; cursor: pointer;
   text-decoration: underline; text-underline-offset: 3px; padding: 6px;
 }
+/* 🤝 L'invitation à jouer franc-jeu.
+   ⚠️ Elle est formulée EN POSITIF, et ne parle jamais de tricherie : dire
+   « ne va pas chercher les prix » donnerait l'idée à ceux qui n'y pensaient
+   pas. On vante l'intérêt de deviner, et on rappelle qu'on a le temps —
+   quelqu'un qui se sent pressé est justement quelqu'un qui cherche un
+   raccourci. */
+.franc-jeu {
+  background: #FFF8EA; border: 2px solid var(--soleil);
+  border-radius: 14px; padding: 13px 16px; margin: 0 0 14px;
+  font-size: .95rem; line-height: 1.5; text-align: left;
+}
 
 .btn {
   font-family: 'Fredoka', sans-serif; font-size: 1.15rem; font-weight: 600;
@@ -203,6 +214,24 @@ body.demo .carte { border: 3px dashed #4E9E72; }
 
 /* ---------- Fin ---------- */
 .fin { text-align: center; }
+/* 🎓 Le renvoi vers la formation. Assez visible pour donner envie d'y aller,
+   assez sobre pour ne pas voler la vedette au score. */
+.conseil {
+  background: var(--craie); border: 2px solid var(--trait);
+  border-radius: 18px; padding: 16px 18px; margin: 16px auto 4px;
+  max-width: 32rem; text-align: center;
+  box-shadow: 0 4px 16px rgba(14,59,36,.08);
+}
+.cs-emo { font-size: 2rem; line-height: 1; margin-bottom: 6px; }
+.cs-txt { font-size: .98rem; line-height: 1.5; margin-bottom: 14px; }
+.cs-btn {
+  display: inline-block; text-decoration: none;
+  font-family: 'Fredoka', sans-serif; font-size: 1rem; font-weight: 600;
+  background: var(--accent); color: var(--puceTexte);
+  border-radius: 999px; padding: 11px 24px;
+  box-shadow: 0 4px 0 var(--ombre);
+}
+.cs-btn:active { transform: translateY(2px); box-shadow: 0 2px 0 var(--ombre); }
 /* Ce que devient le score : la question que tout le monde se pose en
    finissant. Elle mérite donc d'être lisible, pas une note de bas de page. */
 .verse {
@@ -210,6 +239,15 @@ body.demo .carte { border: 3px dashed #4E9E72; }
   border-radius: 14px; padding: 11px 15px;
   font-size: .95rem; line-height: 1.5; font-weight: 700;
 }
+/* « +3 places ! » sous la position — la seule information qui dit si on a
+   progressé, donc celle qui mérite d'être visible. */
+.monte {
+  display: inline-block; background: #FFF3C9; color: #7a5c12;
+  border: 2px solid var(--soleil); border-radius: 999px;
+  padding: 4px 14px; font-weight: 900; font-size: .95rem; margin-bottom: 4px;
+}
+/* Les deux sorties de fin de partie, côte à côte tant que la place le permet. */
+.fin-sorties { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
 .verse-attente     { background: var(--brume); color: var(--doux); }
 .verse-classement  { background: #FFF3C9; color: #7a5c12; border: 2px solid var(--soleil); }
 .verse-jardin      { background: #E7F6EC; color: #17603A; border: 2px solid #9AD3B0; }
@@ -323,6 +361,68 @@ function gainManche(ecart, tSec, serie) {
 const aff = (n) => Math.round(Number(n) || 0);
 const euro = (n) => Number(n).toFixed(2).replace(".", ",") + " €";
 
+// 🎓 LE RENVOI VERS LA FORMATION, EN FIN DE PARTIE.
+//
+// Le ton change selon le nombre de BONNES ESTIMATIONS (sur 10), pas selon les
+// points : « 6 sur 10 » se comprend d'un coup d'œil, « 112 points » ne dit
+// rien.
+//
+// ⚠️ CE QUE LES MESSAGES NE DOIVENT PAS DIRE : que la formation apprend les
+// prix. Elle ne les apprend pas — connaître les prix est une culture qui vient
+// avec le temps en rayon, et personne ne les connaît tous.
+//
+// CE QU'ELLE APPREND VRAIMENT, c'est un GESTE : remettre un prix sur un
+// article quand l'étiquette manque ou n'est plus la bonne. C'est concret, ça
+// se fait tous les jours, et c'est ça qu'il faut annoncer — pas une promesse
+// de mémoire que la formation ne tiendra pas.
+//
+// Les trois messages disent donc la même chose sur le fond : ton score ne juge
+// pas ta mémoire, et la formation t'apporte un savoir-faire.
+//
+// ⚠️ L'ADRESSE DE LA FORMATION est ici, et nulle part ailleurs : une seule
+// ligne à changer si le module bouge.
+//
+// On pointe sur module.php et NON sur le fichier lui-même : le guide vit sur
+// le volume, rien n'est dans le code source. Et module.php REDIRIGE vers la
+// connexion quand la session manque, là où media.php renvoie un « 403 Accès
+// refusé » sec — un joueur venu du quiz n'a pas forcément de session ouverte
+// sur le site principal, il doit pouvoir se connecter plutôt que se heurter à
+// un mur.
+const FORMATION = {
+  url: "https://www.famiformation.com/module.php?id=258",
+  fr: "la formation étiquetage",
+  nl: "de opleiding etikettering",
+  frMaj: "La formation étiquetage",
+  nlMaj: "De opleiding etikettering",
+};
+
+function conseilHtml(bonnes) {
+  let emo, txt;
+  if (bonnes <= 4) {
+    emo = "🙈";
+    txt = t(
+      `Aïe&nbsp;! Rassure-toi, <b>personne ne connaît tous les prix</b> — ça se construit avec le temps en rayon. Ce qui s'apprend en revanche, c'est le geste&nbsp;: <b>remettre un prix sur un article</b> quand l'étiquette manque. C'est tout l'objet de ${FORMATION.fr}.`,
+      `Oei&nbsp;! Geen zorgen, <b>niemand kent alle prijzen</b> — dat komt met de tijd in de rekken. Wat je wél leert, is de handeling&nbsp;: <b>een prijs op een artikel zetten</b> wanneer het etiket ontbreekt. Daar draait ${FORMATION.nl} om.`);
+  } else if (bonnes <= 7) {
+    emo = "👍";
+    txt = t(
+      `Pas mal, tu commences à avoir l'œil&nbsp;! Personne ne retient tout, c'est normal. Ce qui compte au quotidien, c'est de savoir <b>remettre un prix sur un article</b> — ${FORMATION.fr} te montre exactement comment faire.`,
+      `Niet slecht, je krijgt er oog voor&nbsp;! Niemand onthoudt alles, dat is normaal. Wat dagelijks telt, is <b>een prijs op een artikel kunnen zetten</b> — ${FORMATION.nl} toont je precies hoe.`);
+  } else {
+    emo = "🏆";
+    txt = t(
+      `Bravo, tu as le sens du magasin&nbsp;! Même comme ça, personne ne connaît tout par cœur — et ce n'est pas le but. ${FORMATION.frMaj} sert au geste de tous les jours&nbsp;: <b>remettre un prix sur un article</b>, proprement et sans se tromper.`,
+      `Proficiat, jij hebt winkelgevoel&nbsp;! Toch kent niemand alles uit het hoofd — en dat hoeft ook niet. ${FORMATION.nlMaj} dient voor het dagelijkse gebaar&nbsp;: <b>een prijs op een artikel zetten</b>, netjes en zonder fouten.`);
+  }
+  return `<div class="conseil">
+    <div class="cs-emo">${emo}</div>
+    <div class="cs-txt">${txt}</div>
+    <a class="cs-btn" href="${FORMATION.url}" target="_blank" rel="noopener">
+      ${t("Voir la formation ↗", "Bekijk de opleiding ↗")}
+    </a>
+  </div>`;
+}
+
 // 🛒 COMBIEN L'ARTICLE S'EST VENDU.
 //
 // Affiché APRÈS la réponse, jamais avant : un gros chiffre de ventes trahit
@@ -358,6 +458,27 @@ const nomDe = (a) => (LANG === "nl" ? a.nl : a.fr);
 // Il arrive par « ?site=… », comme le jeton.
 let SITE = "mouscron";
 
+// 🎯 PAR OÙ ON EST ENTRÉ.
+//
+//   « epreuve » (défaut) — on vient de la tuile du parcours. L'épreuve ne se
+//   fait QU'UNE FOIS, comme le quiz : pas de bouton « Rejouer » à la fin, on
+//   repart vers son jardin et son classement.
+//
+//   « jardin » — on vient du bouton « Jeux » du jardin. Là on rejoue autant
+//   qu'on veut : ces parties ne nourrissent que le jardin, plafonnées, et ne
+//   touchent jamais le classement.
+//
+// C'est le SERVEUR qui décide où vont les points (1re partie = classement,
+// suivantes = jardin) ; ce réglage ne change QUE ce qu'on propose à l'écran.
+// Les deux ne peuvent donc pas se contredire.
+let MODE = "epreuve";
+
+// 🚪 « Je viens de FamiFormation » (?ff=1). Le quiz nous le transmet, et on le
+// RENVOIE dans le lien de retour : sans lui, on repartait sur /quiz/<magasin>
+// tout court, c'est-à-dire sur l'accueil du quiz — une page qui n'est pas la
+// sienne et dont la sortie déconnecte.
+let DEPUIS_FF = false;
+
 const JETON = (() => {
   let j = "";
   try {
@@ -365,10 +486,14 @@ const JETON = (() => {
     j = u.searchParams.get("jeton") || "";
     const s = (u.searchParams.get("site") || "").toLowerCase();
     if (s === "mouscron" || s === "lapanne") { SITE = s; }
-    if (j || u.searchParams.get("site")) {
+    DEPUIS_FF = (u.searchParams.get("ff") === "1");
+    if (u.searchParams.get("mode") === "jardin") { MODE = "jardin"; }
+    if (j || u.searchParams.get("site") || DEPUIS_FF || u.searchParams.get("mode")) {
       const propre = new URL(location.href);
       propre.searchParams.delete("jeton");
       propre.searchParams.delete("site");
+      propre.searchParams.delete("ff");
+      propre.searchParams.delete("mode");
       history.replaceState(null, "", propre.pathname + (propre.search || "") + propre.hash);
     }
     // Téléphone perso : le quiz garde le jeton, on peut le relire directement.
@@ -380,8 +505,17 @@ const JETON = (() => {
 // Retour vers le quiz : on REND le jeton. Sans ça, la borne repartirait
 // déconnectée — son jeton n'existe que dans l'URL et en mémoire.
 // Le magasin est déjà dans le chemin (/quiz/mouscron), inutile de le répéter.
-function urlRetour() {
-  return "../" + SITE + (JETON ? "?jeton=" + encodeURIComponent(JETON) : "");
+function urlRetour(vue) {
+  const p = new URLSearchParams();
+  if (JETON) { p.set("jeton", JETON); }
+  // Venu de FamiFormation : on rend le repère ET on demande l'espace, pour
+  // retomber sur son tableau de bord et pas sur l'accueil du quiz.
+  if (DEPUIS_FF) { p.set("ff", "1"); p.set("espace", "1"); }
+  // « jardin » ou « board » : on atterrit SUR l'écran voulu, sans avoir à
+  // recliquer depuis le tableau de bord.
+  if (vue) { p.set("vue", vue); }
+  const q = p.toString();
+  return "../" + SITE + (q ? "?" + q : "");
 }
 
 // Envoie le score. Ne bloque JAMAIS l'affichage : si l'envoi échoue, la partie
@@ -439,10 +573,14 @@ function tirage() {
 
 function nouvellePartie() {
   const tir = tirage();
+  // 🎓 PAS D'ÉCHAUFFEMENT DEPUIS LE JARDIN. On ne peut y rejouer qu'après avoir
+  // fait l'épreuve : le jeu est donc déjà connu, et refaire trois manches pour
+  // rien serait pénible quand on vient juste récolter des graines.
+  const avecDemo = (MODE !== "jardin");
   etat = {
     demo: tir.demo, partie: tir.partie,
-    mode: "demo", idx: 0, score: 0, serie: 0, histo: [],
-    phase: "annonceDemo", debut: 0, reste: BAREME.secondes,
+    mode: avecDemo ? "demo" : "reel", idx: 0, score: 0, serie: 0, histo: [],
+    phase: avecDemo ? "annonceDemo" : "manche", debut: 0, reste: BAREME.secondes,
   };
   rendre();
 }
@@ -492,6 +630,10 @@ function vueAccueil() {
         </div>
       </div>
 
+      <div class="franc-jeu">${t(
+        "🤝 <b>Joue le jeu&nbsp;!</b> Tout l'intérêt est de deviner au feeling — c'est comme ça qu'on découvre ce qu'on connaît vraiment du magasin. Tu as 30 secondes par article, largement de quoi réfléchir.",
+        "🤝 <b>Speel het spel&nbsp;!</b> De lol zit hem in het gokken op gevoel — zo ontdek je wat je écht van de winkel kent. Je hebt 30 seconden per artikel, ruim genoeg om na te denken.")}</div>
+
       <button class="plus" id="enSavoirPlus">${t("En savoir plus sur les points", "Meer over de punten")}</button>
       <div style="margin:16px 0 0"><button class="btn" id="go">${t("C'est parti !", "We gaan ervoor!")}</button></div>
 
@@ -510,8 +652,14 @@ function vueAccueil() {
 // et non vers une adresse écrite en dur : la page doit continuer à marcher
 // si elle est un jour servie sous /quiz/mouscron/justeprix/.
 function brancheRetour() {
+  // Trois sorties possibles selon l'écran : le retour simple de l'accueil, et
+  // les deux boutons de fin de partie qui mènent chacun à son écran.
   const b = $("#jp-retour");
   if (b) b.addEventListener("click", () => { location.href = urlRetour(); });
+  const j = $("#jp-jardin");
+  if (j) j.addEventListener("click", () => { location.href = urlRetour("jardin"); });
+  const c = $("#jp-board");
+  if (c) c.addEventListener("click", () => { location.href = urlRetour("board"); });
 }
 
 // ---------- La fenêtre des détails, pour qui veut savoir ----------
@@ -766,14 +914,23 @@ function vueFin() {
     ${languesHtml()}
     <div class="fin">
       <div style="font-size:2.6rem">🏁</div>
-      <div class="score">${aff(etat.score)}</div>
-      <div style="font-size:.95rem;color:var(--doux);margin-bottom:6px;">${t("points sur", "punten op")} ${max}</div>
+      <!-- 🏆 LA PLACE AU CLASSEMENT prend la vedette, pas le score de la partie.
+           Le score sur ${max} ne dit rien à personne ; savoir qu'on est 7e sur 42
+           après avoir joué, si. Le gros chiffre est donc rempli quand le serveur
+           a répondu ; en attendant on affiche le score, pour ne pas laisser un
+           trou pendant l'aller-retour réseau. -->
+      <div id="jp-tete">
+        <div class="score">${aff(etat.score)}</div>
+        <div style="font-size:.95rem;color:var(--doux);margin-bottom:6px;">${t("points sur", "punten op")} ${max}</div>
+      </div>
       <div style="font-size:1.1rem;font-weight:700;margin-bottom:4px;">${mot}</div>
       <div id="jp-verse" class="verse verse-attente">⏳ ${t("Enregistrement…", "Opslaan…")}</div>
       <div style="font-size:.92rem;color:var(--doux);">
         ${t(`${bonnes} bonne${bonnes > 1 ? "s" : ""} estimation${bonnes > 1 ? "s" : ""} sur ${BAREME.manches}`,
              `${bonnes} goede schatting${bonnes > 1 ? "en" : ""} op ${BAREME.manches}`)}${pile ? ` · ${pile} ${t("pile poil", "precies goed")} 🎯` : ""}
       </div>
+
+      ${conseilHtml(bonnes)}
 
       <div class="recap">
         ${etat.histo.map(h => `
@@ -791,13 +948,19 @@ function vueFin() {
           </div>`).join("")}
       </div>
 
-      <button class="btn" id="rejouer">${t("Rejouer", "Opnieuw spelen")}</button>
-      <div style="margin-top:10px"><button class="btn secondaire" id="retour">${t("Revoir les règles", "Regels opnieuw bekijken")}</button></div>
-      <div style="margin-top:12px"><button class="retour" id="jp-retour">${t("◂ Retour à mon espace jardin", "◂ Terug naar mijn tuin")}</button></div>
+      ${MODE === "jardin"
+        ? `<button class="btn" id="rejouer">${t("Rejouer pour mon jardin 🌱", "Opnieuw spelen voor mijn tuin 🌱")}</button>
+           <div style="margin-top:12px"><button class="retour" id="jp-jardin">${t("◂ Retour à mon jardin", "◂ Terug naar mijn tuin")}</button></div>`
+        : `<div class="fin-sorties">
+             <button class="btn" id="jp-jardin">${t("🌱 Mon jardin", "🌱 Mijn tuin")}</button>
+             <button class="btn secondaire" id="jp-board">${t("🏆 Le classement", "🏆 De ranking")}</button>
+           </div>`}
     </div>`;
   brancheLangues();
-  $("#rejouer").addEventListener("click", nouvellePartie);
-  $("#retour").addEventListener("click", () => { etat = null; rendre(); });
+  // ⚠️ Pas de « Rejouer » depuis l'épreuve : elle ne se fait QU'UNE FOIS, comme
+  // le quiz. Le rejeu n'existe que par le jardin, où il ne touche pas le
+  // classement — proposer le contraire ici embrouillerait la règle.
+  { const rj = $("#rejouer"); if (rj) rj.addEventListener("click", nouvellePartie); }
   brancheRetour();
 
   // 📤 On envoie le score UNE FOIS par partie, après l'affichage. L'écran de
@@ -837,7 +1000,29 @@ function afficheVerse(r) {
 
   if (r.type === "classement") {
     el.className = "verse verse-classement";
-    el.innerHTML = "🏆 <b>+" + aff(r.gain) + "</b> " + t(
+    // 🏆 LA PLACE remplace le score en tête d'écran. Un rang seul ne dit pas
+    // tout non plus : ce qui parle, c'est de savoir si on a MONTÉ. On annonce
+    // donc le déplacement quand il y en a un.
+    const tete = $("#jp-tete");
+    const ordinal = (n) => t(n === 1 ? "1er" : n + "e", n + "e");
+    if (tete && r.rang > 0) {
+      const monte = (r.rangAvant > 0) ? (r.rangAvant - r.rang) : 0;
+      tete.innerHTML =
+        `<div class="score">${ordinal(r.rang)}</div>`
+        + `<div style="font-size:.95rem;color:var(--doux);margin-bottom:4px;">${
+            t("au classement, sur " + r.joueurs + " joueurs", "in de ranking, op " + r.joueurs + " spelers")}</div>`
+        + (monte > 0
+            ? `<div class="monte">📈 ${t(`+${monte} place${monte > 1 ? "s" : ""}&nbsp;!`,
+                                         `+${monte} plaats${monte > 1 ? "en" : ""}&nbsp;!`)}</div>`
+            : "");
+    } else if (tete && !r.rang) {
+      // Compte de test : il n'apparaît jamais au classement, par construction.
+      // On le dit, plutôt que de laisser croire à un bug.
+      tete.innerHTML = `<div class="score">${aff(etat.score)}</div>`
+        + `<div style="font-size:.95rem;color:var(--doux);margin-bottom:4px;">${
+            t("points — compte de test, hors classement", "punten — testaccount, buiten de ranking")}</div>`;
+    }
+    el.innerHTML = "🌰 <b>+" + aff(r.gain) + "</b> " + t(
       "graines — ajoutées à ton classement <u>et</u> à ton jardin&nbsp;!",
       "zaadjes — toegevoegd aan je ranking <u>én</u> aan je tuin!");
   } else {

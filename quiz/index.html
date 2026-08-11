@@ -473,6 +473,72 @@ body.mode-borne #app { width: 100%; }
 .home-role b { color: var(--foret); }
 /* 🫧 Bulle flottante « Famiformation, c'est quoi ? » (accueil, haut à droite) qui
    flotte doucement pour attirer l'œil des curieux, sans gêner la mise en page. */
+/* 🌱 Bandeau d'accueil pour qui arrive depuis FamiFormation. Repris tel quel du
+   bloc « Ça pousse chez FamiFormation » de l'accueil : même vert, même forme,
+   même pousse animée — on doit sentir qu'on est toujours chez soi, même si le
+   jeu est techniquement un autre site. */
+.annonce-ff { max-width: 720px; margin: 14px auto 4px; padding: 15px 20px;
+  display: flex; align-items: center; gap: 14px;
+  background: linear-gradient(135deg, #2d5a37 0%, #4a7b55 100%);
+  color: #fff; border-radius: 18px; line-height: 1.55; font-size: .95rem;
+  box-shadow: 0 8px 22px rgba(27, 54, 36, .22); text-align: left; }
+.annonce-ff .annonce-ico { font-size: 1.9rem; flex: none; animation: ffPousse 2.8s ease-in-out infinite; }
+.annonce-ff b { color: #fff; }
+@keyframes ffPousse { 0%, 100% { transform: translateY(0) rotate(-4deg); } 50% { transform: translateY(-5px) rotate(4deg); } }
+@media (max-width: 520px) { .annonce-ff { font-size: .9rem; padding: 13px 16px; gap: 11px; margin: 10px auto 2px; } }
+@media (prefers-reduced-motion: reduce) { .annonce-ff .annonce-ico { animation: none; } }
+@media print { .annonce-ff { display: none; } }
+
+/* ⬅️ Retour vers FamiFormation, EN HAUT À DROITE — exactement la place du bouton
+   « Déconnexion », qui n'apparaît plus quand on vient de la plateforme. En bas à
+   gauche, il passait inaperçu. Vert plein et non pas discret : c'est la SEULE
+   sortie du quiz, qui est un site à part. Ajouté seulement si on vient de la tuile. */
+.retour-ff { position: fixed; top: 16px; right: 16px; z-index: 100002;
+  display: inline-flex; align-items: center; gap: 7px; text-decoration: none;
+  background: var(--foret); color: #fff;
+  font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: .92rem; line-height: 1;
+  padding: 10px 16px; border-radius: 999px; border: 2px solid #fff;
+  box-shadow: 0 6px 18px rgba(0,0,0,.22); transition: background .15s, transform .15s; }
+.retour-ff:hover, .retour-ff:active { background: #14603A; color: #fff; transform: translateY(-1px); }
+/* Sur l'accueil du quiz, la bulle « Famiformation, c'est quoi ? » occupe le même
+   coin : on la descend sous le bouton au lieu de les empiler l'une sur l'autre. */
+body.depuis-ff .fami-bulle { top: 78px; }
+@media (max-width: 560px) {
+  .retour-ff { font-size: .82rem; padding: 9px 13px; top: 10px; right: 10px; }
+  body.depuis-ff .fami-bulle { top: 62px; }
+}
+@media print { .retour-ff { display: none; } }
+
+/* 🚧 Page de passage qui REMPLACE l'accueil du quiz sur le chemin FamiFormation
+   (voir renderAccueilFf). Volontairement sobre : on n'y arrive que le temps
+   d'une connexion ou d'un « pas encore ouvert », ce n'est pas une destination. */
+.ffa-carte { max-width: 560px; margin: 8vh auto 0; background: var(--craie);
+  border-radius: 24px; padding: 34px 26px; box-shadow: 0 6px 24px rgba(14,59,36,.1); }
+.ffa-emo { font-size: 3.2rem; line-height: 1; }
+.ffa-titre { font-family: 'Fredoka', sans-serif; margin: 10px 0 6px; color: var(--foret); }
+.ffa-sous { font-weight: 600; opacity: .75; margin: 0 0 20px; }
+.ffa-btns { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+.ffa-btns .btn { text-decoration: none; }
+
+/* 🧚 ÉCRAN DE SORTIE VERS FAMIFORMATION.
+   Partout sur la plateforme, un lien qui ramène à l'accueil fait apparaître la
+   fée le temps du chargement. Le quiz est servi à part : on quittait sur un
+   écran figé. On rejoue donc la même attente — avec la fée que le quiz possède
+   DÉJÀ (FEE.svg).
+   ⚠️ Surtout pas celle de includes/fee.php : son style redéfinit .fee-perso et
+   les @keyframes feeBalance / feeCoup / feeHalo, qui existent ici aussi. Injecté
+   en dernier, il aurait gagné — et déréglé la fée de la télé et l'animation des
+   semis, pour un simple écran d'attente. */
+.ff-sortie { position: fixed; inset: 0; top: 0; left: 0; right: 0; bottom: 0; z-index: 200000;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+  background: radial-gradient(circle at 50% 40%, #14261a, #070d09);
+  opacity: 0; transition: opacity .2s; }
+.ff-sortie.on { opacity: 1; }
+.ff-sortie .fee-perso { width: min(190px, 42vw); height: auto; display: block; }
+.ff-sortie-txt { font-family: 'Fredoka', sans-serif; font-weight: 700; color: #EAF6CE;
+  font-size: clamp(1rem, 3.4vw, 1.35rem); text-align: center; padding: 0 20px; }
+@media print { .ff-sortie { display: none; } }
+
 .fami-bulle { position: fixed; top: 16px; right: 16px; z-index: 100001; cursor: pointer; border: none;
   display: flex; align-items: center; gap: 9px; padding: 10px 18px 10px 12px; border-radius: 999px;
   background: linear-gradient(135deg, #FFF6DC 0%, #FFE7C2 100%); color: #7a4a11;
@@ -652,6 +718,23 @@ body.mode-tele .lang-switch { display: none; }   /* pas sur la télé */
 .bm-primaire { border-color: var(--pousse); background: #F1F8EF; }
 /* Espace (gate connexion/création) : 2 blocs centrés */
 .esp-modules { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); max-width: 760px; margin: 0 auto; }
+
+/* 🎮 La fenêtre des jeux du jardin, et celle du « comment ça marche ». */
+.jeux-modal { max-width: 460px; text-align: left; }
+.jx-liste { display: flex; flex-direction: column; gap: 8px; }
+.jx-item {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  background: #f6faf7; border: 2px solid #e3eee6; border-radius: 14px;
+  padding: 12px 13px; cursor: pointer; font: inherit; color: var(--foret);
+  text-align: left; transition: transform .1s, border-color .1s;
+}
+.jx-item:hover { transform: translateY(-2px); border-color: var(--pousse); }
+.jx-emo { font-size: 1.6rem; line-height: 1; flex: none; }
+.jx-corps { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.jx-corps b { font-size: 1rem; }
+.jx-desc { font-size: .84rem; color: #5a6b60; line-height: 1.4; }
+.jx-fleche { font-size: 1.5rem; color: var(--pousse); font-weight: 700; flex: none; }
+.cr-p { font-size: .95rem; line-height: 1.55; margin: 0 0 10px; }
 
 /* « Épreuve 2/5 » dans la tuile : on voit qu'on avance dans un parcours, pas
    qu'on tombe sur un jeu isolé. */
@@ -933,6 +1016,21 @@ body.mode-borne .home .home-role { margin-top: clamp(8px, 1.2vh, 14px); }
 .bm-emo { font-size: clamp(2.8rem, 8vw, 4.4rem); line-height: 1; }
 .bm-titre { font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: clamp(1.3rem, 3.4vw, 1.9rem); color: var(--foret); }
 .bm-desc { font-weight: 600; opacity: .7; font-size: clamp(.9rem, 2.2vw, 1.15rem); }
+/* 🎁 « J'ai trouvé un code » dans le tableau de bord. Elle existait sur l'accueil
+   du quiz, mais en arrivant par la tuile de FamiFormation on tombe DIRECTEMENT
+   ici : le code n'était plus qu'un petit lien texte, invisible.
+   Traitée en tuile BONUS et non en quatrième étape — doré plutôt que vert, avec
+   son ruban — parce qu'elle ne fait pas partie du parcours : on n'en a pas
+   besoin pour finir son jardin, elle donne juste de l'avance. */
+.borne-mod.bm-bonus { position: relative; background: linear-gradient(160deg, #FFFBEF 0%, #FFEFD2 100%);
+  border-color: rgba(233,169,60,.45); }
+.borne-mod.bm-bonus:hover, .borne-mod.bm-bonus:active { border-color: #E9A93C; }
+.borne-mod.bm-bonus .bm-titre { color: #7a4a11; }
+.borne-mod.bm-bonus .bm-desc { color: #7a4a11; opacity: .82; }
+.bm-ruban { position: absolute; top: 12px; right: 12px; background: #E9A93C; color: #fff;
+  font-family: 'Fredoka', sans-serif; font-size: .7rem; font-weight: 700; letter-spacing: .04em;
+  text-transform: uppercase; padding: 4px 10px; border-radius: 999px; box-shadow: 0 3px 8px rgba(233,169,60,.4); }
+.borne-mod.bm-bonus.mod-inactif .bm-ruban { background: #9c9c9c; box-shadow: none; }
 /* Sur la télé, on colle le bloc (compte à rebours / classement) EN HAUT pour
    laisser tout le bas libre à la fée (sinon elle chevauche le texte). */
 body.mode-tele { justify-content: flex-start; padding-top: 20px; }
@@ -1234,7 +1332,7 @@ const PROGRAMME = [
   // 🚦 Mets « pret: true » le jour où l'épreuve doit s'ouvrir aux joueurs.
   //    Tant qu'il est à false, la tuile reste inactive ET le serveur refuse
   //    d'enregistrer un score (voir $JUSTEPRIX_OUVERT dans api.php).
-  { cle: "justeprix", pret: false, emoji: "🏷️", date: "2026-08-08", fr: "Le Juste Prix",  nl: "De Juiste Prijs",
+  { cle: "justeprix", pret: true, emoji: "🏷️", date: "2026-08-09", fr: "Le Juste Prix",  nl: "De Juiste Prijs",
     dfr: "Devine le prix de 10 articles du magasin.",
     dnl: "Raad de prijs van 10 artikelen uit de winkel." },
   { cle: "a3",        emoji: "🎁",  date: "2026-08-13", fr: "Épreuve surprise", nl: "Verrassingsproef",
@@ -2262,11 +2360,15 @@ function currentView() {
   // Vues qui exigent un compte : sinon on renvoie vers l'espace.
   // Le quiz du classement n'est jouable que pendant l'événement ; le quiz DU JARDIN
   // (rejouable, sans impact classement) reste accessible tant qu'on a un jardin.
-  if (userView === "quiz")   return (phaseNow() === "ouvert" || toutOuvert() || (quiz && quiz.jardinMode)) ? "quiz" : (joueur ? "dashboard" : "home");
+  if (userView === "quiz")   return (phaseNow() === "ouvert" || toutOuvert() || (quiz && quiz.jardinMode)) ? "quiz" : (joueur ? "dashboard" : (document.body.classList.contains("depuis-ff") ? "espace" : "home"));
   if (userView === "jardin") return joueur ? "jardin" : "espace";
   if (userView === "herbes") return joueur ? "herbes" : "espace";
   if (userView === "board")  return "board";   // classement : public
   // Défaut selon la phase : quiz fini → classement, sinon accueil.
+  // 🚧 Sauf si on vient de FamiFormation : cet accueil-là n'est pas le sien
+  // (voir renderAccueilFf). On l'emmène dans son espace, ou à la connexion s'il
+  // n'est pas — ou plus — identifié.
+  if (document.body.classList.contains("depuis-ff")) { return joueur ? "dashboard" : "espace"; }
   return phaseNow() === "termine" ? "board" : "home";
 }
 
@@ -2730,13 +2832,23 @@ function modaleJardinGagne() {
   if (document.querySelector(".modal-fond")) return;   // pas par-dessus une autre fenêtre
   const o = document.createElement("div");
   o.className = "modal-fond";
+  // 🎁 La récompense est-elle DÉJÀ PRÊTE ? Si les RH ont envoyé le mail
+  // « c'est prêt », on ne peut plus afficher « elle est en préparation » :
+  // la personne vient justement de lire le contraire dans sa boîte mail.
+  const prete = !!(joueur && joueur.recompenseJardin === "prete");
   o.innerHTML = `<div class="modal code-modal">
-    <div class="cm-emoji">🏆</div>
-    <h2 class="cm-titre">${msg("jardin_gagne_titre", "Bravo, tu as gagné !", "Bravo, je hebt gewonnen!")}</h2>
-    <p class="cm-sous">${msg("jardin_gagne_corps",
-      "Tu as <b>complété tout ton jardin</b> et planté les <b>3 lotus</b> (or, argent, bronze) 🌸\nTu fais officiellement partie des <b>gagnants du jardin</b> 🎁 <b>Ta récompense est en cours de préparation.</b> Nous t'enverrons un mail une fois que tu pourras venir la chercher.",
-      "Je hebt <b>je hele tuin voltooid</b> en de <b>3 lotussen</b> (goud, zilver, brons) geplant 🌸\nJe hoort officieel bij de <b>winnaars van de tuin</b> 🎁 <b>Je beloning wordt klaargemaakt.</b> We sturen je een mail zodra je ze mag komen ophalen.")}</p>
-    <button class="btn" id="cm-ok" style="min-width:200px;">${t("Trop bien ! 🌟", "Geweldig! 🌟")}</button>
+    <div class="cm-emoji">${prete ? "🎁" : "🏆"}</div>
+    <h2 class="cm-titre">${prete
+      ? msg("jardin_prete_titre", "Ta récompense t'attend !", "Je beloning wacht op je!")
+      : msg("jardin_gagne_titre", "Bravo, tu as gagné !", "Bravo, je hebt gewonnen!")}</h2>
+    <p class="cm-sous">${prete
+      ? msg("jardin_prete_corps",
+          "Ton jardin est complet, et <b>ta récompense est prête</b> 🎁\nPasse la chercher <b>auprès des RH</b> du magasin — elle t'attend&nbsp;!",
+          "Je tuin is af, en <b>je beloning ligt klaar</b> 🎁\nHaal ze op <b>bij de HR-dienst</b> van de winkel — ze wacht op je&nbsp;!")
+      : msg("jardin_gagne_corps",
+          "Tu as <b>complété tout ton jardin</b> et planté les <b>3 lotus</b> (or, argent, bronze) 🌸\nTu fais officiellement partie des <b>gagnants du jardin</b> 🎁 <b>Ta récompense est en cours de préparation.</b> Nous t'enverrons un mail une fois que tu pourras venir la chercher.",
+          "Je hebt <b>je hele tuin voltooid</b> en de <b>3 lotussen</b> (goud, zilver, brons) geplant 🌸\nJe hoort officieel bij de <b>winnaars van de tuin</b> 🎁 <b>Je beloning wordt klaargemaakt.</b> We sturen je een mail zodra je ze mag komen ophalen.")}</p>
+    <button class="btn" id="cm-ok" style="min-width:200px;">${prete ? t("J'y vais ! 🎁", "Ik ga erheen! 🎁") : t("Trop bien ! 🌟", "Geweldig! 🌟")}</button>
   </div>`;
   document.body.appendChild(o);
   lanceConfettis(6500);   // 🎉 grande fête
@@ -3067,14 +3179,9 @@ function renderJardin() {
       <span class="je-rassure">${t("💚 En plantant, ton nombre de graines à planter diminue : <b>c'est normal, ça ne concerne que le jardin</b>. <b>Ton score au classement ne bouge pas</b> — va voir dans « Classement », il sera toujours le même.", "💚 Bij het planten daalt je aantal zaadjes om te planten: <b>dat is normaal, het geldt enkel voor de tuin</b>. <b>Je score in de ranking verandert niet</b> — kijk maar in « Ranking », die blijft dezelfde.")}</span>
     </div>
     ${JARDIN_LIBRE ? "" : `<div class="j-gagner">
-      <button class="btn" id="j-quiz">${t("🎯 Quiz du jardin", "🎯 Tuinquiz")}</button>
-      <button class="btn ghost" id="j-herbes">${t("🌿 Chasse aux herbes", "🌿 Onkruid vangen")}</button>
-      ${(PROGRAMME[1].pret && epreuveDateOk(PROGRAMME[1])) ? `<button class="btn ghost" id="j-justeprix">${t("🏷️ Le Juste Prix", "🏷️ De Juiste Prijs")}</button>` : ""}
-      <span>${(PROGRAMME[1].pret && epreuveDateOk(PROGRAMME[1]))
-        ? t("Trois façons de récolter des graines pour ton jardin. Le <b>quiz du jardin</b> en rapporte le plus, et c'est <b>voulu</b> : il reste l'épreuve la plus généreuse. Le <b>Juste Prix</b> rapporte plus que les herbes, mais il est <b>plafonné à " + JUSTEPRIX_REJEU_MAX + " graines par partie</b> — le jardin ne se remplit pas avec lui seul, il faudra passer par le quiz. Le quiz du jardin et les herbes ne comptent <b>jamais</b> pour le classement.",
-            "Drie manieren om zaadjes voor je tuin te oogsten. De <b>tuinquiz</b> levert het meeste op, en dat is <b>bewust zo</b>: hij blijft de meest gulle proef. De <b>Juiste Prijs</b> levert meer op dan het onkruid, maar is <b>beperkt tot " + JUSTEPRIX_REJEU_MAX + " zaadjes per partij</b> — je vult je tuin niet met hem alleen, de quiz blijft nodig. De tuinquiz en het onkruid tellen <b>nooit</b> mee voor de ranking.")
-        : t("Deux façons de récolter des graines pour le jardin (jamais le classement). Le <b>quiz</b> en rapporte le plus, et chaque bonne réponse compte&nbsp;!",
-            "Twee manieren om zaadjes voor de tuin te oogsten (nooit voor de ranking). De <b>quiz</b> levert het meeste op, en elk juist antwoord telt&nbsp;!")}</span>
+      <button class="btn" id="j-quiz">${t("🎯 Quiz", "🎯 Quiz")}</button>
+      <button class="btn ghost" id="j-jeux">${t("🎮 Jeux", "🎮 Spelletjes")}</button>
+      <button class="lien-explik" id="j-plus" style="flex-basis:100%;margin:2px 0 0;">${t("Comment ça marche&nbsp;?", "Hoe werkt het&nbsp;?")}</button>
     </div>`}
     <div class="catalogue">
       ${Object.entries(PLANTES).map(([cle, p]) => `
@@ -3094,13 +3201,10 @@ function renderJardin() {
   </div></div>`;
   bindPills();
 
-  // Aller au mini-jeu pour récolter des graines (absent en mode aperçu gratuit).
-  const jh = $("#j-herbes");
-  if (jh) jh.addEventListener("click", () => { userView = "herbes"; render(); });
-  // 🏷️ Le Juste Prix depuis le jardin : même chemin que depuis la tuile, une
-  // seule fonction pour les deux.
-  const jjp = $("#j-justeprix");
-  if (jjp) jjp.addEventListener("click", ouvreJustePrix);
+  // 🎮 Les jeux rejouables passent tous par la même fenêtre : une seule entrée
+  // à l'écran, quel que soit le nombre d'épreuves ouvertes.
+  { const jj = $("#j-jeux"); if (jj) jj.addEventListener("click", ouvreJeuxJardin); }
+  { const jp = $("#j-plus"); if (jp) jp.addEventListener("click", ouvreCommentRecolter); }
   const jq = $("#j-quiz");
   if (jq) jq.addEventListener("click", () => {
     // Quiz REJOUABLE pour le jardin : mêmes questions (tirage au hasard), mais
@@ -3412,7 +3516,7 @@ function ouvreConnexionFami() {
     const j = r.joueur || {};
     joueur = { name: j.name, code: "", jeton: r.jeton, uid: j.uid, prenom: j.prenom, nom: j.nom, pseudo: j.pseudo || "",
                solde: j.solde || 0, recoltees: j.recoltees || 0, nbCodes: j.nbCodes || 0, quizFait: j.quiz_fait !== false,
-                 justePrixFait: !!j.justeprix_fait };
+                 justePrixFait: !!j.justeprix_fait, recompenseJardin: j.recompense_jardin || "" };
     sauveJeton(r.jeton);
     const msg = await reclamerEnAttente();
     jardinMsg = msg || null;
@@ -3768,6 +3872,39 @@ function renderCreation() {
 // 🧭 TABLEAU DE BORD (une fois connecté) : 3 gros blocs — faire le quiz (verrouillé
 // avant le lancement), mon jardin (verrouillé tant que le quiz n'est pas fait),
 // voir le classement.
+// 🌱 MOT D'ACCUEIL POUR QUI ARRIVE DE FAMIFORMATION.
+//
+// Repris du bandeau « Ça pousse chez FamiFormation » de l'accueil de la
+// plateforme : même vert, même forme, même pousse animée. On vient de cliquer
+// une tuile là-bas et on atterrit sur un autre site — il faut sentir qu'on est
+// toujours chez soi.
+//
+// Ce qu'il dit : pourquoi ce jardin existe (le lancement du site), et ce qu'il y
+// a à venir chercher. Il ne demande jamais de « passer du temps » ici : on
+// annonce ce qui arrive, l'envie de repasser fait le reste.
+//
+// Affiché UNIQUEMENT si on vient de la tuile — quelqu'un qui joue sur une borne
+// en magasin n'a que faire d'un mot sur le lancement du site.
+function blocAccueilFfHtml() {
+  if (!document.body.classList.contains("depuis-ff")) { return ""; }
+  // ⚠️ On regarde la valeur ENREGISTRÉE, pas msg() : msg() retombe sur le texte
+  // par défaut quand la case est vide (ce qu'on veut partout ailleurs — un
+  // message effacé par erreur ne doit pas laisser un trou). Ici c'est l'inverse :
+  // ce bandeau est un mot de lancement, il doit pouvoir disparaître en vidant la
+  // case dans l'admin, sans toucher au code.
+  const perso = MESSAGES["accueil_ff_corps"];
+  if (perso && !String((LANG === "nl" ? perso.nl : perso.fr) || "").trim()) { return ""; }
+  return `<div class="annonce-ff">
+    <span class="annonce-ico">🌱</span>
+    <div>
+      <b>${msg("accueil_ff_titre", "Ça pousse chez FamiFormation !", "Het groeit bij FamiFormation!")}</b><br>
+      ${msg("accueil_ff_corps",
+        "Ce module accompagne le <b>lancement du site</b> : épreuves, codes cachés en magasin et récompenses. Du nouveau arrive au fil des semaines 🌿",
+        "Deze module hoort bij de <b>lancering van de site</b>: proeven, codes verstopt in de winkel en beloningen. Er komt geregeld nieuws bij 🌿")}
+    </div>
+  </div>`;
+}
+
 function renderDashboard() {
   clearInterval(tickTimer);
   if (!joueur) { userView = "espace"; render(); return; }
@@ -3780,6 +3917,18 @@ function renderDashboard() {
   // essayer. En vrai, le quiz ne se fait qu'une fois et le jardin s'ouvre après.
   const quizFait = toutOuvert() ? false : !!joueur.quizFait;
   const jardinOk = toutOuvert() ? true : quizFait;
+  // 🚪 PAR OÙ EST-ON ENTRÉ ? Les deux chemins n'offrent pas la même chose.
+  //
+  //  • Par l'URL /quiz/<magasin> : on passe d'abord par l'accueil du quiz, qui
+  //    porte DÉJÀ sa tuile « J'ai trouvé un code ». La remettre ici en ferait
+  //    une deuxième, au même endroit, pour la même chose.
+  //  • Par la tuile de FamiFormation : on atterrit DIRECTEMENT sur ce tableau de
+  //    bord, sans jamais voir cet accueil. Sans la tuile ici, le code n'existe
+  //    tout simplement pas pour ces gens-là.
+  //
+  // D'où la règle : la tuile bonus UNIQUEMENT sur le chemin FamiFormation, et le
+  // petit lien texte d'origine conservé tel quel pour l'autre.
+  const depuisFf = document.body.classList.contains("depuis-ff");
   // 🏆 Vainqueur : quand l'événement est TERMINÉ, si le joueur connecté est dans
   // le top 3 du classement final, on l'en félicite et on l'oriente vers les RH.
   let rangFinal = 0;
@@ -3791,6 +3940,7 @@ function renderDashboard() {
   }
   const ordinal = (r) => t(r === 1 ? "1er" : r + "e", r + "e");
   app.innerHTML = `<div class="home">
+    ${blocAccueilFfHtml()}
     <div class="dash-hello">${t("Salut", "Hallo")} <b>${esc(joueur.name)}</b> 🌱 <span>${affG(joueur.recoltees)} ${t("graines récoltées", "zaadjes geoogst")}</span></div>
     ${rangFinal ? `<div class="alert ok" style="max-width:660px;margin:0 auto 16px;background:#fff7e4;border:2px solid #E9A93C;color:#7a4a11;font-weight:600;">
       🏆 ${msg("podium_bandeau", "Bravo, tu finis <b>{rang}</b> du classement ! Ta récompense est en cours de préparation — tu recevras un mail dès que tu pourras venir la chercher.", "Proficiat, je eindigt <b>{rang}</b> in de ranking! Je beloning wordt klaargemaakt — je krijgt een mail zodra je ze mag komen ophalen.", { rang: ordinal(rangFinal) })}
@@ -3808,12 +3958,21 @@ function renderDashboard() {
         <span class="bm-titre">${t("Voir le classement", "Bekijk de ranking")}</span>
         <span class="bm-desc">${t("Le podium repart avec de très belles récompenses !", "Het podium wint heel mooie prijzen!")}</span>
       </button>
+      ${depuisFf ? `<button class="borne-mod bm-bonus${tuilesAccessibles() ? "" : " mod-inactif"}" id="dash-code-tuile">
+        <span class="bm-ruban">${t("Bonus", "Bonus")}</span>
+        <span class="bm-emo">${tuilesAccessibles() ? "🎁" : "🔒"}</span>
+        <span class="bm-titre">${t("J'ai trouvé un code", "Ik heb een code gevonden")}</span>
+        <span class="bm-desc">${tuilesAccessibles()
+          ? t("Des codes sont cachés en magasin — chacun rapporte +" + CONFIG.pointsParCodeBonus + " graines 🌰",
+              "Er liggen codes verstopt in de winkel — elk levert +" + CONFIG.pointsParCodeBonus + " zaadjes op 🌰")
+          : t("🔒 Bientôt disponible", "🔒 Binnenkort beschikbaar")}</span>
+      </button>` : ""}
     </div>
     ${blocModalitesHtml()}
     <div class="home-liens">
       <button class="lien-explik" id="dash-explik">${t("✨ Comment ça marche ?", "✨ Hoe werkt het?")}</button>
-      <button class="lien-explik" id="dash-code">${t("🎁 J'ai un code", "🎁 Ik heb een code")}</button>
-      <button class="lien-explik" id="dash-retour">${t("◂ Accueil", "◂ Beginscherm")}</button>
+      ${depuisFf ? "" : `<button class="lien-explik" id="dash-code">${t("🎁 J'ai un code", "🎁 Ik heb een code")}</button>`}
+      ${depuisFf ? "" : `<button class="lien-explik" id="dash-retour">${t("◂ Accueil", "◂ Beginscherm")}</button>`}
     </div>
   </div>`;
   // 🎯 UNE SEULE TUILE D'ÉPREUVE, qui change de contenu au fil du parcours.
@@ -3840,10 +3999,26 @@ function renderDashboard() {
   $("#dash-board").addEventListener("click", () => { userView = "board"; render(); });
   { const m = $("#dash-modalites"); if (m) m.addEventListener("click", ouvreModalites); }
   $("#dash-explik").addEventListener("click", ouvreExplication);
-  $("#dash-code").addEventListener("click", () => { codeAReclamer = null; userView = "reclamer"; render(); });
+  // 🎁 Deux entrées vers le code, une seule à la fois (voir depuisFf plus haut) :
+  // la tuile bonus pour qui vient de FamiFormation, le petit lien d'origine pour
+  // qui est passé par l'accueil du quiz. On branche donc celle qui est là.
+  const ouvreCode = () => {
+    // Le verrou de La Panne est recontrôlé au clic : une tuile grisée ne doit
+    // pas finir par s'ouvrir à force d'insister.
+    if (!tuilesAccessibles()) { modaleTuileBloquee(); return; }
+    codeAReclamer = null; userView = "reclamer"; render();
+  };
+  { const bt = $("#dash-code-tuile"); if (bt) bt.addEventListener("click", ouvreCode); }
+  { const bl = $("#dash-code"); if (bl) bl.addEventListener("click", ouvreCode); }
   // Quitter son espace vers l'accueil = se déconnecter (sur la borne, le retour
   // recharge déjà une page fraîche, donc « déconnecté » de fait).
-  $("#dash-retour").addEventListener("click", () => { if (retourAccueilBorne()) return; seDeconnecter(); });
+  // ◂ Accueil : il DÉCONNECTE et renvoie sur l'accueil du quiz (« Que veux-tu
+  // faire ? »). C'est la bonne sortie quand on est venu par /quiz/<magasin>.
+  // Venu de FamiFormation, c'est un cul-de-sac : cet accueil-là n'est pas le
+  // sien, et on y perd sa session pour rien. Sa sortie à lui, c'est le bouton
+  // « ← Famiformation » en haut. Le lien n'est donc pas affiché dans ce cas.
+  { const br = $("#dash-retour");
+    if (br) br.addEventListener("click", () => { if (retourAccueilBorne()) return; seDeconnecter(); }); }
 }
 // ✍️ Avant de lancer le quiz : on demande (ou confirme) le PSEUDO qui s'affichera
 // au classement. Par défaut on propose son prénom (ou l'identifiant). Le pseudo
@@ -4400,7 +4575,48 @@ function renderChoixSite() {
   </div>`;
 }
 
+// 🚧 VENU DE FAMIFORMATION : ON N'AFFICHE JAMAIS L'ACCUEIL DU QUIZ.
+//
+// Cet accueil (« Que veux-tu faire ? », choix du magasin, compte à rebours) est
+// le point de DÉPART du chemin /quiz/<magasin>. Venu par la tuile, on n'y a rien
+// à faire : ce n'est pas sa page, et son bouton de sortie déconnecte.
+//
+// On y retombait par une bonne dizaine de chemins, que corriger un par un ne
+// suffisait pas : les douze « userView = "auto" » (dont la déconnexion
+// automatique au bout de 5 min), le retour de l'épreuve Juste Prix qui revient
+// sur /quiz/<magasin> tout court, le verrou « pas encore ouvert », et les
+// écrans de connexion qui dessinent l'accueil derrière leur fenêtre.
+//
+// D'où DEUX verrous, et pas des rustines : currentView() ne renvoie plus jamais
+// « home » sur ce chemin, et renderHome() — par où passent AUSSI les trois
+// appels directs qui court-circuitent render() — dévie ici.
+function renderAccueilFf() {
+  clearInterval(tickTimer);
+  document.body.classList.remove("mode-borne");
+  app.innerHTML = `<div class="home">
+    <div class="ffa-carte">
+      <div class="ffa-emo">🌱</div>
+      <h2 class="ffa-titre">${t("Épreuves &amp; mon espace jardin", "Proeven &amp; mijn tuin")}</h2>
+      <p class="ffa-sous">${joueur
+        ? t("Ton espace t'attend.", "Je ruimte wacht op je.")
+        : t("Connecte-toi avec ton compte Famiformation pour retrouver ton jardin.",
+            "Meld je aan met je Famiformation-account om je tuin terug te vinden.")}</p>
+      <div class="ffa-btns">
+        ${joueur ? `<button class="btn" id="ffa-espace">${t("Ouvrir mon espace", "Mijn ruimte openen")}</button>` : ""}
+        <a class="btn ghost" href="${location.origin}/index.php" id="ffa-retour">← ${t("Retour à Famiformation", "Terug naar Famiformation")}</a>
+      </div>
+    </div>
+  </div>`;
+  const b = $("#ffa-espace");
+  if (b) b.addEventListener("click", () => { userView = "dashboard"; render(); });
+  majNavBorne("home"); majDeco("home");
+}
+
 function renderHome() {
+  // ⚠️ Le verrou est ici, et pas seulement chez les appelants : renderEspace(),
+  // renderRetrouver() et retourAccueilVerrou() appellent renderHome() en direct,
+  // sans passer par render() ni currentView().
+  if (document.body.classList.contains("depuis-ff")) { renderAccueilFf(); return; }
   clearInterval(tickTimer);
   const borne = (ECRAN === "borne");
   document.body.classList.toggle("mode-borne", borne);
@@ -4425,7 +4641,7 @@ function renderHome() {
         <span class="bm-emo">${espaceAccessible() ? "🌱" : "🔒"}</span>
         <span class="bm-titre">${t("Épreuves &amp; mon espace jardin", "Proeven &amp; mijn tuin")}</span>
         <span class="bm-desc">${espaceAccessible()
-          ? t("Réponds au quiz, récolte des graines, fais pousser ton jardin", "Beantwoord de quiz, verzamel zaadjes en laat je tuin groeien")
+          ? t("Participe aux épreuves, fais pousser ton jardin et tente de gagner des récompenses", "Neem deel aan de proeven, laat je tuin groeien en maak kans op beloningen")
           : t("🔒 Ouvre le " + labelLancement() + " pour le lancement", "🔒 Opent op " + labelLancement() + " voor de lancering")}</span>
       </button>
       <button class="borne-mod${tuilesAccessibles() ? "" : " mod-inactif"}" data-go="code">
@@ -4616,7 +4832,12 @@ function etatEpreuve(i) {
   // qu'on ne veut pas encore ouvrir, reste inactive quelle que soit sa date.
   // Sans lui, une épreuve s'ouvrirait toute seule le jour dit — y compris une
   // qui n'existe pas, dont le clic tomberait dans le vide.
-  if (!e.pret) return dateOk ? "bientot" : "avenir";
+  //
+  // 🧪 SAUF POUR LE COMPTE DE TEST. Il doit pouvoir parcourir l'épreuve en
+  // entier — tuile, jeu, score, message de fin — AVANT l'ouverture au public,
+  // et exactement comme la verra tout le monde. C'est le seul moyen de vérifier
+  // le chemin complet sans l'ouvrir à tout le magasin.
+  if (!e.pret && !toutOuvert()) return dateOk ? "bientot" : "avenir";
 
   if (!dateOk) return "avenir";
   if (e.cle === "quiz") return "ouverte";
@@ -4748,6 +4969,97 @@ function ouvreModalites() {
   o.addEventListener("click", (e) => { if (e.target === o) ferme(); });
 }
 
+// 🎮 LES JEUX DU JARDIN.
+// Une seule liste, qui grandira avec les épreuves. Tout ce qui s'y trouve est
+// REJOUABLE et ne nourrit QUE le jardin, plafonné : ces parties ne touchent
+// jamais le classement — contrairement à la première partie d'une épreuve,
+// qui se lance depuis la tuile du parcours.
+// Pour ajouter une épreuve ici plus tard : rien à faire, elle apparaît dès
+// qu'elle est ouverte dans PROGRAMME.
+function jeuxDuJardin() {
+  const liste = [
+    { cle: "herbes", emoji: "🌿",
+      fr: "Chasse aux herbes", nl: "Onkruid vangen",
+      dfr: "Tape un maximum de mauvaises herbes. Quelques graines par partie.",
+      dnl: "Tik zoveel mogelijk onkruid weg. Een paar zaadjes per partij." },
+  ];
+  for (let i = 1; i < PROGRAMME.length; i++) {
+    const e = PROGRAMME[i];
+    if (!((e.pret || toutOuvert()) && epreuveDateOk(e))) { continue; }
+    // ⚠️ Une épreuve n'arrive dans les jeux qu'une fois FAITE. Tant qu'elle ne
+    // l'est pas, elle doit se découvrir par le parcours — avec son échauffement
+    // et sa partie qui compte au classement. La proposer ici avant reviendrait
+    // à court-circuiter l'épreuve elle-même.
+    if (e.cle === "justeprix" && !(joueur && joueur.justePrixFait) && !toutOuvert()) { continue; }
+    liste.push({ cle: e.cle, emoji: e.emoji, fr: e.fr, nl: e.nl,
+      dfr: e.dfr + " Jusqu'à " + JUSTEPRIX_REJEU_MAX + " graines par partie.",
+      dnl: e.dnl + " Tot " + JUSTEPRIX_REJEU_MAX + " zaadjes per partij." });
+  }
+  return liste;
+}
+
+function ouvreJeuxJardin() {
+  const jeux = jeuxDuJardin();
+  const o = document.createElement("div");
+  o.className = "modal-fond";
+  o.innerHTML = `<div class="modal jeux-modal">
+    <h2 class="cm-titre" style="margin-bottom:2px;">${t("🎮 Les jeux du jardin", "🎮 De tuinspelletjes")}</h2>
+    <p class="cm-sous" style="margin-bottom:14px;">${t(
+      "Rejoue autant que tu veux&nbsp;: ces parties font pousser <b>ton jardin</b> et ne touchent <b>jamais le classement</b>.",
+      "Speel zoveel je wil&nbsp;: deze partijen laten <b>je tuin</b> groeien en raken <b>de ranking nooit</b>.")}</p>
+    <div class="jx-liste">
+      ${jeux.map((j) => `
+        <button class="jx-item" data-jeu="${esc(j.cle)}">
+          <span class="jx-emo">${j.emoji}</span>
+          <span class="jx-corps">
+            <b>${t(j.fr, j.nl)}</b>
+            <span class="jx-desc">${t(j.dfr, j.dnl)}</span>
+          </span>
+          <span class="jx-fleche">›</span>
+        </button>`).join("")}
+    </div>
+    <div style="text-align:center;margin-top:16px;">
+      <button class="btn ghost" id="jx-fermer">${t("Fermer", "Sluiten")}</button>
+    </div>
+  </div>`;
+  document.body.appendChild(o);
+  const ferme = () => o.remove();
+  o.querySelector("#jx-fermer").addEventListener("click", ferme);
+  o.addEventListener("click", (e) => { if (e.target === o) ferme(); });
+  o.querySelectorAll("[data-jeu]").forEach((b) => b.addEventListener("click", () => {
+    const c = b.dataset.jeu;
+    ferme();
+    if (c === "herbes") { userView = "herbes"; render(); return; }
+    if (c === "justeprix") { ouvreJustePrix("jardin"); return; }
+  }));
+}
+
+// 📖 « Comment ça marche » du jardin. Ce texte était affiché en clair sous les
+// boutons : il alourdissait l'écran alors qu'on ne le lit qu'une fois.
+function ouvreCommentRecolter() {
+  const o = document.createElement("div");
+  o.className = "modal-fond";
+  o.innerHTML = `<div class="modal jeux-modal">
+    <h2 class="cm-titre" style="margin-bottom:12px;">${t("🌰 Récolter des graines", "🌰 Zaadjes oogsten")}</h2>
+    <p class="cr-p">${t(
+      "Le <b>quiz du jardin</b> en rapporte le plus, et c'est <b>voulu</b>&nbsp;: il reste la voie la plus généreuse.",
+      "De <b>tuinquiz</b> levert het meeste op, en dat is <b>bewust zo</b>&nbsp;: hij blijft de meest gulle weg.")}</p>
+    <p class="cr-p">${t(
+      "Les <b>jeux</b> rapportent moins et sont <b>plafonnés à " + JUSTEPRIX_REJEU_MAX + " graines par partie</b> — ton jardin ne se remplira pas avec eux seuls.",
+      "De <b>spelletjes</b> leveren minder op en zijn <b>beperkt tot " + JUSTEPRIX_REJEU_MAX + " zaadjes per partij</b> — je vult je tuin niet met hen alleen.")}</p>
+    <p class="cr-p">${t(
+      "Tout ce qui se joue depuis le jardin ne compte <b>jamais</b> pour le classement. Seule la <b>première partie d'une épreuve</b>, lancée depuis ton espace, y compte.",
+      "Alles wat je vanuit de tuin speelt telt <b>nooit</b> mee voor de ranking. Enkel de <b>eerste partij van een proef</b>, gestart vanuit je ruimte, telt mee.")}</p>
+    <div style="text-align:center;margin-top:16px;">
+      <button class="btn" id="cr-ok">${t("J'ai compris 🌱", "Begrepen 🌱")}</button>
+    </div>
+  </div>`;
+  document.body.appendChild(o);
+  const ferme = () => o.remove();
+  o.querySelector("#cr-ok").addEventListener("click", ferme);
+  o.addEventListener("click", (e) => { if (e.target === o) ferme(); });
+}
+
 // 🏷️ Ouvrir le Juste Prix. On emmène le JETON et le MAGASIN.
 // Le jeton parce que sur une BORNE il n'est jamais écrit dans le navigateur
 // (appareil partagé) : sans lui, la page d'à côté ne saurait pas qui joue.
@@ -4755,10 +5067,17 @@ function ouvreModalites() {
 // (scores-<site>.json) : sans lui, la partie serait créditée ailleurs.
 // Chemin ABSOLU : depuis /quiz/mouscron, un relatif « justeprix/ » chercherait
 // /quiz/mouscron/justeprix/ et tomberait sur un 404.
-function ouvreJustePrix() {
+function ouvreJustePrix(mode) {
   const p = new URLSearchParams({ site: SITE });
   const j = (joueur && joueur.jeton) || "";
   if (j) p.set("jeton", j);
+  // « jardin » : partie rejouable, qui ne nourrit que le jardin. Sans ce
+  // repère on arrive en mode ÉPREUVE, qui ne se joue qu'une fois.
+  if (mode === "jardin") { p.set("mode", "jardin"); }
+  // On emporte le repère « je viens de FamiFormation » : le Juste Prix est une
+  // AUTRE page, et son lien de retour ramène sur /quiz/<magasin> tout court —
+  // c'est-à-dire sur l'accueil du quiz. Avec le repère, il ramène dans l'espace.
+  if (document.body.classList.contains("depuis-ff")) { p.set("ff", "1"); }
   location.href = QUIZ_RACINE + "justeprix/?" + p.toString();
 }
 
@@ -5498,6 +5817,17 @@ function majDeco(v) {
   const vuesEspace = ["dashboard", "jardin", "board", "reclamer", "herbes"];
   const montrer = joueur && !estBorne() && ECRAN !== "tele" && vuesEspace.indexOf(v) !== -1;
   if (!montrer) { if (b) b.remove(); arreteInactivite(); return; }
+  // 🚪 PAS DE « DÉCONNEXION » QUAND ON VIENT DE FAMIFORMATION. Ce bouton servait
+  // à ceux qui s'étaient connectés ICI ; entré par la tuile, on est déjà
+  // identifié sur la plateforme, et se déconnecter du quiz seul ne veut rien
+  // dire — un retour puis un nouveau clic sur la tuile reconnecterait aussitôt.
+  // Sa place en haut à droite revient au bouton « ← Famiformation ».
+  //
+  // ⚠️ La déconnexion AUTOMATIQUE après 5 min d'inactivité, elle, reste armée :
+  // elle protège les postes partagés du magasin, et le bouton n'a jamais été ce
+  // qui la déclenchait.
+  demarreInactivite();
+  if (document.body.classList.contains("depuis-ff")) { if (b) b.remove(); return; }
   if (!b) {
     b = document.createElement("button");
     b.id = "btn-deco"; b.className = "btn-deco";
@@ -5507,8 +5837,79 @@ function majDeco(v) {
   }
   b.title = t("Se déconnecter", "Afmelden");
   b.querySelector(".bd-txt").textContent = t("Déconnexion", "Afmelden");
-  demarreInactivite();
 }
+
+// 🧚 LA FÉE PENDANT LE RETOUR VERS FAMIFORMATION.
+//
+// Partout sur la plateforme, un lien qui ramène à l'accueil déclenche la fée le
+// temps du chargement : elle agite sa baguette, envoie des étincelles, fait
+// pousser une plante différente toutes les 3 s et raconte des blagues. Le quiz
+// est servi à part et n'avait pas ce passage.
+//
+// On va donc chercher LE MÊME bloc que le reste du site (/fee_ecran.php) pour
+// avoir exactement la même attente, plutôt que d'en réécrire une approximation.
+//
+// ⚠️ MAIS LE QUIZ A DÉJÀ SA PROPRE FÉE (celle de la télé), et les deux emploient
+// les mêmes noms : .fee-perso, .fee-bras, @keyframes feeCoup, feeHalo, feeVole…
+// avec des réglages DIFFÉRENTS — le coup de baguette n'a pas le même tempo, les
+// étincelles sont en position:fixed ici et absolute là-bas. Inséré tel quel, le
+// style du site passait en dernier et l'emportait : la fée de la télé et les
+// semis se seraient mis à bouger autrement.
+//
+// D'où le renommage systématique ci-dessous. Il porte sur les IDENTIFIANTS
+// seulement (« fee- » des classes, « feeQuelqueChose » des animations, ids et
+// fonctions) : le mot « fee » isolé — qui veut dire « fée » en néerlandais et
+// peut donc apparaître dans les blagues — n'est jamais touché.
+const FEE_SITE_PREFIXE = "ffz";
+function renommeFee(txt) {
+  return txt.replace(/fee-/g, FEE_SITE_PREFIXE + "-")
+            .replace(/fee([A-Z])/g, FEE_SITE_PREFIXE + "$1");
+}
+async function chargeFeeDuSite() {
+  if (document.getElementById(FEE_SITE_PREFIXE + "Back")) { return; }
+  try {
+    const r = await fetch(location.origin + "/fee_ecran.php?lang=" + (LANG === "nl" ? "nl" : "fr"));
+    if (!r.ok) { return; }
+    const html = renommeFee(await r.text());
+    if (html.indexOf(FEE_SITE_PREFIXE + "-back") === -1) { return; }   // pas le bon contenu
+    const hote = document.createElement("div");
+    hote.innerHTML = html;
+    // ⚠️ innerHTML N'EXÉCUTE PAS les <script> : sans les recréer, on aurait le
+    // dessin et le style, et une fée parfaitement immobile.
+    const scripts = Array.prototype.slice.call(hote.querySelectorAll("script"));
+    scripts.forEach((sc) => sc.remove());
+    while (hote.firstChild) { document.body.appendChild(hote.firstChild); }
+    scripts.forEach((sc) => {
+      const n = document.createElement("script");
+      n.textContent = sc.textContent;
+      document.body.appendChild(n);
+    });
+    // Son script installe lui-même le déclencheur (tout lien vers index.php) :
+    // le bouton de retour l'ouvre donc sans qu'on ait rien à brancher.
+  } catch (e) {
+    // Pas de fée : on garde le petit écran de repli ci-dessous.
+  }
+}
+
+// Repli, si la fée du site n'a pas pu être chargée (hors ligne, page absente).
+// Elle ne fait que flotter, mais mieux vaut ça qu'un écran figé au départ.
+function montreSortieFf() {
+  if (document.querySelector(".ff-sortie")) { return; }
+  const o = document.createElement("div");
+  o.className = "ff-sortie";
+  o.innerHTML = FEE.svg
+    + `<div class="ff-sortie-txt">${t("Retour à Famiformation…", "Terug naar Famiformation…")}</div>`;
+  document.body.appendChild(o);
+  void o.offsetWidth;          // pour que la transition d'opacité soit jouée
+  o.classList.add("on");
+  setTimeout(() => o.remove(), 15000);   // si la navigation n'a pas lieu
+}
+// Retour arrière du navigateur : la page revient du cache avec l'écran encore
+// affiché par-dessus. On l'enlève, comme le fait fee.php sur le reste du site.
+window.addEventListener("pageshow", () => {
+  document.querySelectorAll(".ff-sortie").forEach((el) => el.remove());
+});
+
 
 // ⏲️ DÉCONNEXION AUTOMATIQUE après 5 min sans aucune interaction, quand on est
 // connecté dans son espace. Toute action (clic, touche, toucher, scroll) relance
@@ -5757,8 +6158,52 @@ function retourNav() {
     try {
       const propre = new URL(location.href);
       propre.searchParams.delete("jeton");
+      propre.searchParams.delete("ff");
       history.replaceState(null, "", propre.pathname + (propre.search || "") + propre.hash);
     } catch (e) { /* navigateur ancien : le jeton reste visible, sans gravite */ }
+  }
+
+  // ⬅️ ARRIVÉE DEPUIS FAMIFORMATION : on propose un retour.
+  //
+  // La tuile de FamiFormation ajoute « ff=1 ». Sans ce lien, une fois entré dans
+  // /quiz/<magasin> on ne pouvait plus revenir : le quiz est un site à part, il
+  // n'a aucun lien vers la plateforme.
+  //
+  // ⚠️ On le retient pour la session : le paramètre est retiré de l'adresse
+  // juste au-dessus, et le lien doit survivre à la navigation dans le jeu
+  // (jardin, classement, code…).
+  //
+  // ⚠️ Et SURTOUT : rien de tout ça sur une borne ou sur la télé. Ces écrans
+  // restent dans le jeu — une sortie vers FamiFormation y serait une porte
+  // ouverte sur la session de quelqu'un d'autre.
+  if (SIM_PARAMS.get("ff") === "1") {
+    try { sessionStorage.setItem("fj_depuis_ff", "1"); } catch (e) {}
+  }
+  let depuisFamiformation = (SIM_PARAMS.get("ff") === "1");
+  try { depuisFamiformation = depuisFamiformation || sessionStorage.getItem("fj_depuis_ff") === "1"; } catch (e) {}
+  if (depuisFamiformation && !estBorne() && ECRAN !== "tele" && !SIMULATION) {
+    // La classe sur <body> est ce que le reste du code interroge : elle sert à
+    // masquer « Déconnexion », à décaler la bulle de l'accueil et à afficher le
+    // mot d'accueil. Une seule source de vérité, disponible partout.
+    document.body.classList.add("depuis-ff");
+    const lien = document.createElement("a");
+    lien.className = "retour-ff";
+    lien.href = location.origin + "/index.php";
+    lien.innerHTML = "← " + t("Famiformation", "Famiformation");
+    // 🧚 La fée couvre le chargement, comme sur le reste du site. Pas de
+    // preventDefault : la navigation part normalement, l'écran ne fait que
+    // l'habiller. Ignoré pour un ctrl/⌘-clic, qui ouvre un autre onglet et
+    // laisserait la fée plantée sur celui-ci.
+    lien.addEventListener("click", (e) => {
+      if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) { return; }
+      // La fée du site s'ouvre toute seule (son propre gestionnaire de clic).
+      // On ne montre le repli QUE si elle n'a pas pu être chargée, sinon on
+      // aurait deux écrans d'attente l'un sur l'autre.
+      if (typeof window[FEE_SITE_PREFIXE + "Indef"] === "function") { return; }
+      montreSortieFf();
+    });
+    document.body.appendChild(lien);
+    chargeFeeDuSite();   // 🧚 prête AVANT le clic, sinon elle arriverait après la page
   }
 
   // Sur une borne, chargeJeton() renvoie "" (appareil partagé) : on prend alors
@@ -5771,7 +6216,7 @@ function retourNav() {
       const j = r.joueur;
       joueur = { name: j.name, code: "", jeton: jetonMemo, uid: j.uid, prenom: j.prenom, nom: j.nom, pseudo: j.pseudo || "",
                  solde: j.solde || 0, recoltees: j.recoltees || 0, nbCodes: j.nbCodes || 0, quizFait: j.quiz_fait !== false,
-                 justePrixFait: !!j.justeprix_fait };
+                 justePrixFait: !!j.justeprix_fait, recompenseJardin: j.recompense_jardin || "" };
       const m = await reclamerEnAttente();
       if (m) jardinMsg = m;
     } else {
@@ -5801,6 +6246,39 @@ function retourNav() {
   if (cp && !SIMULATION) { codeAReclamer = cp.toUpperCase(); userView = "reclamer"; }
   // 🎁 Page /quiz/code : on ouvre directement l'écran de saisie d'un code.
   else if (ECRAN === "code" && !SIMULATION) { codeAReclamer = null; userView = "reclamer"; }
+
+  // 🎯 ARRIVÉE DIRECTE SUR UN ÉCRAN : « ?vue=jardin » ou « ?vue=board ».
+  // Sert aux pages voisines — la fin du Juste Prix propose « Mon jardin » et
+  // « Le classement », qui doivent tomber SUR l'écran voulu et non sur le
+  // tableau de bord d'où il faudrait recliquer.
+  // Le jardin demande d'être connecté ET d'avoir fait le quiz : sans ça on
+  // retombe sur le tableau de bord, qui saura l'expliquer.
+  const vueUrl = SIM_PARAMS.get("vue");
+  if (vueUrl) {
+    try {
+      const propre = new URL(location.href);
+      propre.searchParams.delete("vue");
+      history.replaceState(null, "", propre.pathname + (propre.search || "") + propre.hash);
+    } catch (e) { /* sans gravité : le paramètre reste visible */ }
+  }
+
+  // ⚠️ CES DEUX ÉCRANS ONT BESOIN DE LEURS DONNÉES, pas seulement de la vue.
+  // Changer userView ne suffit pas :
+  //   • le jardin ne sait pas quoi dessiner tant qu'apiJardin() n'a pas répondu ;
+  //   • le classement part d'un tableau VIDE, que le rafraîchissement
+  //     automatique ne remplit que 30 secondes plus tard.
+  // On arriverait donc sur un écran vide dans les deux cas.
+  if (vueUrl === "board") {
+    board = await apiGetBoard().catch(() => board);
+    userView = "board";
+  } else if (vueUrl === "jardin" && joueur) {
+    // Charge le jardin ET le solde, puis affiche : c'est exactement ce que fait
+    // la tuile du tableau de bord, on passe par la même porte.
+    await ouvreJardinDepuisDash();
+    return;
+  } else if (vueUrl === "jardin") {
+    userView = "dashboard";   // pas connecté : le tableau de bord saura l'expliquer
+  }
 
   render();
 })();
