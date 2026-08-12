@@ -260,9 +260,26 @@ dans deux tables à part (`famicard_champs`, `famicard_valeurs`).
 ### Qui modifie quoi
 
 Le collaborateur corrige **ses coordonnées** : email, ville, date d'anniversaire, photo.
-Le reste — profil, statut, lieu de travail, agence, secteur — est de la donnée de gestion
-et reste à l'administrateur. L'identifiant ne se modifie pas depuis Famicard : il sert à
-se connecter, le changer couperait l'accès sans prévenir personne.
+Le reste — profil, statut, lieu de travail, agence, employeur, contrat, rattachement — est
+de la donnée de gestion et reste à l'administrateur.
+
+**L'identifiant se modifie, mais il est le seul champ à demander une preuve d'identité.**
+Réservé à l'admin, et l'écran lui redemande **son propre** mot de passe avant d'écrire :
+c'est la seule modification de la fiche qui puisse mettre quelqu'un dehors, puisque c'est
+avec ça qu'on se connecte. Trois refus, et ils ne sont pas négociables :
+
+- **`admin` et `Accueil` ne se renomment pas.** Ce ne sont pas des noms, ce sont des clés :
+  `checklist_gerbeur.php` ouvre un accès à qui a `$_SESSION['username'] === 'Accueil'`, et
+  `admin` est protégé contre la suppression. Les renommer retirerait ces droits sans le
+  moindre message (`famicardIdentifiantsVerrouilles()`).
+- **Ni vide, ni avec un espace, ni au-delà de 50 caractères** — la colonne tronquerait en
+  silence et l'identifiant enregistré ne serait pas celui saisi.
+- **Jamais deux fois le même**, la colonne portant une clé unique.
+
+Deux conséquences sont annoncées à l'écran parce qu'on ne peut pas les rattraper :
+l'ancien identifiant cesse de fonctionner (il faut prévenir la personne), et les
+**présences déjà enregistrées restent sous l'ancien nom** — `presences.nom` stocke du
+texte, pas un numéro de compte.
 
 **La correction s'applique tout de suite**, et l'administrateur la confirme ensuite
 (`validations.php`, qui montre l'ancienne et la nouvelle valeur). « Rétablir » **réécrit**
@@ -301,6 +318,10 @@ tard, ne peut pas exposer ce qu'il ne doit pas.
 - [x] **Libellés créés par l'admin**, obligatoires ou non
 - [x] **Création d'un collaborateur** (`creer.php`, tuile de l'accueil) — compte,
       rattachement et accès aux services d'un seul geste
+- [x] **Rattachement modifiable** (secteur + départements) — la liste ENTIÈRE est
+      envoyée à chaque enregistrement, l'ordre porte la priorité, rien ne peut
+      disparaître par omission
+- [x] **Identifiant modifiable** par un admin, contre son propre mot de passe
 - [x] **Employeur et type de contrat** séparés du profil (`includes/emploi.php`,
       `contrats.php`) — interne / intérim / indépendant, étudiant / flexi / fixe,
       **sans toucher au RBAC**
@@ -324,13 +345,6 @@ tard, ne peut pas exposer ce qu'il ne doit pas.
       part). À brancher au moment où la suppression rejoindra Famicard, sinon un futur
       compte réutilisant le même id hérite des accès du précédent.
 
-- [ ] **Rendre le rattachement modifiable depuis Famicard** — il se POSE à la création
-      (`creer.php` : aucune priorité existante à écraser, la personne vient de naître),
-      mais sur une fiche existante il reste en lecture seule. Il vit dans
-      `student_department_links`, la table du matching intérim, avec plusieurs
-      départements par personne classés par priorité : y écrire depuis un écran qui n'en
-      connaît qu'un effacerait les autres. Il faut d'abord décider comment Famicard
-      présente et modifie une liste ordonnée.
 - [ ] **Historique consultable** — les modifications sont toutes enregistrées
       (`famicard_modifications`), mais seules celles en attente sont affichées. « Qui a
       changé ce champ, et quand » demande encore une requête SQL à la main.

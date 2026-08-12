@@ -166,15 +166,18 @@ if (!function_exists('famicardChampsSocle')) {
             ],
 
             // ── COMPTE / ACCÈS AUX SERVICES ────────────────────────────────
-            // L'identifiant sert à se connecter : le changer ici couperait
-            // l'accès sans prévenir personne. Tant que la gestion des comptes
-            // n'a pas rejoint Famicard, il se règle avec le mot de passe, dans
-            // l'écran qui gère les deux.
+            // L'identifiant sert à SE CONNECTER : le changer coupe l'accès de
+            // quelqu'un tant qu'il n'a pas été prévenu. Réservé à l'admin, et
+            // l'écran d'édition lui redemande SON mot de passe avant d'écrire
+            // (voir modifier.php) — c'est la seule modification de la fiche qui
+            // exige une preuve d'identité, parce que c'est la seule qui puisse
+            // mettre quelqu'un dehors.
             'identifiant' => [
                 'libelle' => 'Identifiant', 'libelle_nl' => 'Gebruikersnaam',
                 'colonne' => 'identifiant', 'groupe' => 'compte',
                 'requis' => true, 'nature' => 'service', 'visible' => 'soi',
-                'modifiable' => 'jamais', 'saisie' => 'texte', 'badge' => false,
+                'modifiable' => 'admin', 'saisie' => 'texte', 'badge' => false,
+                'aide' => 'C\'est avec ça qu\'il se connecte : le changer rend son ancien identifiant inutilisable.',
             ],
             'role' => [
                 'libelle' => 'Profil', 'libelle_nl' => 'Profiel',
@@ -197,6 +200,41 @@ if (!function_exists('famicardChampsSocle')) {
                 'modifiable' => 'jamais', 'saisie' => 'texte', 'badge' => false,
             ],
         ];
+    }
+}
+
+if (!function_exists('famicardIdentifiantsVerrouilles')) {
+    /**
+     * Les identifiants qui NE PEUVENT PAS être renommés, parce qu'ils sont
+     * écrits en dur ailleurs — ce ne sont pas des noms, ce sont des clés.
+     *
+     *   'admin'   — protégé contre la suppression dans admin_collaborateurs.php
+     *               (« DELETE ... AND identifiant != 'admin' »).
+     *   'Accueil' — OUVRE UN DROIT : checklist_gerbeur.php laisse entrer qui a
+     *               `$_SESSION['username'] === 'Accueil'`. Le renommer
+     *               retirerait cet accès sans le moindre message. Le compte est
+     *               en plus recréé automatiquement sous ce nom s'il disparaît,
+     *               ce qui donnerait deux comptes pour une seule fonction.
+     *
+     * ⚠️ Un identifiant utilisé comme condition dans du code est un piège connu
+     * du dépôt. Tant qu'il en reste, on refuse de les renommer plutôt que de
+     * découvrir la panne trois semaines plus tard.
+     */
+    function famicardIdentifiantsVerrouilles()
+    {
+        return ['admin', 'Accueil'];
+    }
+}
+
+if (!function_exists('famicardIdentifiantVerrouille')) {
+    function famicardIdentifiantVerrouille($identifiant)
+    {
+        foreach (famicardIdentifiantsVerrouilles() as $verrou) {
+            if (strcasecmp(trim((string) $identifiant), $verrou) === 0) {
+                return true;
+            }
+        }
+        return false;
     }
 }
 
@@ -605,9 +643,15 @@ if (!function_exists('famicardRattachements')) {
                         'departement_id'  => (int) $r['departement_id'],
                         'departement_nom' => (string) $r['departement_nom'],
                         'tous'            => [],
+                        'ids'             => [],
                     ];
                 }
                 $res[$uid]['tous'][] = (string) $r['departement_nom'];
+                // Les identifiants DANS L'ORDRE DE PRIORITÉ (le ORDER BY
+                // ci-dessus) : c'est ce que l'écran d'édition renvoie, et c'est
+                // l'ordre lui-même qui porte la priorité — pas un numéro saisi
+                // à côté, qui finirait par ne plus correspondre à la liste.
+                $res[$uid]['ids'][] = (int) $r['departement_id'];
             }
         } catch (Exception $e) {
             // Tables absentes (base pas encore à jour) : la fiche s'affiche
@@ -642,6 +686,11 @@ if (!function_exists('famicardAjouteRattachement')) {
         // fausse à moitié, ce qui est pire que muette.
         $tous = $r['tous'] ?? [];
         $ligne['departement_nom'] = $tous ? implode(' · ', $tous) : ($r['departement_nom'] ?? '');
+
+        // Pas une pseudo-colonne du modèle : la liste ordonnée que l'écran
+        // d'édition réaffiche. Elle n'a pas de libellé et ne s'affiche nulle
+        // part — d'où un nom qui ne peut pas être pris pour un champ.
+        $ligne['departement_ids'] = $r['ids'] ?? [];
 
         return $ligne;
     }

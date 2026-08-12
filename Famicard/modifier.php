@@ -70,16 +70,54 @@ $magasins = famicardMagasins($db);
 $libres   = famicardValeursLibres($db, $cibleId);
 $groupes  = famicardGroupes();
 
-// ⚠️ LE RATTACHEMENT EST EN LECTURE SEULE ICI, et c'est un choix, pas un
-// manque. Il vit dans `student_department_links` — la table dont le MATCHING
-// INTÉRIM de FamiJob se sert, avec plusieurs départements par personne classés
-// par priorité. Écrire dedans depuis cet écran, qui ne connaît qu'un
-// département à la fois, effacerait les autres et fausserait le matching sans
-// que personne ne s'en aperçoive avant de chercher des remplaçants.
+// ─────────────────────────────────────────────────────────────────────────────
+// LE RATTACHEMENT, MODIFIABLE — mais par la LISTE ENTIÈRE.
 //
-// Le rattachement se règle donc là où il est maîtrisé (admin_user.php côté
-// site, qui gère la liste complète et les priorités). Le ramener dans Famicard
-// demande d'abord de décider ce qu'on fait des rattachements multiples.
+// Il est resté en lecture seule longtemps, pour une raison réelle :
+// `student_department_links` porte PLUSIEURS départements par personne, classés
+// par priorité, et c'est ce dont le matching intérim de FamiJob se sert. Un
+// écran qui n'en connaît qu'un et écrit « le » département efface les autres —
+// sans message, sans trace, et on ne s'en aperçoit qu'en cherchant un
+// remplaçant qui n'apparaît plus.
+//
+// La sortie n'est pas de compter les cas, c'est de changer ce qu'on envoie :
+// le formulaire porte TOUJOURS la liste complète, une case par rattachement
+// plus une vide. On écrit donc un ÉTAT FINAL (famicardEcritRattachement), et
+// plus rien ne peut disparaître par omission.
+//
+// L'ORDRE EST LA PRIORITÉ : la première case est le rattachement principal.
+// Un numéro de priorité saisi à côté aurait fini par ne plus correspondre à
+// l'ordre affiché, et deux départements auraient partagé le même rang.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Les départements réellement proposables, secteur par secteur — la même liste
+// que le menu en cascade, y compris les « à ranger » : un département sans
+// secteur reste un rattachement valable, et l'omettre l'effacerait de la fiche
+// de ceux qui l'ont.
+$departementsProposes = [];
+if (function_exists('secteursListe')) {
+    try {
+        foreach (secteursListe($db) as $s) {
+            foreach ($s['departements'] as $d) {
+                $departementsProposes[(int) $d['id']] = (string) $d['nom'];
+            }
+        }
+        foreach (secteursSansSecteur($db) as $o) {
+            $departementsProposes[(int) $o['id']] = (string) $o['department_name'];
+        }
+    } catch (Exception $e) {
+        $departementsProposes = [];
+    }
+}
+
+$champRattachement = $champs['departement'] ?? null;
+$rattachementEditable = ($champRattachement !== null)
+    && $departementsProposes
+    && function_exists('secteursChampsHtml')
+    && famicardPeutModifier($champRattachement, $estAdmin, $estSaPropreFiche);
+
+// Ce qu'il a aujourd'hui, dans l'ordre de priorité.
+$rattachementActuel = array_values(array_map('intval', (array) ($cible['departement_ids'] ?? [])));
 
 // ─────────────────────────────────────────────────────────────────────────────
 // STOCKAGE DE LA PHOTO — celui du SITE, volontairement : même dossier sur le
@@ -109,6 +147,10 @@ $champPhoto = $champs['photo_profil'] ?? null;
 $photoEditable = $champPhoto ? famicardPeutModifier($champPhoto, $estAdmin, $estSaPropreFiche) : false;
 
 $erreurs = [];
+// Ce qui n'empêche pas d'enregistrer mais qu'il faut dire quand même. Un
+// avertissement rangé dans les erreurs bloquerait la fiche entière ; rangé
+// nulle part, il ne serait jamais lu.
+$avertissements = [];
 $message = '';
 if (!empty($_SESSION['famicard_modif_flash'])) {
     $message = (string) $_SESSION['famicard_modif_flash'];
@@ -218,8 +260,71 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    // Le rattachement ne s'écrit pas depuis cet écran (voir plus haut).
+    // ── LE RATTACHEMENT ──────────────────────────────────────────────────
+    // Traité à part des autres champs : ce n'est pas une colonne de
+    // `utilisateurs` mais une LISTE dans une autre table, et elle s'écrit
+    // entière (voir famicardEcritRattachement).
     $rattachementChange = false;
+    if ($rattachementEditable && array_key_exists('rattachement', $_POST)) {
+        $voulus = [];
+        foreach ((array) $_POST['rattachement'] as $id) {
+            $id = (int) $id;
+            // Seulement ce que la page a réellement proposé : un identifiant
+            // bricolé dans le formulaire ne peut pas rattacher quelqu'un à un
+            // département inconnu du matching.
+            if ($id > 0 && isset($departementsProposes[$id]) && !in_array($id, $voulus, true)) {
+                $voulus[] = $id;
+            }
+        }
+
+        // ⚠️ GARDE-FOU. Si un département qu'il a DÉJÀ n'est plus dans la liste
+        // proposée (désactivé, ou rattaché à un secteur supprimé), la case
+        // correspondante est vide et l'enregistrement l'effacerait en silence.
+        // On refuse alors d'écrire le rattachement — le reste de la fiche
+        // s'enregistre — plutôt que de perdre une donnée qu'on n'a pas touchée.
+        $perdus = array_diff($rattachementActuel, array_keys($departementsProposes));
+        if ($perdus) {
+            // Signalé, pas bloquant : le reste de la fiche doit pouvoir
+            // s'enregistrer. Bloquer sur un département disparu ferait d'une
+            // vieille donnée un mur devant une correction d'adresse.
+            $avertissements[] = 'Un de ses départements ne figure plus dans la liste des départements actifs :'
+                              . ' son rattachement n\'a pas été touché, pour ne rien effacer par accident.'
+                              . ' Il se corrige depuis FamiJob.';
+        } elseif ($voulus !== $rattachementActuel) {
+            $avant = [];
+            foreach ($rattachementActuel as $id) {
+                $avant[] = $departementsProposes[$id] ?? ('#' . $id);
+            }
+            $apres = [];
+            foreach ($voulus as $id) {
+                $apres[] = $departementsProposes[$id];
+            }
+
+            if (famicardEcritRattachement($db, $cibleId, $voulus)) {
+                $rattachementChange = true;
+                // Tracé comme le reste : « qui a changé ce rattachement » est
+                // la première question posée devant un matching surprenant.
+                //
+                // Tracé DÉJÀ VALIDÉ, et pas « à confirmer » : le champ est
+                // réservé à l'admin (famicardPeutModifier vient de le vérifier),
+                // donc il n'y a personne à qui demander. Surtout, « rétablir »
+                // depuis validations.php réécrit une COLONNE — ce que le
+                // rattachement n'est pas. Une ligne en attente ici serait une
+                // décision impossible à appliquer.
+                famicardTraceModification(
+                    $db, $cibleId, 'departement',
+                    $champRattachement,
+                    implode(' · ', $avant),
+                    implode(' · ', $apres),
+                    (int) $moi['id'],
+                    false
+                );
+                $rattachementActuel = $voulus;
+            } else {
+                $erreurs[] = "Le rattachement n'a pas pu être enregistré.";
+            }
+        }
+    }
 
     // ── LES AUTRES CHAMPS ────────────────────────────────────────────────
     $aEcrire = [];
@@ -267,6 +372,55 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     continue;
                 }
             }
+        } elseif ($cle === 'identifiant') {
+            // ── LA SEULE MODIFICATION QUI PEUT METTRE QUELQU'UN DEHORS ────
+            // L'identifiant est ce avec quoi on se connecte. Le changer par
+            // erreur, ou depuis une session laissée ouverte sur un poste, et
+            // la personne se retrouve à la porte sans comprendre. D'où une
+            // preuve d'identité — le mot de passe de CELUI QUI MODIFIE, pas
+            // celui de la personne : c'est lui qu'on veut authentifier.
+            $preuve = (string) ($_POST['confirmation_mdp'] ?? '');
+            if ($preuve === '') {
+                $erreurs[] = 'Pour changer un identifiant, saisis ton propre mot de passe en bas du formulaire.';
+                continue;
+            }
+            if (!password_verify($preuve, (string) ($moi['mot_de_passe'] ?? ''))) {
+                $erreurs[] = "Ce mot de passe n'est pas le tien : l'identifiant n'a pas été changé.";
+                continue;
+            }
+            if ($nouvelle === '') {
+                $erreurs[] = "L'identifiant ne peut pas être vide : personne ne pourrait plus se connecter à ce compte.";
+                continue;
+            }
+            // La colonne est un VARCHAR(50) : au-delà, MySQL tronque en
+            // silence et l'identifiant enregistré n'est pas celui saisi.
+            if (mb_strlen($nouvelle) > 50) {
+                $erreurs[] = 'Identifiant trop long (50 caractères au maximum).';
+                continue;
+            }
+            if (preg_match('/\s/u', $nouvelle)) {
+                $erreurs[] = "L'identifiant ne peut pas contenir d'espace : il se tape à la connexion.";
+                continue;
+            }
+            // Verrous : ces noms-là sont des clés dans le code, pas des noms.
+            if (famicardIdentifiantVerrouille($ancienne)) {
+                $erreurs[] = '« ' . $ancienne . ' » ne peut pas être renommé : ce nom ouvre des droits'
+                           . ' écrits en dur dans le site, et le changer les retirerait sans prévenir.';
+                continue;
+            }
+            if (famicardIdentifiantVerrouille($nouvelle)) {
+                $erreurs[] = '« ' . $nouvelle . ' » est réservé à un compte de service.';
+                continue;
+            }
+            // Unicité : la colonne porte une clé UNIQUE, donc sans ce test
+            // l'enregistrement tomberait sur une erreur SQL brute.
+            $q = $db->prepare("SELECT COUNT(*) FROM utilisateurs WHERE identifiant = ? AND id != ?");
+            $q->execute([$nouvelle, $cibleId]);
+            if ((int) $q->fetchColumn() > 0) {
+                $erreurs[] = 'Cet identifiant est déjà utilisé par un autre compte.';
+                continue;
+            }
+
         } elseif (($champ['saisie'] ?? '') === 'date') {
             if ($nouvelle !== '') {
                 $d = date_create($nouvelle);
@@ -319,9 +473,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             famicardTraceModification($db, $cibleId, $cle, $op['champ'], $op['avant'], $op['apres'], (int) $moi['id'], $aValider);
         }
 
+        // ── APRÈS UN CHANGEMENT D'IDENTIFIANT ────────────────────────────
+        if (isset($aEcrire['identifiant'])) {
+            // Le site entier lit le nom de connexion dans la session
+            // (`$_SESSION['username']`). Un admin qui se renomme lui-même
+            // continuerait sinon à circuler sous son ancien nom jusqu'à la
+            // prochaine connexion — et les pages qui comparent ce nom se
+            // tromperaient de personne.
+            if ($estSaPropreFiche) {
+                $_SESSION['username'] = $aEcrire['identifiant']['apres'];
+            }
+            // ⚠️ Deux conséquences qu'on ne peut PAS rattraper depuis ici, et
+            // qu'il faut donc dire tout de suite.
+            $avertissements[] = 'Son ancien identifiant (« ' . $aEcrire['identifiant']['avant'] .' ») ne'
+                             . ' fonctionne plus : préviens-le, sinon il se retrouvera devant une porte fermée'
+                             . ' sans comprendre pourquoi. Les présences déjà enregistrées, elles, restent'
+                             . " sous l'ancien nom : elles sont stockées en texte, pas par numéro de compte.";
+        }
+
         $combien = count($aEcrire);
+        $suffixe = $avertissements ? ' ⚠️ ' . implode(' ', $avertissements) : '';
+
         if ($combien === 0 && !$photoDeposee && !$rattachementChange) {
-            famicardRetourModif("Rien n'a changé.", $estSaPropreFiche, $cibleId);
+            famicardRetourModif("Rien n'a changé." . $suffixe, $estSaPropreFiche, $cibleId);
         }
 
         $bouts = [];
@@ -339,7 +513,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $texte .= ' Un administrateur confirmera.';
         }
 
-        famicardRetourModif($texte, $estSaPropreFiche, $cibleId);
+        famicardRetourModif($texte . $suffixe, $estSaPropreFiche, $cibleId);
     }
 
     // En cas d'erreur, on réaffiche ce que la personne a saisi plutôt que de
@@ -428,9 +602,19 @@ if ($photo !== '') {
     .ligne { margin-bottom: 15px; }
     .ligne label { display: block; font-weight: 600; font-size: .86rem; color: #444; margin-bottom: 5px; }
     .ligne .obl { color: #c0392b; }
-    input[type="text"], input[type="email"], input[type="date"], select { width: 100%; padding: 10px 12px; border: 1px solid #ccd6cf; border-radius: 10px; font-family: inherit; font-size: .95rem; background: #fff; }
+    input[type="text"], input[type="email"], input[type="date"], input[type="password"], select { width: 100%; padding: 10px 12px; border: 1px solid #ccd6cf; border-radius: 10px; font-family: inherit; font-size: .95rem; background: #fff; }
     .aide { color: #888; font-size: .78rem; margin-top: 4px; line-height: 1.45; }
     .fige { background: #f5f7f6; border-radius: 10px; padding: 10px 12px; color: #777; font-size: .92rem; }
+
+    /* ── RATTACHEMENT : une ligne par département, l'ordre fait la priorité ── */
+    .rattachements { display: flex; flex-direction: column; gap: 9px; }
+    .ratt-ligne { display: flex; align-items: center; gap: 10px; }
+    .ratt-rang { flex: 0 0 66px; font-size: .74rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #2d5a37; }
+    .duo { display: flex; gap: 8px; flex: 1; min-width: 0; flex-wrap: wrap; }
+    .duo select { flex: 1 1 45%; min-width: 0; width: auto; }
+
+    .verrou { background: #fffaf0; }
+    .verrou h2 { color: #8a5a10; }
 
     .actions { display: flex; gap: 12px; flex-wrap: wrap; padding: 22px 26px; background: #f7faf8; border-top: 1px solid #eee; }
     .bouton { border: 0; border-radius: 30px; padding: 12px 26px; font-family: inherit; font-weight: 700; font-size: .92rem; cursor: pointer; text-decoration: none; display: inline-block; }
@@ -555,11 +739,43 @@ if ($photo !== '') {
                                   // se verrait proposer un champ texte libre sur une
                                   // pseudo-colonne, qui n'existe pas dans `utilisateurs`. ?>
                             <?php if ($saisie === 'rattachement'): ?>
-                                <div class="fige"><?= $affichee !== '' ? e($affichee) : '—' ?></div>
-                                <?php // Le rattachement vit dans la table du matching intérim,
-                                      // avec plusieurs départements possibles par personne : il
-                                      // ne se règle pas ici, où l'on n'en verrait qu'un. ?>
-                                <div class="aide">Se règle avec les départements du collaborateur.</div>
+                                <?php if ($cle === 'departement' && $rattachementEditable): ?>
+                                    <?php // UNE CASE PAR RATTACHEMENT, PLUS UNE VIDE. C'est ce
+                                          // qui rend l'écriture sûre : le formulaire porte la
+                                          // liste ENTIÈRE, donc enregistrer ne peut rien
+                                          // effacer qui n'ait été retiré exprès. ?>
+                                    <div class="rattachements">
+                                        <?php $slots = $rattachementActuel; $slots[] = 0; ?>
+                                        <?php foreach ($slots as $i => $idActuel): ?>
+                                            <div class="ratt-ligne">
+                                                <span class="ratt-rang"><?= $i === 0 ? 'Principal' : ($i + 1) . 'e' ?></span>
+                                                <div class="duo">
+                                                    <?= secteursChampsHtml($db, 'rattachement[]', $idActuel > 0 ? (string) $idActuel : '', [
+                                                            'par' => 'id',
+                                                            'vide' => $i === 0 ? '— Aucun —' : '— Ajouter —',
+                                                            'sansSecteur' => true,
+                                                        ]) ?>
+                                                </div>
+                                            </div>
+                                        <?php endforeach; ?>
+                                    </div>
+                                    <div class="aide">
+                                        L'ordre est la priorité : le premier est son rattachement principal, et c'est
+                                        celui-là que le matching de FamiJob regarde en premier.
+                                        Vider une ligne retire le rattachement ; une nouvelle case vide apparaît
+                                        après l'enregistrement.
+                                    </div>
+                                <?php else: ?>
+                                    <div class="fige"><?= $affichee !== '' ? e($affichee) : '—' ?></div>
+                                    <?php // Le secteur se DÉDUIT du département : il n'a pas de
+                                          // case à lui, sinon on pourrait enregistrer un secteur
+                                          // qui contredit le département choisi juste en dessous. ?>
+                                    <div class="aide">
+                                        <?= $cle === 'secteur'
+                                            ? 'Découle du département : choisis le département, le secteur suit.'
+                                            : 'Modifiable par un administrateur.' ?>
+                                    </div>
+                                <?php endif; ?>
 
                             <?php elseif (!$editable): ?>
                                 <?php // Montré mais figé : le collaborateur voit la valeur et
@@ -629,6 +845,31 @@ if ($photo !== '') {
                 </div>
             <?php endforeach; ?>
 
+            <?php // ── PREUVE D'IDENTITÉ ───────────────────────────────────────
+                  // Demandée seulement à qui peut changer un identifiant, et
+                  // n'est vérifiée QUE si l'identifiant a réellement changé :
+                  // un champ obligatoire à chaque enregistrement d'adresse
+                  // serait contourné en trois jours (mot de passe collé dans un
+                  // gestionnaire, ou plus personne ne corrige sa fiche). ?>
+            <?php $identifiantEditable = isset($champs['identifiant'])
+                    && famicardPeutModifier($champs['identifiant'], $estAdmin, $estSaPropreFiche); ?>
+            <?php if ($identifiantEditable): ?>
+                <div class="groupe verrou">
+                    <h2>🔒 Changement d'identifiant</h2>
+                    <div class="ligne">
+                        <label for="confirmation_mdp">Ton mot de passe</label>
+                        <input type="password" id="confirmation_mdp" name="confirmation_mdp"
+                               autocomplete="current-password" placeholder="à remplir seulement si tu changes l'identifiant">
+                        <div class="aide">
+                            Changer un identifiant, c'est changer la façon dont quelqu'un se connecte : tant que la
+                            personne n'est pas prévenue, elle ne peut plus entrer. On te redemande donc <b>ton</b>
+                            mot de passe — celui de ton compte — pour être sûr que c'est bien toi.
+                            Le reste de la fiche s'enregistre sans.
+                        </div>
+                    </div>
+                </div>
+            <?php endif; ?>
+
             <div class="actions">
                 <button type="submit" class="bouton bouton-plein">Enregistrer</button>
                 <a class="bouton bouton-vide" href="<?= $estSaPropreFiche ? 'fiche.php' : 'admin.php' ?>">Annuler</a>
@@ -646,6 +887,11 @@ if ($photo !== '') {
 
 </div>
 
+
+<?php // Le filtrage secteur → département, une seule fois pour toutes les cases.
+      // Sans lui, les listes restent complètes et restent utilisables : le
+      // script est un confort, pas une condition. ?>
+<?= ($rattachementEditable && function_exists('secteursScript')) ? secteursScript() : '' ?>
 
 <?php if ($photoEditable): ?>
 <script>
