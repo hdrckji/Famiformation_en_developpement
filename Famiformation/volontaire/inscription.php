@@ -140,7 +140,7 @@ $destinataire = trim((string) fvEnv('MAIL_TO', ''));
 
 // À qui la page invite à s'adresser. Réglage, jamais une constante du code :
 // vide = la phrase n'est pas affichée du tout.
-$relaisAffiche = trim((string) fvEnv('MAIL_RELAIS_VOLONTAIRE', ''));
+$relaisAffiche = trim((string) fvEnv('CONTACT_VOLONTAIRE', ''));
 $envoye = false;
 $erreur = '';
 
@@ -156,7 +156,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             : "L'inscription est momentanément indisponible. Réessaie plus tard.";
     } else {
         // ⚠️ Aucun nom de personne dans ce message : à qui transmettre est un
-        // réglage (MAIL_RELAIS_VOLONTAIRE), pas une constante du code. La
+        // réglage (CONTACT_VOLONTAIRE), pas une constante du code. La
         // phrase disparaît si la variable n'est pas posée.
         $relais = $relaisAffiche;
 
@@ -208,7 +208,7 @@ p b{color:var(--deep);}
         ? 'Je interesse is doorgegeven aan het <b>FamiFormation</b>-team. We nemen binnenkort contact met je op.'
         : 'Ton intérêt a bien été transmis à l\'équipe <b>FamiFormation</b>. On te recontactera bientôt.'; ?></p>
       <?php // ⚠️ Aucun nom de personne écrit dans la page : à qui s'adresser est
-            // un réglage (MAIL_RELAIS_VOLONTAIRE). Non renseigné, la phrase
+            // un réglage (CONTACT_VOLONTAIRE). Non renseigné, la phrase
             // disparaît — mieux vaut ne rien dire qu'envoyer quelqu'un voir une
             // personne qui a changé de poste. ?>
       <?php if ($relaisAffiche !== ''): ?>

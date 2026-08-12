@@ -25,6 +25,19 @@ qu'un mail qui part au mauvais endroit pendant six mois.
 Les seules exceptions sont les replis qui désignent une **fonction** et non quelqu'un :
 `famiContactRh()` retombe sur « le service RH », ce qui reste vrai quoi qu'il arrive.
 
+## La convention de nommage
+
+Elle tient en une ligne, et elle évite de se demander ce qu'on doit écrire dans une case :
+
+| Préfixe | Contient | Exemple |
+|---|---|---|
+| `MAIL_…` | une **adresse** | `MAIL_ACCUEIL=accueil@famiflora.be` |
+| `CONTACT_…` | un **nom affiché** | `CONTACT_RH=Honorine` |
+
+⚠️ `MAIL_TO` (formulaire `/volontaire`) porte bien une adresse malgré son nom vague. Elle
+existait avant, elle est peut-être déjà posée dans Railway : **on ne la renomme pas**, un
+renommage casserait une configuration en place sans rien dire.
+
 ---
 
 ## À poser dans Railway → Variables
@@ -38,7 +51,7 @@ Les seules exceptions sont les replis qui désignent une **fonction** et non que
 | `MAIL_ACCUEIL` | Adresse prévenue d'une inscription à une formation | **aucune notification** |
 | `RH_NOTIF_MAIL` | Adresse prévenue quand quelqu'un devient éligible à une récompense (quiz) | **aucune notification** |
 | `MAIL_TO` | Destinataire du formulaire « créateur de contenu » (`/volontaire`) | **le formulaire refuse poliment** |
-| `MAIL_RELAIS_VOLONTAIRE` | Qui l'on invite à aller voir sur cette même page | la phrase disparaît |
+| `CONTACT_VOLONTAIRE` | Qui l'on invite à aller voir sur cette même page | la phrase disparaît |
 | `FAMIJOB_HORAIRE_MAIL_FAMIFLORA` | Où partent les horaires des collaborateurs **internes** | filet seulement : la ligne « Famiflora » de `interim_agences` fait foi d'abord |
 | `FAMIJOB_HORAIRE_CONTACT_FAMIFLORA` | Le nom affiché en face de cette adresse | aucun nom affiché |
 
