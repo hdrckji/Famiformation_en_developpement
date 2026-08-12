@@ -328,14 +328,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $weekStartStr = $selectedWeek['start']->format('Y-m-d');
         $weekEndStr   = $selectedWeek['end']->format('Y-m-d');
 
+        // ⚠️ ADDITION, pas remplacement : retaper le même horaire dans une case
+        // veut dire « une personne de plus ». Le champ de saisie étant toujours
+        // vide à l'affichage, un envoi n'apporte que ce qui vient d'être tapé —
+        // rien n'est compté deux fois.
+        //
+        // Le commentaire est ICI et non dans la requête : « // » n'est pas un
+        // commentaire SQL, MySQL le lit comme de la syntaxe et refuse tout.
         $upsertCellStmt = $db->prepare(
             "INSERT INTO interim_shift_requests (shift_date, department_name, time_slot, seats_required, comment, validation_status, validated_by_user_id, validated_at, created_by_user_id)
              VALUES (?, ?, ?, ?, NULL, 'pending', NULL, NULL, ?)
              ON DUPLICATE KEY UPDATE
-                // ⚠️ ADDITION, pas remplacement : retaper le meme horaire dans une
-                // case veut dire « une personne de plus ». Le champ de saisie etant
-                // toujours vide a l'affichage, un envoi n'apporte que ce qui vient
-                // d'etre tape — rien n'est compte deux fois.
                 seats_required = seats_required + VALUES(seats_required),
                 validation_status = 'pending',
                 validated_by_user_id = NULL,
