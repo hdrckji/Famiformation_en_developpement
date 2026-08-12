@@ -104,7 +104,7 @@ $departmentOptions = $departmentStmt->fetchAll(PDO::FETCH_COLUMN);
 // alors qu'elles sont exactement le cas « tout le secteur ».
 $ciblesEcriture = $departmentOptions;
 if (function_exists('secteursListe')) {
-    foreach (secteursListe($db) as $secteurArbre) {
+    foreach (secteursListe($db, true) as $secteurArbre) {
         $ciblesEcriture[] = (string) $secteurArbre['nom'];
     }
 }
@@ -1044,6 +1044,7 @@ while ($vueCursor <= $selectedWeek['end']) {
         .vue-jour { background: #2d5a37; color: #fff; font-size: .76rem; font-weight: 800; text-align: center; padding: 6px 10px; }
         .vue-jour .vue-date { font-weight: 400; opacity: .8; }
         .vue-secteur td { background: #7ed321; color: #1d3d12; font-weight: 800; text-align: center; font-size: .78rem; padding: 3px; }
+        .vue-sansdept td { background: #f4f7e8; color: #6b6b3a; font-style: italic; text-align: center; font-size: .68rem; padding: 2px; }
         .vue-departement td { background: #ffff66; color: #4a4a00; font-weight: 700; text-align: center; font-size: .74rem; padding: 2px; }
         .vue-fin { border-right: 6px solid #1d3d24 !important; }
         .vue-pair { background: #eef3ef; }
@@ -1570,8 +1571,14 @@ while ($vueCursor <= $selectedWeek['end']) {
                                             $cleEcriture = ($dept !== '') ? $dept : $secteur;
                                             $connu = in_array($cleEcriture, $ciblesEcriture, true);
                                             ?>
+                                            <?php // Sans bandeau jaune, la premiere ligne d'un secteur
+                                                  // ressemblait a un departement sans nom. On dit ce
+                                                  // qu'elle est : les horaires du secteur, sans
+                                                  // departement precise. ?>
                                             <?php if ($dept !== ''): ?>
                                                 <tr class="vue-departement"><td colspan="<?php echo (int) $vueCols; ?>"><?php echo e($dept); ?></td></tr>
+                                            <?php else: ?>
+                                                <tr class="vue-sansdept"><td colspan="<?php echo (int) $vueCols; ?>"><?php echo e(fjdT('— sans département précis —', '— zonder specifieke afdeling —')); ?></td></tr>
                                             <?php endif; ?>
 
                                             <tr>

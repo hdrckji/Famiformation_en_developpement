@@ -63,7 +63,11 @@ if (!function_exists('grilleSemaineRangement')) {
         if (function_exists('secteursCharge')) {
             secteursCharge();
         }
-        $arbre = function_exists('secteursListe') ? secteursListe($db) : [];
+        // ⚠️ « true » : INCLURE les secteurs sans departement. Par defaut
+        // secteursListe() les ecarte — utile pour un menu, faux ici : un
+        // secteur sans departement doit quand meme pouvoir recevoir des
+        // horaires, puisqu'on a justement le droit de ne pas preciser.
+        $arbre = function_exists('secteursListe') ? secteursListe($db, true) : [];
 
         $rangement = [
             'arbre'    => $arbre,
