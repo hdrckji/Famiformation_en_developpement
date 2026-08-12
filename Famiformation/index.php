@@ -650,30 +650,15 @@ if ($wcThemeOn && !empty($siteTheme) && is_array($siteTheme)) {
             <div class="tile-desc"><?= t('Parcours rapide sur l’utilisation de la caisse.', 'Snelle module over het gebruik van de kassa.') ?></div>
         </a>
 
-        <?php if ($onboarding_completed): ?>
-        <a href="student_disponibilites.php" class="tile">
-            <div class="tile-media"><span class="tile-icon">🗓️</span></div>
-            <div class="tile-title"><?= t('Mes disponibilités', 'Mijn beschikbaarheden') ?></div>
-            <div class="tile-desc"><?= t('Indique tes jours de disponibilité sur les 30 prochains jours.', 'Geef je beschikbare dagen voor de komende 30 dagen aan.') ?></div>
-        </a>
-        <?php endif; ?>
-
-        <a href="mon_horaire.php" class="tile">
-            <div class="tile-media"><span class="tile-icon">🕒</span></div>
-            <div class="tile-title"><?= t('Mes horaires attribués', 'Mijn toegewezen uren') ?></div>
-            <div class="tile-desc"><?= t('Consulte tes créneaux passés, du jour et futurs en lecture seule.', 'Bekijk je vroegere, huidige en toekomstige uren (alleen lezen).') ?></div>
-        </a>
-
-        <?php // La VUE HORAIRE vit dans FamiJob, mais l'etudiant y accede d'ici :
-              // c'est son chemin depuis toujours, comme « Mes disponibilites » et
-              // « Mes horaires attribues » juste au-dessus. Lui demander de
-              // passer par l'accueil de FamiJob serait un detour, et deux
-              // portes a retenir au lieu d'une. ?>
-        <a href="famijob/vue_horaire.php" class="tile">
-            <div class="tile-media"><span class="tile-icon">📅</span></div>
-            <div class="tile-title"><?= t('Vue horaire', 'Uurroosterweergave') ?></div>
-            <div class="tile-desc"><?= t('Le planning de la semaine, pour voir qui travaille quand.', 'De weekplanning, om te zien wie wanneer werkt.') ?></div>
-        </a>
+        <?php // ── LES MODULES FAMIJOB NE SONT PLUS ICI ────────────────────
+              // « Mes disponibilités », « Mes horaires attribués » et la vue
+              // horaire appartiennent à FamiJob. Les servir depuis l'accueil du
+              // site, c'était deux portes pour un même écran, et une liste de
+              // tuiles qui s'allongeait à chaque fonction ajoutée là-bas.
+              //
+              // Une seule tuile « FamiJob » plus bas y mène. Comme la session
+              // est déjà ouverte, on y entre sans se reconnecter, et chacun y
+              // trouve ses modules selon son profil. ?>
         <?php endif; ?>
 
         <?php if ($role === 'admin' || $role === 'employe_logistique' || $role === 'teamcoach' || $role === 'mentor'): ?>
@@ -697,12 +682,17 @@ if ($wcThemeOn && !empty($siteTheme) && is_array($siteTheme)) {
         </a>
         <?php endif; ?>
 
-        <?php if ($role === 'admin' || $role === 'teamcoach'): ?>
-        <a href="famijob/index.php" class="tile tile-admin">
+        <?php // 💼 LA PORTE UNIQUE VERS FAMIJOB, ouverte a TOUS les profils.
+              // Ce que chacun y trouve depend de son role, et c'est FamiJob qui
+              // en decide — pas cette page. Reserver la tuile aux admins
+              // obligeait a recopier ici les modules des autres, un par un. ?>
+        <a href="famijob/index.php" class="tile">
             <div class="tile-media"><span class="tile-icon">💼</span></div>
-            <div class="tile-title">Famijob</div>
-            <div class="tile-desc"><?= t('Accéder à la plateforme Famijob (gestion des jobs étudiants).', 'Toegang tot het Famijob-platform (beheer van studentenjobs).') ?></div>
+            <div class="tile-title">FamiJob</div>
+            <div class="tile-desc"><?= t('Les horaires : tes disponibilités, tes créneaux attribués et le planning de la semaine. Tu y entres sans te reconnecter.', 'De uurroosters: je beschikbaarheden, je toegewezen tijdsblokken en de weekplanning. Je gaat er binnen zonder opnieuw aan te melden.') ?></div>
         </a>
+
+        <?php if ($role === 'admin' || $role === 'teamcoach'): ?>
         <?php if ($role === 'admin'): ?>
         <?php // 💼 LES ÉCRANS D'HORAIRES SONT PARTIS, sauf la tuile Famijob
               // ci-dessus : « Demandes Horaires Intérim », « Matching Intérim »,

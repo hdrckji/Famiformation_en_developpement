@@ -548,19 +548,26 @@ $famijobBackgroundUrl = resolvePublicAssetUrl(
                 <div class="tile-desc"><?= e(fjT('Une question, une idée, un souci ? Envoyez votre avis à l\'équipe.', 'Een vraag, een idee, een probleem? Stuur je feedback naar het team.')) ?></div>
             </a>
             <?php else: ?>
-            <?php // ETUDIANT.
+            <?php // ETUDIANT. Ses modules sont TOUS ici desormais : l'accueil de
+                  // FamiFormation ne porte plus qu'une tuile « FamiJob » qui
+                  // mene a cet ecran. Une porte, et derriere elle ce qui
+                  // correspond a chacun.
                   //
-                  // ⚠️ PAS de tuile « Mes disponibilites » ici : elle existe
-                  // DEJA sur l'accueil de FamiFormation, avec « Mes horaires
-                  // attribues ». C'est par la que les etudiants entrent depuis
-                  // toujours — leur acces aux fonctions FamiJob passe par des
-                  // modules du site, pas par cet accueil.
-                  //
-                  // En remettre une ici ne faisait que renvoyer vers la meme
-                  // page, avec deux chemins a maintenir pour un seul ecran.
-                  // L'accueil reste ouvert pour qu'un etudiant qui arrive sur
-                  // FamiJob ne se prenne pas un mur, et il y trouve ce qui
-                  // n'existe nulle part ailleurs. ?>
+                  // « Mes disponibilites » pointe encore vers une page du site :
+                  // elle y est hebergee et n'a pas ete deplacee. Ce n'est plus
+                  // un doublon — c'est le seul chemin. ?>
+            <a href="<?= e(famijobSiteUrl('student_disponibilites.php')) ?>" class="tile">
+                <div class="tile-icon">🗓️</div>
+                <div class="tile-title"><?= e(fjT('Mes disponibilités', 'Mijn beschikbaarheden')) ?></div>
+                <div class="tile-desc"><?= e(fjT('Indique tes jours de disponibilité sur les 30 prochains jours.', 'Geef je beschikbare dagen voor de komende 30 dagen aan.')) ?></div>
+            </a>
+
+            <a href="mes_horaires_attribues.php" class="tile">
+                <div class="tile-icon">🕒</div>
+                <div class="tile-title"><?= e(fjT('Mes horaires attribués', 'Mijn toegewezen uren')) ?></div>
+                <div class="tile-desc"><?= e(fjT('Tes créneaux passés, du jour et à venir, en lecture seule.', 'Je vroegere, huidige en komende tijdsblokken, alleen lezen.')) ?></div>
+            </a>
+
             <a href="vue_horaire.php" class="tile">
                 <div class="tile-icon">📅</div>
                 <div class="tile-title"><?= e(fjT('Vue horaire', 'Uurroosterweergave')) ?></div>
