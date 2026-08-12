@@ -663,6 +663,17 @@ if ($wcThemeOn && !empty($siteTheme) && is_array($siteTheme)) {
             <div class="tile-title"><?= t('Mes horaires attribués', 'Mijn toegewezen uren') ?></div>
             <div class="tile-desc"><?= t('Consulte tes créneaux passés, du jour et futurs en lecture seule.', 'Bekijk je vroegere, huidige en toekomstige uren (alleen lezen).') ?></div>
         </a>
+
+        <?php // La VUE HORAIRE vit dans FamiJob, mais l'etudiant y accede d'ici :
+              // c'est son chemin depuis toujours, comme « Mes disponibilites » et
+              // « Mes horaires attribues » juste au-dessus. Lui demander de
+              // passer par l'accueil de FamiJob serait un detour, et deux
+              // portes a retenir au lieu d'une. ?>
+        <a href="famijob/vue_horaire.php" class="tile">
+            <div class="tile-media"><span class="tile-icon">📅</span></div>
+            <div class="tile-title"><?= t('Vue horaire', 'Uurroosterweergave') ?></div>
+            <div class="tile-desc"><?= t('Le planning de la semaine, pour voir qui travaille quand.', 'De weekplanning, om te zien wie wanneer werkt.') ?></div>
+        </a>
         <?php endif; ?>
 
         <?php if ($role === 'admin' || $role === 'employe_logistique' || $role === 'teamcoach' || $role === 'mentor'): ?>

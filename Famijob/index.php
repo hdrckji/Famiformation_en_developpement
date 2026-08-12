@@ -548,16 +548,19 @@ $famijobBackgroundUrl = resolvePublicAssetUrl(
                 <div class="tile-desc"><?= e(fjT('Une question, une idée, un souci ? Envoyez votre avis à l\'équipe.', 'Een vraag, een idee, een probleem? Stuur je feedback naar het team.')) ?></div>
             </a>
             <?php else: ?>
-            <?php // ETUDIANT : ses disponibilites, et le planning ou il se
-                  // cherche. « Mes disponibilites » vit cote FamiFormation : on
-                  // y renvoie plutot que d'en faire une seconde version qui
-                  // divergerait de la premiere. ?>
-            <a href="<?= e(famijobSiteUrl('student_disponibilites.php')) ?>" class="tile">
-                <div class="tile-icon">🗓️</div>
-                <div class="tile-title"><?= e(fjT('Mes disponibilites', 'Mijn beschikbaarheden')) ?></div>
-                <div class="tile-desc"><?= e(fjT('Indique les jours ou tu peux travailler.', 'Geef aan op welke dagen je kan werken.')) ?></div>
-            </a>
-
+            <?php // ETUDIANT.
+                  //
+                  // ⚠️ PAS de tuile « Mes disponibilites » ici : elle existe
+                  // DEJA sur l'accueil de FamiFormation, avec « Mes horaires
+                  // attribues ». C'est par la que les etudiants entrent depuis
+                  // toujours — leur acces aux fonctions FamiJob passe par des
+                  // modules du site, pas par cet accueil.
+                  //
+                  // En remettre une ici ne faisait que renvoyer vers la meme
+                  // page, avec deux chemins a maintenir pour un seul ecran.
+                  // L'accueil reste ouvert pour qu'un etudiant qui arrive sur
+                  // FamiJob ne se prenne pas un mur, et il y trouve ce qui
+                  // n'existe nulle part ailleurs. ?>
             <a href="vue_horaire.php" class="tile">
                 <div class="tile-icon">📅</div>
                 <div class="tile-title"><?= e(fjT('Vue horaire', 'Uurroosterweergave')) ?></div>
