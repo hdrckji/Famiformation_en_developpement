@@ -86,13 +86,22 @@ $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 // Sans ce filtre, l'export ne dirait pas la meme chose que l'ecran d'ou on
 // vient — et c'est exactement le genre de fichier qu'on diffuse sans le
 // relire.
-$filtreSecteur = trim((string) ($_GET['secteur'] ?? ''));
-if ($filtreSecteur !== '') {
+// Un seul secteur (?secteur=) ou plusieurs (?secteurs[]=), au choix : le premier
+// vient du bouton qui suit les filtres a l'ecran, le second de la fenetre de
+// selection. Les deux se rejoignent ici.
+$filtreSecteurs = [];
+if (!empty($_GET['secteurs']) && is_array($_GET['secteurs'])) {
+    $filtreSecteurs = array_values(array_filter(array_map('strval', $_GET['secteurs'])));
+} elseif (trim((string) ($_GET['secteur'] ?? '')) !== '') {
+    $filtreSecteurs = [trim((string) $_GET['secteur'])];
+}
+
+if ($filtreSecteurs) {
     require_once __DIR__ . '/includes/grille_semaine.php';
     $rangementExport = grilleSemaineRangement($db);
-    $rows = array_values(array_filter($rows, static function ($r) use ($rangementExport, $filtreSecteur) {
+    $rows = array_values(array_filter($rows, static function ($r) use ($rangementExport, $filtreSecteurs) {
         $place = grilleSemaineResout((string) $r['department_name'], $rangementExport);
-        return $place['secteur'] === $filtreSecteur;
+        return in_array($place['secteur'], $filtreSecteurs, true);
     }));
 }
 
@@ -313,7 +322,15 @@ function fjxBuildXlsx(array $days, array $deptNames, array $byDept, callable $da
             $sheet->getStyle('A' . $firstDataRow . ':' . fjxCol(42) . ($r - 1))->applyFromArray([
                 'borders' => ['allBorders' => ['borderStyle' => $thin, 'color' => ['rgb' => 'DDE6DF']]],
                 'font' => ['size' => 10],
+                // Centre, horizontalement et verticalement. Des horaires et des
+                // noms calés à gauche dans des colonnes larges laissent un vide
+                // qui casse la lecture d'une ligne à l'autre.
+                'alignment' => ['horizontal' => $hCenter, 'vertical' => $vCenter],
             ]);
+            // Le nom du département reste à gauche : c'est un libellé de ligne,
+            // pas une donnée du tableau, et l'œil le suit mieux aligné.
+            $sheet->getStyle('A' . $firstDataRow . ':A' . ($r - 1))
+                  ->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_LEFT);
             // Couleur alternee : on teinte les jours impairs (mardi, jeudi, samedi) pour
             // distinguer visuellement les colonnes de jours (comme dans le planning).
             for ($dayIdx = 1; $dayIdx < 7; $dayIdx += 2) {

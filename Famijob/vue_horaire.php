@@ -298,6 +298,15 @@ foreach ($byDeptDay as $departmentName => $byDay) {
             color:#2d5a37; border:1px solid #cfdad3; font-weight:800; font-size:.92rem;
             padding:11px 18px; border-radius:12px; }
         .btn-vue:hover { border-color:#2d5a37; }
+        .export-choix { position: relative; }
+        .export-choix summary { list-style: none; cursor: pointer; }
+        .export-choix summary::-webkit-details-marker { display: none; }
+        .export-panneau { position: absolute; right: 0; top: calc(100% + 8px); z-index: 30;
+            background: #fff; border: 1px solid #d8e2db; border-radius: 14px; padding: 14px 16px;
+            box-shadow: 0 14px 34px rgba(22,49,33,.18); min-width: 260px; }
+        .export-titre { margin: 0 0 2px; font-weight: 800; font-size: .9rem; }
+        .export-aide { margin: 0 0 10px; color: var(--muted); font-size: .78rem; }
+        .export-case { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: .88rem; cursor: pointer; }
         label { display: block; margin-bottom: 6px; font-size: 0.82rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 700; }
         input, select { width: 100%; box-sizing: border-box; border: 1px solid #cfdad3; border-radius: 12px; padding: 10px 11px; font-size: 0.95rem; font-family: inherit; background: #fff; }
         .btn { border: none; border-radius: 12px; padding: 10px 14px; font-weight: 700; cursor: pointer; font-size: 0.9rem; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
@@ -424,10 +433,38 @@ foreach ($byDeptDay as $departmentName => $byDay) {
                 : '▦ ' . e(fjvhT('Vue classeur', 'Werkboekweergave')); ?>
         </a>
 
-        <a class="btn-export" href="export_matching.php?week=<?php echo e($selectedWeekKey); ?><?php echo $selectedSecteur !== '' ? '&secteur=' . urlencode($selectedSecteur) : ''; ?><?php echo $selectedDepartment !== 'all' ? '&department=' . urlencode($selectedDepartment) : ''; ?>"
-           title="<?php echo e(fjvhT('Exporter le planning affiché dans Excel', 'De getoonde planning naar Excel exporteren')); ?>">
-            ↓ <?php echo e(fjvhT('Exporter Excel', 'Naar Excel')); ?>
-        </a>
+        <?php // Deux facons d'exporter, et c'est voulu :
+              //   • ce bouton suit les filtres affiches — exporter autre chose
+              //     que ce qu'on regarde est le meilleur moyen de diffuser un
+              //     planning faux ;
+              //   • la fenetre permet de choisir PLUSIEURS secteurs d'un coup,
+              //     sans avoir a changer l'affichage.
+              // <details> plutot qu'une modale : ca s'ouvre sans JavaScript et
+              // ca se referme tout seul. ?>
+        <details class="export-choix">
+            <summary class="btn-export">↓ <?php echo e(fjvhT('Exporter Excel', 'Naar Excel')); ?></summary>
+            <form method="get" action="export_matching.php" class="export-panneau">
+                <input type="hidden" name="week" value="<?php echo e($selectedWeekKey); ?>">
+                <?php if ($selectedDepartment !== 'all'): ?>
+                    <input type="hidden" name="department" value="<?php echo e($selectedDepartment); ?>">
+                <?php endif; ?>
+
+                <p class="export-titre"><?php echo e(fjvhT('Quels secteurs exporter ?', 'Welke sectoren exporteren?')); ?></p>
+                <p class="export-aide"><?php echo e(fjvhT('Aucune case cochée = tous les secteurs.', 'Geen vakje aangevinkt = alle sectoren.')); ?></p>
+
+                <?php foreach ($vhSecteurs as $nomSecteur): ?>
+                    <label class="export-case">
+                        <input type="checkbox" name="secteurs[]" value="<?php echo e($nomSecteur); ?>"
+                               <?php echo $selectedSecteur === $nomSecteur ? 'checked' : ''; ?>>
+                        <?php echo e($nomSecteur); ?>
+                    </label>
+                <?php endforeach; ?>
+
+                <button type="submit" class="btn btn-primary" style="margin-top:10px; width:100%;">
+                    <?php echo e(fjvhT('Télécharger', 'Downloaden')); ?>
+                </button>
+            </form>
+        </details>
         <div class="legend"><?php echo e(fjvhT('Colonnes = jours de la semaine. Lignes = départements. L\'horaire est indiqué dans chaque bulle.', 'Kolommen = weekdagen. Rijen = afdelingen. Het uurrooster staat in elke bubbel.')); ?></div>
     </div>
 
