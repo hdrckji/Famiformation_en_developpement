@@ -1448,7 +1448,7 @@ if ($mSecteur !== '') {
 }
 
 $semaineUrl = 'interim_horaires.php?week=' . urlencode($selectedWeekKey);
-?>
+// (le PHP reste ouvert : l aiguillage vers la vue est du code, pas du texte)
 // ─────────────────────────────────────────────────────────────────────────────
 // DEUX VUES, UN SEUL TRAITEMENT.
 //
