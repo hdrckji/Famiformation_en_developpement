@@ -309,6 +309,87 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    // ── SAISIE DIRECTE DANS LA GRILLE ────────────────────────────────────────
+    // Le classeur se remplit case par case : on écrit l'horaire là où il doit
+    // apparaître, sans choisir un département en haut de page puis descendre.
+    //
+    // Même écriture que la saisie par jour ci-dessus — même requête, même
+    // ON DUPLICATE KEY, même statut « pending ». Seule la FORME du formulaire
+    // change : `cell_text[département][date]` au lieu d'un département unique.
+    // Deux traitements auraient fini par ne plus créer les demandes de la même
+    // façon selon l'onglet utilisé.
+    if (isset($_POST['create_requests_cells'])) {
+        $cells = $_POST['cell_text'] ?? [];
+        if (!is_array($cells)) { $cells = []; }
+
+        $weekStartStr = $selectedWeek['start']->format('Y-m-d');
+        $weekEndStr   = $selectedWeek['end']->format('Y-m-d');
+
+        $upsertCellStmt = $db->prepare(
+            "INSERT INTO interim_shift_requests (shift_date, department_name, time_slot, seats_required, comment, validation_status, validated_by_user_id, validated_at, created_by_user_id)
+             VALUES (?, ?, ?, ?, NULL, 'pending', NULL, NULL, ?)
+             ON DUPLICATE KEY UPDATE
+                seats_required = VALUES(seats_required),
+                validation_status = 'pending',
+                validated_by_user_id = NULL,
+                validated_at = NULL,
+                updated_at = CURRENT_TIMESTAMP"
+        );
+
+        $createdCount = 0;
+        $refuses = [];
+
+        foreach ($cells as $dept => $parJour) {
+            $dept = trim((string) $dept);
+            // Le département vient d'une case du tableau, donc du navigateur :
+            // on le confronte à la liste connue avant d'écrire quoi que ce soit.
+            if (!in_array($dept, $departmentOptions, true)) {
+                if ($dept !== '') { $refuses[$dept] = true; }
+                continue;
+            }
+            if (!is_array($parJour)) { continue; }
+
+            foreach ($parJour as $dateKey => $contenu) {
+                $dateKey = trim((string) $dateKey);
+                if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateKey) !== 1
+                    || $dateKey < $weekStartStr || $dateKey > $weekEndStr) {
+                    continue;
+                }
+
+                // Une ligne = un horaire ; deux lignes identiques = deux places.
+                // C'est la règle de la saisie par jour, on ne l'invente pas ici.
+                $counts = [];
+                foreach (preg_split('/\r\n|\r|\n/', (string) $contenu) as $ligne) {
+                    $slot = trim((string) $ligne);
+                    if ($slot === '') { continue; }
+                    $slot = mb_substr($slot, 0, 60);
+                    if (!isset($counts[$slot])) { $counts[$slot] = 0; }
+                    $counts[$slot]++;
+                }
+
+                foreach ($counts as $slot => $cnt) {
+                    $upsertCellStmt->execute([
+                        $dateKey,
+                        $dept,
+                        $slot,
+                        max(1, min(30, (int) $cnt)),
+                        $currentUserId,
+                    ]);
+                    $createdCount++;
+                }
+            }
+        }
+
+        if ($createdCount > 0) {
+            $notifyAdminsNewDemands($createdCount, fjdT('plusieurs départements', 'meerdere afdelingen'), (string) ($selectedWeek['label'] ?? ''));
+            $message = "<div class='alert success'>" . $createdCount . ' ' . e(fjdT('créneau(x) enregistré(s).', 'tijdsblok(ken) geregistreerd.')) . "</div>";
+        } elseif ($refuses) {
+            $message = "<div class='alert error'>" . e(fjdT('Département inconnu : ', 'Onbekende afdeling: ')) . e(implode(', ', array_keys($refuses))) . "</div>";
+        } else {
+            $message = "<div class='alert error'>" . e(fjdT('Aucun horaire saisi.', 'Geen uurrooster ingevuld.')) . "</div>";
+        }
+    }
+
     if (isset($_POST['save_block'])) {
         $blockName = trim((string) ($_POST['block_name'] ?? ''));
         $decoded = json_decode((string) ($_POST['block_payload'] ?? ''), true);
@@ -445,7 +526,7 @@ foreach ($userBlocks as $b) {
 
 // Onglet actif (après un envoi "par jour", on y reste ; conservé aussi au changement de semaine).
 $activeTab = 'grid';
-if (isset($_POST['create_requests_byday'])) {
+if (isset($_POST['create_requests_byday']) || isset($_POST['create_requests_cells'])) {
     $activeTab = 'byday';
 } else {
     $requestedTab = (string) ($_GET['tab'] ?? $_POST['tab'] ?? 'grid');
@@ -558,6 +639,30 @@ try {
     // La vue est un confort : si la lecture échoue, la page doit continuer à
     // permettre de CRÉER des demandes, qui est son métier.
     $vueGrille = [];
+}
+
+// ⚠️ TOUS les départements figurent dans la grille, y compris ceux sans aucune
+// demande : c'est une feuille de saisie, pas un rapport. Ne montrer que les
+// lignes déjà remplies obligerait à passer par un autre écran pour ajouter un
+// créneau là où il n'y en a pas encore — exactement ce qu'on cherche à éviter.
+foreach ($vueRangement['arbre'] as $sec) {
+    $nomSecteur = (string) $sec['nom'];
+    if (!isset($vueGrille[$nomSecteur])) {
+        $vueGrille[$nomSecteur] = [];
+    }
+    // La ligne du secteur lui-même (demande sans département précisé).
+    if (!isset($vueGrille[$nomSecteur][''])) {
+        $vueGrille[$nomSecteur][''] = [];
+    }
+    foreach ($sec['departements'] as $dep) {
+        $nomDep = (string) $dep['nom'];
+        if ($nomDep === $nomSecteur) {
+            continue;   // homonyme du secteur : déjà couvert par la ligne ci-dessus
+        }
+        if (!isset($vueGrille[$nomSecteur][$nomDep])) {
+            $vueGrille[$nomSecteur][$nomDep] = [];
+        }
+    }
 }
 
 $vueGrille = grilleSemaineOrdonne($vueGrille, $vueRangement, $vueSansSecteur);
@@ -786,6 +891,18 @@ while ($vueCursor <= $selectedWeek['end']) {
         .vue-case.est-valide .vue-etat { color: #1d6a39; }
         .vue-case.est-attente { background: #fff4e2; }
         .vue-case.est-attente .vue-etat { color: #a16a1e; }
+
+
+        /* Cases de SAISIE : les creneaux deja demandes en jetons, puis un champ
+           vide pour ajouter. Le champ reste vide a dessein — un envoi ne doit
+           jamais reecrire ce qui est deja valide. */
+        .vue-case-saisie { vertical-align: top; min-width: 96px; padding: 3px !important; }
+        .vue-jeton { border-radius: 5px; padding: 1px 5px; margin-bottom: 2px; font-size: .68rem; font-weight: 700; white-space: nowrap; }
+        .vue-jeton.est-valide { background: #e7f6ea; color: #1d6a39; border: 1px solid #b7e0c1; }
+        .vue-jeton.est-attente { background: #fff4e2; color: #a16a1e; border: 1px solid #f0d5a8; }
+        .vue-case-saisie textarea { width: 100%; min-width: 88px; border: 1px dashed #ccd6cf; border-radius: 5px; padding: 2px 4px; font-family: inherit; font-size: .68rem; resize: vertical; background: #fff; }
+        .vue-case-saisie textarea:focus { border-color: #2d5a37; border-style: solid; outline: none; }
+        .vue-fige { color: #b9c4bd; font-size: .68rem; }
 
         .grid-table {
             width: 100%;
@@ -1094,86 +1211,6 @@ while ($vueCursor <= $selectedWeek['end']) {
         </section>
 
         <section class="layout">
-            <?php // ── LA SEMAINE, COMME DANS LE CLASSEUR ──────────────────────
-                  // Placée AVANT les formulaires : on regarde ce qui existe
-                  // déjà, puis on complète. L'inverse obligeait à créer à
-                  // l'aveugle, puis à aller vérifier ailleurs. ?>
-            <section class="card" style="margin-bottom:18px;">
-                <div class="card-head">
-                    <?php echo e(fjdT('La semaine', 'De week')); ?>
-                    <span style="font-weight:400; opacity:.85; font-size:.85rem;">
-                        — <?php echo e(fjdT('vert : validé · orange : en attente', 'groen: goedgekeurd · oranje: in afwachting')); ?>
-                    </span>
-                </div>
-                <div class="card-body" style="padding:0;">
-                    <?php if (!$vueGrille): ?>
-                        <p style="padding:18px 22px; color:var(--muted); margin:0;">
-                            <?php echo e(fjdT('Aucune demande cette semaine.', 'Geen aanvraag deze week.')); ?>
-                        </p>
-                    <?php else: ?>
-                    <div class="vue-cadre">
-                        <table class="vue-semaine">
-                            <thead>
-                                <tr>
-                                    <?php foreach ($vueJours as $j): ?>
-                                        <th class="vue-jour vue-fin"><?php echo e($j['label']); ?> <span class="vue-date"><?php echo e($j['date']); ?></span></th>
-                                    <?php endforeach; ?>
-                                </tr>
-                            </thead>
-                            <tbody>
-                            <?php $vueCols = count($vueJours); ?>
-                            <?php foreach ($vueGrille as $secteur => $blocs): ?>
-                                <tr class="vue-secteur"><td colspan="<?php echo (int) $vueCols; ?>"><?php echo e($secteur); ?></td></tr>
-
-                                <?php foreach ($blocs as $dept => $parJour): ?>
-                                    <?php if ($dept !== ''): ?>
-                                        <tr class="vue-departement"><td colspan="<?php echo (int) $vueCols; ?>"><?php echo e($dept); ?></td></tr>
-                                    <?php endif; ?>
-
-                                    <?php
-                                    // Autant de lignes que le jour le plus chargé : les
-                                    // colonnes ne s'alignent pas entre elles, comme dans
-                                    // le classeur.
-                                    $hauteur = 0;
-                                    foreach ($vueJours as $j) {
-                                        $n = isset($parJour[$j['key']]) ? count($parJour[$j['key']]) : 0;
-                                        if ($n > $hauteur) { $hauteur = $n; }
-                                    }
-                                    ?>
-
-                                    <?php for ($l = 0; $l < $hauteur; $l++): ?>
-                                        <tr>
-                                            <?php foreach ($vueJours as $iJ => $j): ?>
-                                                <?php
-                                                $c = $parJour[$j['key']][$l] ?? null;
-                                                $pair = ($iJ % 2 === 1) ? ' vue-pair' : '';
-                                                ?>
-                                                <?php if (!$c): ?>
-                                                    <td class="vue-vide vue-fin<?php echo $pair; ?>"></td>
-                                                <?php else: ?>
-                                                    <td class="vue-case vue-fin<?php echo $pair; ?> <?php echo $c['etat'] === 'approved' ? 'est-valide' : 'est-attente'; ?>"
-                                                        <?php if ($c['note'] !== ''): ?>title="<?php echo e($c['note']); ?>"<?php endif; ?>>
-                                                        <span class="vue-h"><?php echo e($c['horaire']); ?></span>
-                                                        <?php if ($c['places'] > 1): ?>
-                                                            <span class="vue-n">×<?php echo (int) $c['places']; ?></span>
-                                                        <?php endif; ?>
-                                                        <span class="vue-etat"><?php echo $c['etat'] === 'approved'
-                                                            ? e(fjdT('validé', 'ok'))
-                                                            : e(fjdT('en attente', 'in afwachting')); ?></span>
-                                                    </td>
-                                                <?php endif; ?>
-                                            <?php endforeach; ?>
-                                        </tr>
-                                    <?php endfor; ?>
-                                <?php endforeach; ?>
-                            <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    </div>
-                    <?php endif; ?>
-                </div>
-            </section>
-
             <section class="card" style="margin-bottom:18px;">
                 <div class="card-head"><?php echo e(fjdT('Création rapide', 'Snel aanmaken')); ?></div>
                 <div class="card-body">
@@ -1262,51 +1299,98 @@ while ($vueCursor <= $selectedWeek['end']) {
                     </div><!-- /panel-grid -->
 
                     <div id="panel-byday" class="tab-panel" style="display:<?php echo $activeTab === 'byday' ? 'block' : 'none'; ?>;">
-                        <form method="POST" id="createFormByday">
+                        <?php // ── LE CLASSEUR, ÉDITABLE ────────────────────────────
+                              // On écrit l'horaire là où il doit apparaître : dans la
+                              // case du département, à la colonne du jour. Plus de
+                              // « choisir un département en haut, puis descendre » —
+                              // c'est le geste du fichier Excel dont vient l'équipe.
+                              //
+                              // Les créneaux DÉJÀ demandés sont affichés dans la case,
+                              // avec leur état. Le champ de saisie sert à AJOUTER : il
+                              // reste vide, pour qu'un envoi ne réécrive jamais par
+                              // mégarde ce qui est déjà validé. ?>
+                        <form method="POST" id="createFormCells">
                             <?php echo csrfField(); ?>
-                            <input type="hidden" name="create_requests_byday" value="1">
+                            <input type="hidden" name="create_requests_cells" value="1">
                             <input type="hidden" name="week" value="<?php echo e($selectedWeekKey); ?>">
 
-                            <div style="margin-bottom:12px;max-width:420px;">
-                                <label for="department_name_byday"><?php echo e(fjdT('Département', 'Afdeling')); ?></label>
-                                <?php echo secteursFiltreHtml($db, 'department_name_byday'); ?>
-                                <select id="department_name_byday" name="department_name_byday" required>
-                                    <option value=""><?php echo e(fjdT('Sélectionner', 'Selecteren')); ?></option>
-                                    <?php echo secteursOptionsHtml($db, (string) ($_POST['department_name_byday'] ?? '')); ?>
-                                </select>
+                            <p class="helper" style="margin-top:0;">
+                                <?php echo e(fjdT(
+                                    'Écris tes horaires directement dans les cases, un par ligne. Deux lignes identiques le même jour = 2 personnes. Vert : déjà validé · Orange : en attente.',
+                                    'Schrijf je uurroosters rechtstreeks in de vakjes, één per regel. Twee identieke regels op dezelfde dag = 2 personen. Groen: goedgekeurd · Oranje: in afwachting.'
+                                )); ?>
+                            </p>
+
+                            <?php if (!$vueGrille): ?>
+                                <p style="color:var(--muted);">
+                                    <?php echo e(fjdT('Aucun secteur n’est enregistré : impossible d’afficher la grille.', 'Geen sector geregistreerd: het raster kan niet worden getoond.')); ?>
+                                </p>
+                            <?php else: ?>
+                            <div class="vue-cadre">
+                                <table class="vue-semaine">
+                                    <thead>
+                                        <tr>
+                                            <?php foreach ($vueJours as $j): ?>
+                                                <th class="vue-jour vue-fin"><?php echo e($j['label']); ?> <span class="vue-date"><?php echo e($j['date']); ?></span></th>
+                                            <?php endforeach; ?>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                    <?php $vueCols = count($vueJours); ?>
+                                    <?php foreach ($vueGrille as $secteur => $blocs): ?>
+                                        <tr class="vue-secteur"><td colspan="<?php echo (int) $vueCols; ?>"><?php echo e($secteur); ?></td></tr>
+
+                                        <?php foreach ($blocs as $dept => $parJour): ?>
+                                            <?php
+                                            // Clé écrite en base : le département s'il est précisé,
+                                            // sinon le secteur lui-même — c'est la règle des
+                                            // demandes qui ne descendent pas au département.
+                                            $cleEcriture = ($dept !== '') ? $dept : $secteur;
+                                            $connu = in_array($cleEcriture, $departmentOptions, true);
+                                            ?>
+                                            <?php if ($dept !== ''): ?>
+                                                <tr class="vue-departement"><td colspan="<?php echo (int) $vueCols; ?>"><?php echo e($dept); ?></td></tr>
+                                            <?php endif; ?>
+
+                                            <tr>
+                                                <?php foreach ($vueJours as $iJ => $j): ?>
+                                                    <?php
+                                                    $existants = $parJour[$j['key']] ?? [];
+                                                    $pair = ($iJ % 2 === 1) ? ' vue-pair' : '';
+                                                    ?>
+                                                    <td class="vue-case-saisie vue-fin<?php echo $pair; ?>">
+                                                        <?php foreach ($existants as $c): ?>
+                                                            <div class="vue-jeton <?php echo $c['etat'] === 'approved' ? 'est-valide' : 'est-attente'; ?>"
+                                                                 <?php if ($c['note'] !== ''): ?>title="<?php echo e($c['note']); ?>"<?php endif; ?>>
+                                                                <?php echo e($c['horaire']); ?><?php if ($c['places'] > 1): ?> ×<?php echo (int) $c['places']; ?><?php endif; ?>
+                                                            </div>
+                                                        <?php endforeach; ?>
+
+                                                        <?php if ($connu): ?>
+                                                            <textarea name="cell_text[<?php echo e($cleEcriture); ?>][<?php echo e($j['key']); ?>]"
+                                                                      rows="1" spellcheck="false"
+                                                                      placeholder="<?php echo e(fjdT('+ horaire', '+ uur')); ?>"></textarea>
+                                                        <?php else: ?>
+                                                            <?php // Un libellé que la liste des départements ne connaît
+                                                                  // pas ne peut pas servir de cible d'écriture : le
+                                                                  // traitement le refuserait. On montre l'existant,
+                                                                  // sans proposer d'y ajouter. ?>
+                                                            <span class="vue-fige">—</span>
+                                                        <?php endif; ?>
+                                                    </td>
+                                                <?php endforeach; ?>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    <?php endforeach; ?>
+                                    </tbody>
+                                </table>
                             </div>
 
-                            <label><?php echo e(fjdT('Jour', 'Dag')); ?></label>
-                            <div class="day-picker">
-                                <?php foreach ($weekDays as $weekDay): ?>
-                                    <button type="button" class="day-chip" data-day="<?php echo e($weekDay['key']); ?>" onclick="selectDay('<?php echo e($weekDay['key']); ?>', this)">
-                                        <span class="day-chip-label"><?php echo e($weekDay['label']); ?></span>
-                                        <span class="day-chip-date"><?php echo e($weekDay['date']); ?></span>
-                                    </button>
-                                <?php endforeach; ?>
+                            <div style="margin-top:14px;">
+                                <button type="submit" class="btn btn-primary"><?php echo e(fjdT('Enregistrer les horaires saisis', 'Ingevoerde uurroosters opslaan')); ?></button>
                             </div>
-
-                            <div class="byday-editor">
-                                <div class="byday-hint" id="bydayHint"><?php echo e(fjdT('Choisis un jour ci-dessus, puis saisis un horaire par ligne.', 'Kies hierboven een dag en voer één uurrooster per regel in.')); ?></div>
-                                <?php foreach ($weekDays as $weekDay): ?>
-                                    <div class="byday-pane" id="pane-<?php echo e($weekDay['key']); ?>" style="display:none;">
-                                        <label><?php echo e(fjdT('Horaires du', 'Uurroosters van')); ?> <?php echo e($weekDay['label']); ?> <?php echo e($weekDay['date']); ?> — <?php echo e(fjdT('un horaire par ligne', 'één uurrooster per regel')); ?></label>
-                                        <textarea name="day_text[<?php echo e($weekDay['key']); ?>]" placeholder="9h30-18h30&#10;10h-19h" oninput="markDayFilled('<?php echo e($weekDay['key']); ?>')"><?php echo e($bydayText[$weekDay['key']] ?? ''); ?></textarea>
-                                    </div>
-                                <?php endforeach; ?>
-                            </div>
-
-                            <div style="margin:14px 0;max-width:420px;">
-                                <label for="global_comment_byday"><?php echo e(fjdT('Commentaire (optionnel)', 'Opmerking (optioneel)')); ?></label>
-                                <input type="text" id="global_comment_byday" name="global_comment_byday" value="<?php echo e((string) ($_POST['global_comment_byday'] ?? '')); ?>" placeholder="<?php echo e(fjdT('Ex : renfort caisse', 'Bijv.: extra kassa')); ?>">
-                            </div>
-
-                            <button type="submit" class="btn btn-primary"><?php echo e(fjdT('Enregistrer les demandes', 'Aanvragen opslaan')); ?></button>
+                            <?php endif; ?>
                         </form>
-
-                        <p class="helper">
-                            <?php echo e(fjdT('Choisis le département, clique sur un jour, puis saisis tes horaires (un par ligne). Passe d’un jour à l’autre : un point vert marque les jours déjà remplis. Deux lignes identiques le même jour = 2 personnes.', 'Kies de afdeling, klik op een dag en voer je uurroosters in (één per regel). Wissel van dag: een groene stip toont de reeds ingevulde dagen. Twee identieke regels op dezelfde dag = 2 personen.')); ?>
-                        </p>
                     </div><!-- /panel-byday -->
                 </div>
             </section>
@@ -1466,44 +1550,10 @@ while ($vueCursor <= $selectedWeek['end']) {
         });
     });
 
-    window.selectDay = function (dayKey, btn) {
-        document.querySelectorAll('#panel-byday .byday-pane').forEach(function (p) { p.style.display = 'none'; });
-        var pane = document.getElementById('pane-' + dayKey);
-        if (pane) {
-            pane.style.display = 'block';
-            var ta = pane.querySelector('textarea');
-            if (ta) { ta.focus(); }
-        }
-        document.querySelectorAll('#panel-byday .day-chip').forEach(function (c) { c.classList.remove('is-active'); });
-        if (btn) { btn.classList.add('is-active'); }
-        var hint = document.getElementById('bydayHint');
-        if (hint) { hint.style.display = 'none'; }
-    };
-
-    window.markDayFilled = function (dayKey) {
-        var pane = document.getElementById('pane-' + dayKey);
-        var ta = pane ? pane.querySelector('textarea') : null;
-        var chip = document.querySelector('#panel-byday .day-chip[data-day="' + dayKey + '"]');
-        if (ta && chip) {
-            if (ta.value.trim() !== '') { chip.classList.add('has-content'); }
-            else { chip.classList.remove('has-content'); }
-        }
-    };
-
-    function bydayInit() {
-        document.querySelectorAll('#panel-byday .day-chip').forEach(function (chip) {
-            var pane = document.getElementById('pane-' + chip.getAttribute('data-day'));
-            var ta = pane ? pane.querySelector('textarea') : null;
-            if (ta && ta.value.trim() !== '') { chip.classList.add('has-content'); }
-        });
-    }
-
-    function bydaySelectDefault() {
-        if (document.querySelector('#panel-byday .day-chip.is-active')) { return; }
-        var target = document.querySelector('#panel-byday .day-chip.has-content')
-            || document.querySelector('#panel-byday .day-chip');
-        if (target) { selectDay(target.getAttribute('data-day'), target); }
-    }
+    // Le JS de l'ancien onglet « par jour » (chips de jours, panneaux, pastilles
+    // de remplissage) a été retiré avec lui : la saisie se fait maintenant
+    // directement dans les cases de la grille, sans navigation entre jours.
+    // Le laisser aurait posé des écouteurs sur des éléments disparus.
 
     window.switchPanel = function (panelId, btn) {
         document.querySelectorAll('.tab-panel').forEach(function (p) { p.style.display = 'none'; });
@@ -1513,7 +1563,6 @@ while ($vueCursor <= $selectedWeek['end']) {
         if (btn) { btn.classList.add('is-active'); }
         var weekTabField = document.getElementById('weekTabField');
         if (weekTabField) { weekTabField.value = (panelId === 'panel-byday') ? 'byday' : 'grid'; }
-        if (panelId === 'panel-byday') { bydaySelectDefault(); }
     };
 
     window.insertBlock = function (id) {
@@ -1588,11 +1637,6 @@ while ($vueCursor <= $selectedWeek['end']) {
         addRow();
     }
 
-    // Onglet "par jour" : marque les jours remplis et sélectionne un jour si l'onglet est actif.
-    bydayInit();
-    if (<?php echo json_encode($activeTab); ?> === 'byday') {
-        bydaySelectDefault();
-    }
 })();
 </script>
 
