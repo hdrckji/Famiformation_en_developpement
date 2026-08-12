@@ -1399,7 +1399,12 @@ while ($vueCursor <= $selectedWeek['end']) {
                             <input type="hidden" name="tab" value="byday">
                             <div>
                                 <label for="vue_secteur"><?php echo e(fjdT('Secteur', 'Sector')); ?></label>
-                                <select name="vue_secteur" id="vue_secteur" onchange="this.form.vue_dept.value=''; this.form.submit();">
+                                <?php // ⚠️ Le select des departements n'existe QUE si un secteur est deja
+                                      // choisi. « this.form.vue_dept.value = '' » echouait donc au
+                                      // premier changement, et le formulaire ne partait jamais.
+                                      // On remet a zero seulement s'il est la. ?>
+                                <select name="vue_secteur" id="vue_secteur"
+                                        onchange="if (this.form.vue_dept) { this.form.vue_dept.value = ''; } this.form.submit();">
                                     <option value=""><?php echo e(fjdT('Tous', 'Alle')); ?></option>
                                     <?php foreach ($vueRangement['ordre'] as $nomSec): ?>
                                         <option value="<?php echo e($nomSec); ?>" <?php echo $vueSecteurFiltre === $nomSec ? 'selected' : ''; ?>><?php echo e($nomSec); ?></option>
@@ -1519,10 +1524,85 @@ while ($vueCursor <= $selectedWeek['end']) {
                 </div>
             </section>
 
-            <?php // La liste jour par jour a ete retiree : la grille ci-dessus dit
-                  // la meme chose, en une image au lieu de sept tableaux. Elle
-                  // portait la suppression d'un creneau — c'est desormais la croix
-                  // de chaque jeton qui s'en charge. ?>
+            <?php // ── LA LISTE JOUR PAR JOUR ────────────────────────────────────
+                  // Elle appartient a l'onglet GRILLE, ou elle reste le seul
+                  // endroit qui montre le remplissage et permet de supprimer une
+                  // demande. L'onglet « par jour » ne l'affiche pas : sa grille
+                  // dit deja la meme chose, et porte sa propre croix.
+                  //
+                  // L'affichage suit l'onglet cote CLIENT (switchPanel), pas
+                  // seulement au chargement : les onglets basculent en JavaScript,
+                  // un simple test PHP l'aurait figee sur l'etat d'arrivee. ?>
+            <div id="listeDemandes" style="display:<?php echo $activeTab === 'grid' ? 'block' : 'none'; ?>;">
+            <div>
+                <?php foreach ($weekDays as $weekDay): ?>
+                    <?php $dayRequests = $requestsByDate[$weekDay['key']] ?? []; ?>
+                    <section class="day-card">
+                        <div class="day-head">
+                            <span><?php echo e($weekDay['label']); ?> <?php echo e($weekDay['date']); ?></span>
+                            <span class="day-count"><?php echo count($dayRequests); ?> <?php echo e(fjdT('demande(s)', 'aanvraag/aanvragen')); ?></span>
+                        </div>
+
+                        <?php if (empty($dayRequests)): ?>
+                            <div class="empty"><?php echo e(fjdT('Aucune demande sur cette journée.', 'Geen aanvraag op deze dag.')); ?></div>
+                        <?php else: ?>
+                            <div class="table-wrap">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th><?php echo e(fjdT('Département / Horaire', 'Afdeling / Uurrooster')); ?></th>
+                                            <th><?php echo e(fjdT('Remplissage', 'Bezetting')); ?></th>
+                                            <th><?php echo e(fjdT('Validation', 'Validatie')); ?></th>
+                                            <th><?php echo e(fjdT('Action', 'Actie')); ?></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php foreach ($dayRequests as $request): ?>
+                                            <?php
+                                            $filled = (int) ($request['seats_filled'] ?? 0);
+                                            $required = (int) ($request['seats_required'] ?? 1);
+                                            ?>
+                                            <tr>
+                                                <td>
+                                                    <strong><?php echo e($request['department_name']); ?></strong>
+                                                    <div class="slot-meta"><?php echo e($request['time_slot']); ?></div>
+                                                    <?php if (!empty($request['comment'])): ?>
+                                                        <div class="slot-meta"><?php echo e($request['comment']); ?></div>
+                                                    <?php endif; ?>
+                                                </td>
+                                                <td>
+                                                    <span class="badge"><?php echo $filled; ?> / <?php echo $required; ?> pourvu(s)</span>
+                                                </td>
+                                                <td>
+                                                    <?php
+                                                    $validationStatus = (string) ($request['validation_status'] ?? 'pending');
+                                                    $validationLabel = fjdT('En attente', 'In afwachting');
+                                                    if ($validationStatus === 'approved') {
+                                                        $validationLabel = fjdT('Validée', 'Goedgekeurd');
+                                                    } elseif ($validationStatus === 'rejected') {
+                                                        $validationLabel = fjdT('Refusée', 'Geweigerd');
+                                                    }
+                                                    ?>
+                                                    <span class="badge"><?php echo e($validationLabel); ?></span>
+                                                </td>
+                                                <td>
+                                                    <form method="POST" onsubmit="return confirm('<?php echo e(fjdT('Supprimer cette demande et ses affectations ?', 'Deze aanvraag en toewijzingen verwijderen?')); ?>');">
+                                                        <?php echo csrfField(); ?>
+                                                        <input type="hidden" name="delete_request" value="1">
+                                                        <input type="hidden" name="request_id" value="<?php echo (int) $request['id']; ?>">
+                                                        <button type="submit" class="btn btn-danger"><?php echo e(fjdT('Supprimer', 'Verwijderen')); ?></button>
+                                                    </form>
+                                                </td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <?php endif; ?>
+                    </section>
+                <?php endforeach; ?>
+            </div>
+            </div>
         </section>
     </div>
 <script>
@@ -1623,6 +1703,11 @@ while ($vueCursor <= $selectedWeek['end']) {
         if (btn) { btn.classList.add('is-active'); }
         var weekTabField = document.getElementById('weekTabField');
         if (weekTabField) { weekTabField.value = (panelId === 'panel-byday') ? 'byday' : 'grid'; }
+
+        // La liste jour par jour appartient a l'onglet grille : l'onglet
+        // « par jour » a sa propre grille, qui dit la meme chose.
+        var liste = document.getElementById('listeDemandes');
+        if (liste) { liste.style.display = (panelId === 'panel-byday') ? 'none' : 'block'; }
     };
 
     window.insertBlock = function (id) {
