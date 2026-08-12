@@ -760,6 +760,33 @@ while ($vueCursor <= $selectedWeek['end']) {
             line-height: 1;
         }
 
+
+        /* ── LA SEMAINE, VUE CLASSEUR ────────────────────────────────────
+           Mêmes repères que l'écran de matching : secteur en vert,
+           département en jaune, une barre nette entre les jours et un fond
+           alterné. Deux écrans qui montrent la même chose doivent se
+           ressembler, sinon on ne sait plus lequel on regarde. */
+        .vue-cadre { overflow-x: auto; }
+        table.vue-semaine { border-collapse: collapse; width: max-content; min-width: 100%; font-size: .72rem; }
+        table.vue-semaine th, table.vue-semaine td { border: 1px solid #c8d3cc; padding: 3px 7px; white-space: nowrap; }
+        .vue-jour { background: #2d5a37; color: #fff; font-size: .76rem; font-weight: 800; text-align: center; padding: 6px 10px; }
+        .vue-jour .vue-date { font-weight: 400; opacity: .8; }
+        .vue-secteur td { background: #7ed321; color: #1d3d12; font-weight: 800; text-align: center; font-size: .78rem; padding: 3px; }
+        .vue-departement td { background: #ffff66; color: #4a4a00; font-weight: 700; text-align: center; font-size: .74rem; padding: 2px; }
+        .vue-fin { border-right: 6px solid #1d3d24 !important; }
+        .vue-pair { background: #eef3ef; }
+        .vue-vide { background: #f8faf9; }
+        .vue-case { text-align: center; }
+        .vue-case .vue-h { font-weight: 700; font-variant-numeric: tabular-nums; }
+        .vue-case .vue-n { color: #63756a; margin-left: 3px; }
+        .vue-case .vue-etat { display: block; font-size: .62rem; text-transform: uppercase; letter-spacing: .04em; }
+        /* L'etat se lit a la couleur ET au mot : la couleur seule exclut ceux
+           qui la distinguent mal. */
+        .vue-case.est-valide { background: #e7f6ea; }
+        .vue-case.est-valide .vue-etat { color: #1d6a39; }
+        .vue-case.est-attente { background: #fff4e2; }
+        .vue-case.est-attente .vue-etat { color: #a16a1e; }
+
         .grid-table {
             width: 100%;
             border-collapse: collapse;
@@ -1067,6 +1094,86 @@ while ($vueCursor <= $selectedWeek['end']) {
         </section>
 
         <section class="layout">
+            <?php // ── LA SEMAINE, COMME DANS LE CLASSEUR ──────────────────────
+                  // Placée AVANT les formulaires : on regarde ce qui existe
+                  // déjà, puis on complète. L'inverse obligeait à créer à
+                  // l'aveugle, puis à aller vérifier ailleurs. ?>
+            <section class="card" style="margin-bottom:18px;">
+                <div class="card-head">
+                    <?php echo e(fjdT('La semaine', 'De week')); ?>
+                    <span style="font-weight:400; opacity:.85; font-size:.85rem;">
+                        — <?php echo e(fjdT('vert : validé · orange : en attente', 'groen: goedgekeurd · oranje: in afwachting')); ?>
+                    </span>
+                </div>
+                <div class="card-body" style="padding:0;">
+                    <?php if (!$vueGrille): ?>
+                        <p style="padding:18px 22px; color:var(--muted); margin:0;">
+                            <?php echo e(fjdT('Aucune demande cette semaine.', 'Geen aanvraag deze week.')); ?>
+                        </p>
+                    <?php else: ?>
+                    <div class="vue-cadre">
+                        <table class="vue-semaine">
+                            <thead>
+                                <tr>
+                                    <?php foreach ($vueJours as $j): ?>
+                                        <th class="vue-jour vue-fin"><?php echo e($j['label']); ?> <span class="vue-date"><?php echo e($j['date']); ?></span></th>
+                                    <?php endforeach; ?>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            <?php $vueCols = count($vueJours); ?>
+                            <?php foreach ($vueGrille as $secteur => $blocs): ?>
+                                <tr class="vue-secteur"><td colspan="<?php echo (int) $vueCols; ?>"><?php echo e($secteur); ?></td></tr>
+
+                                <?php foreach ($blocs as $dept => $parJour): ?>
+                                    <?php if ($dept !== ''): ?>
+                                        <tr class="vue-departement"><td colspan="<?php echo (int) $vueCols; ?>"><?php echo e($dept); ?></td></tr>
+                                    <?php endif; ?>
+
+                                    <?php
+                                    // Autant de lignes que le jour le plus chargé : les
+                                    // colonnes ne s'alignent pas entre elles, comme dans
+                                    // le classeur.
+                                    $hauteur = 0;
+                                    foreach ($vueJours as $j) {
+                                        $n = isset($parJour[$j['key']]) ? count($parJour[$j['key']]) : 0;
+                                        if ($n > $hauteur) { $hauteur = $n; }
+                                    }
+                                    ?>
+
+                                    <?php for ($l = 0; $l < $hauteur; $l++): ?>
+                                        <tr>
+                                            <?php foreach ($vueJours as $iJ => $j): ?>
+                                                <?php
+                                                $c = $parJour[$j['key']][$l] ?? null;
+                                                $pair = ($iJ % 2 === 1) ? ' vue-pair' : '';
+                                                ?>
+                                                <?php if (!$c): ?>
+                                                    <td class="vue-vide vue-fin<?php echo $pair; ?>"></td>
+                                                <?php else: ?>
+                                                    <td class="vue-case vue-fin<?php echo $pair; ?> <?php echo $c['etat'] === 'approved' ? 'est-valide' : 'est-attente'; ?>"
+                                                        <?php if ($c['note'] !== ''): ?>title="<?php echo e($c['note']); ?>"<?php endif; ?>>
+                                                        <span class="vue-h"><?php echo e($c['horaire']); ?></span>
+                                                        <?php if ($c['places'] > 1): ?>
+                                                            <span class="vue-n">×<?php echo (int) $c['places']; ?></span>
+                                                        <?php endif; ?>
+                                                        <span class="vue-etat"><?php echo $c['etat'] === 'approved'
+                                                            ? e(fjdT('validé', 'ok'))
+                                                            : e(fjdT('en attente', 'in afwachting')); ?></span>
+                                                    </td>
+                                                <?php endif; ?>
+                                            <?php endforeach; ?>
+                                        </tr>
+                                    <?php endfor; ?>
+                                <?php endforeach; ?>
+                            <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                    <?php endif; ?>
+                </div>
+            </section>
+
             <section class="card" style="margin-bottom:18px;">
                 <div class="card-head"><?php echo e(fjdT('Création rapide', 'Snel aanmaken')); ?></div>
                 <div class="card-body">
