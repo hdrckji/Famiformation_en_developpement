@@ -10,8 +10,11 @@ if (!function_exists('fjvhT')) {
     }
 }
 
+// La vue horaire est LE tableau commun : l'admin la pilote, le teamcoach la
+// consulte pour son secteur, l'étudiant y lit ses créneaux. La restreindre aux
+// admins obligeait tout le monde à demander « et moi, je travaille quand ? ».
 $role = isset($_SESSION['role']) ? $_SESSION['role'] : '';
-if (!in_array($role, ['admin'], true)) {
+if (!in_array($role, ['admin', 'teamcoach', 'etudiant'], true)) {
     header('Location: ' . famijobSiteUrl('index.php'));
     exit();
 }
@@ -53,6 +56,44 @@ if ($selectedDepartment !== 'all' && !in_array($selectedDepartment, $departmentF
     $selectedDepartment = 'all';
 }
 
+// ── FILTRE PAR SECTEUR ───────────────────────────────────────────────────────
+// Le rangement vient de includes/grille_semaine.php, partagé avec le matching
+// et les demandes : un créneau ne peut pas relever du secteur Décoration ici et
+// d'un autre là-bas.
+//
+// ⚠️ Le secteur ne se lit pas dans `interim_shift_requests` : la table ne porte
+// qu'un `department_name` en texte libre, qui peut d'ailleurs être un nom de
+// secteur. On le RÉSOUT donc créneau par créneau, plutôt que de filtrer en SQL
+// sur une colonne qui n'existe pas.
+require_once __DIR__ . '/includes/grille_semaine.php';
+$vhRangement = grilleSemaineRangement($db);
+
+$vhSecteurs = [];
+foreach ($vhRangement['arbre'] as $secArbre) {
+    $vhSecteurs[] = (string) $secArbre['nom'];
+}
+
+$selectedSecteur = trim((string) ($_GET['secteur'] ?? ''));
+if ($selectedSecteur !== '' && !in_array($selectedSecteur, $vhSecteurs, true)) {
+    $selectedSecteur = '';
+}
+
+// Les départements proposés suivent le secteur choisi : offrir les 58 quand on
+// en regarde un seul, c'est proposer 50 filtres qui ne renverront rien.
+if ($selectedSecteur !== '') {
+    $departmentsDuSecteur = [];
+    foreach ($vhRangement['arbre'] as $secArbre) {
+        if ((string) $secArbre['nom'] !== $selectedSecteur) { continue; }
+        foreach ($secArbre['departements'] as $depArbre) {
+            $departmentsDuSecteur[] = (string) $depArbre['nom'];
+        }
+    }
+    $departmentFilterOptions = $departmentsDuSecteur;
+    if ($selectedDepartment !== 'all' && !in_array($selectedDepartment, $departmentFilterOptions, true)) {
+        $selectedDepartment = 'all';
+    }
+}
+
 $weekdayMap = [
     'Monday' => fjvhT('Lundi', 'Maandag'),
     'Tuesday' => fjvhT('Mardi', 'Dinsdag'),
@@ -85,6 +126,14 @@ $requestsStmt->execute([
     $selectedWeek['end']->format('Y-m-d'),
 ]);
 $requests = $requestsStmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Filtre secteur, applique apres coup pour la raison ci-dessus.
+if ($selectedSecteur !== '') {
+    $requests = array_values(array_filter($requests, static function ($r) use ($vhRangement, $selectedSecteur) {
+        $place = grilleSemaineResout((string) $r['department_name'], $vhRangement);
+        return $place['secteur'] === $selectedSecteur;
+    }));
+}
 
 $assignmentsByRequest = [];
 $requestIds = array_map(static function ($row) {
@@ -196,6 +245,10 @@ foreach ($byDeptDay as $departmentName => $byDay) {
         .back-link { display: inline-flex; align-items: center; gap: 8px; color: #fff; text-decoration: none; font-weight: 700; background: rgba(255,255,255,0.14); padding: 12px 18px; border-radius: 999px; }
         .toolbar { display: flex; justify-content: space-between; align-items: end; gap: 16px; margin-bottom: 18px; padding: 18px 22px; background: #fff; border-radius: 22px; box-shadow: var(--shadow); flex-wrap: wrap; }
         .toolbar form { display: flex; gap: 12px; align-items: end; flex-wrap: wrap; }
+        .btn-export { display:inline-flex; align-items:center; gap:8px; text-decoration:none;
+            background:linear-gradient(135deg,#1f7a3d,#2fa757); color:#fff; font-weight:800; font-size:.92rem;
+            padding:11px 18px; border-radius:12px; box-shadow:0 6px 16px rgba(31,122,61,.28); }
+        .btn-export:hover { transform:translateY(-1px); }
         label { display: block; margin-bottom: 6px; font-size: 0.82rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 700; }
         input, select { width: 100%; box-sizing: border-box; border: 1px solid #cfdad3; border-radius: 12px; padding: 10px 11px; font-size: 0.95rem; font-family: inherit; background: #fff; }
         .btn { border: none; border-radius: 12px; padding: 10px 14px; font-weight: 700; cursor: pointer; font-size: 0.9rem; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
@@ -263,23 +316,46 @@ foreach ($byDeptDay as $departmentName => $byDay) {
         <form method="get" action="">
             <div>
                 <label for="week"><?php echo e(fjvhT('Semaine', 'Week')); ?></label>
-                <select id="week" name="week">
+                <select id="week" name="week" onchange="this.form.submit();">
                     <?php foreach ($weekOptions as $weekKey => $weekInfo): ?>
                         <option value="<?php echo e($weekKey); ?>" <?php echo $weekKey === $selectedWeekKey ? 'selected' : ''; ?>><?php echo e($weekInfo['label']); ?></option>
                     <?php endforeach; ?>
                 </select>
             </div>
             <div>
+                <label for="secteur"><?php echo e(fjvhT('Secteur', 'Sector')); ?></label>
+                <?php // Le menu des departements n'existe que si un secteur est
+                      // choisi : on ne le remet a zero que s'il est la, sinon
+                      // l'erreur JavaScript emporte l'envoi avec elle. ?>
+                <select id="secteur" name="secteur"
+                        onchange="if (this.form.department) { this.form.department.value = 'all'; } this.form.submit();">
+                    <option value=""><?php echo e(fjvhT('Tous les secteurs', 'Alle sectoren')); ?></option>
+                    <?php foreach ($vhSecteurs as $nomSecteur): ?>
+                        <option value="<?php echo e($nomSecteur); ?>" <?php echo $selectedSecteur === $nomSecteur ? 'selected' : ''; ?>><?php echo e($nomSecteur); ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div>
                 <label for="department"><?php echo e(fjvhT('Département', 'Afdeling')); ?></label>
-                <select id="department" name="department">
-                    <option value="all" <?php echo $selectedDepartment === 'all' ? 'selected' : ''; ?>><?php echo e(fjvhT('Tous les départements', 'Alle afdelingen')); ?></option>
+                <select id="department" name="department" onchange="this.form.submit();">
+                    <option value="all" <?php echo $selectedDepartment === 'all' ? 'selected' : ''; ?>><?php echo e($selectedSecteur !== '' ? e(fjvhT('Tout le secteur', 'Hele sector')) : e(fjvhT('Tous les départements', 'Alle afdelingen'))); ?></option>
                     <?php foreach ($departmentFilterOptions as $departmentName): ?>
                         <option value="<?php echo e($departmentName); ?>" <?php echo $selectedDepartment === $departmentName ? 'selected' : ''; ?>><?php echo e($departmentName); ?></option>
                     <?php endforeach; ?>
                 </select>
             </div>
-            <button class="btn btn-primary" type="submit"><?php echo e(fjvhT('Afficher', 'Tonen')); ?></button>
         </form>
+
+        <?php // L'EXPORT EXCEL EST ICI, et plus dans le matching : c'est
+              // l'ecran de consultation, celui qu'on imprime ou qu'on envoie.
+              // Le matching sert a affecter, pas a diffuser.
+              // Il suit les filtres affiches — exporter autre chose que ce
+              // qu'on regarde est le meilleur moyen de diffuser un planning
+              // faux. ?>
+        <a class="btn-export" href="export_matching.php?week=<?php echo e($selectedWeekKey); ?><?php echo $selectedSecteur !== '' ? '&secteur=' . urlencode($selectedSecteur) : ''; ?><?php echo $selectedDepartment !== 'all' ? '&department=' . urlencode($selectedDepartment) : ''; ?>"
+           title="<?php echo e(fjvhT('Exporter le planning affiché dans Excel', 'De getoonde planning naar Excel exporteren')); ?>">
+            ↓ <?php echo e(fjvhT('Exporter Excel', 'Naar Excel')); ?>
+        </a>
         <div class="legend"><?php echo e(fjvhT('Colonnes = jours de la semaine. Lignes = départements. L\'horaire est indiqué dans chaque bulle.', 'Kolommen = weekdagen. Rijen = afdelingen. Het uurrooster staat in elke bubbel.')); ?></div>
     </div>
 

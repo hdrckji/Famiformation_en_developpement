@@ -3,9 +3,11 @@ require_once 'config.php';
 require_once __DIR__ . '/includes/notifications.php';
 verifierConnexion($db);
 
-// Contrôle d'accès : uniquement admin et teamcoach
+// Contrôle d'accès. Les ÉTUDIANTS entrent désormais : ils y consultent la vue
+// horaire et leurs disponibilités. Ce qu'ils voient est décidé plus bas, tuile
+// par tuile — la porte s'ouvre, pas les droits.
 $role = isset($_SESSION['role']) ? $_SESSION['role'] : '';
-if (!in_array($role, ['admin', 'teamcoach'], true)) {
+if (!in_array($role, ['admin', 'teamcoach', 'etudiant'], true)) {
     header('Location: ' . famijobSiteUrl('index.php'));
     exit();
 }
@@ -523,18 +525,43 @@ $famijobBackgroundUrl = resolvePublicAssetUrl(
                 <div class="tile-title"><?= e(fjT('Avis & suggestions', 'Feedback & suggesties')) ?></div>
                 <div class="tile-desc"><?= e(fjT('Consulter tous les avis, questions et suggestions envoyés par les utilisateurs.', 'Alle feedback, vragen en suggesties van gebruikers bekijken.')) ?></div>
             </a>
-            <?php else: ?>
-            <!-- TeamCoach : accès limité à 2 modules (Demande d'horaire + Matching intérim) -->
+            <?php elseif ($role === 'teamcoach'): ?>
+            <?php // TEAMCOACH : demander des horaires, et voir le planning. Le
+                  // matching ne lui appartient pas — c'est le metier de l'admin,
+                  // et deux personnes qui affectent le meme creneau sans se voir,
+                  // c'est une place promise deux fois. ?>
             <a href="interim_horaires_demandes.php" class="tile">
                 <div class="tile-icon">📝</div>
                 <div class="tile-title"><?= e(famiT('tile.demands.title')) ?></div>
                 <div class="tile-desc"><?= e(famiT('tile.demands.desc.teamcoach')) ?></div>
             </a>
 
-            <a href="interim_horaires.php" class="tile">
-                <div class="tile-icon">🤝</div>
-                <div class="tile-title"><?= e(famiT('tile.matching.title')) ?></div>
-                <div class="tile-desc"><?= e(famiT('tile.matching.desc.teamcoach')) ?></div>
+            <a href="vue_horaire.php" class="tile">
+                <div class="tile-icon">📅</div>
+                <div class="tile-title"><?= e(fjT('Vue horaire', 'Uurroosterweergave')) ?></div>
+                <div class="tile-desc"><?= e(fjT('Le planning de la semaine, par secteur et par departement.', 'De weekplanning, per sector en per afdeling.')) ?></div>
+            </a>
+
+            <a href="avis.php" class="tile">
+                <div class="tile-icon">💬</div>
+                <div class="tile-title"><?= e(fjT('Avis & suggestions', 'Feedback & suggesties')) ?></div>
+                <div class="tile-desc"><?= e(fjT('Une question, une idée, un souci ? Envoyez votre avis à l\'équipe.', 'Een vraag, een idee, een probleem? Stuur je feedback naar het team.')) ?></div>
+            </a>
+            <?php else: ?>
+            <?php // ETUDIANT : ses disponibilites, et le planning ou il se
+                  // cherche. « Mes disponibilites » vit cote FamiFormation : on
+                  // y renvoie plutot que d'en faire une seconde version qui
+                  // divergerait de la premiere. ?>
+            <a href="<?= e(famijobSiteUrl('student_disponibilites.php')) ?>" class="tile">
+                <div class="tile-icon">🗓️</div>
+                <div class="tile-title"><?= e(fjT('Mes disponibilites', 'Mijn beschikbaarheden')) ?></div>
+                <div class="tile-desc"><?= e(fjT('Indique les jours ou tu peux travailler.', 'Geef aan op welke dagen je kan werken.')) ?></div>
+            </a>
+
+            <a href="vue_horaire.php" class="tile">
+                <div class="tile-icon">📅</div>
+                <div class="tile-title"><?= e(fjT('Vue horaire', 'Uurroosterweergave')) ?></div>
+                <div class="tile-desc"><?= e(fjT('Le planning de la semaine.', 'De weekplanning.')) ?></div>
             </a>
 
             <a href="avis.php" class="tile">

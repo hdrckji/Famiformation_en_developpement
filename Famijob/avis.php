@@ -3,8 +3,11 @@ require_once 'config.php';
 require_once __DIR__ . '/includes/notifications.php';
 verifierConnexion($db);
 
+// Avis et suggestions : ouvert a TOUS les profils. Un module qui recueille la
+// parole des equipes et n'est visible que par ceux qui decident ne recueille
+// rien. Seule la connexion est exigee (verifierConnexion, plus haut).
 $role = (string) ($_SESSION['role'] ?? '');
-if (!in_array($role, ['admin', 'teamcoach'], true)) {
+if ($role === '') {
     header('Location: ' . famijobSiteUrl('index.php'));
     exit();
 }

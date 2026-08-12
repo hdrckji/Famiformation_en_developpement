@@ -66,10 +66,35 @@ if (!$isAdmin && $agencyName !== '') {
     $sqlParams[] = $agencyName;
     $sqlParams[] = $agencyName;
 }
+// Le departement se filtre en SQL : c'est une colonne.
+$filtreDept = trim((string) ($_GET['department'] ?? ''));
+if ($filtreDept !== '' && $filtreDept !== 'all') {
+    $sql .= " AND r.department_name = ?";
+    $sqlParams[] = $filtreDept;
+}
+
 $sql .= " ORDER BY r.department_name ASC, r.time_slot ASC, a.seat_number ASC";
 $stmt = $db->prepare($sql);
 $stmt->execute($sqlParams);
 $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// ⚠️ LE SECTEUR, LUI, N'EST PAS UNE COLONNE. `department_name` est du texte
+// libre qui peut porter un departement ou un secteur : on le RESOUT, avec le
+// meme rangement que les ecrans (includes/grille_semaine.php), plutot que
+// d'inventer ici une seconde facon de ranger.
+//
+// Sans ce filtre, l'export ne dirait pas la meme chose que l'ecran d'ou on
+// vient — et c'est exactement le genre de fichier qu'on diffuse sans le
+// relire.
+$filtreSecteur = trim((string) ($_GET['secteur'] ?? ''));
+if ($filtreSecteur !== '') {
+    require_once __DIR__ . '/includes/grille_semaine.php';
+    $rangementExport = grilleSemaineRangement($db);
+    $rows = array_values(array_filter($rows, static function ($r) use ($rangementExport, $filtreSecteur) {
+        $place = grilleSemaineResout((string) $r['department_name'], $rangementExport);
+        return $place['secteur'] === $filtreSecteur;
+    }));
+}
 
 // --- Regroupement : departement -> [jour0..jour6] -> liste d'affectations ---
 $byDept = [];

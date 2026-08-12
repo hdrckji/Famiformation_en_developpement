@@ -576,19 +576,9 @@
                     <button type="submit" class="btn btn-primary"><?php echo e(fjhT('Auto-matching semaine', 'Automatische matching week')); ?></button>
                 </form>
             <?php endif; ?>
-            <a class="btn-export" href="export_matching.php?week=<?php echo e($selectedWeekKey); ?>" title="<?php echo e(fjhT('Exporter le planning de la semaine dans Excel', 'Weekplanning naar Excel exporteren')); ?>">
-                <span class="btn-export-ic">↓</span>
-                <span><?php echo e(fjhT('Exporter Excel', 'Naar Excel')); ?></span>
-            </a>
-            <style>
-                .btn-export { display:inline-flex; align-items:center; gap:8px; text-decoration:none;
-                    background:linear-gradient(135deg,#1f7a3d,#2fa757); color:#fff; font-weight:800; font-size:.92rem;
-                    padding:11px 18px; border-radius:12px; box-shadow:0 6px 16px rgba(31,122,61,.28);
-                    transition:transform .15s ease, box-shadow .15s ease; border:none; }
-                .btn-export:hover { transform:translateY(-2px); box-shadow:0 10px 22px rgba(31,122,61,.38); }
-                .btn-export .btn-export-ic { display:inline-flex; align-items:center; justify-content:center;
-                    width:22px; height:22px; border-radius:50%; background:rgba(255,255,255,.22); font-size:.95rem; font-weight:900; }
-            </style>
+            <?php // L'export Excel a rejoint la VUE HORAIRE : c'est l'ecran de
+                  // consultation, celui qu'on imprime ou qu'on envoie. Le
+                  // matching sert a affecter, pas a diffuser. ?>
             <div style="text-align:right;color:var(--muted);line-height:1.5;">
                 <strong><?php echo e(fjhT('Période', 'Periode')); ?></strong><br>
                 <?php echo $selectedWeek['start']->format('d/m/Y'); ?> - <?php echo $selectedWeek['end']->format('d/m/Y'); ?>
