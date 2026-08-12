@@ -321,7 +321,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // La croix de retrait vit dans le MEME formulaire que la saisie : un clic
     // envoie donc les deux drapeaux. Retirer l'emporte — sinon un clic sur une
     // croix afficherait « aucun horaire saisi » par-dessus le retrait effectue.
-    if (isset($_POST['create_requests_cells']) && !isset($_POST['retirer_place'])) {
+    if (isset($_POST['create_requests_cells']) && empty($_POST['retirer_place'])) {
         $cells = $_POST['cell_text'] ?? [];
         if (!is_array($cells)) { $cells = []; }
 
@@ -402,7 +402,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // c'est seulement a la derniere que la demande disparait. Supprimer la
     // ligne entiere au premier clic ferait perdre les autres places sans
     // prevenir.
-    if (isset($_POST['retirer_place'])) {
+    if (!empty($_POST['retirer_place'])) {
         $rid = (int) ($_POST['request_id'] ?? 0);
         if ($rid > 0) {
             $st = $db->prepare('SELECT seats_required FROM interim_shift_requests WHERE id = ? LIMIT 1');
@@ -559,7 +559,7 @@ foreach ($userBlocks as $b) {
 
 // Onglet actif (après un envoi "par jour", on y reste ; conservé aussi au changement de semaine).
 $activeTab = 'grid';
-if (isset($_POST['create_requests_byday']) || isset($_POST['create_requests_cells']) || isset($_POST['retirer_place'])) {
+if (isset($_POST['create_requests_byday']) || isset($_POST['create_requests_cells']) || !empty($_POST['retirer_place'])) {
     $activeTab = 'byday';
 } else {
     $requestedTab = (string) ($_GET['tab'] ?? $_POST['tab'] ?? 'grid');
@@ -1431,7 +1431,10 @@ while ($vueCursor <= $selectedWeek['end']) {
                         <form method="POST" id="createFormCells2">
                             <?php echo csrfField(); ?>
                             <input type="hidden" name="create_requests_cells" value="1">
+                            <?php // Remplis par la croix cliquee, juste avant l'envoi. Vides,
+                                  // ils laissent l'envoi normal enregistrer les horaires. ?>
                             <input type="hidden" name="request_id" id="cibleRetrait" value="">
+                            <input type="hidden" name="retirer_place" id="drapeauRetrait" value="">
                             <input type="hidden" name="week" value="<?php echo e($selectedWeekKey); ?>">
 
                             <?php if (!$vueGrille): ?>
@@ -1482,9 +1485,14 @@ while ($vueCursor <= $selectedWeek['end']) {
                                                                 <div class="vue-jeton <?php echo $c['etat'] === 'approved' ? 'est-valide' : 'est-attente'; ?>"
                                                                      <?php if ($c['note'] !== ''): ?>title="<?php echo e($c['note']); ?>"<?php endif; ?>>
                                                                     <span><?php echo e($c['horaire']); ?></span>
-                                                                    <button type="submit" name="retirer_place" value="1"
-                                                                            formnovalidate
-                                                                            onclick="document.getElementById('cibleRetrait').value='<?php echo (int) $c['id']; ?>';"
+                                                                    <?php // ⚠️ type="button", PAS submit. Dans un formulaire, la
+                                                                          // touche Entree declenche le PREMIER bouton submit :
+                                                                          // avec des croix en submit, taper un horaire et
+                                                                          // valider supprimait le premier creneau de la page
+                                                                          // au lieu d'enregistrer. La croix passe donc par le
+                                                                          // JS, qui pose sa cible puis envoie. ?>
+                                                                    <button type="button"
+                                                                            onclick="famijobRetirerPlace(this, '<?php echo (int) $c['id']; ?>');"
                                                                             class="vue-x" title="<?php echo e(fjdT('Retirer cette place', 'Deze plaats verwijderen')); ?>">×</button>
                                                                 </div>
                                                             <?php endfor; ?>
@@ -1694,6 +1702,20 @@ while ($vueCursor <= $selectedWeek['end']) {
     // de remplissage) a été retiré avec lui : la saisie se fait maintenant
     // directement dans les cases de la grille, sans navigation entre jours.
     // Le laisser aurait posé des écouteurs sur des éléments disparus.
+
+    // Retirer une place : la croix pose sa cible et envoie. Elle ne peut pas
+    // etre un bouton submit — la touche Entree declencherait le premier d'entre
+    // eux, et taper un horaire supprimerait un creneau au lieu de l'enregistrer.
+    window.famijobRetirerPlace = function (btn, requestId) {
+        var form = btn.form || document.getElementById('createFormCells2');
+        if (!form) { return; }
+        var cible = document.getElementById('cibleRetrait');
+        var drapeau = document.getElementById('drapeauRetrait');
+        if (!cible || !drapeau) { return; }
+        cible.value = requestId;
+        drapeau.value = '1';
+        form.submit();
+    };
 
     window.switchPanel = function (panelId, btn) {
         document.querySelectorAll('.tab-panel').forEach(function (p) { p.style.display = 'none'; });
