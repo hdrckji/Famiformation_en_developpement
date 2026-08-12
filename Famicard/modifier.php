@@ -95,6 +95,66 @@ $groupes  = famicardGroupes();
 $arbreSecteurs = famicardArbreSecteurs($db);
 
 // ─────────────────────────────────────────────────────────────────────────────
+// OUVERTURE DU CADENAS — le mot de passe est vérifié ICI, tout de suite.
+//
+// La fenêtre du cadenas envoie le mot de passe, le serveur répond oui ou non,
+// et c'est LUI qui retient que le verrou est ouvert (état de session, voir
+// famicardOuvreVerrouIdentifiant). Le navigateur n'apprend jamais le secret :
+// il apprend seulement s'il a eu raison.
+//
+// Répond en JSON et s'arrête là : ce n'est pas un enregistrement de fiche.
+// ─────────────────────────────────────────────────────────────────────────────
+if (($_POST['action'] ?? '') === 'ouvrir_verrou_identifiant') {
+    header('Content-Type: application/json; charset=UTF-8');
+    requireValidCSRF();
+
+    $champIdent = $champs['identifiant'] ?? null;
+    if (!$champIdent || !famicardPeutModifier($champIdent, $estAdmin, $estSaPropreFiche)) {
+        http_response_code(403);
+        echo json_encode(['ouvert' => false, 'message' => 'Non autorisé.']);
+        exit();
+    }
+
+    if (!famicardDeverrouillageIdentifiantPossible()) {
+        echo json_encode([
+            'ouvert' => false,
+            'message' => "Le changement d'identifiant n'est pas configuré sur ce serveur"
+                       . ' (variable FAMICARD_MDP_IDENTIFIANT).',
+        ]);
+        exit();
+    }
+
+    // Le frein d'abord : sinon le compteur d'essais ne servirait à rien.
+    $attente = famicardVerrouIdentifiantBloque();
+    if ($attente > 0) {
+        echo json_encode([
+            'ouvert' => false,
+            'message' => 'Trop d\'essais. Réessaie dans ' . (int) ceil($attente / 60) . ' minute(s).',
+        ]);
+        exit();
+    }
+
+    if (famicardVerifieMdpIdentifiant((string) ($_POST['mdp'] ?? ''))) {
+        famicardVerrouIdentifiantEssaiReussi();
+        famicardOuvreVerrouIdentifiant($cibleId);
+        echo json_encode(['ouvert' => true, 'message' => 'Cadenas ouvert.']);
+    } else {
+        famicardVerrouIdentifiantEssaiRate();
+        echo json_encode(['ouvert' => false, 'message' => 'Mot de passe incorrect.']);
+    }
+    exit();
+}
+
+// Fermeture volontaire du cadenas (bouton « Reverrouiller »).
+if (($_POST['action'] ?? '') === 'fermer_verrou_identifiant') {
+    header('Content-Type: application/json; charset=UTF-8');
+    requireValidCSRF();
+    famicardFermeVerrouIdentifiant();
+    echo json_encode(['ouvert' => false]);
+    exit();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // « CET IDENTIFIANT EST-IL LIBRE ? » — réponse immédiate, pendant la frappe.
 //
 // Le contrôle qui COMPTE est celui de l'enregistrement, plus bas : un
@@ -416,21 +476,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // DÉDIÉ (variable Railway), pas avec celui de l'administrateur :
             // être admin ne suffit pas.
             //
-            // ⚠️ Le verrou est vérifié ICI, côté serveur. Le cadenas de l'écran
-            // ne fait que rendre le champ saisissable — un formulaire n'est pas
-            // une autorisation, et celui-ci se contourne en trois clics.
+            // ⚠️ LE VERROU EST REVÉRIFIÉ ICI, à l'enregistrement. Le cadenas
+            // ouvert dans la fenêtre a posé un état de SESSION ; on le relit,
+            // on ne fait pas confiance au formulaire. Un champ envoyé à la main
+            // sans être passé par la fenêtre tombe donc sur ce refus.
             if (!famicardDeverrouillageIdentifiantPossible()) {
                 $erreurs[] = "Le changement d'identifiant n'est pas configuré sur ce serveur"
                            . ' (variable FAMICARD_MDP_IDENTIFIANT absente) : le champ reste verrouillé.';
                 continue;
             }
-            $preuve = (string) ($_POST['mdp_identifiant'] ?? '');
-            if ($preuve === '') {
-                $erreurs[] = "Ouvre le cadenas à côté de l'identifiant et saisis le mot de passe de déverrouillage.";
-                continue;
-            }
-            if (!famicardVerifieMdpIdentifiant($preuve)) {
-                $erreurs[] = "Mot de passe de déverrouillage incorrect : l'identifiant n'a pas été changé.";
+            if (!famicardVerrouIdentifiantOuvert($cibleId)) {
+                $erreurs[] = "Le cadenas n'est pas ouvert (ou il a expiré) : clique dessus et saisis"
+                           . " le mot de passe avant de modifier l'identifiant.";
                 continue;
             }
             if ($nouvelle === '') {
@@ -549,6 +606,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // ── APRÈS UN CHANGEMENT D'IDENTIFIANT ────────────────────────────
         if (isset($aEcrire['identifiant'])) {
+            // Le cadenas se referme : il vaut pour UNE modification, pas pour
+            // les dix minutes qui suivent. Un onglet laissé ouvert sur une
+            // fiche ne doit pas rester une porte ouverte.
+            famicardFermeVerrouIdentifiant();
+
             // Le site entier lit le nom de connexion dans la session
             // (`$_SESSION['username']`). Un admin qui se renomme lui-même
             // continuerait sinon à circuler sous son ancien nom jusqu'à la
@@ -690,8 +752,14 @@ if ($photo !== '') {
     .cadenas { flex: 0 0 auto; border: 1px solid #ccd6cf; background: #fff; border-radius: 10px; padding: 9px 12px; font-size: 1.05rem; line-height: 1; cursor: pointer; }
     .cadenas:hover { border-color: #E9A93C; background: #fffaf0; }
     .cadenas.ouvert { border-color: #E9A93C; background: #fff6e2; }
-    .zone-verrou { margin-top: 9px; background: #fffaf0; border: 1px solid #f0dbac; border-radius: 12px; padding: 12px 14px; }
-    .zone-verrou input { background: #fff; }
+    /* La fenêtre du cadenas. Posée au-dessus de tout, hors du formulaire. */
+    .fenetre { position: fixed; inset: 0; background: rgba(20,40,28,.55); display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 50; }
+    .fenetre[hidden] { display: none; }
+    .fenetre-boite { background: #fff; border-radius: 20px; padding: 26px; max-width: 430px; width: 100%; box-shadow: 0 24px 60px rgba(14,40,24,.35); }
+    .fenetre-boite h2 { margin: 0 0 10px; font-size: 1.15rem; color: #2d5a37; }
+    .fenetre-quoi { margin: 0 0 16px; font-size: .9rem; line-height: 1.6; color: #5a6b60; }
+    .fenetre-message { margin-top: 12px; border-radius: 10px; padding: 9px 12px; font-size: .87rem; font-weight: 700; background: #fdeaea; color: #a3271c; }
+    .fenetre-actions { display: flex; gap: 10px; margin-top: 18px; }
     .verdict { margin-top: 7px; font-size: .85rem; font-weight: 700; border-radius: 9px; padding: 7px 11px; }
     .verdict.ok { background: #e7f6ea; color: #1E7A46; }
     .verdict.ko { background: #fdeaea; color: #a3271c; }
@@ -895,12 +963,12 @@ if ($photo !== '') {
                                       // pas envoyé du tout, et l'identifiant paraîtrait
                                       // vidé à l'enregistrement. ?>
                                 <?php $verrouOuvrable = famicardDeverrouillageIdentifiantPossible(); ?>
-                                <?php // Le cadenas reste OUVERT quand l'enregistrement vient
-                                      // d'échouer alors qu'un mot de passe avait été saisi :
-                                      // refermer effacerait la saisie de quelqu'un qui vient
-                                      // d'être refusé pour une tout autre raison. ?>
-                                <?php $verrouRouvert = $verrouOuvrable && $erreurs
-                                        && (string) ($_POST['mdp_identifiant'] ?? '') !== ''; ?>
+                                <?php // L'ÉTAT DU CADENAS VIENT DU SERVEUR, pas du navigateur :
+                                      // c'est la session qui sait s'il a été ouvert pour cette
+                                      // fiche. Un rechargement, un refus d'enregistrement, un
+                                      // retour en arrière — le champ reste ouvert tant que le
+                                      // verrou l'est, et se referme dès qu'il expire. ?>
+                                <?php $verrouRouvert = $verrouOuvrable && famicardVerrouIdentifiantOuvert($cibleId); ?>
                                 <?php // Refusé ? On réaffiche CE QUI A ÉTÉ TAPÉ, pas l'ancienne
                                       // valeur : se voir répondre « déjà pris » et retrouver le
                                       // champ remis à zéro oblige à tout retaper pour corriger
@@ -929,8 +997,8 @@ if ($photo !== '') {
                                            autocomplete="off" spellcheck="false">
                                     <?php if ($verrouOuvrable): ?>
                                         <button type="button" class="cadenas<?= $verrouRouvert ? ' ouvert' : '' ?>" id="cadenas"
-                                                aria-controls="zoneVerrou" aria-expanded="<?= $verrouRouvert ? 'true' : 'false' ?>"
-                                                title="Déverrouiller pour modifier l'identifiant"><?= $verrouRouvert ? '🔓' : '🔒' ?></button>
+                                                aria-haspopup="dialog"
+                                                title="<?= $verrouRouvert ? 'Reverrouiller' : "Déverrouiller pour modifier l'identifiant" ?>"><?= $verrouRouvert ? '🔓' : '🔒' ?></button>
                                     <?php endif; ?>
                                 </div>
 
@@ -939,24 +1007,10 @@ if ($photo !== '') {
                                 <div class="verdict" id="verdictIdentifiant" hidden></div>
 
                                 <?php if ($verrouOuvrable): ?>
-                                    <?php // Rouvert d'office si un mot de passe avait été saisi et
-                                          // que l'enregistrement a été refusé : sans ça, il faudrait
-                                          // tout recommencer alors qu'on venait de tout saisir. ?>
-                                    <div class="zone-verrou" id="zoneVerrou"<?= $verrouRouvert ? '' : ' hidden' ?>>
-                                        <?php // `disabled` tant que le cadenas est fermé : un champ
-                                              // désactivé n'est ni envoyé NI rempli par le
-                                              // gestionnaire de mots de passe du navigateur.
-                                              // « new-password » achève de lui dire que ce n'est
-                                              // pas un formulaire de connexion. ?>
-                                        <input type="password" id="mdpIdentifiant" name="mdp_identifiant"
-                                               autocomplete="new-password"<?= $verrouRouvert ? '' : ' disabled' ?>
-                                               placeholder="Mot de passe de déverrouillage">
-                                        <div class="aide">
-                                            Ce n'est <b>pas</b> ton mot de passe de connexion : c'est celui qui protège
-                                            ce champ-là. Le champ s'ouvre dès que tu écris ; c'est le
-                                            <b>serveur</b> qui vérifie le mot de passe à l'enregistrement, et il
-                                            refuse le changement s'il est faux.
-                                        </div>
+                                    <div class="aide" id="aideVerrou">
+                                        <?= $verrouRouvert
+                                            ? '🔓 Cadenas ouvert : tu peux modifier l\'identifiant. Il se referme après l\'enregistrement.'
+                                            : '🔒 Clique sur le cadenas et saisis le mot de passe pour pouvoir le modifier.' ?>
                                     </div>
                                 <?php else: ?>
                                     <div class="aide">
@@ -1013,6 +1067,40 @@ if ($photo !== '') {
         </div>
     </form>
 
+    <?php // ── LA FENÊTRE DU CADENAS ──────────────────────────────────────────
+          // HORS du formulaire de la fiche, volontairement : un champ mot de
+          // passe à l'intérieur, et le navigateur y voit un formulaire de
+          // connexion — il remplit alors l'identifiant tout seul avec celui de
+          // la personne connectée (le bug qu'on vient de corriger).
+          //
+          // Ce n'est pas un <form> non plus : elle s'envoie en fetch(), et un
+          // vrai formulaire imbriqué aurait rechargé la page. ?>
+    <?php // La même condition que le script, écrite en toutes lettres plutôt
+          // qu'héritée de la boucle d'affichage : un jour où le champ ne sera
+          // plus dessiné dans cet ordre, la fenêtre suivrait sans qu'on le
+          // remarque. ?>
+    <?php if (isset($champs['identifiant'])
+              && famicardPeutModifier($champs['identifiant'], $estAdmin, $estSaPropreFiche)
+              && famicardDeverrouillageIdentifiantPossible()): ?>
+        <div class="fenetre" id="fenetreVerrou" hidden role="dialog" aria-modal="true" aria-labelledby="titreVerrou">
+            <div class="fenetre-boite">
+                <h2 id="titreVerrou">🔒 Modifier l'identifiant</h2>
+                <p class="fenetre-quoi">
+                    L'identifiant est ce avec quoi cette personne se connecte. Le changer la met dehors
+                    tant qu'elle n'est pas prévenue — d'où ce mot de passe, qui n'est
+                    <b>pas celui de ton compte</b>.
+                </p>
+                <input type="password" id="mdpVerrou" autocomplete="new-password"
+                       placeholder="Mot de passe de déverrouillage">
+                <div class="fenetre-message" id="messageVerrou" hidden></div>
+                <div class="fenetre-actions">
+                    <button type="button" class="bouton bouton-plein" id="validerVerrou">Déverrouiller</button>
+                    <button type="button" class="bouton bouton-vide" id="annulerVerrou">Annuler</button>
+                </div>
+            </div>
+        </div>
+    <?php endif; ?>
+
     <?php if ($estSaPropreFiche && !$estAdmin): ?>
         <div class="note">
             Ce que tu corriges est visible immédiatement. Un administrateur voit ensuite
@@ -1033,73 +1121,59 @@ if ($photo !== '') {
           && famicardPeutModifier($champs['identifiant'], $estAdmin, $estSaPropreFiche)
           && famicardDeverrouillageIdentifiantPossible()): ?>
 <script>
-// LE CADENAS. Il ne protège rien à lui seul — c'est le serveur qui vérifie le
-// mot de passe à l'enregistrement. Son rôle est d'empêcher le geste distrait :
-// un champ ouvert au milieu d'un formulaire finit par être modifié en passant.
+// LE CADENAS ET SA FENÊTRE.
+//
+// Le mot de passe part au SERVEUR, qui répond oui ou non et retient lui-même
+// que le verrou est ouvert. Le navigateur n'apprend jamais le secret : il
+// apprend seulement s'il a eu raison. Et l'enregistrement revérifie l'état de
+// session — ce script ne donne aucun droit, il ouvre juste la porte à l'écran.
 (function () {
-    var cadenas = document.getElementById('cadenas');
-    var zone    = document.getElementById('zoneVerrou');
-    var mdp     = document.getElementById('mdpIdentifiant');
-    var champ   = document.getElementById('champ_identifiant');
-    var verdict = document.getElementById('verdictIdentifiant');
-    if (!cadenas || !zone || !mdp || !champ) { return; }
+    var cadenas  = document.getElementById('cadenas');
+    var champ    = document.getElementById('champ_identifiant');
+    var fenetre  = document.getElementById('fenetreVerrou');
+    var mdp      = document.getElementById('mdpVerrou');
+    var valider  = document.getElementById('validerVerrou');
+    var annuler  = document.getElementById('annulerVerrou');
+    var message  = document.getElementById('messageVerrou');
+    var aide     = document.getElementById('aideVerrou');
+    var verdict  = document.getElementById('verdictIdentifiant');
+    if (!cadenas || !champ || !fenetre || !mdp || !valider || !annuler) { return; }
 
     var initial = champ.value;
+    var jeton = <?= json_encode(getCSRFToken()) ?>;
+    var moi = 'modifier.php?id=' + encodeURIComponent(<?= (int) $cibleId ?>);
 
-    // ⚠️ TAPER « ENTRÉE » DANS UN CHAMP ENVOIE LE FORMULAIRE. C'est la règle
-    // du HTML (validation implicite), et c'est ce qui donnait l'impression que
-    // le cadenas ne marchait pas : on saisissait le mot de passe, on validait
-    // par Entrée — réflexe normal —, la page s'enregistrait sans rien changer,
-    // se rechargeait plus haut, et le cadenas était refermé.
-    //
-    // Entrée passe donc au champ suivant au lieu d'envoyer. On ne bloque QUE
-    // ces deux champs-là : ailleurs dans la fiche, la validation par Entrée
-    // reste le comportement attendu.
-    [mdp, champ].forEach(function (el) {
-        el.addEventListener('keydown', function (e) {
-            if (e.key === 'Enter' || e.keyCode === 13) {
-                e.preventDefault();
-                if (el === mdp) { champ.focus(); }
-            }
-        });
+    // ⚠️ « ENTRÉE » DANS UN CHAMP ENVOIE LE FORMULAIRE (validation implicite du
+    // HTML). Dans le champ identifiant, ça enregistrerait la fiche au milieu
+    // d'une saisie : Entrée y reste donc sans effet.
+    champ.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.keyCode === 13) { e.preventDefault(); }
+    });
+    // Dans la fenêtre, Entrée VALIDE le mot de passe : c'est le geste attendu.
+    mdp.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.keyCode === 13) { e.preventDefault(); valider.click(); }
     });
 
-    cadenas.addEventListener('click', function () {
-        var ferme = zone.hasAttribute('hidden');
-        if (ferme) {
-            zone.removeAttribute('hidden');
-            cadenas.setAttribute('aria-expanded', 'true');
-            mdp.disabled = false;
-            mdp.focus();
-        } else {
-            // Refermer REMET tout dans l'état d'origine : mot de passe effacé
-            // et désactivé, identifiant rétabli, champ figé et surtout RETIRÉ
-            // de l'envoi. Sans ça, on croirait avoir annulé alors que la
-            // valeur saisie partirait quand même.
-            zone.setAttribute('hidden', '');
-            cadenas.setAttribute('aria-expanded', 'false');
-            mdp.value = '';
-            mdp.disabled = true;
-            champ.value = initial;
-            cacheVerdict();
-            verrouille();
-        }
-    });
-
-    function verrouille() {
-        champ.setAttribute('readonly', '');
-        // ⚠️ Retirer le `name` retire le champ de l'envoi. C'est ce qui rend
-        // le remplissage automatique du navigateur inoffensif : quoi qu'il
-        // écrive là-dedans, le serveur ne le verra jamais.
-        champ.removeAttribute('name');
-        cadenas.textContent = '🔒';
-        cadenas.classList.remove('ouvert');
+    function ouvreFenetre() {
+        mdp.value = '';
+        cacheMessage();
+        fenetre.removeAttribute('hidden');
+        mdp.focus();
     }
-    function deverrouille() {
-        champ.removeAttribute('readonly');
-        champ.setAttribute('name', champ.getAttribute('data-nom'));
-        cadenas.textContent = '🔓';
-        cadenas.classList.add('ouvert');
+    function fermeFenetre() {
+        fenetre.setAttribute('hidden', '');
+        mdp.value = '';
+        cadenas.focus();
+    }
+    function cacheMessage() {
+        if (!message) { return; }
+        message.setAttribute('hidden', '');
+        message.textContent = '';
+    }
+    function dis(texte) {
+        if (!message) { return; }
+        message.textContent = texte;
+        message.removeAttribute('hidden');
     }
     function cacheVerdict() {
         if (!verdict) { return; }
@@ -1108,18 +1182,78 @@ if ($photo !== '') {
         verdict.className = 'verdict';
     }
 
-    // Le champ s'ouvre dès qu'un mot de passe est écrit. On ne peut pas le
-    // vérifier ici : ce serait envoyer le secret au navigateur. Le serveur
-    // tranche, et refuse le changement si la saisie est fausse.
-    mdp.addEventListener('input', function () {
-        if (mdp.value.trim() !== '') { deverrouille(); } else { verrouille(); }
+    function deverrouille() {
+        champ.removeAttribute('readonly');
+        // Le `name` n'est posé QUE maintenant : sans lui le champ n'est pas
+        // envoyé, et le remplissage automatique du navigateur reste sans effet.
+        champ.setAttribute('name', champ.getAttribute('data-nom'));
+        cadenas.textContent = '\u{1F513}';
+        cadenas.classList.add('ouvert');
+        cadenas.title = 'Reverrouiller';
+        if (aide) { aide.textContent = "\u{1F513} Cadenas ouvert : tu peux modifier l'identifiant. Il se referme apres l'enregistrement."; }
+        champ.focus();
+    }
+    function verrouille() {
+        champ.setAttribute('readonly', '');
+        champ.removeAttribute('name');
+        champ.value = initial;
+        cadenas.textContent = '\u{1F512}';
+        cadenas.classList.remove('ouvert');
+        cadenas.title = "Deverrouiller pour modifier l'identifiant";
+        if (aide) { aide.textContent = '\u{1F512} Clique sur le cadenas et saisis le mot de passe pour pouvoir le modifier.'; }
+        cacheVerdict();
+    }
+
+    cadenas.addEventListener('click', function () {
+        if (cadenas.classList.contains('ouvert')) {
+            // Refermer a la main REMET tout dans l'etat d'origine, ici comme
+            // sur le serveur : sans ca, on croirait avoir annule alors que la
+            // valeur saisie partirait quand meme.
+            envoie('fermer_verrou_identifiant', '').then(function () { verrouille(); });
+            return;
+        }
+        ouvreFenetre();
     });
-    if (!champ.hasAttribute('readonly')) { deverrouille(); }  // rouvert par le serveur
+
+    annuler.addEventListener('click', fermeFenetre);
+    fenetre.addEventListener('click', function (e) { if (e.target === fenetre) { fermeFenetre(); } });
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && !fenetre.hasAttribute('hidden')) { fermeFenetre(); }
+    });
+
+    function envoie(action, motDePasse) {
+        var corps = new URLSearchParams();
+        corps.append('action', action);
+        corps.append('csrf_token', jeton);
+        corps.append('mdp', motDePasse);
+        return fetch(moi, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: corps.toString()
+        }).then(function (r) { return r.json(); });
+    }
+
+    valider.addEventListener('click', function () {
+        if (mdp.value === '') { dis('Saisis le mot de passe.'); return; }
+        valider.disabled = true;
+        cacheMessage();
+        envoie('ouvrir_verrou_identifiant', mdp.value)
+            .then(function (d) {
+                valider.disabled = false;
+                if (d && d.ouvert) { fermeFenetre(); deverrouille(); }
+                else { dis((d && d.message) || 'Mot de passe incorrect.'); mdp.select(); }
+            })
+            .catch(function () {
+                valider.disabled = false;
+                dis('Verification impossible pour le moment.');
+            });
+    });
 
     // ── « CET IDENTIFIANT EST-IL LIBRE ? » ────────────────────────────────
-    // Demandé au serveur pendant la frappe, avec un temps d'arrêt : une
-    // requête par caractère, c'est vingt requêtes pour un nom, et une réponse
-    // qui arrive dans le désordre.
+    // Demande au serveur pendant la frappe, avec un temps d'arret : une
+    // requete par caractere, c'est vingt requetes pour un nom, et des reponses
+    // qui arrivent dans le desordre.
     var minuteur = null;
     var vague = 0;
     champ.addEventListener('input', function () {
@@ -1130,14 +1264,13 @@ if ($photo !== '') {
 
         minuteur = window.setTimeout(function () {
             var laMienne = ++vague;
-            fetch('modifier.php?id=' + encodeURIComponent(<?= (int) $cibleId ?>)
-                  + '&identifiant_libre=' + encodeURIComponent(valeur), { credentials: 'same-origin' })
+            fetch(moi + '&identifiant_libre=' + encodeURIComponent(valeur), { credentials: 'same-origin' })
                 .then(function (r) { return r.json(); })
                 .then(function (d) {
-                    // Une réponse en retard ne doit pas écraser une plus
-                    // récente : on ignore tout ce qui n'est pas la dernière.
+                    // Une reponse en retard ne doit pas ecraser une plus
+                    // recente : on ignore tout ce qui n'est pas la derniere.
                     if (laMienne !== vague) { return; }
-                    verdict.textContent = (d.libre ? '✅ ' : '⛔ ') + (d.message || '');
+                    verdict.textContent = (d.libre ? '\u2705 ' : '\u26D4 ') + (d.message || '');
                     verdict.className = 'verdict ' + (d.libre ? 'ok' : 'ko');
                     verdict.removeAttribute('hidden');
                 })

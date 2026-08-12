@@ -274,6 +274,101 @@ if (!function_exists('famicardVerifieMdpIdentifiant')) {
     }
 }
 
+if (!function_exists('famicardOuvreVerrouIdentifiant')) {
+    /**
+     * LE VERROU EST UN ÉTAT DE SESSION, PAS UN CHAMP DU FORMULAIRE.
+     *
+     * Le mot de passe est vérifié UNE FOIS, au moment où l'on ouvre le cadenas,
+     * et c'est le SERVEUR qui retient que ce verrou est ouvert — pour cette
+     * fiche-là, et pour quelques minutes.
+     *
+     * Pourquoi pas simplement garder le mot de passe dans un champ caché du
+     * formulaire : il traînerait dans le DOM de la page, visible de quiconque
+     * ouvre l'inspecteur, et repartirait à chaque enregistrement. Un état de
+     * session ne quitte jamais le serveur.
+     *
+     * Limité à UNE fiche : ouvrir le cadenas sur quelqu'un ne doit pas ouvrir
+     * celui de tout le monde, sinon un onglet oublié devient une porte
+     * ouverte sur la base entière.
+     */
+    function famicardOuvreVerrouIdentifiant($cibleId, $minutes = 10)
+    {
+        $_SESSION['famicard_verrou_identifiant'] = [
+            'cible'  => (int) $cibleId,
+            'expire' => time() + (max(1, (int) $minutes) * 60),
+        ];
+    }
+}
+
+if (!function_exists('famicardVerrouIdentifiantOuvert')) {
+    /** Le cadenas est-il ouvert POUR CETTE FICHE, et pas encore expiré ? */
+    function famicardVerrouIdentifiantOuvert($cibleId)
+    {
+        $v = $_SESSION['famicard_verrou_identifiant'] ?? null;
+        if (!is_array($v)) {
+            return false;
+        }
+        if ((int) ($v['cible'] ?? 0) !== (int) $cibleId) {
+            return false;
+        }
+        return ((int) ($v['expire'] ?? 0) > time());
+    }
+}
+
+if (!function_exists('famicardFermeVerrouIdentifiant')) {
+    /**
+     * Referme le verrou. Appelé quand on ferme le cadenas à la main, ET juste
+     * APRÈS un changement d'identifiant réussi : le déverrouillage vaut pour
+     * UNE modification, pas pour la demi-heure qui suit.
+     */
+    function famicardFermeVerrouIdentifiant()
+    {
+        unset($_SESSION['famicard_verrou_identifiant']);
+    }
+}
+
+if (!function_exists('famicardVerrouIdentifiantBloque')) {
+    /**
+     * Trop d'essais ratés ? Renvoie le nombre de SECONDES d'attente restantes,
+     * 0 si la voie est libre.
+     *
+     * Sans ce frein, le mot de passe du cadenas s'essaie en boucle depuis la
+     * console du navigateur : la page répond « bon / pas bon » aussi vite
+     * qu'on l'interroge.
+     */
+    function famicardVerrouIdentifiantBloque()
+    {
+        $e = $_SESSION['famicard_verrou_essais'] ?? null;
+        if (!is_array($e)) {
+            return 0;
+        }
+        $reste = (int) ($e['jusqua'] ?? 0) - time();
+        return $reste > 0 ? $reste : 0;
+    }
+}
+
+if (!function_exists('famicardVerrouIdentifiantEssaiRate')) {
+    /** Compte un essai raté, et ferme la porte 5 minutes au bout de 5. */
+    function famicardVerrouIdentifiantEssaiRate()
+    {
+        $e = $_SESSION['famicard_verrou_essais'] ?? ['n' => 0, 'jusqua' => 0];
+        $e['n'] = (int) ($e['n'] ?? 0) + 1;
+        if ($e['n'] >= 5) {
+            $e['jusqua'] = time() + 300;
+            $e['n'] = 0;
+        }
+        $_SESSION['famicard_verrou_essais'] = $e;
+    }
+}
+
+if (!function_exists('famicardVerrouIdentifiantEssaiReussi')) {
+    /** Remet le compteur à zéro : le frein ne doit pas punir après coup. */
+    function famicardVerrouIdentifiantEssaiReussi()
+    {
+        unset($_SESSION['famicard_verrou_essais']);
+    }
+}
+
 if (!function_exists('famicardIdentifiantsVerrouilles')) {
     /**
      * Les identifiants qui NE PEUVENT PAS être renommés, parce qu'ils sont

@@ -326,20 +326,35 @@ Le reste — profil, statut, lieu de travail, agence, employeur, contrat, rattac
 de la donnée de gestion et reste à l'administrateur.
 
 **L'identifiant se modifie, mais le champ est VERROUILLÉ par défaut.** Un cadenas est posé
-à côté ; il s'ouvre avec un **mot de passe dédié**, rangé dans les variables Railway sous
-`FAMICARD_MDP_IDENTIFIANT`. Ce n'est pas le mot de passe de l'administrateur : **être admin
-ne suffit pas**, ce qui met le changement d'identifiant hors de portée d'une session
-laissée ouverte sur un poste. C'est la seule modification de la fiche qui puisse mettre
-quelqu'un dehors, puisque c'est avec ça qu'on se connecte.
+à côté. Il ouvre une **fenêtre** qui demande un **mot de passe dédié**, rangé dans les
+variables Railway sous `FAMICARD_MDP_IDENTIFIANT`. Ce n'est pas le mot de passe de
+l'administrateur : **être admin ne suffit pas**, ce qui met le changement d'identifiant
+hors de portée d'une session laissée ouverte sur un poste. C'est la seule modification de
+la fiche qui puisse mettre quelqu'un dehors, puisque c'est avec ça qu'on se connecte.
+
+**Le verrou est un état de SESSION, pas un champ du formulaire.** Le mot de passe est
+vérifié une fois, à l'ouverture de la fenêtre ; le serveur retient ensuite que le cadenas
+est ouvert — **pour cette fiche-là**, et pour dix minutes. Il se referme après un
+changement réussi : le déverrouillage vaut pour une modification, pas pour la demi-heure
+qui suit. Un mot de passe gardé dans un champ caché aurait traîné dans le DOM et serait
+reparti à chaque enregistrement.
+
+⚠️ **Aucun champ `password` dans le formulaire de la fiche**, et ce n'est pas cosmétique :
+Chrome et Edge y voyaient un couple « login + mot de passe », ignoraient
+`autocomplete="off"` et **remplissaient l'identifiant avec celui de la personne connectée**.
+On corrigeait un email, l'identifiant changeait tout seul, et l'enregistrement était
+refusé. La fenêtre du cadenas vit donc **hors** du formulaire, et le champ identifiant n'a
+pas d'attribut `name` tant que le verrou est fermé — ce que le navigateur y écrit ne peut
+plus rien casser.
 
 ⚠️ **Variable absente = champ verrouillé pour tout le monde**, et c'est le bon défaut : une
 variable qui manque ne doit jamais ouvrir une porte. L'écran le dit, plutôt que de laisser
 chercher pourquoi ça ne marche pas.
 
-⚠️ Le cadenas de l'écran ne protège rien à lui seul — il rend juste le champ saisissable,
-et n'existe que pour empêcher le geste distrait. **C'est le serveur qui vérifie**, à
-l'enregistrement, avec `hash_equals()`. Trois refus s'y ajoutent, et ils ne sont pas
-négociables :
+⚠️ **L'enregistrement revérifie l'état de session** : la fenêtre ne donne aucun droit, elle
+ouvre une porte à l'écran. Un champ envoyé à la main sans être passé par elle est refusé.
+Cinq mots de passe faux ferment la porte cinq minutes — sinon le secret s'essaie en boucle
+depuis la console du navigateur. Trois refus s'y ajoutent, et ils ne sont pas négociables :
 
 - **`admin` et `Accueil` ne se renomment pas.** Ce ne sont pas des noms, ce sont des clés :
   `checklist_gerbeur.php` ouvre un accès à qui a `$_SESSION['username'] === 'Accueil'`, et
