@@ -98,6 +98,18 @@ $departmentOptions = $departmentStmt->fetchAll(PDO::FETCH_COLUMN);
 // La liste des departements est desormais 100% en base (gestion via admin_departements.php) :
 // plus aucun ajout code en dur ici.
 
+// ⚠️ CIBLES D'ECRITURE VALIDES = les departements ET les secteurs. Une demande
+// qui ne precise pas le departement porte le nom du SECTEUR (« Famizoo ») :
+// n'accepter que les departements rendait ces lignes-la impossibles a remplir,
+// alors qu'elles sont exactement le cas « tout le secteur ».
+$ciblesEcriture = $departmentOptions;
+if (function_exists('secteursListe')) {
+    foreach (secteursListe($db) as $secteurArbre) {
+        $ciblesEcriture[] = (string) $secteurArbre['nom'];
+    }
+}
+$ciblesEcriture = array_values(array_unique($ciblesEcriture));
+
 $today = new DateTimeImmutable('today');
 $startMonday = $today->modify('monday this week');
 $weekOptions = [];
@@ -366,7 +378,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $dept = trim((string) $dept);
             // Le département vient d'une case du tableau, donc du navigateur :
             // on le confronte à la liste connue avant d'écrire quoi que ce soit.
-            if (!in_array($dept, $departmentOptions, true)) {
+            if (!in_array($dept, $ciblesEcriture, true)) {
                 if ($dept !== '') { $refuses[$dept] = true; }
                 continue;
             }
@@ -440,29 +452,78 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // c'est seulement a la derniere que la demande disparait. Supprimer la
     // ligne entiere au premier clic ferait perdre les autres places sans
     // prevenir.
+    // ── QUI A SUPPRIME QUOI ──────────────────────────────────────────────────
+    // Un creneau qui disparait sans laisser de trace, c'est une equipe qui se
+    // demande si quelqu'un l'a retire ou s'il n'a jamais existe. On garde donc
+    // le geste : la personne, la date, le creneau, et s'il etait valide.
+    //
+    // Table a part plutot qu'une colonne « supprime_par » : la ligne supprimee
+    // n'existe plus, il n'y a plus rien a annoter.
+    if (!function_exists('famijobAssureJournalSuppressions')) {
+        function famijobAssureJournalSuppressions(PDO $db)
+        {
+            static $fait = false;
+            if ($fait) { return; }
+            $db->exec(
+                "CREATE TABLE IF NOT EXISTS interim_shift_suppressions (
+                    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                    shift_date DATE NOT NULL,
+                    department_name VARCHAR(120) NOT NULL,
+                    time_slot VARCHAR(60) NOT NULL,
+                    etait_valide TINYINT(1) NOT NULL DEFAULT 0,
+                    places_avant SMALLINT UNSIGNED NOT NULL DEFAULT 1,
+                    action VARCHAR(20) NOT NULL DEFAULT 'place',
+                    par_user_id INT NULL,
+                    fait_le DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    INDEX idx_supp_date (shift_date),
+                    INDEX idx_supp_qui (par_user_id)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+            );
+            $fait = true;
+        }
+    }
+
     if (!empty($_POST['retirer_place'])) {
         $rid = (int) ($_POST['request_id'] ?? 0);
         if ($rid > 0) {
-            $st = $db->prepare('SELECT seats_required, validation_status FROM interim_shift_requests WHERE id = ? LIMIT 1');
+            $st = $db->prepare('SELECT shift_date, department_name, time_slot, seats_required, validation_status FROM interim_shift_requests WHERE id = ? LIMIT 1');
             $st->execute([$rid]);
             $ligne = $st->fetch(PDO::FETCH_ASSOC);
             $places = (int) ($ligne['seats_required'] ?? 0);
 
-            if ($ligne && (string) $ligne['validation_status'] === 'approved') {
-                // Même règle qu'à la saisie : ce qui est validé ne se modifie
-                // plus depuis la grille. Le supprimer reste possible depuis la
-                // liste de l'onglet « grille », qui est l'écran de décision.
-                $message = "<div class='alert error'>" . e(fjdT('Ce créneau est validé : il ne se modifie plus ici.', 'Dit tijdsblok is goedgekeurd: het kan hier niet meer gewijzigd worden.')) . "</div>";
-            } elseif ($places > 1) {
+            // La trace est ecrite AVANT de toucher a la ligne : apres, on ne
+            // saurait plus ce qu'elle contenait.
+            if ($ligne) {
+                try {
+                    famijobAssureJournalSuppressions($db);
+                    $db->prepare(
+                        'INSERT INTO interim_shift_suppressions
+                            (shift_date, department_name, time_slot, etait_valide, places_avant, action, par_user_id)
+                         VALUES (?, ?, ?, ?, ?, ?, ?)'
+                    )->execute([
+                        $ligne['shift_date'],
+                        $ligne['department_name'],
+                        $ligne['time_slot'],
+                        ((string) $ligne['validation_status'] === 'approved') ? 1 : 0,
+                        $places,
+                        $places > 1 ? 'place' : 'creneau',
+                        $currentUserId,
+                    ]);
+                } catch (Exception $e) {
+                    // La trace ne doit pas empecher le retrait lui-meme.
+                }
+            }
+
+            if ($places > 1) {
                 $db->prepare('UPDATE interim_shift_requests SET seats_required = seats_required - 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
                    ->execute([$rid]);
-                $message = "<div class='alert success'>" . e(fjdT('Une place retiree.', 'Een plaats verwijderd.')) . "</div>";
+                $message = "<div class='alert success'>" . e(fjdT('Une place retiree sur ', 'Een plaats verwijderd op ') . $ligne['time_slot'] . ' — ' . $ligne['department_name']) . "</div>";
             } else {
                 // Les affectations partent avec : une place attribuee sur un
                 // creneau qui n'existe plus n'est plus rattrapable a l'ecran.
                 $db->prepare('DELETE FROM interim_shift_assignments WHERE request_id = ?')->execute([$rid]);
                 $db->prepare('DELETE FROM interim_shift_requests WHERE id = ?')->execute([$rid]);
-                $message = "<div class='alert success'>" . e(fjdT('Creneau supprime.', 'Tijdsblok verwijderd.')) . "</div>";
+                $message = "<div class='alert success'>" . e(fjdT('Creneau supprime : ', 'Tijdsblok verwijderd: ') . $ligne['time_slot'] . ' — ' . $ligne['department_name']) . "</div>";
             }
         }
     }
@@ -1507,7 +1568,7 @@ while ($vueCursor <= $selectedWeek['end']) {
                                             // sinon le secteur lui-même — c'est la règle des
                                             // demandes qui ne descendent pas au département.
                                             $cleEcriture = ($dept !== '') ? $dept : $secteur;
-                                            $connu = in_array($cleEcriture, $departmentOptions, true);
+                                            $connu = in_array($cleEcriture, $ciblesEcriture, true);
                                             ?>
                                             <?php if ($dept !== ''): ?>
                                                 <tr class="vue-departement"><td colspan="<?php echo (int) $vueCols; ?>"><?php echo e($dept); ?></td></tr>
@@ -1536,15 +1597,14 @@ while ($vueCursor <= $selectedWeek['end']) {
                                                                           // valider supprimait le premier creneau de la page
                                                                           // au lieu d'enregistrer. La croix passe donc par le
                                                                           // JS, qui pose sa cible puis envoie. ?>
-                                                                    <?php if ($c['etat'] !== 'approved'): ?>
+                                                                    <?php // SUPPRIMER reste possible, meme valide : « ne plus
+                                                                          // modifier » voulait dire ne pas devalider en douce,
+                                                                          // pas s'interdire de retirer un creneau annule. Sur un
+                                                                          // creneau valide, on demande confirmation — la place
+                                                                          // etait peut-etre deja promise a quelqu'un. ?>
                                                                     <button type="button"
-                                                                            onclick="famijobRetirerPlace(this, '<?php echo (int) $c['id']; ?>');"
+                                                                            onclick="famijobRetirerPlace(this, '<?php echo (int) $c['id']; ?>', <?php echo $c['etat'] === 'approved' ? 'true' : 'false'; ?>);"
                                                                             class="vue-x" title="<?php echo e(fjdT('Retirer cette place', 'Deze plaats verwijderen')); ?>">×</button>
-                                                                    <?php else: ?>
-                                                                    <?php // Validé : pas de croix. Proposer une action que le
-                                                                          // serveur refusera est pire que ne rien proposer. ?>
-                                                                    <span class="vue-verrou" title="<?php echo e(fjdT('Validé : ne se modifie plus ici', 'Goedgekeurd: kan hier niet meer gewijzigd worden')); ?>">🔒</span>
-                                                                    <?php endif; ?>
                                                                 </div>
                                                             <?php endfor; ?>
                                                         <?php endforeach; ?>
@@ -1757,7 +1817,11 @@ while ($vueCursor <= $selectedWeek['end']) {
     // Retirer une place : la croix pose sa cible et envoie. Elle ne peut pas
     // etre un bouton submit — la touche Entree declencherait le premier d'entre
     // eux, et taper un horaire supprimerait un creneau au lieu de l'enregistrer.
-    window.famijobRetirerPlace = function (btn, requestId) {
+    window.famijobRetirerPlace = function (btn, requestId, estValide) {
+        // Un creneau valide a pu etre annonce a quelqu'un : on demande avant.
+        if (estValide && !window.confirm(<?php echo json_encode(fjdT('Ce créneau est validé. Le retirer quand même ?', 'Dit tijdsblok is goedgekeurd. Toch verwijderen?')); ?>)) {
+            return;
+        }
         var form = btn.form || document.getElementById('createFormCells2');
         if (!form) { return; }
         var cible = document.getElementById('cibleRetrait');
