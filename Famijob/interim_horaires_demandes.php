@@ -318,7 +318,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // change : `cell_text[département][date]` au lieu d'un département unique.
     // Deux traitements auraient fini par ne plus créer les demandes de la même
     // façon selon l'onglet utilisé.
-    if (isset($_POST['create_requests_cells'])) {
+    // La croix de retrait vit dans le MEME formulaire que la saisie : un clic
+    // envoie donc les deux drapeaux. Retirer l'emporte — sinon un clic sur une
+    // croix afficherait « aucun horaire saisi » par-dessus le retrait effectue.
+    if (isset($_POST['create_requests_cells']) && !isset($_POST['retirer_place'])) {
         $cells = $_POST['cell_text'] ?? [];
         if (!is_array($cells)) { $cells = []; }
 
@@ -329,7 +332,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             "INSERT INTO interim_shift_requests (shift_date, department_name, time_slot, seats_required, comment, validation_status, validated_by_user_id, validated_at, created_by_user_id)
              VALUES (?, ?, ?, ?, NULL, 'pending', NULL, NULL, ?)
              ON DUPLICATE KEY UPDATE
-                seats_required = VALUES(seats_required),
+                // ⚠️ ADDITION, pas remplacement : retaper le meme horaire dans une
+                // case veut dire « une personne de plus ». Le champ de saisie etant
+                // toujours vide a l'affichage, un envoi n'apporte que ce qui vient
+                // d'etre tape — rien n'est compte deux fois.
+                seats_required = seats_required + VALUES(seats_required),
                 validation_status = 'pending',
                 validated_by_user_id = NULL,
                 validated_at = NULL,
@@ -387,6 +394,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $message = "<div class='alert error'>" . e(fjdT('Département inconnu : ', 'Onbekende afdeling: ')) . e(implode(', ', array_keys($refuses))) . "</div>";
         } else {
             $message = "<div class='alert error'>" . e(fjdT('Aucun horaire saisi.', 'Geen uurrooster ingevuld.')) . "</div>";
+        }
+    }
+
+    // ── RETIRER UNE PLACE DEPUIS LA GRILLE ───────────────────────────────────
+    // Une croix par jeton. Comme un jeton = UNE place, retirer decremente ;
+    // c'est seulement a la derniere que la demande disparait. Supprimer la
+    // ligne entiere au premier clic ferait perdre les autres places sans
+    // prevenir.
+    if (isset($_POST['retirer_place'])) {
+        $rid = (int) ($_POST['request_id'] ?? 0);
+        if ($rid > 0) {
+            $st = $db->prepare('SELECT seats_required FROM interim_shift_requests WHERE id = ? LIMIT 1');
+            $st->execute([$rid]);
+            $places = (int) $st->fetchColumn();
+
+            if ($places > 1) {
+                $db->prepare('UPDATE interim_shift_requests SET seats_required = seats_required - 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+                   ->execute([$rid]);
+                $message = "<div class='alert success'>" . e(fjdT('Une place retiree.', 'Een plaats verwijderd.')) . "</div>";
+            } else {
+                // Les affectations partent avec : une place attribuee sur un
+                // creneau qui n'existe plus n'est plus rattrapable a l'ecran.
+                $db->prepare('DELETE FROM interim_shift_assignments WHERE request_id = ?')->execute([$rid]);
+                $db->prepare('DELETE FROM interim_shift_requests WHERE id = ?')->execute([$rid]);
+                $message = "<div class='alert success'>" . e(fjdT('Creneau supprime.', 'Tijdsblok verwijderd.')) . "</div>";
+            }
         }
     }
 
@@ -526,7 +559,7 @@ foreach ($userBlocks as $b) {
 
 // Onglet actif (après un envoi "par jour", on y reste ; conservé aussi au changement de semaine).
 $activeTab = 'grid';
-if (isset($_POST['create_requests_byday']) || isset($_POST['create_requests_cells'])) {
+if (isset($_POST['create_requests_byday']) || isset($_POST['create_requests_cells']) || isset($_POST['retirer_place'])) {
     $activeTab = 'byday';
 } else {
     $requestedTab = (string) ($_GET['tab'] ?? $_POST['tab'] ?? 'grid');
@@ -615,7 +648,7 @@ $vueGrille = [];
 
 try {
     $vueStmt = $db->prepare(
-        "SELECT shift_date, department_name, time_slot, seats_required, comment, validation_status
+        "SELECT id, shift_date, department_name, time_slot, seats_required, comment, validation_status
            FROM interim_shift_requests
           WHERE shift_date BETWEEN ? AND ?
             AND validation_status <> 'rejected'
@@ -629,6 +662,7 @@ try {
     foreach ($vueStmt->fetchAll(PDO::FETCH_ASSOC) as $r) {
         $place = grilleSemaineResout((string) $r['department_name'], $vueRangement, $vueSansSecteur);
         $vueGrille[$place['secteur']][$place['sous']][(string) $r['shift_date']][] = [
+            'id'      => (int) $r['id'],
             'horaire' => (string) $r['time_slot'],
             'places'  => (int) $r['seats_required'],
             'etat'    => (string) $r['validation_status'],
@@ -666,6 +700,34 @@ foreach ($vueRangement['arbre'] as $sec) {
 }
 
 $vueGrille = grilleSemaineOrdonne($vueGrille, $vueRangement, $vueSansSecteur);
+
+// ── FILTRE D'AFFICHAGE ───────────────────────────────────────────────────────
+// 9 secteurs et 58 departements font ~400 cases : personne ne travaille sur
+// tout le tableau a la fois. On restreint donc a un secteur, et au besoin a un
+// departement. Le filtre ne touche QUE l'affichage — rien n'est masque en base.
+$vueSecteurFiltre = trim((string) ($_GET['vue_secteur'] ?? ''));
+$vueDeptFiltre    = trim((string) ($_GET['vue_dept'] ?? ''));
+
+if ($vueSecteurFiltre !== '' && isset($vueGrille[$vueSecteurFiltre])) {
+    $vueGrille = [$vueSecteurFiltre => $vueGrille[$vueSecteurFiltre]];
+
+    if ($vueDeptFiltre !== '') {
+        // '' est une cle valide (les creneaux du secteur lui-meme) : on la garde
+        // toujours, sinon choisir un departement ferait disparaitre les
+        // demandes « tout le secteur » sans que rien ne l'explique.
+        $garde = [];
+        if (isset($vueGrille[$vueSecteurFiltre][''])) {
+            $garde[''] = $vueGrille[$vueSecteurFiltre][''];
+        }
+        if (isset($vueGrille[$vueSecteurFiltre][$vueDeptFiltre])) {
+            $garde[$vueDeptFiltre] = $vueGrille[$vueSecteurFiltre][$vueDeptFiltre];
+        }
+        $vueGrille[$vueSecteurFiltre] = $garde;
+    }
+} else {
+    $vueSecteurFiltre = '';
+    $vueDeptFiltre = '';
+}
 
 // Les jours de la semaine affichée, dans l'ordre.
 $vueJours = [];
@@ -903,6 +965,18 @@ while ($vueCursor <= $selectedWeek['end']) {
         .vue-case-saisie textarea { width: 100%; min-width: 88px; border: 1px dashed #ccd6cf; border-radius: 5px; padding: 2px 4px; font-family: inherit; font-size: .68rem; resize: vertical; background: #fff; }
         .vue-case-saisie textarea:focus { border-color: #2d5a37; border-style: solid; outline: none; }
         .vue-fige { color: #b9c4bd; font-size: .68rem; }
+
+
+        /* Jeton = UNE place. Sa croix retire cette place ; a la derniere, le
+           creneau disparait. */
+        .vue-jeton { display: flex; align-items: center; justify-content: space-between; gap: 4px; }
+        .vue-x { border: 0; background: none; color: inherit; opacity: .55; cursor: pointer; font-size: .78rem; line-height: 1; padding: 0 1px; }
+        .vue-x:hover { opacity: 1; color: #a13e35; }
+        .vue-saisie { width: 100%; min-width: 84px; border: 1px dashed #ccd6cf; border-radius: 5px; padding: 2px 5px; font-family: inherit; font-size: .68rem; background: #fff; }
+        .vue-saisie:focus { border-color: #2d5a37; border-style: solid; outline: none; }
+        /* Le filtre : on choisit son secteur, on ne descend pas 400 cases. */
+        .vue-filtre { display: flex; gap: 10px; align-items: end; flex-wrap: wrap; margin-bottom: 12px; }
+        .vue-filtre select { min-width: 190px; }
 
         .grid-table {
             width: 100%;
@@ -1309,17 +1383,51 @@ while ($vueCursor <= $selectedWeek['end']) {
                               // avec leur état. Le champ de saisie sert à AJOUTER : il
                               // reste vide, pour qu'un envoi ne réécrive jamais par
                               // mégarde ce qui est déjà validé. ?>
-                        <form method="POST" id="createFormCells">
+                        <p class="helper" style="margin-top:0;">
+                            <?php echo e(fjdT(
+                                'Écris un horaire dans une case et appuie sur Entrée : il s’enregistre. Le même horaire tapé une seconde fois ajoute une personne. La croix retire une place. Vert : validé · Orange : en attente.',
+                                'Typ een uurrooster in een vakje en druk op Enter: het wordt opgeslagen. Hetzelfde uurrooster een tweede keer getypt voegt een persoon toe. Het kruisje verwijdert een plaats. Groen: goedgekeurd · Oranje: in afwachting.'
+                            )); ?>
+                        </p>
+
+                        <?php // Filtre d'AFFICHAGE, en GET : il se partage par l'URL et
+                              // survit a un envoi. Formulaire distinct de la saisie, pour
+                              // ne pas partir avec les horaires. ?>
+
+                        <form method="GET" class="vue-filtre">
+                            <input type="hidden" name="week" value="<?php echo e($selectedWeekKey); ?>">
+                            <input type="hidden" name="tab" value="byday">
+                            <div>
+                                <label for="vue_secteur"><?php echo e(fjdT('Secteur', 'Sector')); ?></label>
+                                <select name="vue_secteur" id="vue_secteur" onchange="this.form.vue_dept.value=''; this.form.submit();">
+                                    <option value=""><?php echo e(fjdT('Tous', 'Alle')); ?></option>
+                                    <?php foreach ($vueRangement['ordre'] as $nomSec): ?>
+                                        <option value="<?php echo e($nomSec); ?>" <?php echo $vueSecteurFiltre === $nomSec ? 'selected' : ''; ?>><?php echo e($nomSec); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <?php if ($vueSecteurFiltre !== ''): ?>
+                            <div>
+                                <label for="vue_dept"><?php echo e(fjdT('Département', 'Afdeling')); ?></label>
+                                <select name="vue_dept" id="vue_dept" onchange="this.form.submit();">
+                                    <option value=""><?php echo e(fjdT('Tout le secteur', 'Hele sector')); ?></option>
+                                    <?php foreach ($vueRangement['arbre'] as $sec): ?>
+                                        <?php if ((string) $sec['nom'] !== $vueSecteurFiltre) { continue; } ?>
+                                        <?php foreach ($sec['departements'] as $dep): ?>
+                                            <?php if ((string) $dep['nom'] === $vueSecteurFiltre) { continue; } ?>
+                                            <option value="<?php echo e($dep['nom']); ?>" <?php echo $vueDeptFiltre === (string) $dep['nom'] ? 'selected' : ''; ?>><?php echo e($dep['nom']); ?></option>
+                                        <?php endforeach; ?>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <?php endif; ?>
+                        </form>
+
+                        <form method="POST" id="createFormCells2">
                             <?php echo csrfField(); ?>
                             <input type="hidden" name="create_requests_cells" value="1">
+                            <input type="hidden" name="request_id" id="cibleRetrait" value="">
                             <input type="hidden" name="week" value="<?php echo e($selectedWeekKey); ?>">
-
-                            <p class="helper" style="margin-top:0;">
-                                <?php echo e(fjdT(
-                                    'Écris tes horaires directement dans les cases, un par ligne. Deux lignes identiques le même jour = 2 personnes. Vert : déjà validé · Orange : en attente.',
-                                    'Schrijf je uurroosters rechtstreeks in de vakjes, één per regel. Twee identieke regels op dezelfde dag = 2 personen. Groen: goedgekeurd · Oranje: in afwachting.'
-                                )); ?>
-                            </p>
 
                             <?php if (!$vueGrille): ?>
                                 <p style="color:var(--muted);">
@@ -1360,16 +1468,32 @@ while ($vueCursor <= $selectedWeek['end']) {
                                                     ?>
                                                     <td class="vue-case-saisie vue-fin<?php echo $pair; ?>">
                                                         <?php foreach ($existants as $c): ?>
-                                                            <div class="vue-jeton <?php echo $c['etat'] === 'approved' ? 'est-valide' : 'est-attente'; ?>"
-                                                                 <?php if ($c['note'] !== ''): ?>title="<?php echo e($c['note']); ?>"<?php endif; ?>>
-                                                                <?php echo e($c['horaire']); ?><?php if ($c['places'] > 1): ?> ×<?php echo (int) $c['places']; ?><?php endif; ?>
-                                                            </div>
+                                                            <?php // UN JETON PAR PLACE. Deux personnes sur le meme
+                                                                  // horaire s'ecrivent deux fois, comme dans le
+                                                                  // classeur — « 9h-18h ×2 » demandait une lecture
+                                                                  // de plus pour comprendre qu'il manque deux
+                                                                  // personnes. ?>
+                                                            <?php for ($pl = 0; $pl < max(1, (int) $c['places']); $pl++): ?>
+                                                                <div class="vue-jeton <?php echo $c['etat'] === 'approved' ? 'est-valide' : 'est-attente'; ?>"
+                                                                     <?php if ($c['note'] !== ''): ?>title="<?php echo e($c['note']); ?>"<?php endif; ?>>
+                                                                    <span><?php echo e($c['horaire']); ?></span>
+                                                                    <button type="submit" name="retirer_place" value="1"
+                                                                            formnovalidate
+                                                                            onclick="document.getElementById('cibleRetrait').value='<?php echo (int) $c['id']; ?>';"
+                                                                            class="vue-x" title="<?php echo e(fjdT('Retirer cette place', 'Deze plaats verwijderen')); ?>">×</button>
+                                                                </div>
+                                                            <?php endfor; ?>
                                                         <?php endforeach; ?>
 
                                                         <?php if ($connu): ?>
-                                                            <textarea name="cell_text[<?php echo e($cleEcriture); ?>][<?php echo e($j['key']); ?>]"
-                                                                      rows="1" spellcheck="false"
-                                                                      placeholder="<?php echo e(fjdT('+ horaire', '+ uur')); ?>"></textarea>
+                                                            <?php // UN SEUL horaire par validation : la touche Entree
+                                                                  // envoie le formulaire, comme dans un tableur. Un
+                                                                  // textarea aurait avale la touche pour sauter une
+                                                                  // ligne. ?>
+                                                            <input type="text" class="vue-saisie"
+                                                                   name="cell_text[<?php echo e($cleEcriture); ?>][<?php echo e($j['key']); ?>]"
+                                                                   value="" autocomplete="off" spellcheck="false"
+                                                                   placeholder="<?php echo e(fjdT('+ horaire', '+ uur')); ?>">
                                                         <?php else: ?>
                                                             <?php // Un libellé que la liste des départements ne connaît
                                                                   // pas ne peut pas servir de cible d'écriture : le
@@ -1395,74 +1519,10 @@ while ($vueCursor <= $selectedWeek['end']) {
                 </div>
             </section>
 
-            <div>
-                <?php foreach ($weekDays as $weekDay): ?>
-                    <?php $dayRequests = $requestsByDate[$weekDay['key']] ?? []; ?>
-                    <section class="day-card">
-                        <div class="day-head">
-                            <span><?php echo e($weekDay['label']); ?> <?php echo e($weekDay['date']); ?></span>
-                            <span class="day-count"><?php echo count($dayRequests); ?> <?php echo e(fjdT('demande(s)', 'aanvraag/aanvragen')); ?></span>
-                        </div>
-
-                        <?php if (empty($dayRequests)): ?>
-                            <div class="empty"><?php echo e(fjdT('Aucune demande sur cette journée.', 'Geen aanvraag op deze dag.')); ?></div>
-                        <?php else: ?>
-                            <div class="table-wrap">
-                                <table>
-                                    <thead>
-                                        <tr>
-                                            <th><?php echo e(fjdT('Département / Horaire', 'Afdeling / Uurrooster')); ?></th>
-                                            <th><?php echo e(fjdT('Remplissage', 'Bezetting')); ?></th>
-                                            <th><?php echo e(fjdT('Validation', 'Validatie')); ?></th>
-                                            <th><?php echo e(fjdT('Action', 'Actie')); ?></th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <?php foreach ($dayRequests as $request): ?>
-                                            <?php
-                                            $filled = (int) ($request['seats_filled'] ?? 0);
-                                            $required = (int) ($request['seats_required'] ?? 1);
-                                            ?>
-                                            <tr>
-                                                <td>
-                                                    <strong><?php echo e($request['department_name']); ?></strong>
-                                                    <div class="slot-meta"><?php echo e($request['time_slot']); ?></div>
-                                                    <?php if (!empty($request['comment'])): ?>
-                                                        <div class="slot-meta"><?php echo e($request['comment']); ?></div>
-                                                    <?php endif; ?>
-                                                </td>
-                                                <td>
-                                                    <span class="badge"><?php echo $filled; ?> / <?php echo $required; ?> pourvu(s)</span>
-                                                </td>
-                                                <td>
-                                                    <?php
-                                                    $validationStatus = (string) ($request['validation_status'] ?? 'pending');
-                                                    $validationLabel = fjdT('En attente', 'In afwachting');
-                                                    if ($validationStatus === 'approved') {
-                                                        $validationLabel = fjdT('Validée', 'Goedgekeurd');
-                                                    } elseif ($validationStatus === 'rejected') {
-                                                        $validationLabel = fjdT('Refusée', 'Geweigerd');
-                                                    }
-                                                    ?>
-                                                    <span class="badge"><?php echo e($validationLabel); ?></span>
-                                                </td>
-                                                <td>
-                                                    <form method="POST" onsubmit="return confirm('<?php echo e(fjdT('Supprimer cette demande et ses affectations ?', 'Deze aanvraag en toewijzingen verwijderen?')); ?>');">
-                                                        <?php echo csrfField(); ?>
-                                                        <input type="hidden" name="delete_request" value="1">
-                                                        <input type="hidden" name="request_id" value="<?php echo (int) $request['id']; ?>">
-                                                        <button type="submit" class="btn btn-danger"><?php echo e(fjdT('Supprimer', 'Verwijderen')); ?></button>
-                                                    </form>
-                                                </td>
-                                            </tr>
-                                        <?php endforeach; ?>
-                                    </tbody>
-                                </table>
-                            </div>
-                        <?php endif; ?>
-                    </section>
-                <?php endforeach; ?>
-            </div>
+            <?php // La liste jour par jour a ete retiree : la grille ci-dessus dit
+                  // la meme chose, en une image au lieu de sept tableaux. Elle
+                  // portait la suppression d'un creneau — c'est desormais la croix
+                  // de chaque jeton qui s'en charge. ?>
         </section>
     </div>
 <script>
