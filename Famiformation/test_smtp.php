@@ -14,7 +14,14 @@ try {
     $mail->SMTPSecure = getenv('SMTP_SECURE') ?: PHPMailer::ENCRYPTION_SMTPS;
     $mail->Port = getenv('SMTP_PORT') ?: 465;
     $mail->setFrom(getenv('MAIL_FROM') ?: 'admin@famiformation.com', getenv('MAIL_FROM_NAME') ?: 'FamiFormation');
-    $mail->addAddress(getenv('MAIL_ADMIN') ?: 'jimmy.hendrickx@famiflora.be');
+    // Aucune adresse de personne en dur, ici comme ailleurs : ce fichier de
+    // test est dans le dépôt, et un nom y resterait bien après son départ.
+    $destinataireTest = trim((string) (getenv('MAIL_ADMIN') ?: ''));
+    if ($destinataireTest === '') {
+        echo '⚠️ Aucune adresse de test configurée (variable MAIL_ADMIN).';
+        exit;
+    }
+    $mail->addAddress($destinataireTest);
     $mail->isHTML(true);
     $mail->CharSet = 'UTF-8';
     $mail->Subject = 'Test SMTP FamiFormation';

@@ -3,7 +3,7 @@
 // envoi_horaires.php — ENVOI DE L'HORAIRE DE LA SEMAINE AUX PERSONNES MATCHÉES.
 //
 //   Une ligne par personne affectée dans la semaine, avec le destinataire
-//   calculé : agence d'intérim si la personne y est rattachée, Honorine si
+//   calculé : agence d'intérim si la personne y est rattachée, le contact interne si
 //   elle est chez Famiflora.
 //
 //   TANT QUE LE MODE TEST EST ACTIF, tout part vers l'adresse de test. Le
@@ -56,7 +56,8 @@ $testRecipient = famijobScheduleMailTestRecipient();
 
 $people = famijobLoadWeekAssignments($db, $weekStart, $weekEnd);
 
-// Destinataires de chaque personne : elle-même + son agence (ou Honorine).
+// Destinataires de chaque personne : elle-même + son agence (ou le contact
+// interne, voir famijobResolveScheduleRecipient — aucun nom n'est écrit ici).
 // Les agences se répètent d'une personne à l'autre, on met leur résolution en
 // cache pour ne pas relire interim_agences à chaque ligne.
 $agencyCache = [];
@@ -279,20 +280,27 @@ foreach ($people as $person) {
         <div>
             <a href="index.php" class="back-link">← Retour FamiJob</a>
             <h1>Envoi des horaires</h1>
-            <p>Chaque personne matchée sur la semaine reçoit son horaire <strong>en direct</strong>, et son agence d'intérim — ou Honorine pour les collaborateurs Famiflora — reçoit le même horaire de son côté. Deux mails par personne, avec un texte adapté à chacun.</p>
+            <p>Chaque personne matchée sur la semaine reçoit son horaire <strong>en direct</strong>, et son agence d'intérim — ou le contact interne pour les collaborateurs Famiflora — reçoit le même horaire de son côté. Deux mails par personne, avec un texte adapté à chacun.</p>
         </div>
     </div>
 
     <?php if ($testMode): ?>
         <div class="banner test">
-            <strong>🧪 Mode test actif — aucun mail ne part vers les personnes, les agences ni Honorine.</strong>
-            Tous les envois sont redirigés vers <code><?php echo e($testRecipient); ?></code>, avec le destinataire réel rappelé dans l'objet.
+            <strong>🧪 Mode test actif — aucun mail ne part vers les personnes, les agences ni le contact interne.</strong>
+            <?php if ($testRecipient !== ''): ?>
+                Tous les envois sont redirigés vers <code><?php echo e($testRecipient); ?></code>, avec le destinataire réel rappelé dans l'objet.
+            <?php else: ?>
+                <?php // Sans adresse de redirection, le mode test ne redirige pas : il BLOQUE
+                      // tout. Le dire ici, sinon on croit envoyer et rien ne part. ?>
+                ⚠️ <strong>Et aucune adresse de redirection n'est configurée : rien ne partira du tout.</strong>
+                Renseigne <code>FAMIJOB_HORAIRE_MAIL_TEST_TO</code> dans les variables Railway.
+            <?php endif; ?>
             La colonne « Destinataires réels » ci-dessous montre exactement ce qui partira une fois le mode coupé.
             Pour basculer en réel : variable d'environnement <code>FAMIJOB_HORAIRE_MAIL_TEST=0</code>.
         </div>
     <?php else: ?>
         <div class="banner live">
-            <strong>🔴 Mode réel — les mails partent aux personnes, aux agences d'intérim et à Honorine.</strong>
+            <strong>🔴 Mode réel — les mails partent aux personnes, aux agences d'intérim et au contact interne.</strong>
             Vérifiez la semaine et la colonne « Destinataires réels » avant d'envoyer.
         </div>
     <?php endif; ?>
@@ -494,7 +502,7 @@ foreach ($people as $person) {
             info.textContent = n === 0
                 ? 'Aucune personne sélectionnée.'
                 : n + ' personne(s) — ' + mails + ' mail(s)'
-                    + (testMode ? ', tous vers ' + testTo + ' (test).' : ', aux personnes et à leur agence / Honorine.');
+                    + (testMode ? ', tous vers ' + testTo + ' (test).' : ', aux personnes et à leur agence / au contact interne.');
         }
         if (checkAll) {
             checkAll.checked = n > 0 && n === rows.length;
@@ -520,7 +528,7 @@ foreach ($people as $person) {
         var mails = checked.reduce(function (total, c) { return total + mailsFor(c); }, 0);
         var message = testMode
             ? 'MODE TEST : ' + mails + ' mail(s) pour ' + checked.length + ' personne(s), tous vers ' + testTo + '. Confirmer ?'
-            : 'ENVOI RÉEL : ' + mails + ' mail(s) vont partir — aux personnes elles-mêmes ET à leur agence d\'intérim / Honorine. Confirmer ?';
+            : 'ENVOI RÉEL : ' + mails + ' mail(s) vont partir — aux personnes elles-mêmes ET à leur agence d\'intérim / au contact interne. Confirmer ?';
         return window.confirm(message);
     };
 })();

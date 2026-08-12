@@ -108,9 +108,15 @@ foreach ($sections as $section) {
 $body .= '<div style="margin-top:24px;font-size:13px;color:#617268;">Message automatique envoyé par FamiFormation.</div>';
 $body .= '</div></div>';
 
-$sent = sendMail(famiGetEnv('MAIL_ADMIN', 'jimmy.hendrickx@famiflora.be'), $subject, $body, true);
+// ⚠️ AUCUNE ADRESSE DE PERSONNE EN DUR — décision de Jimmy, valable pour tout
+// le dépôt. Un repli nominatif écrit ici continuerait d'expédier ce rapport à
+// quelqu'un longtemps après son départ, sans que personne ne s'en aperçoive.
+// Pas de variable = pas d'envoi, et on le DIT.
+$destinataire = trim((string) famiGetEnv('MAIL_ADMIN', ''));
 
-if ($sent) {
+if ($destinataire === '') {
+    echo 'Rapport non envoyé : aucune adresse configurée (variable MAIL_ADMIN).';
+} elseif (sendMail($destinataire, $subject, $body, true)) {
     echo 'Rapport des disponibilités envoyé avec succès.';
 } else {
     echo 'Échec de l\'envoi du rapport des disponibilités : ' . getLastMailError();

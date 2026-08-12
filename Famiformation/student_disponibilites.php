@@ -132,7 +132,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_availabilities']
 
     $message = "<div class='alert success'>✅ Tes disponibilités ont été enregistrées.</div>";
     if ($lockedChangesIgnored) {
-        $message .= "<div class='alert warning'>⚠️ Certaines dates déjà renseignées dans les 15 prochains jours sont verrouillées et n'ont pas été modifiées. Pour un changement de planning sur cette période, il faut envoyer un mail à Honorine.</div>";
+        $message .= "<div class='alert warning'>⚠️ Certaines dates déjà renseignées dans les 15 prochains jours sont verrouillées et n'ont pas été modifiées. Pour un changement de planning sur cette période, il faut envoyer un mail à " . e(famiContactRh()) . ".</div>";
     }
 
     $existingByDate = $fetchExistingByDate($db, $userId, $today, $endDate);
@@ -571,7 +571,7 @@ $defaultMonthKey = array_key_first($monthSections);
 
         <?php echo $message; ?>
 
-        <div class="alert warning">⚠️ Une date déjà renseignée dans les 15 prochains jours devient verrouillée. Si un changement de planning doit être effectué sur cette période, il ne peut se faire qu’avec l’envoi d’un mail à Honorine.</div>
+        <div class="alert warning">⚠️ Une date déjà renseignée dans les 15 prochains jours devient verrouillée. Si un changement de planning doit être effectué sur cette période, il ne peut se faire qu’avec l’envoi d’un mail à <?= e(famiContactRh()) ?>.</div>
 
         <form method="POST" class="card">
             <?php echo csrfField(); ?>

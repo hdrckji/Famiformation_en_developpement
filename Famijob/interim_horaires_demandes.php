@@ -508,6 +508,71 @@ if (isset($_POST['create_requests']) && $createFailed) {
         }
     }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LA SEMAINE, VUE COMME DANS LE CLASSEUR.
+//
+// L'équipe travaillait sur un fichier Excel : une colonne par jour, les
+// départements en lignes groupés par secteur. La saisie a changé, pas leur
+// façon de lire un planning — on leur redonne donc la même image, au-dessus des
+// formulaires de création.
+//
+// Chaque créneau porte son ÉTAT : « validé » ou « en attente ». Les REFUSÉS
+// n'apparaissent pas : une demande rejetée n'est pas un créneau en moins à
+// pourvoir, c'est un créneau qui n'existe pas. La laisser à l'écran ferait
+// croire à un trou dans le planning.
+//
+// Le rangement sous les secteurs vient de includes/grille_semaine.php, partagé
+// avec l'écran de matching : la même demande ne peut pas se ranger d'une façon
+// ici et d'une autre là-bas.
+// ─────────────────────────────────────────────────────────────────────────────
+require_once __DIR__ . '/includes/grille_semaine.php';
+
+$vueRangement = grilleSemaineRangement($db);
+$vueSansSecteur = fjdT('Sans secteur', 'Zonder sector');
+$vueGrille = [];
+
+try {
+    $vueStmt = $db->prepare(
+        "SELECT shift_date, department_name, time_slot, seats_required, comment, validation_status
+           FROM interim_shift_requests
+          WHERE shift_date BETWEEN ? AND ?
+            AND validation_status <> 'rejected'
+          ORDER BY shift_date ASC, department_name ASC, time_slot ASC"
+    );
+    $vueStmt->execute([
+        $selectedWeek['start']->format('Y-m-d'),
+        $selectedWeek['end']->format('Y-m-d'),
+    ]);
+
+    foreach ($vueStmt->fetchAll(PDO::FETCH_ASSOC) as $r) {
+        $place = grilleSemaineResout((string) $r['department_name'], $vueRangement, $vueSansSecteur);
+        $vueGrille[$place['secteur']][$place['sous']][(string) $r['shift_date']][] = [
+            'horaire' => (string) $r['time_slot'],
+            'places'  => (int) $r['seats_required'],
+            'etat'    => (string) $r['validation_status'],
+            'note'    => (string) ($r['comment'] ?? ''),
+        ];
+    }
+} catch (Exception $e) {
+    // La vue est un confort : si la lecture échoue, la page doit continuer à
+    // permettre de CRÉER des demandes, qui est son métier.
+    $vueGrille = [];
+}
+
+$vueGrille = grilleSemaineOrdonne($vueGrille, $vueRangement, $vueSansSecteur);
+
+// Les jours de la semaine affichée, dans l'ordre.
+$vueJours = [];
+$vueCursor = $selectedWeek['start'];
+while ($vueCursor <= $selectedWeek['end']) {
+    $vueJours[] = [
+        'key'   => $vueCursor->format('Y-m-d'),
+        'label' => $weekdayMap[$vueCursor->format('l')] ?? $vueCursor->format('l'),
+        'date'  => $vueCursor->format('d/m'),
+    ];
+    $vueCursor = $vueCursor->modify('+1 day');
+}
 ?>
 <!DOCTYPE html>
 <html lang="<?php echo e($pageLang); ?>">

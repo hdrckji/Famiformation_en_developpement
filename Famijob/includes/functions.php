@@ -96,6 +96,26 @@ if (!function_exists('verifierConnexion')) {
     }
 }
 
+if (!function_exists('famiContactRh')) {
+    /**
+     * QUI CONTACTER POUR UNE QUESTION DE PLANNING OU DE MOT DE PASSE.
+     *
+     * ⚠️ AUCUN NOM DE PERSONNE DANS LE CODE — décision de Jimmy, valable pour
+     * tout le dépôt. Un prénom écrit en dur dans un mail ou dans une alerte
+     * survit au départ de la personne : les collaborateurs continuent d'écrire
+     * à quelqu'un qui n'est plus là, et il faut modifier le code pour corriger.
+     * C'est un RÉGLAGE, donc une variable Railway (CONTACT_RH).
+     *
+     * Le repli est une FONCTION (« le service RH »), jamais quelqu'un : sans
+     * configuration, le texte reste juste et ne désigne personne.
+     */
+    function famiContactRh()
+    {
+        $contact = trim((string) famiGetEnv('CONTACT_RH', ''));
+        return $contact !== '' ? $contact : 'le service RH';
+    }
+}
+
 if (!function_exists('isAdmin')) {
     function isAdmin()
     {
@@ -1220,7 +1240,15 @@ if (!function_exists('sendSchedulingEmail')) {
 if (!function_exists('sendAccueilTrainingEnrollmentEmail')) {
     function sendAccueilTrainingEnrollmentEmail(PDO $db, $userId, $formationId, $creneauId)
     {
-        $recipient = 'accueil@famiflora.be';
+        // ⚠️ Aucune adresse en dur dans le code : c'est un réglage, il vit
+        // dans les variables Railway (MAIL_ACCUEIL). Une adresse figée ici
+        // survivrait à une réorganisation du service, et les inscriptions
+        // partiraient dans une boîte que plus personne ne relève.
+        $recipient = trim((string) famiGetEnv('MAIL_ACCUEIL', ''));
+        if ($recipient === '' || !filter_var($recipient, FILTER_VALIDATE_EMAIL)) {
+            setLastMailError("Aucune adresse configurée pour l'accueil (variable MAIL_ACCUEIL).");
+            return false;
+        }
 
         $userStmt = $db->prepare('SELECT prenom, nom, identifiant, interim FROM utilisateurs WHERE id = ? LIMIT 1');
         $userStmt->execute([(int) $userId]);
@@ -1458,7 +1486,7 @@ if (!function_exists('sendStudentWelcomeEmail')) {
 
         $loginUrl = famiGetEnv('APP_URL', 'https://famiformation.com/login.php');
         $passwordBlock = '';
-        $passwordMessage = '<p style="margin:0 0 18px;font-size:16px;line-height:1.7;">Si ton mot de passe ne t\'a pas encore été remis, tu peux toujours prendre contact avec <strong>Honorine</strong>.</p>';
+        $passwordMessage = '<p style="margin:0 0 18px;font-size:16px;line-height:1.7;">Si ton mot de passe ne t\'a pas encore été remis, tu peux toujours prendre contact avec <strong>' . e(famiContactRh()) . '</strong>.</p>';
         $nextStepText = 'connecte-toi, termine les formations caisse, puis réserve ton premier rendez-vous en point de vente.';
 
         if ($passwordSetupUrl !== '') {

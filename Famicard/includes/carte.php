@@ -132,7 +132,7 @@ if (!function_exists('famicardChampsSocle')) {
             ],
             // ⚠️ CE CHAMP NE DIT PAS « est-elle intérimaire ». Il dit QUI SUIT
             // SON DOSSIER : son agence si elle est externe, « Famiflora »
-            // (c'est-à-dire Honorine, qui a une ligne dans `interim_agences` et
+            // (c'est-à-dire le suivi interne, qui a une ligne dans `interim_agences` et
             // un compte à ce nom) si elle a été recrutée en direct. C'est
             // `employeur` qui répond à la question du statut.
             'interim' => [
@@ -140,7 +140,7 @@ if (!function_exists('famicardChampsSocle')) {
                 'colonne' => 'interim', 'groupe' => 'rattachement',
                 'requis' => false, 'nature' => 'service', 'visible' => 'admin',
                 'modifiable' => 'admin', 'saisie' => 'liste', 'badge' => false,
-                'aide' => 'Son agence si elle est en intérim, Famiflora (Honorine) si elle a été recrutée en direct.',
+                'aide' => 'Son agence si elle est en intérim, Famiflora (le suivi interne) si elle a été recrutée en direct.',
             ],
             // ── SECTEUR ET DÉPARTEMENT : DE QUOI ELLE RELÈVE ───────────────
             // Ces deux-là ne sont NI une colonne de `utilisateurs` NI un champ

@@ -31,7 +31,7 @@
 // ⚠️ `interim` N'EST PAS TOUCHÉE NON PLUS, et surtout pas vidée. Ce n'est pas
 // « est-elle intérimaire » : c'est QUI SUIT SON DOSSIER. Pour un externe c'est
 // son agence ; pour un recrutement direct c'est « Famiflora », c'est-à-dire
-// Honorine — qui a une ligne dans `interim_agences`, un compte `agence_interim`
+// le suivi interne — qui a une ligne dans `interim_agences`, un compte `agence_interim`
 // à ce nom, et qui reçoit à ce titre les mails des étudiants recrutés en
 // direct. Vider cette colonne lui retirerait sa vue et couperait ces envois.
 // 443 références y touchent dans FamiFormation et FamiJob : on ajoute à côté,
@@ -116,7 +116,7 @@ if (!function_exists('famicardAgences')) {
      * jour qui finit dans les fiches.
      *
      * ⚠️ « Famiflora » en fait partie et y RESTE. Ce n'est pas une agence, mais
-     * c'est le dossier suivi en interne par Honorine, qui a un compte à ce nom.
+     * c'est le dossier suivi en interne, qui a un compte à ce nom.
      * On ne la propose simplement pas comme agence d'intérim : voir
      * famicardAgencesInterim().
      */
@@ -238,13 +238,13 @@ if (!function_exists('famicardIncoherencesEmploi')) {
         }
         // ⚠️ LA PANNE LA PLUS DIFFICILE À VOIR. FamiJob donne à une agence la
         // vue sur « ses » gens en comparant le nom de son dossier au sien, et
-        // Honorine reçoit les mails des étudiants recrutés en direct par le
+        // le suivi interne reçoit les mails des étudiants recrutés en direct par le
         // même chemin. Un étudiant sans dossier n'apparaît donc chez PERSONNE :
         // il n'y a pas de message d'erreur, il est simplement absent des
         // listes. La base en comptait 10 au moment de l'écriture.
         if ($role === 'etudiant' && $agence === '') {
             $dits[] = "Étudiant sans dossier : ni agence ni Famiflora, donc invisible dans les listes"
-                    . ' de FamiJob et chez Honorine.';
+                    . ' de FamiJob et dans le suivi interne.';
         }
 
         // Le profil reste maître des accès : on ne « corrige » pas le rôle

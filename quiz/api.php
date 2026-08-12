@@ -2411,12 +2411,16 @@ function mailRecompense(PDO $db, $cle, $info, $modele = 'attente', $origine = 'a
 }
 
 // 📣 Notifie l'ADMIN (RH) qu'une personne vient de devenir éligible à une
-// récompense (jardin terminé ou podium), pour qu'il la prépare. Destinataire
-// configurable via la variable d'env RH_NOTIF_MAIL (sinon adresse par défaut).
+// récompense (jardin terminé ou podium), pour qu'il la prépare.
+//
+// ⚠️ AUCUNE ADRESSE DE PERSONNE EN DUR : le destinataire vit dans la variable
+// Railway RH_NOTIF_MAIL. Un repli nominatif continuerait d'expédier ces
+// notifications à quelqu'un longtemps après son départ, sans que rien ne le
+// signale — pas de variable, pas de notification.
 function mailAdminRecompense($cle, $u, $info) {
   if (!function_exists('sendMail')) { return false; }
-  $dest = getenv('RH_NOTIF_MAIL');
-  if ($dest === false || $dest === '') { $dest = 'enylson.laine@famiflora.be'; }
+  $dest = trim((string) (getenv('RH_NOTIF_MAIL') ?: ''));
+  if ($dest === '') { return false; }
   $e = function ($s) { return htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8'); };
   $qui = trim(trim((string) ($u['prenom'] ?? '')) . ' ' . trim((string) ($u['nom'] ?? '')));
   if ($qui === '') { $qui = (string) $cle; }

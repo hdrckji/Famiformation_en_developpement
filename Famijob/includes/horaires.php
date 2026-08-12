@@ -153,7 +153,7 @@ if (!function_exists('famijobScheduleMailIsTestMode')) {
      * MODE TEST DES ENVOIS D'HORAIRE.
      *
      * Tant qu'il est actif, AUCUN mail ne part vers une agence d'intérim ni
-     * vers Honorine : tout est redirigé vers l'adresse de test. Le destinataire
+     * vers le contact interne : tout est redirigé vers l'adresse de test. Le destinataire
      * réel reste calculé et affiché à l'écran, pour qu'on vérifie l'aiguillage
      * avant de l'ouvrir en vrai.
      *
@@ -167,18 +167,51 @@ if (!function_exists('famijobScheduleMailIsTestMode')) {
     }
 }
 
+// ⚠️ AUCUN NOM NI AUCUNE ADRESSE DE PERSONNE DANS CE FICHIER — décision de
+// Jimmy, et elle vaut pour tout le dépôt. Ces réglages désignent des GENS, donc
+// ils changent : quelqu'un part, change de poste, ou reprend le dossier. Écrits
+// dans le code, il faut alors les retrouver, les modifier et redéployer ; posés
+// dans les variables Railway, ça se règle en trente secondes sans toucher au
+// code, et sans qu'un nom traîne dans un dépôt git.
+//
+// ⚠️ VALEUR PAR DÉFAUT VIDE, VOLONTAIREMENT. Une adresse de repli écrite ici
+// continuerait de fonctionner après le départ de la personne : les mails
+// partiraient chez quelqu'un qui n'est plus concerné, et personne ne s'en
+// apercevrait — c'est bien pire qu'une panne visible. Rien de configuré = rien
+// n'est envoyé, et l'écran le DIT (voir famijobResolveScheduleRecipient).
+
 if (!function_exists('famijobScheduleMailTestRecipient')) {
+    /** Où part l'envoi de TEST. Variable Railway : FAMIJOB_HORAIRE_MAIL_TEST_TO */
     function famijobScheduleMailTestRecipient()
     {
-        return trim((string) famiGetEnv('FAMIJOB_HORAIRE_MAIL_TEST_TO', 'enylson.laine@famiflora.be'));
+        return trim((string) famiGetEnv('FAMIJOB_HORAIRE_MAIL_TEST_TO', ''));
     }
 }
 
 if (!function_exists('famijobFamifloraFallbackEmail')) {
-    /** Destinataire des collaborateurs Famiflora (pas d'agence d'intérim). */
+    /**
+     * Destinataire des horaires des collaborateurs INTERNES (ceux qui ne
+     * dépendent d'aucune agence d'intérim). C'est une FONCTION — le service qui
+     * suit les plannings internes — pas une personne.
+     *
+     * Variable Railway : FAMIJOB_HORAIRE_MAIL_FAMIFLORA
+     */
     function famijobFamifloraFallbackEmail()
     {
-        return trim((string) famiGetEnv('FAMIJOB_HORAIRE_MAIL_FAMIFLORA', 'honorine.dhulst@famiflora.be'));
+        return trim((string) famiGetEnv('FAMIJOB_HORAIRE_MAIL_FAMIFLORA', ''));
+    }
+}
+
+if (!function_exists('famijobFamifloraFallbackContact')) {
+    /**
+     * Le nom affiché en face de cette adresse (« Service RH », « Accueil »…).
+     * Facultatif : sans lui, on n'affiche aucun nom plutôt que d'en inventer un.
+     *
+     * Variable Railway : FAMIJOB_HORAIRE_CONTACT_FAMIFLORA
+     */
+    function famijobFamifloraFallbackContact()
+    {
+        return trim((string) famiGetEnv('FAMIJOB_HORAIRE_CONTACT_FAMIFLORA', ''));
     }
 }
 
@@ -196,11 +229,12 @@ if (!function_exists('famijobResolveScheduleRecipient')) {
      * À qui part l'horaire de cette personne ?
      *
      *   • rattachée à une agence d'intérim -> les adresses de l'agence ;
-     *   • Famiflora (ou champ « interim » vide) -> Honorine.
+     *   • interne (ou champ « interim » vide) -> le contact interne.
      *
-     * La table interim_agences contient déjà une ligne « Famiflora » pointant
-     * sur Honorine : on l'utilise en priorité, et l'adresse en dur ne sert que
-     * de filet si la ligne venait à disparaître.
+     * La table `interim_agences` porte une ligne « Famiflora » qui désigne le
+     * contact interne : c'est ELLE qui fait foi, et elle se met à jour depuis
+     * l'écran des agences, sans toucher au code. La variable Railway ne sert
+     * que de filet si cette ligne venait à disparaître.
      *
      * @return array{kind:string,agency:string,contact:string,emails:string[],error:string}
      */
@@ -243,15 +277,25 @@ if (!function_exists('famijobResolveScheduleRecipient')) {
             if ($fallback !== '' && filter_var($fallback, FILTER_VALIDATE_EMAIL)) {
                 $out['emails'][] = $fallback;
                 if ($out['contact'] === '') {
-                    $out['contact'] = 'Honorine';
+                    // Aucun nom inventé : s'il n'est pas configuré, on n'en
+                    // affiche pas. Un prénom écrit en dur ici survivrait au
+                    // départ de la personne, sur un écran que plus personne
+                    // ne relit.
+                    $out['contact'] = famijobFamifloraFallbackContact();
                 }
             }
         }
 
         if (empty($out['emails'])) {
+            // Le message NOMME la variable manquante : une configuration qui
+            // manque doit se voir tout de suite, sinon les horaires internes
+            // cessent de partir sans que rien ne le signale.
             $out['error'] = $agency
                 ? 'Aucune adresse valide pour l\'agence « ' . $out['agency'] . ' ».'
-                : 'Agence « ' . $agencyName . ' » introuvable dans la liste des agences intérim.';
+                : ($isFamiflora
+                    ? 'Aucune adresse pour les collaborateurs internes : renseigne la ligne « Famiflora »'
+                        . ' dans les agences, ou la variable FAMIJOB_HORAIRE_MAIL_FAMIFLORA.'
+                    : 'Agence « ' . $agencyName . ' » introuvable dans la liste des agences intérim.');
         }
 
         return $out;
@@ -263,7 +307,7 @@ if (!function_exists('famijobResolveScheduleTargets')) {
      * Les destinataires d'un horaire : DEUX envois distincts.
      *
      *   1. la personne elle-même, sur son adresse de compte ;
-     *   2. son agence d'intérim, ou Honorine si elle est chez Famiflora.
+     *   2. son agence d'intérim, ou le contact interne si elle est chez Famiflora.
      *
      * Deux mails plutôt qu'un seul en copie : le texte n'est pas le même. La
      * personne lit « voici ton horaire », l'agence lit « voici l'horaire de
@@ -529,7 +573,7 @@ if (!function_exists('famijobBuildScheduleMailBody')) {
         $greeting = $greetName !== '' ? 'Bonjour ' . e($greetName) . ',' : 'Bonjour,';
 
         // La personne est tutoyée — c'est le ton de toute la plateforme côté
-        // étudiant. L'agence et Honorine sont vouvoyées.
+        // étudiant. L'agence et le contact interne sont vouvoyés.
         $isForPerson = ($recipient['kind'] ?? '') === 'student';
 
         if ($isForPerson) {
@@ -592,7 +636,7 @@ if (!function_exists('famijobSendScheduleMail')) {
      * Envoie l'horaire d'UNE personne à TOUS ses destinataires.
      *
      * Deux mails distincts : un pour la personne, un pour son agence (ou
-     * Honorine). Ils sont indépendants — si l'un échoue, l'autre part quand
+     * le contact interne). Ils sont indépendants — si l'un échoue, l'autre part quand
      * même, et le rapport dit lequel a manqué. Un destinataire injoignable
      * (personne sans adresse, agence sans mail) est signalé, pas ignoré.
      *
@@ -626,7 +670,13 @@ if (!function_exists('famijobSendScheduleMail')) {
             }));
 
             if (empty($actualRecipients)) {
-                $reason = 'Adresse d\'envoi invalide (mode test mal configuré ?).';
+                // Le message NOMME la variable : en mode test sans adresse de
+                // redirection, TOUS les envois échouent, et un message vague
+                // ferait chercher la panne du mauvais côté.
+                $reason = $testMode
+                    ? 'Mode test actif mais aucune adresse de redirection : renseigne'
+                        . ' FAMIJOB_HORAIRE_MAIL_TEST_TO, ou passe FAMIJOB_HORAIRE_MAIL_TEST à false pour envoyer pour de vrai.'
+                    : 'Adresse d\'envoi invalide.';
                 $result['failed'][] = $label . ' : ' . $reason;
                 famijobLogScheduleMail($db, $person, $weekStart, $target['kind'], $realRecipients, false, $reason, $sentByUserId);
                 continue;

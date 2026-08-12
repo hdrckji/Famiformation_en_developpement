@@ -134,19 +134,37 @@ $prenom = champ('prenom');
 $nom = champ('nom');
 $L = (isset($_POST['lang']) && $_POST['lang'] === 'nl') ? 'nl' : 'fr';   // langue d'affichage
 
-$destinataire = fvEnv('MAIL_TO', 'enylson.laine@famiflora.be');
+// ⚠️ Aucune adresse de personne en dur : elle vit dans les variables Railway
+// (MAIL_TO). Sans elle, on ne fait pas semblant d'enregistrer — voir plus bas.
+$destinataire = trim((string) fvEnv('MAIL_TO', ''));
+
+// À qui la page invite à s'adresser. Réglage, jamais une constante du code :
+// vide = la phrase n'est pas affichée du tout.
+$relaisAffiche = trim((string) fvEnv('MAIL_RELAIS_VOLONTAIRE', ''));
 $envoye = false;
 $erreur = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($prenom === '' || $nom === '') {
         $erreur = $L === 'nl' ? 'Vul je voornaam en je naam in.' : 'Merci d\'indiquer ton prénom et ton nom.';
+    } elseif ($destinataire === '') {
+        // Sans adresse configurée, on NE FAIT PAS SEMBLANT : dire « merci, on
+        // te recontacte » alors que le message ne part nulle part est la pire
+        // des réponses possibles pour quelqu'un qui se propose.
+        $erreur = $L === 'nl'
+            ? 'De inschrijving is tijdelijk niet beschikbaar. Probeer het later opnieuw.'
+            : "L'inscription est momentanément indisponible. Réessaie plus tard.";
     } else {
+        // ⚠️ Aucun nom de personne dans ce message : à qui transmettre est un
+        // réglage (MAIL_RELAIS_VOLONTAIRE), pas une constante du code. La
+        // phrase disparaît si la variable n'est pas posée.
+        $relais = $relaisAffiche;
+
         $sujet = 'Nouvelle personne intéressée — créateur de contenu FamiFormation';
         $corps =
             "Bonjour,\r\n\r\n" .
             $prenom . ' ' . $nom . " est intéressé(e) pour créer du contenu (fiches PDF / vidéos) pour FamiFormation.\r\n\r\n" .
-            "Merci de le/la recontacter (ou de le transmettre à Séverine Santraine).\r\n\r\n" .
+            'Merci de le/la recontacter' . ($relais !== '' ? ' (ou de le transmettre à ' . $relais . ')' : '') . ".\r\n\r\n" .
             "— Envoyé automatiquement depuis le site /volontaire";
         $envoye = fvSmtpEnvoyer($destinataire, $sujet, $corps, $erreur);
         if (!$envoye && $erreur === '') {
@@ -189,16 +207,24 @@ p b{color:var(--deep);}
       <p><?php echo $L === 'nl'
         ? 'Je interesse is doorgegeven aan het <b>FamiFormation</b>-team. We nemen binnenkort contact met je op.'
         : 'Ton intérêt a bien été transmis à l\'équipe <b>FamiFormation</b>. On te recontactera bientôt.'; ?></p>
-      <p style="font-size:.94rem;color:var(--muted);"><?php echo $L === 'nl'
-        ? 'Je kan ook langsgaan bij <b>Séverine Santraine</b> wanneer je wil.'
-        : 'Tu peux aussi passer voir <b>Séverine Santraine</b> quand tu veux.'; ?></p>
+      <?php // ⚠️ Aucun nom de personne écrit dans la page : à qui s'adresser est
+            // un réglage (MAIL_RELAIS_VOLONTAIRE). Non renseigné, la phrase
+            // disparaît — mieux vaut ne rien dire qu'envoyer quelqu'un voir une
+            // personne qui a changé de poste. ?>
+      <?php if ($relaisAffiche !== ''): ?>
+        <p style="font-size:.94rem;color:var(--muted);"><?php echo $L === 'nl'
+          ? 'Je kan ook langsgaan bij <b>' . h($relaisAffiche) . '</b> wanneer je wil.'
+          : 'Tu peux aussi passer voir <b>' . h($relaisAffiche) . '</b> quand tu veux.'; ?></p>
+      <?php endif; ?>
     <?php else: ?>
       <div class="ic ko">✋</div>
       <h1><?php echo $L === 'nl' ? 'Oeps…' : 'Oups…'; ?></h1>
       <p><?php echo h($erreur !== '' ? $erreur : ($L === 'nl' ? 'Er ontbreekt informatie.' : 'Une information manque.')); ?></p>
-      <p style="font-size:.94rem;color:var(--muted);"><?php echo $L === 'nl'
-        ? 'Geen paniek: ga rechtstreeks langs bij <b>Séverine Santraine</b>.'
-        : 'Pas de panique : passe directement voir <b>Séverine Santraine</b>.'; ?></p>
+      <?php if ($relaisAffiche !== ''): ?>
+        <p style="font-size:.94rem;color:var(--muted);"><?php echo $L === 'nl'
+          ? 'Geen paniek: ga rechtstreeks langs bij <b>' . h($relaisAffiche) . '</b>.'
+          : 'Pas de panique : passe directement voir <b>' . h($relaisAffiche) . '</b>.'; ?></p>
+      <?php endif; ?>
     <?php endif; ?>
     <a class="back" href="index.html">← <?php echo $L === 'nl' ? 'Terug naar de site' : 'Retour au site'; ?></a>
   </div>

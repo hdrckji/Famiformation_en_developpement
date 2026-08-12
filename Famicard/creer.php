@@ -35,9 +35,10 @@
 //
 // CE QUE CETTE PAGE ÉCRIT EN PLUS DU COMPTE, parce que c'est le seul moment où
 // on a la personne complète sous les yeux :
-//   • son rattachement (`student_department_links`) — sans risque ici : la
-//     personne vient de naître, il n'y a aucune priorité existante à écraser,
-//     ce qui est précisément ce qui bloque l'édition du rattachement ailleurs ;
+//   • son rattachement RH (`famicard_rattachement`) : de quoi elle relève —
+//     secteur, et département si c'est plus précis. ⚠️ PAS
+//     `student_department_links`, qui dit où le PLANNING de FamiJob peut la
+//     placer : voir includes/rattachement.php ;
 //   • ses accès aux services (`famicard_acces`) — rien de coché = on ne
 //     enregistre RIEN, donc les règles historiques continuent de s'appliquer
 //     (voir includes/services.php : une liste vide enregistrée signifierait
@@ -107,7 +108,7 @@ $ROLES_CREATION = [
 
 // Les agences viennent de `interim_agences` (la page « Agences Intérim » du
 // site), jamais d'une seconde liste tenue ici. « Famiflora » en fait partie et
-// n'est PAS une agence : c'est le dossier suivi en interne par Honorine.
+// n'est PAS une agence : c'est le dossier suivi en interne par le service RH.
 $agences   = famicardAgences($db);
 $employeurs = famicardOptionsEmployeur();
 $contrats   = famicardOptionsContrat();
@@ -212,7 +213,7 @@ if (($_POST['action'] ?? '') === 'creer') {
         $contradictions[] = 'Employeur « ' . ($employeurs[$employeur] ?? $employeur) . ' » mais dossier suivi par '
                           . $interim . ' : une agence extérieure ne suit que des intérimaires.';
     }
-    // ⚠️ Honorine ne voit ses étudiants QUE par cette colonne (FamiJob compare
+    // ⚠️ Le suivi interne ne voit ses étudiants QUE par cette colonne (FamiJob compare
     // le nom du dossier au sien). Un étudiant créé sans dossier n'apparaîtrait
     // chez personne — c'est la panne la plus difficile à voir de tout l'écran.
     if ($aInterim && $role === 'etudiant' && $interim === '') {
@@ -600,7 +601,7 @@ try {
             <p class="rappel">
                 <b>Famiflora n'est pas une agence</b> : c'est l'entreprise. Un collaborateur recruté en direct est
                 <b>interne</b>, et son dossier est suivi par <b>Famiflora</b> — c'est ce qui le fait apparaître chez
-                Honorine. Une vraie agence (Konvert, Ago…) veut dire <b>intérim</b>.<br>
+                le <b>suivi interne</b>. Une vraie agence (Konvert, Ago…) veut dire <b>intérim</b>.<br>
                 Le contrat est une <b>troisième question</b> : un intérimaire peut être étudiant, flexi ou fixe,
                 et un interne aussi.
             </p>

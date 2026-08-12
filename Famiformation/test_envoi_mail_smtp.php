@@ -22,7 +22,14 @@ try {
 
     // Expéditeur et destinataire
     $mail->setFrom(famiGetEnv('MAIL_FROM', 'no-reply@example.com'), famiGetEnv('MAIL_FROM_NAME', 'FamiFormation'));
-    $mail->addAddress('jimmy.hendrickx@famiflora.be'); // Destinataire de test
+    // Destinataire de test — variable Railway MAIL_ADMIN, jamais une adresse
+    // de personne écrite dans le dépôt.
+    $destinataireTest = trim((string) famiGetEnv('MAIL_ADMIN', ''));
+    if ($destinataireTest === '') {
+        echo '⚠️ Aucune adresse de test configurée (variable MAIL_ADMIN).';
+        exit;
+    }
+    $mail->addAddress($destinataireTest);
 
     // Contenu
     $mail->isHTML(true);
