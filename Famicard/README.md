@@ -325,10 +325,21 @@ Le collaborateur corrige **ses coordonnées** : email, ville, date d'anniversair
 Le reste — profil, statut, lieu de travail, agence, employeur, contrat, rattachement — est
 de la donnée de gestion et reste à l'administrateur.
 
-**L'identifiant se modifie, mais il est le seul champ à demander une preuve d'identité.**
-Réservé à l'admin, et l'écran lui redemande **son propre** mot de passe avant d'écrire :
-c'est la seule modification de la fiche qui puisse mettre quelqu'un dehors, puisque c'est
-avec ça qu'on se connecte. Trois refus, et ils ne sont pas négociables :
+**L'identifiant se modifie, mais le champ est VERROUILLÉ par défaut.** Un cadenas est posé
+à côté ; il s'ouvre avec un **mot de passe dédié**, rangé dans les variables Railway sous
+`FAMICARD_MDP_IDENTIFIANT`. Ce n'est pas le mot de passe de l'administrateur : **être admin
+ne suffit pas**, ce qui met le changement d'identifiant hors de portée d'une session
+laissée ouverte sur un poste. C'est la seule modification de la fiche qui puisse mettre
+quelqu'un dehors, puisque c'est avec ça qu'on se connecte.
+
+⚠️ **Variable absente = champ verrouillé pour tout le monde**, et c'est le bon défaut : une
+variable qui manque ne doit jamais ouvrir une porte. L'écran le dit, plutôt que de laisser
+chercher pourquoi ça ne marche pas.
+
+⚠️ Le cadenas de l'écran ne protège rien à lui seul — il rend juste le champ saisissable,
+et n'existe que pour empêcher le geste distrait. **C'est le serveur qui vérifie**, à
+l'enregistrement, avec `hash_equals()`. Trois refus s'y ajoutent, et ils ne sont pas
+négociables :
 
 - **`admin` et `Accueil` ne se renomment pas.** Ce ne sont pas des noms, ce sont des clés :
   `checklist_gerbeur.php` ouvre un accès à qui a `$_SESSION['username'] === 'Accueil'`, et
@@ -382,7 +393,8 @@ tard, ne peut pas exposer ce qu'il ne doit pas.
       rattachement et accès aux services d'un seul geste
 - [x] **Rattachement RH modifiable** (secteur + département facultatif) — sa propre
       table, distincte de la planification de FamiJob
-- [x] **Identifiant modifiable** par un admin, contre son propre mot de passe
+- [x] **Identifiant modifiable** par un admin, derrière un cadenas ouvert par un mot de
+      passe dédié (`FAMICARD_MDP_IDENTIFIANT`, à poser dans Railway)
 - [x] **Employeur et type de contrat** séparés du profil (`includes/emploi.php`,
       `contrats.php`) — interne / intérim / indépendant, étudiant / flexi / fixe,
       **sans toucher au RBAC**

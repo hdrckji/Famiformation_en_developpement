@@ -361,16 +361,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // ── LA SEULE MODIFICATION QUI PEUT METTRE QUELQU'UN DEHORS ────
             // L'identifiant est ce avec quoi on se connecte. Le changer par
             // erreur, ou depuis une session laissée ouverte sur un poste, et
-            // la personne se retrouve à la porte sans comprendre. D'où une
-            // preuve d'identité — le mot de passe de CELUI QUI MODIFIE, pas
-            // celui de la personne : c'est lui qu'on veut authentifier.
-            $preuve = (string) ($_POST['confirmation_mdp'] ?? '');
-            if ($preuve === '') {
-                $erreurs[] = 'Pour changer un identifiant, saisis ton propre mot de passe en bas du formulaire.';
+            // la personne se retrouve à la porte sans comprendre. Le champ est
+            // donc VERROUILLÉ, et le cadenas s'ouvre avec un mot de passe
+            // DÉDIÉ (variable Railway), pas avec celui de l'administrateur :
+            // être admin ne suffit pas.
+            //
+            // ⚠️ Le verrou est vérifié ICI, côté serveur. Le cadenas de l'écran
+            // ne fait que rendre le champ saisissable — un formulaire n'est pas
+            // une autorisation, et celui-ci se contourne en trois clics.
+            if (!famicardDeverrouillageIdentifiantPossible()) {
+                $erreurs[] = "Le changement d'identifiant n'est pas configuré sur ce serveur"
+                           . ' (variable FAMICARD_MDP_IDENTIFIANT absente) : le champ reste verrouillé.';
                 continue;
             }
-            if (!password_verify($preuve, (string) ($moi['mot_de_passe'] ?? ''))) {
-                $erreurs[] = "Ce mot de passe n'est pas le tien : l'identifiant n'a pas été changé.";
+            $preuve = (string) ($_POST['mdp_identifiant'] ?? '');
+            if ($preuve === '') {
+                $erreurs[] = "Ouvre le cadenas à côté de l'identifiant et saisis le mot de passe de déverrouillage.";
+                continue;
+            }
+            if (!famicardVerifieMdpIdentifiant($preuve)) {
+                $erreurs[] = "Mot de passe de déverrouillage incorrect : l'identifiant n'a pas été changé.";
                 continue;
             }
             if ($nouvelle === '') {
@@ -595,8 +605,14 @@ if ($photo !== '') {
     .duo { display: flex; gap: 8px; min-width: 0; flex-wrap: wrap; }
     .duo select { flex: 1 1 45%; min-width: 0; width: auto; }
 
-    .verrou { background: #fffaf0; }
-    .verrou h2 { color: #8a5a10; }
+    /* ── LE CADENAS DE L'IDENTIFIANT ─────────────────────────────────── */
+    .verrou-ligne { display: flex; gap: 8px; align-items: center; }
+    .verrou-ligne input[readonly] { background: #f5f7f6; color: #777; cursor: not-allowed; }
+    .cadenas { flex: 0 0 auto; border: 1px solid #ccd6cf; background: #fff; border-radius: 10px; padding: 9px 12px; font-size: 1.05rem; line-height: 1; cursor: pointer; }
+    .cadenas:hover { border-color: #E9A93C; background: #fffaf0; }
+    .cadenas.ouvert { border-color: #E9A93C; background: #fff6e2; }
+    .zone-verrou { margin-top: 9px; background: #fffaf0; border: 1px solid #f0dbac; border-radius: 12px; padding: 12px 14px; }
+    .zone-verrou input { background: #fff; }
 
     .actions { display: flex; gap: 12px; flex-wrap: wrap; padding: 22px 26px; background: #f7faf8; border-top: 1px solid #eee; }
     .bouton { border: 0; border-radius: 30px; padding: 12px 26px; font-family: inherit; font-weight: 700; font-size: .92rem; cursor: pointer; text-decoration: none; display: inline-block; }
@@ -789,6 +805,43 @@ if ($photo !== '') {
                                     <option value="inactif" <?= ($brute === 'inactif') ? 'selected' : '' ?>>Inactif</option>
                                 </select>
 
+                            <?php elseif ($cle === 'identifiant'): ?>
+                                <?php // ── LE CHAMP VERROUILLÉ ─────────────────────────
+                                      // Saisissable seulement après avoir ouvert le
+                                      // cadenas posé à côté. Le champ reste `readonly`
+                                      // (et non `disabled`) : un champ désactivé n'est
+                                      // pas envoyé du tout, et l'identifiant paraîtrait
+                                      // vidé à l'enregistrement. ?>
+                                <?php $verrouOuvrable = famicardDeverrouillageIdentifiantPossible(); ?>
+                                <div class="verrou-ligne">
+                                    <input type="text" id="champ_<?= e($cle) ?>" name="champ_<?= e($cle) ?>"
+                                           value="<?= e($brute) ?>" maxlength="50" readonly
+                                           autocomplete="off" spellcheck="false">
+                                    <?php if ($verrouOuvrable): ?>
+                                        <button type="button" class="cadenas" id="cadenas"
+                                                aria-controls="zoneVerrou" aria-expanded="false"
+                                                title="Déverrouiller pour modifier l'identifiant">🔒</button>
+                                    <?php endif; ?>
+                                </div>
+
+                                <?php if ($verrouOuvrable): ?>
+                                    <div class="zone-verrou" id="zoneVerrou" hidden>
+                                        <input type="password" id="mdpIdentifiant" name="mdp_identifiant"
+                                               autocomplete="off" placeholder="Mot de passe de déverrouillage">
+                                        <div class="aide">
+                                            Ce n'est <b>pas</b> ton mot de passe de connexion : c'est celui qui protège
+                                            ce champ-là. Le champ s'ouvre dès que tu écris ; c'est le
+                                            <b>serveur</b> qui vérifie le mot de passe à l'enregistrement, et il
+                                            refuse le changement s'il est faux.
+                                        </div>
+                                    </div>
+                                <?php else: ?>
+                                    <div class="aide">
+                                        🔒 Le déverrouillage n'est pas configuré sur ce serveur
+                                        (variable <code>FAMICARD_MDP_IDENTIFIANT</code>) : ce champ ne peut pas être modifié.
+                                    </div>
+                                <?php endif; ?>
+
                             <?php elseif (!empty($champ['options'])): ?>
                                 <?php // Champ à liste posé par le modèle (employeur, contrat,
                                       // agence). Aucun cas particulier ici : le jour où un
@@ -830,31 +883,6 @@ if ($photo !== '') {
                 </div>
             <?php endforeach; ?>
 
-            <?php // ── PREUVE D'IDENTITÉ ───────────────────────────────────────
-                  // Demandée seulement à qui peut changer un identifiant, et
-                  // n'est vérifiée QUE si l'identifiant a réellement changé :
-                  // un champ obligatoire à chaque enregistrement d'adresse
-                  // serait contourné en trois jours (mot de passe collé dans un
-                  // gestionnaire, ou plus personne ne corrige sa fiche). ?>
-            <?php $identifiantEditable = isset($champs['identifiant'])
-                    && famicardPeutModifier($champs['identifiant'], $estAdmin, $estSaPropreFiche); ?>
-            <?php if ($identifiantEditable): ?>
-                <div class="groupe verrou">
-                    <h2>🔒 Changement d'identifiant</h2>
-                    <div class="ligne">
-                        <label for="confirmation_mdp">Ton mot de passe</label>
-                        <input type="password" id="confirmation_mdp" name="confirmation_mdp"
-                               autocomplete="current-password" placeholder="à remplir seulement si tu changes l'identifiant">
-                        <div class="aide">
-                            Changer un identifiant, c'est changer la façon dont quelqu'un se connecte : tant que la
-                            personne n'est pas prévenue, elle ne peut plus entrer. On te redemande donc <b>ton</b>
-                            mot de passe — celui de ton compte — pour être sûr que c'est bien toi.
-                            Le reste de la fiche s'enregistre sans.
-                        </div>
-                    </div>
-                </div>
-            <?php endif; ?>
-
             <div class="actions">
                 <button type="submit" class="bouton bouton-plein">Enregistrer</button>
                 <a class="bouton bouton-vide" href="<?= $estSaPropreFiche ? 'fiche.php' : 'admin.php' ?>">Annuler</a>
@@ -877,6 +905,59 @@ if ($photo !== '') {
       // Sans lui, les listes restent complètes et restent utilisables : le
       // script est un confort, pas une condition. ?>
 <?= ($rattachementEditable && function_exists('secteursScript')) ? secteursScript() : '' ?>
+
+<?php if (isset($champs['identifiant'])
+          && famicardPeutModifier($champs['identifiant'], $estAdmin, $estSaPropreFiche)
+          && famicardDeverrouillageIdentifiantPossible()): ?>
+<script>
+// LE CADENAS. Il ne protège rien à lui seul — c'est le serveur qui vérifie le
+// mot de passe à l'enregistrement. Son rôle est d'empêcher le geste distrait :
+// un champ ouvert au milieu d'un formulaire finit par être modifié en passant.
+(function () {
+    var cadenas = document.getElementById('cadenas');
+    var zone    = document.getElementById('zoneVerrou');
+    var mdp     = document.getElementById('mdpIdentifiant');
+    var champ   = document.getElementById('champ_identifiant');
+    if (!cadenas || !zone || !mdp || !champ) { return; }
+
+    cadenas.addEventListener('click', function () {
+        var ferme = zone.hasAttribute('hidden');
+        if (ferme) {
+            zone.removeAttribute('hidden');
+            cadenas.setAttribute('aria-expanded', 'true');
+            mdp.focus();
+        } else {
+            // Refermer REMET tout dans l'état d'origine : le mot de passe
+            // saisi est effacé et le champ redevient figé. Sans ça, on
+            // croirait avoir annulé alors que la valeur partirait quand même.
+            zone.setAttribute('hidden', '');
+            cadenas.setAttribute('aria-expanded', 'false');
+            mdp.value = '';
+            verrouille();
+        }
+    });
+
+    function verrouille() {
+        champ.setAttribute('readonly', '');
+        cadenas.textContent = '🔒';
+        cadenas.classList.remove('ouvert');
+    }
+
+    // Le champ s'ouvre dès qu'un mot de passe est écrit. On ne peut pas le
+    // vérifier ici : ce serait envoyer le secret au navigateur. Le serveur
+    // tranche, et refuse le changement si la saisie est fausse.
+    mdp.addEventListener('input', function () {
+        if (mdp.value.trim() !== '') {
+            champ.removeAttribute('readonly');
+            cadenas.textContent = '🔓';
+            cadenas.classList.add('ouvert');
+        } else {
+            verrouille();
+        }
+    });
+}());
+</script>
+<?php endif; ?>
 
 <?php if ($photoEditable): ?>
 <script>

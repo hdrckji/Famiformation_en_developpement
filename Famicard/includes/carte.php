@@ -187,9 +187,11 @@ if (!function_exists('famicardChampsSocle')) {
             // ── COMPTE / ACCÈS AUX SERVICES ────────────────────────────────
             // L'identifiant sert à SE CONNECTER : le changer coupe l'accès de
             // quelqu'un tant qu'il n'a pas été prévenu. Réservé à l'admin, et
-            // l'écran d'édition lui redemande SON mot de passe avant d'écrire
-            // (voir modifier.php) — c'est la seule modification de la fiche qui
-            // exige une preuve d'identité, parce que c'est la seule qui puisse
+            // le champ est VERROUILLÉ par défaut : il faut ouvrir le cadenas
+            // posé à côté avec un mot de passe dédié (variable Railway
+            // `FAMICARD_MDP_IDENTIFIANT`, voir famicardMdpIdentifiant). Être
+            // admin ne suffit pas — c'est la seule modification de la fiche qui
+            // demande un second secret, parce que c'est la seule qui puisse
             // mettre quelqu'un dehors.
             'identifiant' => [
                 'libelle' => 'Identifiant', 'libelle_nl' => 'Gebruikersnaam',
@@ -219,6 +221,56 @@ if (!function_exists('famicardChampsSocle')) {
                 'modifiable' => 'jamais', 'saisie' => 'texte', 'badge' => false,
             ],
         ];
+    }
+}
+
+if (!function_exists('famicardMdpIdentifiant')) {
+    /**
+     * LE MOT DE PASSE QUI DÉVERROUILLE LE CHAMP « IDENTIFIANT ».
+     *
+     * Ce n'est PAS le mot de passe de l'administrateur : c'est un secret à
+     * part, posé dans les variables Railway sous le nom `FAMICARD_MDP_IDENTIFIANT`.
+     * Être admin ne suffit donc pas — il faut aussi connaître ce mot de passe,
+     * ce qui met le changement d'identifiant hors de portée d'une session
+     * laissée ouverte sur un poste.
+     *
+     * ⚠️ NON CONFIGURÉ = CHAMP VERROUILLÉ POUR TOUT LE MONDE, et c'est le bon
+     * défaut : une variable absente ne doit jamais ouvrir une porte. C'est
+     * aussi pour ça que la comparaison ne se fait qu'après ce test — sans lui,
+     * un secret vide serait « déverrouillé » par une saisie vide.
+     */
+    function famicardMdpIdentifiant()
+    {
+        if (!function_exists('famiGetEnv')) {
+            return '';
+        }
+        return trim((string) famiGetEnv('FAMICARD_MDP_IDENTIFIANT', ''));
+    }
+}
+
+if (!function_exists('famicardDeverrouillageIdentifiantPossible')) {
+    /** Le déverrouillage est-il seulement configuré sur ce serveur ? */
+    function famicardDeverrouillageIdentifiantPossible()
+    {
+        return (famicardMdpIdentifiant() !== '');
+    }
+}
+
+if (!function_exists('famicardVerifieMdpIdentifiant')) {
+    /**
+     * La saisie ouvre-t-elle le verrou ?
+     *
+     * hash_equals() plutôt que « === » : la comparaison prend le même temps
+     * quelle que soit la saisie, et ne laisse donc pas deviner le secret
+     * caractère par caractère.
+     */
+    function famicardVerifieMdpIdentifiant($saisie)
+    {
+        $attendu = famicardMdpIdentifiant();
+        if ($attendu === '') {
+            return false; // pas de secret configuré : rien ne déverrouille
+        }
+        return hash_equals($attendu, (string) $saisie);
     }
 }
 
