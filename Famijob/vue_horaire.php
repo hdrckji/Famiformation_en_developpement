@@ -205,6 +205,51 @@ foreach ($requests as $request) {
     $byDeptDay[$departmentName][(string) $request['shift_date']][] = $request;
 }
 $departmentsInView = array_keys($departmentsInView);
+
+// ── LA VUE CLASSEUR ──────────────────────────────────────────────────────────
+// Le meme planning, presente comme le fichier Excel dont vient l'equipe :
+// secteurs en vert, departements en jaune, une colonne par jour. On garde les
+// DEUX vues — celle-ci pour lire vite, l'autre pour le detail par personne —
+// et c'est l'utilisateur qui choisit.
+$vhMode = (string) ($_GET['vue'] ?? 'actuelle');
+if (!in_array($vhMode, ['actuelle', 'classeur'], true)) {
+    $vhMode = 'actuelle';
+}
+
+// Le lien de bascule conserve semaine et filtres : changer de vue ne doit pas
+// renvoyer sur la semaine courante, tous secteurs confondus.
+$vhLien = static function ($mode) use ($selectedWeekKey, $selectedSecteur, $selectedDepartment) {
+    $p = ['week' => $selectedWeekKey, 'vue' => $mode];
+    if ($selectedSecteur !== '')      { $p['secteur'] = $selectedSecteur; }
+    if ($selectedDepartment !== 'all') { $p['department'] = $selectedDepartment; }
+    return 'vue_horaire.php?' . http_build_query($p);
+};
+
+$vhGrille = [];
+if ($vhMode === 'classeur') {
+    foreach ($requests as $r) {
+        $place = grilleSemaineResout((string) $r['department_name'], $vhRangement, fjvhT('Sans secteur', 'Zonder sector'));
+        $rid = (int) $r['id'];
+        $affectes = $assignmentsByRequest[$rid] ?? [];
+
+        // Une ligne par PLACE : celle qui est pourvue porte un nom, celle qui
+        // ne l'est pas se voit vide. Un « 2/3 pourvus » demande de compter.
+        $places = max((int) $r['seats_required'], count($affectes));
+        for ($i = 0; $i < $places; $i++) {
+            $a = $affectes[$i] ?? null;
+            $nom = '';
+            if ($a) {
+                $nom = trim((string) ($a['prenom'] ?? '') . ' ' . (string) ($a['nom'] ?? ''));
+                if ($nom === '') { $nom = (string) ($a['external_name'] ?? ''); }
+            }
+            $vhGrille[$place['secteur']][$place['sous']][(string) $r['shift_date']][] = [
+                'horaire' => (string) $r['time_slot'],
+                'nom'     => $nom,
+            ];
+        }
+    }
+    $vhGrille = grilleSemaineOrdonne($vhGrille, $vhRangement, fjvhT('Sans secteur', 'Zonder sector'));
+}
 sort($departmentsInView, SORT_NATURAL | SORT_FLAG_CASE);
 
 // Trie les demandes de chaque cellule (jour) par heure de début.
@@ -249,6 +294,10 @@ foreach ($byDeptDay as $departmentName => $byDay) {
             background:linear-gradient(135deg,#1f7a3d,#2fa757); color:#fff; font-weight:800; font-size:.92rem;
             padding:11px 18px; border-radius:12px; box-shadow:0 6px 16px rgba(31,122,61,.28); }
         .btn-export:hover { transform:translateY(-1px); }
+        .btn-vue { display:inline-flex; align-items:center; gap:6px; text-decoration:none; background:#fff;
+            color:#2d5a37; border:1px solid #cfdad3; font-weight:800; font-size:.92rem;
+            padding:11px 18px; border-radius:12px; }
+        .btn-vue:hover { border-color:#2d5a37; }
         label { display: block; margin-bottom: 6px; font-size: 0.82rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 700; }
         input, select { width: 100%; box-sizing: border-box; border: 1px solid #cfdad3; border-radius: 12px; padding: 10px 11px; font-size: 0.95rem; font-family: inherit; background: #fff; }
         .btn { border: none; border-radius: 12px; padding: 10px 14px; font-weight: 700; cursor: pointer; font-size: 0.9rem; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
@@ -272,6 +321,20 @@ foreach ($byDeptDay as $departmentName => $byDay) {
         .day-head { line-height: 1.35; }
         .day-head .date { color: var(--muted); font-weight: 600; text-transform: none; letter-spacing: 0; display: block; margin-top: 2px; }
         .badge { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 5px 10px; font-size: 0.78rem; font-weight: 700; margin-top: 8px; background: #e8f2ea; color: #29553a; }
+        /* LE CLASSEUR : memes reperes que dans les demandes et le matching —
+           deux ecrans qui montrent la meme chose doivent se ressembler. */
+        table.vh-classeur { border-collapse: collapse; width: max-content; min-width: 100%; font-size: .72rem; }
+        table.vh-classeur th, table.vh-classeur td { border: 1px solid #c8d3cc; padding: 3px 7px; white-space: nowrap; }
+        .vh-jour { background: #2d5a37; color: #fff; font-weight: 800; text-align: center; font-size: .76rem; padding: 6px 10px; }
+        .vh-jour .vh-date { font-weight: 400; opacity: .8; }
+        .vh-secteur td { background: #7ed321; color: #1d3d12; font-weight: 800; text-align: center; font-size: .78rem; padding: 3px; }
+        .vh-dept td { background: #ffff66; color: #4a4a00; font-weight: 700; text-align: center; font-size: .74rem; padding: 2px; }
+        .vh-fin { border-right: 6px solid #1d3d24 !important; }
+        .vh-pair { background: #eef3ef; }
+        .vh-vide { background: #f8faf9; }
+        .vh-h { text-align: center; font-variant-numeric: tabular-nums; font-weight: 700; }
+        .vh-n { min-width: 120px; }
+        .vh-libre { color: #a13e35; font-style: italic; }
         .empty-state { background: #fff; border-radius: 22px; padding: 28px; box-shadow: var(--shadow); color: var(--muted); }
         .fami-lang-switcher {
             display: inline-flex;
@@ -314,6 +377,8 @@ foreach ($byDeptDay as $departmentName => $byDay) {
 
     <div class="toolbar">
         <form method="get" action="">
+            <?php // Sans ce champ, filtrer ramenerait sur la vue par defaut. ?>
+            <input type="hidden" name="vue" value="<?php echo e($vhMode); ?>">
             <div>
                 <label for="week"><?php echo e(fjvhT('Semaine', 'Week')); ?></label>
                 <select id="week" name="week" onchange="this.form.submit();">
@@ -352,6 +417,13 @@ foreach ($byDeptDay as $departmentName => $byDay) {
               // Il suit les filtres affiches — exporter autre chose que ce
               // qu'on regarde est le meilleur moyen de diffuser un planning
               // faux. ?>
+        <?php // Bascule entre les deux vues, filtres conserves. ?>
+        <a class="btn-vue" href="<?php echo e($vhLien($vhMode === 'classeur' ? 'actuelle' : 'classeur')); ?>">
+            <?php echo $vhMode === 'classeur'
+                ? '☰ ' . e(fjvhT('Vue détaillée', 'Gedetailleerde weergave'))
+                : '▦ ' . e(fjvhT('Vue classeur', 'Werkboekweergave')); ?>
+        </a>
+
         <a class="btn-export" href="export_matching.php?week=<?php echo e($selectedWeekKey); ?><?php echo $selectedSecteur !== '' ? '&secteur=' . urlencode($selectedSecteur) : ''; ?><?php echo $selectedDepartment !== 'all' ? '&department=' . urlencode($selectedDepartment) : ''; ?>"
            title="<?php echo e(fjvhT('Exporter le planning affiché dans Excel', 'De getoonde planning naar Excel exporteren')); ?>">
             ↓ <?php echo e(fjvhT('Exporter Excel', 'Naar Excel')); ?>
@@ -361,6 +433,72 @@ foreach ($byDeptDay as $departmentName => $byDay) {
 
     <?php if (empty($departmentsInView)): ?>
         <div class="empty-state"><?php echo e(fjvhT('Aucun créneau trouvé pour cette semaine.', 'Geen tijdsblok gevonden voor deze week.')); ?></div>
+
+    <?php elseif ($vhMode === 'classeur'): ?>
+        <?php // ── LE CLASSEUR ────────────────────────────────────────────
+              // Secteur en vert, département en jaune, une colonne par jour,
+              // et dans chaque case l'horaire puis le nom. Les colonnes ne
+              // s'alignent pas entre elles : c'est le classeur, pas un
+              // tableau croisé. ?>
+        <div class="table-wrap">
+            <table class="vh-classeur">
+                <thead>
+                    <tr>
+                        <?php foreach ($weekDays as $day): ?>
+                            <th class="vh-jour vh-fin" colspan="2"><?php echo e($day['label']); ?> <span class="vh-date"><?php echo e($day['date']); ?></span></th>
+                        <?php endforeach; ?>
+                    </tr>
+                </thead>
+                <tbody>
+                <?php $vhCols = count($weekDays) * 2; ?>
+                <?php foreach ($vhGrille as $secteur => $blocs): ?>
+                    <tr class="vh-secteur"><td colspan="<?php echo (int) $vhCols; ?>"><?php echo e($secteur); ?></td></tr>
+
+                    <?php foreach ($blocs as $dept => $parJour): ?>
+                        <?php if ($dept !== ''): ?>
+                            <tr class="vh-dept"><td colspan="<?php echo (int) $vhCols; ?>"><?php echo e($dept); ?></td></tr>
+                        <?php endif; ?>
+
+                        <?php
+                        // Autant de lignes que le jour le plus chargé.
+                        $hauteur = 0;
+                        foreach ($weekDays as $day) {
+                            $n = isset($parJour[$day['key']]) ? count($parJour[$day['key']]) : 0;
+                            if ($n > $hauteur) { $hauteur = $n; }
+                        }
+                        ?>
+
+                        <?php for ($l = 0; $l < $hauteur; $l++): ?>
+                            <tr>
+                                <?php foreach ($weekDays as $iJ => $day): ?>
+                                    <?php
+                                    $c = $parJour[$day['key']][$l] ?? null;
+                                    $pair = ($iJ % 2 === 1) ? ' vh-pair' : '';
+                                    ?>
+                                    <?php if (!$c): ?>
+                                        <td class="vh-vide<?php echo $pair; ?>"></td>
+                                        <td class="vh-vide vh-fin<?php echo $pair; ?>"></td>
+                                    <?php else: ?>
+                                        <td class="vh-h<?php echo $pair; ?>"><?php echo e($c['horaire']); ?></td>
+                                        <td class="vh-n vh-fin<?php echo $pair; ?>">
+                                            <?php // Une place non pourvue se voit : c'est ce qu'on
+                                                  // cherche en ouvrant un planning. ?>
+                                            <?php if ($c['nom'] !== ''): ?>
+                                                <?php echo e($c['nom']); ?>
+                                            <?php else: ?>
+                                                <span class="vh-libre"><?php echo e(fjvhT('à pourvoir', 'in te vullen')); ?></span>
+                                            <?php endif; ?>
+                                        </td>
+                                    <?php endif; ?>
+                                <?php endforeach; ?>
+                            </tr>
+                        <?php endfor; ?>
+                    <?php endforeach; ?>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+
     <?php else: ?>
         <div class="table-wrap">
             <table>
