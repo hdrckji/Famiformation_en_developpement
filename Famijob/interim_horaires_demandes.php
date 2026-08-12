@@ -40,7 +40,7 @@ $db->exec(
         created_by_user_id INT NULL,
         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        UNIQUE KEY uniq_shift_request (shift_date, department_name, time_slot),
+        UNIQUE KEY uniq_shift_request (shift_date, department_name, time_slot, validation_status),
         INDEX idx_shift_date (shift_date),
         INDEX idx_shift_department (department_name)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
@@ -88,6 +88,37 @@ $db->exec(
 );
 
 secteursCharge();   // 🗂️ secteurs > départements (menus en cascade)
+// ── MIGRATION DE LA CLE UNIQUE ──────────────────────────────────────────────
+// La cle portait (date, departement, horaire) : un seul enregistrement par
+// creneau, donc un seul statut. Impossible d'avoir « 2 places validees ET 1 en
+// attente » sur le meme horaire — l'ajout d'une place sur un creneau deja
+// valide etait purement et simplement refuse.
+//
+// Le statut rejoint la cle. Un creneau peut desormais porter une ligne validee
+// et une ligne en attente, ce qui est exactement ce qu'on veut montrer : deux
+// jetons verts et un orange.
+//
+// Les ON DUPLICATE KEY des autres ecrans continuent de fonctionner : ils
+// inserent en 'pending', ils dedupliquent donc entre lignes 'pending'.
+try {
+    $cleActuelle = $db->query(
+        "SELECT GROUP_CONCAT(COLUMN_NAME ORDER BY SEQ_IN_INDEX) AS colonnes
+           FROM INFORMATION_SCHEMA.STATISTICS
+          WHERE TABLE_SCHEMA = DATABASE()
+            AND TABLE_NAME = 'interim_shift_requests'
+            AND INDEX_NAME = 'uniq_shift_request'"
+    )->fetchColumn();
+
+    if ($cleActuelle && strpos((string) $cleActuelle, 'validation_status') === false) {
+        $db->exec('ALTER TABLE interim_shift_requests DROP INDEX uniq_shift_request');
+        $db->exec('ALTER TABLE interim_shift_requests
+                   ADD UNIQUE KEY uniq_shift_request (shift_date, department_name, time_slot, validation_status)');
+    }
+} catch (Exception $e) {
+    // Droits insuffisants ou index absent : la page continue de fonctionner,
+    // l'ajout sur un creneau valide restera simplement refuse comme avant.
+}
+
 $departmentStmt = $db->query(
     "SELECT department_name
      FROM departments
@@ -354,11 +385,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         //   • rien en base  → création, en attente ;
         //   • déjà en attente → une place de plus, toujours en attente ;
         //   • déjà validé   → on n'y touche pas, et on le dit.
+        // On ne cherche QUE la ligne en attente : la ligne validée du même
+        // créneau existe peut-être à côté, et elle ne nous regarde pas.
         $lireCreneauStmt = $db->prepare(
-            'SELECT id, seats_required, validation_status
+            "SELECT id, seats_required
                FROM interim_shift_requests
               WHERE shift_date = ? AND department_name = ? AND time_slot = ?
-              LIMIT 1'
+                AND validation_status = 'pending'
+              LIMIT 1"
         );
         $creerCreneauStmt = $db->prepare(
             "INSERT INTO interim_shift_requests (shift_date, department_name, time_slot, seats_required, comment, validation_status, validated_by_user_id, validated_at, created_by_user_id)
@@ -372,7 +406,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $createdCount = 0;
         $refuses = [];
-        $verrouilles = [];   // créneaux validés, laissés tels quels
 
         foreach ($cells as $dept => $parJour) {
             $dept = trim((string) $dept);
@@ -406,20 +439,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $places = max(1, min(30, (int) $cnt));
 
                     $lireCreneauStmt->execute([$dateKey, $dept, $slot]);
-                    $existant = $lireCreneauStmt->fetch(PDO::FETCH_ASSOC);
+                    $enAttente = $lireCreneauStmt->fetch(PDO::FETCH_ASSOC);
 
-                    if (!$existant) {
-                        $creerCreneauStmt->execute([$dateKey, $dept, $slot, $places, $currentUserId]);
-                        $createdCount++;
-                    } elseif ((string) $existant['validation_status'] === 'approved') {
-                        // Intouchable. On le signale plutôt que de l'ignorer en
-                        // silence : sans message, la personne croirait sa place
-                        // ajoutée.
-                        $verrouilles[] = $slot;
+                    if ($enAttente) {
+                        // Déjà une demande en attente sur ce créneau : une place
+                        // de plus dessus.
+                        $ajouterPlaceStmt->execute([$places, (int) $enAttente['id']]);
                     } else {
-                        $ajouterPlaceStmt->execute([$places, (int) $existant['id']]);
-                        $createdCount++;
+                        // Rien en attente. On crée, même si une ligne VALIDÉE
+                        // existe pour le même créneau : c'est précisément le cas
+                        // « il m'en faut une de plus ». Les deux cohabitent, la
+                        // validée intacte et la nouvelle en attente.
+                        $creerCreneauStmt->execute([$dateKey, $dept, $slot, $places, $currentUserId]);
                     }
+                    $createdCount++;
                 }
             }
         }
@@ -432,11 +465,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $notifyAdminsNewDemands($createdCount, fjdT('plusieurs départements', 'meerdere afdelingen'), (string) ($selectedWeek['label'] ?? ''));
             $bouts[] = $createdCount . ' ' . fjdT('créneau(x) enregistré(s).', 'tijdsblok(ken) geregistreerd.');
         }
-        if ($verrouilles) {
-            $bouts[] = fjdT('Déjà validé, non modifié : ', 'Al goedgekeurd, niet gewijzigd: ')
-                     . implode(', ', array_unique($verrouilles)) . '.';
-        }
-
         if ($bouts) {
             $classe = ($createdCount > 0) ? 'success' : 'error';
             $message = "<div class='alert {$classe}'>" . e(implode(' ', $bouts)) . "</div>";

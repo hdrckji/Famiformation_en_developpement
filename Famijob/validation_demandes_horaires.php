@@ -31,7 +31,7 @@ $db->exec(
         created_by_user_id INT NULL,
         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        UNIQUE KEY uniq_shift_request (shift_date, department_name, time_slot),
+        UNIQUE KEY uniq_shift_request (shift_date, department_name, time_slot, validation_status),
         INDEX idx_shift_date (shift_date),
         INDEX idx_shift_department (department_name)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
@@ -114,6 +114,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             return 0;
         }
         $status = ($decision === 'rejected') ? 'rejected' : 'approved';
+
+        // ⚠️ FUSION AVANT VALIDATION. Depuis que la cle unique porte le statut,
+        // un meme creneau peut avoir une ligne validee ET une ligne en attente —
+        // c'est ce qui permet de demander une place de plus sur un creneau deja
+        // valide. Mais valider la seconde creerait alors deux lignes validees
+        // identiques : la cle unique refuserait, et la validation echouerait
+        // sans que personne ne comprenne pourquoi.
+        //
+        // On regarde donc, pour chaque demande approuvee, s'il existe deja une
+        // ligne validee sur le meme creneau. Si oui, on lui AJOUTE les places et
+        // on supprime la ligne en attente : deux demandes pour le meme horaire
+        // font un seul creneau a pourvoir.
+        if ($status === 'approved') {
+            $lire = $db->prepare('SELECT id, shift_date, department_name, time_slot, seats_required FROM interim_shift_requests WHERE id = ? LIMIT 1');
+            $jumelle = $db->prepare(
+                "SELECT id FROM interim_shift_requests
+                  WHERE shift_date = ? AND department_name = ? AND time_slot = ?
+                    AND validation_status = 'approved' AND id <> ?
+                  LIMIT 1"
+            );
+            $fusionner = $db->prepare('UPDATE interim_shift_requests SET seats_required = seats_required + ? WHERE id = ?');
+            $reporter  = $db->prepare('UPDATE interim_shift_assignments SET request_id = ? WHERE request_id = ?');
+            $effacer   = $db->prepare('DELETE FROM interim_shift_requests WHERE id = ?');
+
+            foreach ($ids as $k => $rid) {
+                $lire->execute([$rid]);
+                $d = $lire->fetch(PDO::FETCH_ASSOC);
+                if (!$d) { continue; }
+
+                $jumelle->execute([$d['shift_date'], $d['department_name'], $d['time_slot'], $rid]);
+                $autreId = (int) $jumelle->fetchColumn();
+                if ($autreId > 0) {
+                    $fusionner->execute([(int) $d['seats_required'], $autreId]);
+                    // Les personnes deja placees suivent la fusion : sinon leur
+                    // affectation pointerait sur une ligne effacee.
+                    $reporter->execute([$autreId, $rid]);
+                    $effacer->execute([$rid]);
+                    unset($ids[$k]);   // plus rien a valider pour celle-ci
+                }
+            }
+            $ids = array_values($ids);
+            if (empty($ids)) {
+                return 0;
+            }
+        }
+
         $ph = implode(',', array_fill(0, count($ids), '?'));
         $stmt = $db->prepare(
             "UPDATE interim_shift_requests

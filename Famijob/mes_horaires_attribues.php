@@ -24,7 +24,7 @@ $db->exec(
         created_by_user_id INT NULL,
         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        UNIQUE KEY uniq_shift_request (shift_date, department_name, time_slot),
+        UNIQUE KEY uniq_shift_request (shift_date, department_name, time_slot, validation_status),
         INDEX idx_shift_date (shift_date),
         INDEX idx_shift_department (department_name)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
