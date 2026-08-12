@@ -94,6 +94,70 @@ $groupes  = famicardGroupes();
 // ─────────────────────────────────────────────────────────────────────────────
 $arbreSecteurs = famicardArbreSecteurs($db);
 
+// ─────────────────────────────────────────────────────────────────────────────
+// « CET IDENTIFIANT EST-IL LIBRE ? » — réponse immédiate, pendant la frappe.
+//
+// Le contrôle qui COMPTE est celui de l'enregistrement, plus bas : un
+// formulaire n'est pas une autorisation, et deux administrateurs peuvent saisir
+// le même identifiant à la même seconde. Celui-ci ne remplace rien, il ÉVITE
+// D'ALLER AU BOUT pour se voir refuser — on sait avant d'enregistrer.
+//
+// Réservé à qui a le droit d'écrire ce champ : sinon n'importe qui pourrait
+// tester des identifiants un par un pour savoir lesquels existent.
+// ─────────────────────────────────────────────────────────────────────────────
+if (isset($_GET['identifiant_libre'])) {
+    header('Content-Type: application/json; charset=UTF-8');
+
+    $champIdent = $champs['identifiant'] ?? null;
+    if (!$champIdent || !famicardPeutModifier($champIdent, $estAdmin, $estSaPropreFiche)) {
+        http_response_code(403);
+        echo json_encode(['libre' => false, 'message' => 'Non autorisé.']);
+        exit();
+    }
+
+    // Un paramètre bricolé en tableau ferait un « Array to string » : on ne
+    // travaille que sur du scalaire.
+    $propose = is_scalar($_GET['identifiant_libre']) ? trim((string) $_GET['identifiant_libre']) : '';
+    $actuel  = (string) ($cible['identifiant'] ?? '');
+
+    $reponse = ['libre' => true, 'message' => ''];
+    if ($propose === '') {
+        $reponse = ['libre' => false, 'message' => "L'identifiant ne peut pas être vide."];
+    } elseif ($propose === $actuel) {
+        $reponse = ['libre' => true, 'message' => 'Identifiant actuel, inchangé.'];
+    } elseif (mb_strlen($propose) > 50) {
+        $reponse = ['libre' => false, 'message' => 'Trop long (50 caractères au maximum).'];
+    } elseif (preg_match('/\s/u', $propose)) {
+        $reponse = ['libre' => false, 'message' => "Pas d'espace : il se tape à la connexion."];
+    } elseif (famicardIdentifiantVerrouille($propose)) {
+        $reponse = ['libre' => false, 'message' => '« ' . $propose . ' » est réservé à un compte de service.'];
+    } else {
+        try {
+            // La collation de la colonne est insensible à la casse : « Marie »
+            // et « marie » sont le MÊME identifiant pour la clé unique. Le test
+            // doit donc l'être aussi, sinon on annoncerait « libre » un nom que
+            // l'enregistrement refuserait juste après.
+            $q = $db->prepare("SELECT nom, prenom FROM utilisateurs WHERE identifiant = ? AND id != ? LIMIT 1");
+            $q->execute([$propose, $cibleId]);
+            $occupant = $q->fetch(PDO::FETCH_ASSOC);
+            if ($occupant) {
+                $qui = trim(((string) ($occupant['prenom'] ?? '')) . ' ' . ((string) ($occupant['nom'] ?? '')));
+                $reponse = [
+                    'libre' => false,
+                    'message' => 'Déjà utilisé' . ($qui !== '' ? ' par ' . $qui : '') . '.',
+                ];
+            } else {
+                $reponse = ['libre' => true, 'message' => 'Libre.'];
+            }
+        } catch (Exception $e) {
+            $reponse = ['libre' => false, 'message' => 'Vérification impossible pour le moment.'];
+        }
+    }
+
+    echo json_encode($reponse);
+    exit();
+}
+
 $champRattachement = $champs['departement'] ?? null;
 $rattachementEditable = ($champRattachement !== null)
     && $arbreSecteurs
@@ -613,6 +677,9 @@ if ($photo !== '') {
     .cadenas.ouvert { border-color: #E9A93C; background: #fff6e2; }
     .zone-verrou { margin-top: 9px; background: #fffaf0; border: 1px solid #f0dbac; border-radius: 12px; padding: 12px 14px; }
     .zone-verrou input { background: #fff; }
+    .verdict { margin-top: 7px; font-size: .85rem; font-weight: 700; border-radius: 9px; padding: 7px 11px; }
+    .verdict.ok { background: #e7f6ea; color: #1E7A46; }
+    .verdict.ko { background: #fdeaea; color: #a3271c; }
 
     .actions { display: flex; gap: 12px; flex-wrap: wrap; padding: 22px 26px; background: #f7faf8; border-top: 1px solid #eee; }
     .bouton { border: 0; border-radius: 30px; padding: 12px 26px; font-family: inherit; font-weight: 700; font-size: .92rem; cursor: pointer; text-decoration: none; display: inline-block; }
@@ -813,19 +880,38 @@ if ($photo !== '') {
                                       // pas envoyé du tout, et l'identifiant paraîtrait
                                       // vidé à l'enregistrement. ?>
                                 <?php $verrouOuvrable = famicardDeverrouillageIdentifiantPossible(); ?>
+                                <?php // Le cadenas reste OUVERT quand l'enregistrement vient
+                                      // d'échouer alors qu'un mot de passe avait été saisi :
+                                      // refermer effacerait la saisie de quelqu'un qui vient
+                                      // d'être refusé pour une tout autre raison. ?>
+                                <?php $verrouRouvert = $verrouOuvrable && $erreurs
+                                        && (string) ($_POST['mdp_identifiant'] ?? '') !== ''; ?>
+                                <?php // Refusé ? On réaffiche CE QUI A ÉTÉ TAPÉ, pas l'ancienne
+                                      // valeur : se voir répondre « déjà pris » et retrouver le
+                                      // champ remis à zéro oblige à tout retaper pour corriger
+                                      // une lettre. Les autres champs font pareil, plus haut. ?>
+                                <?php $brutIdent = ($erreurs && array_key_exists('champ_' . $cle, $_POST))
+                                        ? trim((string) $_POST['champ_' . $cle]) : $brute; ?>
                                 <div class="verrou-ligne">
                                     <input type="text" id="champ_<?= e($cle) ?>" name="champ_<?= e($cle) ?>"
-                                           value="<?= e($brute) ?>" maxlength="50" readonly
+                                           value="<?= e($brutIdent) ?>" maxlength="50"<?= $verrouRouvert ? '' : ' readonly' ?>
                                            autocomplete="off" spellcheck="false">
                                     <?php if ($verrouOuvrable): ?>
-                                        <button type="button" class="cadenas" id="cadenas"
-                                                aria-controls="zoneVerrou" aria-expanded="false"
-                                                title="Déverrouiller pour modifier l'identifiant">🔒</button>
+                                        <button type="button" class="cadenas<?= $verrouRouvert ? ' ouvert' : '' ?>" id="cadenas"
+                                                aria-controls="zoneVerrou" aria-expanded="<?= $verrouRouvert ? 'true' : 'false' ?>"
+                                                title="Déverrouiller pour modifier l'identifiant"><?= $verrouRouvert ? '🔓' : '🔒' ?></button>
                                     <?php endif; ?>
                                 </div>
 
+                                <?php // La réponse du contrôle « cet identifiant est-il libre ? »,
+                                      // remplie pendant la frappe. Vide tant qu'on n'a rien tapé. ?>
+                                <div class="verdict" id="verdictIdentifiant" hidden></div>
+
                                 <?php if ($verrouOuvrable): ?>
-                                    <div class="zone-verrou" id="zoneVerrou" hidden>
+                                    <?php // Rouvert d'office si un mot de passe avait été saisi et
+                                          // que l'enregistrement a été refusé : sans ça, il faudrait
+                                          // tout recommencer alors qu'on venait de tout saisir. ?>
+                                    <div class="zone-verrou" id="zoneVerrou"<?= $verrouRouvert ? '' : ' hidden' ?>>
                                         <input type="password" id="mdpIdentifiant" name="mdp_identifiant"
                                                autocomplete="off" placeholder="Mot de passe de déverrouillage">
                                         <div class="aide">
@@ -918,7 +1004,28 @@ if ($photo !== '') {
     var zone    = document.getElementById('zoneVerrou');
     var mdp     = document.getElementById('mdpIdentifiant');
     var champ   = document.getElementById('champ_identifiant');
+    var verdict = document.getElementById('verdictIdentifiant');
     if (!cadenas || !zone || !mdp || !champ) { return; }
+
+    var initial = champ.value;
+
+    // ⚠️ TAPER « ENTRÉE » DANS UN CHAMP ENVOIE LE FORMULAIRE. C'est la règle
+    // du HTML (validation implicite), et c'est ce qui donnait l'impression que
+    // le cadenas ne marchait pas : on saisissait le mot de passe, on validait
+    // par Entrée — réflexe normal —, la page s'enregistrait sans rien changer,
+    // se rechargeait plus haut, et le cadenas était refermé.
+    //
+    // Entrée passe donc au champ suivant au lieu d'envoyer. On ne bloque QUE
+    // ces deux champs-là : ailleurs dans la fiche, la validation par Entrée
+    // reste le comportement attendu.
+    [mdp, champ].forEach(function (el) {
+        el.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter' || e.keyCode === 13) {
+                e.preventDefault();
+                if (el === mdp) { champ.focus(); }
+            }
+        });
+    });
 
     cadenas.addEventListener('click', function () {
         var ferme = zone.hasAttribute('hidden');
@@ -927,12 +1034,14 @@ if ($photo !== '') {
             cadenas.setAttribute('aria-expanded', 'true');
             mdp.focus();
         } else {
-            // Refermer REMET tout dans l'état d'origine : le mot de passe
-            // saisi est effacé et le champ redevient figé. Sans ça, on
-            // croirait avoir annulé alors que la valeur partirait quand même.
+            // Refermer REMET tout dans l'état d'origine : mot de passe effacé,
+            // identifiant rétabli, champ figé. Sans ça, on croirait avoir
+            // annulé alors que la valeur saisie partirait quand même.
             zone.setAttribute('hidden', '');
             cadenas.setAttribute('aria-expanded', 'false');
             mdp.value = '';
+            champ.value = initial;
+            cacheVerdict();
             verrouille();
         }
     });
@@ -942,18 +1051,53 @@ if ($photo !== '') {
         cadenas.textContent = '🔒';
         cadenas.classList.remove('ouvert');
     }
+    function deverrouille() {
+        champ.removeAttribute('readonly');
+        cadenas.textContent = '🔓';
+        cadenas.classList.add('ouvert');
+    }
+    function cacheVerdict() {
+        if (!verdict) { return; }
+        verdict.setAttribute('hidden', '');
+        verdict.textContent = '';
+        verdict.className = 'verdict';
+    }
 
     // Le champ s'ouvre dès qu'un mot de passe est écrit. On ne peut pas le
     // vérifier ici : ce serait envoyer le secret au navigateur. Le serveur
     // tranche, et refuse le changement si la saisie est fausse.
     mdp.addEventListener('input', function () {
-        if (mdp.value.trim() !== '') {
-            champ.removeAttribute('readonly');
-            cadenas.textContent = '🔓';
-            cadenas.classList.add('ouvert');
-        } else {
-            verrouille();
-        }
+        if (mdp.value.trim() !== '') { deverrouille(); } else { verrouille(); }
+    });
+    if (!champ.hasAttribute('readonly')) { deverrouille(); }  // rouvert par le serveur
+
+    // ── « CET IDENTIFIANT EST-IL LIBRE ? » ────────────────────────────────
+    // Demandé au serveur pendant la frappe, avec un temps d'arrêt : une
+    // requête par caractère, c'est vingt requêtes pour un nom, et une réponse
+    // qui arrive dans le désordre.
+    var minuteur = null;
+    var vague = 0;
+    champ.addEventListener('input', function () {
+        if (!verdict) { return; }
+        window.clearTimeout(minuteur);
+        var valeur = champ.value.trim();
+        if (valeur === '' || valeur === initial) { cacheVerdict(); return; }
+
+        minuteur = window.setTimeout(function () {
+            var laMienne = ++vague;
+            fetch('modifier.php?id=' + encodeURIComponent(<?= (int) $cibleId ?>)
+                  + '&identifiant_libre=' + encodeURIComponent(valeur), { credentials: 'same-origin' })
+                .then(function (r) { return r.json(); })
+                .then(function (d) {
+                    // Une réponse en retard ne doit pas écraser une plus
+                    // récente : on ignore tout ce qui n'est pas la dernière.
+                    if (laMienne !== vague) { return; }
+                    verdict.textContent = (d.libre ? '✅ ' : '⛔ ') + (d.message || '');
+                    verdict.className = 'verdict ' + (d.libre ? 'ok' : 'ko');
+                    verdict.removeAttribute('hidden');
+                })
+                .catch(function () { cacheVerdict(); });
+        }, 350);
     });
 }());
 </script>
