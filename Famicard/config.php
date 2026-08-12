@@ -43,6 +43,10 @@ require_once __DIR__ . '/includes/carte.php';
 // et pas page par page — un écran qui l'oublierait afficherait des champs à
 // liste sans liste.
 require_once __DIR__ . '/includes/emploi.php';
+// Le rattachement RH — de QUOI la personne relève, à ne pas confondre avec les
+// départements de PLACEMENT de FamiJob. Chargé ici parce que la fiche, la base
+// et l'export l'affichent tous.
+require_once __DIR__ . '/includes/rattachement.php';
 
 // L'organisation (secteurs et départements) vient de `includes/secteurs.php`,
 // repris du dépôt LIVE — c'est lui la référence.

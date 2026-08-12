@@ -98,13 +98,15 @@ if ($genere) {
     $st->execute($params);
     $lignes = $st->fetchAll(PDO::FETCH_ASSOC);
 
-    // Secteur et département, en une requête pour toute la liste.
+    // Secteur, département et placement, en deux requêtes pour toute la liste.
+    // Deux sources parce que ce sont deux questions distinctes : de quoi la
+    // personne relève, et où le planning de FamiJob peut la placer.
     if ($lignes) {
-        $rattachements = famicardRattachements($db, array_map(static function ($l) {
-            return (int) $l['id'];
-        }, $lignes));
+        $ids = array_map(static function ($l) { return (int) $l['id']; }, $lignes);
+        $rhs        = famicardRattachementsRh($db, $ids);
+        $placements = famicardPlacements($db, $ids);
         foreach ($lignes as $i => $l) {
-            $lignes[$i] = famicardAjouteRattachement($l, $rattachements);
+            $lignes[$i] = famicardAjouteRattachement($l, $rhs, $placements);
         }
     }
 

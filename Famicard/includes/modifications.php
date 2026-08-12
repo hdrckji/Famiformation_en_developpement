@@ -76,12 +76,13 @@ if (!function_exists('famicardEcritValeur')) {
         $userId = (int) $userId;
 
         // ⚠️ LE RATTACHEMENT NE PASSE PAS PAR ICI. Ses « colonnes »
-        // (departement_nom, secteur_nom) sont des PSEUDO-colonnes : elles
-        // n'existent pas dans `utilisateurs`, elles sont posées dans la ligne
-        // par famicardAjouteRattachement(). Sans ce refus, un chemin d'écriture
-        // générique — le « rétablir » de validations.php, par exemple —
-        // lancerait un UPDATE sur une colonne inexistante et tomberait sur une
-        // erreur SQL brute. Il s'écrit avec famicardEcritRattachement().
+        // (secteur_nom, departement_nom, placement_nom) sont des PSEUDO-colonnes :
+        // elles n'existent pas dans `utilisateurs`, elles sont posées dans la
+        // ligne par famicardAjouteRattachement(). Sans ce refus, un chemin
+        // d'écriture générique — le « rétablir » de validations.php, par
+        // exemple — lancerait un UPDATE sur une colonne inexistante et
+        // tomberait sur une erreur SQL brute. Il s'écrit avec
+        // famicardEcritRattachementRh() (includes/rattachement.php).
         if (($champ['saisie'] ?? '') === 'rattachement') {
             return false;
         }
@@ -116,89 +117,14 @@ if (!function_exists('famicardEcritValeur')) {
     }
 }
 
-if (!function_exists('famicardEcritRattachement')) {
-    /**
-     * Réécrit le rattachement d'un collaborateur : la LISTE COMPLÈTE, ordonnée.
-     *
-     * ⚠️ C'EST TOUTE LA DIFFICULTÉ DE CETTE TABLE. `student_department_links`
-     * porte PLUSIEURS départements par personne, classés par `priority_rank`,
-     * et le matching intérim de FamiJob s'en sert pour proposer des
-     * remplaçants. Un écran qui n'en connaîtrait qu'un et écrirait « le »
-     * département effacerait les autres sans que personne ne s'en aperçoive
-     * avant d'aller chercher quelqu'un. C'est pour ça que le rattachement est
-     * resté en lecture seule si longtemps.
-     *
-     * La sortie de ce piège n'est pas de compter les cas : c'est que
-     * l'appelant envoie TOUJOURS la liste entière. On écrit alors un ÉTAT
-     * FINAL, jamais une différence — comme famicardDefinitAcces() pour les
-     * services. Rien ne peut disparaître par omission, puisque rien n'est
-     * déduit de ce qui était là avant.
-     *
-     * L'ORDRE PORTE LA PRIORITÉ : premier = rang 1. Un numéro saisi à part
-     * finirait par ne plus correspondre à la liste affichée, et deux
-     * départements se retrouveraient au même rang.
-     *
-     * ⚠️ Ne contrôle NI les droits NI l'existence des départements : c'est fait
-     * en amont (famicardPeutModifier, et la liste réellement proposée).
-     *
-     * @param array $departementIds identifiants, dans l'ordre de priorité
-     * @return bool false si la table est absente — le reste de la fiche
-     *              s'enregistre quand même, on ne perd pas la saisie.
-     */
-    function famicardEcritRattachement(PDO $db, $userId, array $departementIds)
-    {
-        $userId = (int) $userId;
-        if ($userId <= 0) {
-            return false;
-        }
-
-        // Dédoublonnage en gardant la PREMIÈRE occurrence : deux fois le même
-        // département, c'est la priorité la plus haute qui compte. La clé
-        // unique (student_id, department_id) le refuserait de toute façon, mais
-        // le rang serait déjà faussé.
-        $ids = [];
-        foreach ($departementIds as $id) {
-            $id = (int) $id;
-            if ($id > 0 && !in_array($id, $ids, true)) {
-                $ids[] = $id;
-            }
-        }
-
-        try {
-            if (!$ids) {
-                $db->prepare("DELETE FROM student_department_links WHERE student_id = ?")->execute([$userId]);
-                return true;
-            }
-
-            // Ce qui n'est plus dans la liste s'en va. Fait AVANT les insertions
-            // pour ne jamais laisser, même un instant, un rang en double.
-            $trous = implode(',', array_fill(0, count($ids), '?'));
-            $db->prepare(
-                "DELETE FROM student_department_links
-                 WHERE student_id = ? AND department_id NOT IN ($trous)"
-            )->execute(array_merge([$userId], $ids));
-
-            // ON DUPLICATE KEY plutôt que DELETE + INSERT : un rattachement qui
-            // ne change que de rang garde son `created_at`, donc « depuis
-            // quand » reste vrai.
-            $ins = $db->prepare(
-                "INSERT INTO student_department_links (student_id, department_id, priority_rank)
-                 VALUES (?, ?, ?)
-                 ON DUPLICATE KEY UPDATE priority_rank = VALUES(priority_rank)"
-            );
-            $rang = 1;
-            foreach ($ids as $id) {
-                $ins->execute([$userId, $id, $rang]);
-                $rang++;
-            }
-            return true;
-        } catch (Exception $e) {
-            // Table absente (base pas encore à jour côté matching) : la fiche
-            // s'enregistre, le rattachement attendra.
-            return false;
-        }
-    }
-}
+// ⚠️ AUCUNE FONCTION ICI N'ÉCRIT DANS `student_department_links`, ET C'EST
+// VOLONTAIRE. Cette table appartient à FamiJob : elle dit où le PLANNING peut
+// placer quelqu'un, avec un ordre de préférence. Famicard a longtemps voulu
+// y écrire « le » département d'une personne — c'est une autre question, elle a
+// désormais sa table (`famicard_rattachement`, voir includes/rattachement.php).
+// Une fonction d'écriture vers la planification a existé ici ; elle a été
+// retirée plutôt que laissée inutilisée, parce que son nom ressemblait à s'y
+// méprendre à celui du rattachement RH.
 
 if (!function_exists('famicardTraceModification')) {
     /**

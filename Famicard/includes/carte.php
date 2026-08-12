@@ -142,16 +142,22 @@ if (!function_exists('famicardChampsSocle')) {
                 'modifiable' => 'admin', 'saisie' => 'liste', 'badge' => false,
                 'aide' => 'Son agence si elle est en intérim, Famiflora (Honorine) si elle a été recrutée en direct.',
             ],
-            // ── SECTEUR ET DÉPARTEMENT ─────────────────────────────────────
+            // ── SECTEUR ET DÉPARTEMENT : DE QUOI ELLE RELÈVE ───────────────
             // Ces deux-là ne sont NI une colonne de `utilisateurs` NI un champ
-            // libre : ils vivent dans student_department_links. Les « colonnes »
+            // libre : ils vivent dans `famicard_rattachement`. Les « colonnes »
             // ci-dessous sont donc des pseudo-colonnes, remplies dans la ligne
             // par famicardAjouteRattachement() avant tout affichage.
             //
+            // ⚠️ CE N'EST PAS `student_department_links`. Cette table-là répond
+            // à « où cet étudiant peut-il être PLACÉ » (planification FamiJob,
+            // plusieurs rayons ordonnés par préférence). Ici on répond à « de
+            // quoi cette personne RELÈVE » — une seule réponse, pour tout le
+            // monde, teamcoachs compris. Voir includes/rattachement.php.
+            //
             // 'saisie' => 'rattachement' : ils ne s'éditent pas dans le
-            // formulaire champ par champ (les deux se choisissent ENSEMBLE, un
-            // département impliquant son secteur), mais dans un bloc dédié de
-            // modifier.php — comme la photo.
+            // formulaire champ par champ (les deux se choisissent ENSEMBLE, le
+            // département devant appartenir au secteur), mais dans un bloc
+            // dédié de modifier.php — comme la photo.
             'secteur' => [
                 'libelle' => 'Secteur', 'libelle_nl' => 'Sector',
                 'colonne' => 'secteur_nom', 'groupe' => 'rattachement',
@@ -163,6 +169,19 @@ if (!function_exists('famicardChampsSocle')) {
                 'colonne' => 'departement_nom', 'groupe' => 'rattachement',
                 'requis' => false, 'nature' => 'service', 'visible' => 'tous',
                 'modifiable' => 'admin', 'saisie' => 'rattachement', 'badge' => false,
+                'aide' => 'Vide = elle relève de tout le secteur. C\'est le cas d\'un teamcoach.',
+            ],
+            // Ce que FamiJob sait, montré pour qu'on ne se demande pas pourquoi
+            // la fiche dit « Bougies » alors que le planning propose trois
+            // rayons. En LECTURE SEULE : ça se règle dans FamiJob, qui connaît
+            // les priorités de placement. Vide pour tous ceux qu'on ne planifie
+            // pas, ce qui est normal et non un oubli.
+            'placement' => [
+                'libelle' => 'Placement FamiJob', 'libelle_nl' => 'Inzet FamiJob',
+                'colonne' => 'placement_nom', 'groupe' => 'rattachement',
+                'requis' => false, 'nature' => 'service', 'visible' => 'admin',
+                'modifiable' => 'jamais', 'saisie' => 'rattachement', 'badge' => false,
+                'aide' => 'Les rayons où le planning peut le placer, par ordre de préférence. Se règle dans FamiJob.',
             ],
 
             // ── COMPTE / ACCÈS AUX SERVICES ────────────────────────────────
@@ -592,21 +611,27 @@ if (!function_exists('famicardChampsManquants')) {
     }
 }
 
-if (!function_exists('famicardRattachements')) {
+if (!function_exists('famicardPlacements')) {
     /**
-     * Le rattachement de plusieurs collaborateurs, en UNE requête :
-     *   user_id => ['secteur_id', 'secteur_nom', 'departement_id', 'departement_nom']
+     * ⚠️ CECI EST LA PLANIFICATION, PAS LE RATTACHEMENT RH.
      *
-     * Une requête par ligne serait invisible sur une fiche et catastrophique
-     * sur la base des collaborateurs, qui en affiche des centaines.
+     * Les départements où le planning de FamiJob peut PLACER quelqu'un, en UNE
+     * requête (une par ligne serait catastrophique sur la base des
+     * collaborateurs, qui en affiche des centaines) :
+     *   user_id => ['secteur_id', 'secteur_nom', 'departement_id',
+     *               'departement_nom', 'tous', 'ids']
      *
-     * Le secteur et le département ne sont pas des colonnes de `utilisateurs` :
-     * ils vivent dans `student_department_links`, la table du matching intérim,
-     * avec plusieurs départements possibles par personne. La définition des
-     * secteurs et de leurs départements est dans
-     * Famiformation/includes/secteurs.php, repris du dépôt live.
+     * Ça vient de `student_department_links` : plusieurs départements par
+     * personne, classés par `priority_rank`, et c'est un VIVIER — « il peut
+     * travailler ici, de préférence là ». « De quoi relève cette personne » est
+     * une autre question, une autre table, un autre fichier
+     * (includes/rattachement.php). Confondre les deux fabrique des données
+     * fausses dans les deux sens.
+     *
+     * Le référentiel, lui, est commun et unique : `sectors` et `departments`,
+     * définis dans Famiformation/includes/secteurs.php, repris du dépôt live.
      */
-    function famicardRattachements(PDO $db, array $userIds)
+    function famicardPlacements(PDO $db, array $userIds)
     {
         $ids = array_values(array_unique(array_filter(array_map('intval', $userIds))));
         if (!$ids) {
@@ -668,29 +693,32 @@ if (!function_exists('famicardAjouteRattachement')) {
      * Pose les pseudo-colonnes de rattachement dans une ligne `utilisateurs`,
      * pour que le modèle les lise comme n'importe quel autre champ.
      *
+     * DEUX SOURCES, DEUX SENS, et c'est pour ça qu'elles arrivent par deux
+     * paramètres distincts plutôt que fondues en un seul :
+     *   $rhs        → de quoi la personne relève (famicard_rattachement)
+     *   $placements → où le planning peut la placer (student_department_links)
+     *
      * Les clés sont TOUJOURS posées, même vides : sans ça,
      * famicardValeurAffichee() ne trouverait pas la colonne et renverrait ''
      * sans qu'on puisse distinguer « pas rattaché » de « colonne oubliée ».
      */
-    function famicardAjouteRattachement(array $ligne, array $rattachements)
+    function famicardAjouteRattachement(array $ligne, array $rhs, array $placements = [])
     {
-        $r = $rattachements[(int) ($ligne['id'] ?? 0)] ?? [];
+        $id = (int) ($ligne['id'] ?? 0);
+        $r = $rhs[$id] ?? [];
 
         $ligne['secteur_id']      = $r['secteur_id'] ?? null;
         $ligne['secteur_nom']     = $r['secteur_nom'] ?? '';
         $ligne['departement_id']  = $r['departement_id'] ?? null;
+        $ligne['departement_nom'] = $r['departement_nom'] ?? '';
 
-        // Quelqu'un peut tenir plusieurs départements (le matching intérim s'en
-        // sert). Les afficher tous plutôt que le seul principal : une fiche qui
-        // montre « Bougies » alors que la personne fait aussi « Festif » est
-        // fausse à moitié, ce qui est pire que muette.
-        $tous = $r['tous'] ?? [];
-        $ligne['departement_nom'] = $tous ? implode(' · ', $tous) : ($r['departement_nom'] ?? '');
-
-        // Pas une pseudo-colonne du modèle : la liste ordonnée que l'écran
-        // d'édition réaffiche. Elle n'a pas de libellé et ne s'affiche nulle
-        // part — d'où un nom qui ne peut pas être pris pour un champ.
-        $ligne['departement_ids'] = $r['ids'] ?? [];
+        // ── LA PLANIFICATION, à part et en lecture seule ─────────────────
+        // Tous les rayons, pas seulement le principal : une fiche qui montre
+        // « Bougies » alors que le planning peut aussi l'envoyer en « Festif »
+        // est fausse à moitié, ce qui est pire que muette.
+        $p = $placements[$id] ?? [];
+        $tous = $p['tous'] ?? [];
+        $ligne['placement_nom'] = $tous ? implode(' · ', $tous) : '';
 
         return $ligne;
     }

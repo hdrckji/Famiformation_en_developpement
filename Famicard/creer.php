@@ -67,6 +67,8 @@ famicardAssureModifications($db);
 // Les colonnes `employeur` et `contrat` (voir includes/emploi.php). Absentes,
 // les deux champs disparaissent du formulaire au lieu de le casser.
 famicardAssureEmploi($db);
+// La table du rattachement RH (voir includes/rattachement.php).
+famicardAssureRattachementRh($db);
 try {
     famicardAssureServices($db);
 } catch (Exception $e) {
@@ -112,6 +114,10 @@ $contrats   = famicardOptionsContrat();
 
 $magasins = famicardMagasins($db);
 $services = famicardServices($db);
+// Le référentiel de l'organisation : 9 secteurs, leurs départements. Il vient
+// du dépôt LIVE (sectors / departments) — Famicard le lit, il n'en tient pas
+// une seconde copie.
+$arbreSecteurs = famicardArbreSecteurs($db);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // VALEURS RÉAFFICHÉES. Une erreur ne doit pas vider le formulaire : quelqu'un
@@ -124,7 +130,7 @@ $services = famicardServices($db);
 $saisie = [
     'identifiant' => '', 'nom' => '', 'prenom' => '', 'email' => '',
     'role' => 'beta', 'employeur' => 'interne', 'contrat' => '',
-    'interim' => '', 'site_id' => '', 'departement' => '',
+    'interim' => '', 'site_id' => '', 'secteur' => '', 'departement' => '',
     'acces' => [], 'envoyer_mail' => true,
 ];
 
@@ -152,7 +158,14 @@ if (($_POST['action'] ?? '') === 'creer') {
     $contrat     = (string) ($_POST['contrat'] ?? '');
     $interim     = trim((string) ($_POST['interim'] ?? ''));
     $siteId      = trim((string) ($_POST['site_id'] ?? ''));
-    $departement = (int) ($_POST['departement'] ?? 0);
+    $secteur     = (int) ($_POST['rattachement_secteur'] ?? 0);
+    $departement = (int) ($_POST['rattachement_departement'] ?? 0);
+    // Un département qui n'appartient pas au secteur choisi est lâché plutôt
+    // qu'enregistré : « Décoration > Caisse » n'existe pas.
+    if ($secteur > 0 && !isset($arbreSecteurs[$secteur])) { $secteur = 0; }
+    if ($secteur <= 0 || ($departement > 0 && !isset($arbreSecteurs[$secteur]['departements'][$departement]))) {
+        $departement = 0;
+    }
     $accesChoisi = array_map('intval', (array) ($_POST['acces'] ?? []));
     $envoyerMail = !empty($_POST['envoyer_mail']);
 
@@ -162,6 +175,7 @@ if (($_POST['action'] ?? '') === 'creer') {
         'employeur' => $employeur !== '' ? $employeur : 'interne',
         'contrat' => $contrat,
         'interim' => $interim, 'site_id' => $siteId,
+        'secteur' => $secteur > 0 ? (string) $secteur : '',
         'departement' => $departement > 0 ? (string) $departement : '',
         'acces' => $accesChoisi, 'envoyer_mail' => $envoyerMail,
     ];
@@ -276,19 +290,15 @@ if (($_POST['action'] ?? '') === 'creer') {
                 $db->prepare($sql)->execute(array_values($donnees));
                 $userId = (int) $db->lastInsertId();
 
-                // Rattachement. Le compte vient de naître : aucune priorité
-                // existante ne peut être écrasée, contrairement à une édition.
-                if ($userId > 0 && $departement > 0) {
-                    try {
-                        $db->prepare(
-                            "INSERT INTO student_department_links (student_id, department_id, priority_rank)
-                             VALUES (?, ?, 1)
-                             ON DUPLICATE KEY UPDATE priority_rank = VALUES(priority_rank)"
-                        )->execute([$userId, $departement]);
-                    } catch (Exception $e) {
-                        // Table du matching absente : le compte reste valable,
-                        // le rattachement se posera depuis FamiJob.
-                    }
+                // Rattachement RH : de quoi elle relève.
+                //
+                // ⚠️ PAS `student_department_links`. Cette table-là dit où le
+                // planning de FamiJob peut PLACER un étudiant, avec un ordre de
+                // préférence : y écrire un teamcoach en ferait un candidat à
+                // planifier. Les départements de placement se règlent dans
+                // FamiJob, qui connaît les priorités.
+                if ($userId > 0 && $secteur > 0) {
+                    famicardEcritRattachementRh($db, $userId, $secteur, $departement, $moiId);
                 }
 
                 // Accès explicites — seulement si quelque chose a été coché.
@@ -612,22 +622,37 @@ try {
                 </div>
                 <?php endif; ?>
 
-                <?php if (function_exists('secteursChampsHtml')): ?>
+                <?php if ($arbreSecteurs): ?>
                 <div class="champ">
-                    <label>Secteur et département
-                        <span class="aide">— facultatif</span></label>
+                    <label for="rattachement_secteur">Secteur et département
+                        <span class="aide">— de quoi elle relève</span></label>
                     <div class="duo">
-                        <?= secteursChampsHtml($db, 'departement', $saisie['departement'], [
-                                'par' => 'id', 'vide' => '— Aucun département —',
-                            ]) ?>
+                        <select class="secteur-select" id="rattachement_secteur" name="rattachement_secteur"
+                                data-cible="rattachement_departement" aria-label="Secteur">
+                            <option value="">— Aucun rattachement —</option>
+                            <?php foreach ($arbreSecteurs as $sid => $s): ?>
+                                <option value="<?= (int) $sid ?>"<?= $saisie['secteur'] === (string) $sid ? ' selected' : '' ?>><?= e($s['nom']) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                        <select class="departement-select" id="rattachement_departement"
+                                name="rattachement_departement" aria-label="Département">
+                            <option value="">— Tout le secteur —</option>
+                            <?php foreach ($arbreSecteurs as $sid => $s): ?>
+                                <?php foreach ($s['departements'] as $did => $dnom): ?>
+                                    <option value="<?= (int) $did ?>" data-secteur="<?= (int) $sid ?>"<?= $saisie['departement'] === (string) $did ? ' selected' : '' ?>><?= e($dnom) ?></option>
+                                <?php endforeach; ?>
+                            <?php endforeach; ?>
+                        </select>
                     </div>
                 </div>
                 <?php endif; ?>
             </div>
-            <?php if (function_exists('secteursChampsHtml')): ?>
+            <?php if ($arbreSecteurs): ?>
             <p class="rappel">
-                Le rattachement peut être <b>multiple</b> et classé par priorité — c'est le matching intérim qui
-                l'impose. On en pose <b>un</b> ici, le principal ; les suivants s'ajoutent depuis FamiJob.
+                Le rattachement dit <b>de quoi la personne relève</b>, et le département est facultatif :
+                laissé vide, elle relève de <b>tout le secteur</b> — c'est ce qu'il faut pour un teamcoach.<br>
+                ⚠️ À ne pas confondre avec les <b>rayons où le planning peut la placer</b> : ça, c'est FamiJob,
+                c'est une liste ordonnée par préférence, et ça se règle là-bas.
             </p>
             <?php endif; ?>
         </div>

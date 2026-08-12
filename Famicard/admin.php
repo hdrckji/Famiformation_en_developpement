@@ -116,14 +116,17 @@ $st = $db->prepare("SELECT $listeSql FROM utilisateurs" . $where . " ORDER BY no
 $st->execute($params);
 $lignes = $st->fetchAll(PDO::FETCH_ASSOC);
 
-// Secteur et département : une seule requête pour toute la page, pas une par
-// collaborateur (sur 400 lignes, la différence se voit).
+// Secteur, département et placement : DEUX requêtes pour toute la page, pas
+// deux par collaborateur (sur 400 lignes, la différence se voit).
+//
+// Deux sources parce que ce sont deux questions : de quoi la personne relève
+// (Famicard) et où le planning peut la placer (FamiJob).
 if ($lignes) {
-    $rattachements = famicardRattachements($db, array_map(static function ($l) {
-        return (int) $l['id'];
-    }, $lignes));
+    $ids = array_map(static function ($l) { return (int) $l['id']; }, $lignes);
+    $rhs        = famicardRattachementsRh($db, $ids);
+    $placements = famicardPlacements($db, $ids);
     foreach ($lignes as $i => $l) {
-        $lignes[$i] = famicardAjouteRattachement($l, $rattachements);
+        $lignes[$i] = famicardAjouteRattachement($l, $rhs, $placements);
     }
 }
 

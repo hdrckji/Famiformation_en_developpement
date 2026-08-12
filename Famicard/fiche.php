@@ -17,7 +17,11 @@ $estAdmin = famicardEstAdmin();
 
 // Secteur et département : ils ne sont pas dans `utilisateurs`, on les pose
 // dans la ligne pour que le modèle les lise comme les autres champs.
-$moi = famicardAjouteRattachement($moi, famicardRattachements($db, [(int) $moi['id']]));
+$moi = famicardAjouteRattachement(
+    $moi,
+    famicardRattachementsRh($db, [(int) $moi['id']]),   // de quoi il relève
+    famicardPlacements($db, [(int) $moi['id']])         // où FamiJob peut le placer
+);
 
 $champs    = famicardChamps($db);
 $groupes   = famicardGroupes();

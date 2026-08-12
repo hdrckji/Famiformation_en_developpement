@@ -37,7 +37,12 @@ if (!famicardEstAdmin()) {
 }
 
 famicardAssureEmploi($db);
+famicardAssureRattachementRh($db);
 famicardAssureModifications($db);
+
+// De quoi les gens relèvent (secteur / département) : ce n'est pas un contrat,
+// mais c'est la même reprise à faire et le même endroit pour en voir l'état.
+$sansRattachement = famicardCompteRattachementsManquants($db);
 
 $colonnes = famicardColonnesUtilisateurs($db);
 $pretes = isset($colonnes['employeur']) && isset($colonnes['contrat']);
@@ -290,6 +295,17 @@ $titreLigne = static function ($u) {
     <div class="card">
         <h2>Où on en est</h2>
         <p class="quoi"><?= (int) $actifs ?> collaborateur<?= $actifs > 1 ? 's' : '' ?> actif<?= $actifs > 1 ? 's' : '' ?>. Les cases <b style="color:#6a5400;">en jaune</b> sont ce qui reste à préciser.</p>
+        <?php if ($sansRattachement > 0): ?>
+            <?php // Le rattachement (de quoi la personne relève) n'est pas un
+                  // contrat, mais c'est la même reprise : autant le voir ici
+                  // plutôt que de le découvrir écran par écran. Il se règle sur
+                  // la fiche, où le secteur et le département vont ensemble. ?>
+            <p class="quoi" style="color:#6a5400;">
+                🧭 <b><?= (int) $sansRattachement ?></b> n'<?= $sansRattachement > 1 ? 'ont' : 'a' ?> pas encore de
+                <b>secteur</b> : ça se pose sur leur fiche, et c'est ce qui permettra un jour de ne montrer à
+                chacun que son périmètre.
+            </p>
+        <?php endif; ?>
         <div class="scroll">
             <table class="croix">
                 <thead>

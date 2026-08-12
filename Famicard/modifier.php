@@ -63,7 +63,14 @@ if ($estAdmin) {
 // Secteur et département : posés dans la ligne comme pseudo-colonnes, pour que
 // le modèle les lise comme les autres champs (ils vivent en réalité dans
 // student_department_links).
-$cible = famicardAjouteRattachement($cible, famicardRattachements($db, [$cibleId]));
+if ($estAdmin) {
+    famicardAssureRattachementRh($db);
+}
+$cible = famicardAjouteRattachement(
+    $cible,
+    famicardRattachementsRh($db, [$cibleId]),   // de quoi il relève (Famicard)
+    famicardPlacements($db, [$cibleId])         // où le planning peut le placer (FamiJob)
+);
 
 $champs   = famicardChamps($db);
 $magasins = famicardMagasins($db);
@@ -71,53 +78,29 @@ $libres   = famicardValeursLibres($db, $cibleId);
 $groupes  = famicardGroupes();
 
 // ─────────────────────────────────────────────────────────────────────────────
-// LE RATTACHEMENT, MODIFIABLE — mais par la LISTE ENTIÈRE.
+// LE RATTACHEMENT RH — DE QUOI CETTE PERSONNE RELÈVE.
 //
-// Il est resté en lecture seule longtemps, pour une raison réelle :
-// `student_department_links` porte PLUSIEURS départements par personne, classés
-// par priorité, et c'est ce dont le matching intérim de FamiJob se sert. Un
-// écran qui n'en connaît qu'un et écrit « le » département efface les autres —
-// sans message, sans trace, et on ne s'en aperçoit qu'en cherchant un
-// remplaçant qui n'apparaît plus.
+// ⚠️ CE N'EST PAS LA PLANIFICATION. `student_department_links` répond à « où
+// cet étudiant peut-il être PLACÉ » : plusieurs rayons, classés par préférence,
+// et c'est FamiJob qui la tient. Ici on répond à « DE QUOI relève-t-elle » :
+// une seule réponse, pour tout le monde, teamcoachs compris.
 //
-// La sortie n'est pas de compter les cas, c'est de changer ce qu'on envoie :
-// le formulaire porte TOUJOURS la liste complète, une case par rattachement
-// plus une vide. On écrit donc un ÉTAT FINAL (famicardEcritRattachement), et
-// plus rien ne peut disparaître par omission.
+// SECTEUR, ET DÉPARTEMENT FACULTATIF. Un teamcoach Décoration couvre son
+// secteur entier — 15 rayons ; lui demander de tous les cocher serait faux dès
+// le rayon suivant. Un employé de caisse relève d'un département précis. Le
+// département vide veut donc dire « tout le secteur », et pas « pas rempli ».
 //
-// L'ORDRE EST LA PRIORITÉ : la première case est le rattachement principal.
-// Un numéro de priorité saisi à côté aurait fini par ne plus correspondre à
-// l'ordre affiché, et deux départements auraient partagé le même rang.
+// Voir includes/rattachement.php pour le raisonnement complet.
 // ─────────────────────────────────────────────────────────────────────────────
-
-// Les départements réellement proposables, secteur par secteur — la même liste
-// que le menu en cascade, y compris les « à ranger » : un département sans
-// secteur reste un rattachement valable, et l'omettre l'effacerait de la fiche
-// de ceux qui l'ont.
-$departementsProposes = [];
-if (function_exists('secteursListe')) {
-    try {
-        foreach (secteursListe($db) as $s) {
-            foreach ($s['departements'] as $d) {
-                $departementsProposes[(int) $d['id']] = (string) $d['nom'];
-            }
-        }
-        foreach (secteursSansSecteur($db) as $o) {
-            $departementsProposes[(int) $o['id']] = (string) $o['department_name'];
-        }
-    } catch (Exception $e) {
-        $departementsProposes = [];
-    }
-}
+$arbreSecteurs = famicardArbreSecteurs($db);
 
 $champRattachement = $champs['departement'] ?? null;
 $rattachementEditable = ($champRattachement !== null)
-    && $departementsProposes
-    && function_exists('secteursChampsHtml')
+    && $arbreSecteurs
     && famicardPeutModifier($champRattachement, $estAdmin, $estSaPropreFiche);
 
-// Ce qu'il a aujourd'hui, dans l'ordre de priorité.
-$rattachementActuel = array_values(array_map('intval', (array) ($cible['departement_ids'] ?? [])));
+$secteurActuel     = (int) ($cible['secteur_id'] ?? 0);
+$departementActuel = (int) ($cible['departement_id'] ?? 0);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // STOCKAGE DE LA PHOTO — celui du SITE, volontairement : même dossier sur le
@@ -260,47 +243,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    // ── LE RATTACHEMENT ──────────────────────────────────────────────────
+    // ── LE RATTACHEMENT RH ───────────────────────────────────────────────
     // Traité à part des autres champs : ce n'est pas une colonne de
-    // `utilisateurs` mais une LISTE dans une autre table, et elle s'écrit
-    // entière (voir famicardEcritRattachement).
+    // `utilisateurs` mais une ligne dans `famicard_rattachement`, et le
+    // département doit appartenir au secteur (famicardEcritRattachementRh
+    // refuse le couple incohérent).
     $rattachementChange = false;
-    if ($rattachementEditable && array_key_exists('rattachement', $_POST)) {
-        $voulus = [];
-        foreach ((array) $_POST['rattachement'] as $id) {
-            $id = (int) $id;
-            // Seulement ce que la page a réellement proposé : un identifiant
-            // bricolé dans le formulaire ne peut pas rattacher quelqu'un à un
-            // département inconnu du matching.
-            if ($id > 0 && isset($departementsProposes[$id]) && !in_array($id, $voulus, true)) {
-                $voulus[] = $id;
-            }
+    if ($rattachementEditable && array_key_exists('rattachement_secteur', $_POST)) {
+        $secteurVoulu = (int) $_POST['rattachement_secteur'];
+        $departementVoulu = (int) ($_POST['rattachement_departement'] ?? 0);
+
+        // On ne fait confiance qu'à ce que la page a réellement proposé : un
+        // identifiant bricolé dans le formulaire ne peut pas rattacher
+        // quelqu'un à un secteur inventé.
+        if ($secteurVoulu > 0 && !isset($arbreSecteurs[$secteurVoulu])) {
+            $secteurVoulu = 0;
+            $departementVoulu = 0;
+        }
+        // Changer de secteur sans toucher au menu des départements laisserait
+        // un département de l'ancien secteur. On le lâche plutôt que
+        // d'enregistrer « Décoration > Caisse ».
+        if ($secteurVoulu > 0 && $departementVoulu > 0
+            && !isset($arbreSecteurs[$secteurVoulu]['departements'][$departementVoulu])) {
+            $departementVoulu = 0;
+        }
+        if ($secteurVoulu <= 0) {
+            $departementVoulu = 0; // pas de secteur, pas de département
         }
 
-        // ⚠️ GARDE-FOU. Si un département qu'il a DÉJÀ n'est plus dans la liste
-        // proposée (désactivé, ou rattaché à un secteur supprimé), la case
-        // correspondante est vide et l'enregistrement l'effacerait en silence.
-        // On refuse alors d'écrire le rattachement — le reste de la fiche
-        // s'enregistre — plutôt que de perdre une donnée qu'on n'a pas touchée.
-        $perdus = array_diff($rattachementActuel, array_keys($departementsProposes));
-        if ($perdus) {
-            // Signalé, pas bloquant : le reste de la fiche doit pouvoir
-            // s'enregistrer. Bloquer sur un département disparu ferait d'une
-            // vieille donnée un mur devant une correction d'adresse.
-            $avertissements[] = 'Un de ses départements ne figure plus dans la liste des départements actifs :'
-                              . ' son rattachement n\'a pas été touché, pour ne rien effacer par accident.'
-                              . ' Il se corrige depuis FamiJob.';
-        } elseif ($voulus !== $rattachementActuel) {
-            $avant = [];
-            foreach ($rattachementActuel as $id) {
-                $avant[] = $departementsProposes[$id] ?? ('#' . $id);
-            }
-            $apres = [];
-            foreach ($voulus as $id) {
-                $apres[] = $departementsProposes[$id];
-            }
+        if ($secteurVoulu !== $secteurActuel || $departementVoulu !== $departementActuel) {
+            $nomDe = static function ($sid, $did) use ($arbreSecteurs) {
+                if ($sid <= 0) { return ''; }
+                $nom = $arbreSecteurs[$sid]['nom'] ?? ('#' . $sid);
+                if ($did > 0) {
+                    $nom .= ' > ' . ($arbreSecteurs[$sid]['departements'][$did] ?? ('#' . $did));
+                }
+                return $nom;
+            };
+            $avant = $nomDe($secteurActuel, $departementActuel);
+            $apres = $nomDe($secteurVoulu, $departementVoulu);
 
-            if (famicardEcritRattachement($db, $cibleId, $voulus)) {
+            if (famicardEcritRattachementRh($db, $cibleId, $secteurVoulu, $departementVoulu, (int) $moi['id'])) {
                 $rattachementChange = true;
                 // Tracé comme le reste : « qui a changé ce rattachement » est
                 // la première question posée devant un matching surprenant.
@@ -314,14 +297,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 famicardTraceModification(
                     $db, $cibleId, 'departement',
                     $champRattachement,
-                    implode(' · ', $avant),
-                    implode(' · ', $apres),
+                    $avant,
+                    $apres,
                     (int) $moi['id'],
                     false
                 );
-                $rattachementActuel = $voulus;
+                $secteurActuel = $secteurVoulu;
+                $departementActuel = $departementVoulu;
             } else {
-                $erreurs[] = "Le rattachement n'a pas pu être enregistré.";
+                $erreurs[] = "Ce rattachement n'a pas pu être enregistré :"
+                           . ' vérifie que le département appartient bien au secteur choisi.';
             }
         }
     }
@@ -606,11 +591,8 @@ if ($photo !== '') {
     .aide { color: #888; font-size: .78rem; margin-top: 4px; line-height: 1.45; }
     .fige { background: #f5f7f6; border-radius: 10px; padding: 10px 12px; color: #777; font-size: .92rem; }
 
-    /* ── RATTACHEMENT : une ligne par département, l'ordre fait la priorité ── */
-    .rattachements { display: flex; flex-direction: column; gap: 9px; }
-    .ratt-ligne { display: flex; align-items: center; gap: 10px; }
-    .ratt-rang { flex: 0 0 66px; font-size: .74rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #2d5a37; }
-    .duo { display: flex; gap: 8px; flex: 1; min-width: 0; flex-wrap: wrap; }
+    /* ── RATTACHEMENT : secteur, puis département facultatif ── */
+    .duo { display: flex; gap: 8px; min-width: 0; flex-wrap: wrap; }
     .duo select { flex: 1 1 45%; min-width: 0; width: auto; }
 
     .verrou { background: #fffaf0; }
@@ -740,40 +722,43 @@ if ($photo !== '') {
                                   // pseudo-colonne, qui n'existe pas dans `utilisateurs`. ?>
                             <?php if ($saisie === 'rattachement'): ?>
                                 <?php if ($cle === 'departement' && $rattachementEditable): ?>
-                                    <?php // UNE CASE PAR RATTACHEMENT, PLUS UNE VIDE. C'est ce
-                                          // qui rend l'écriture sûre : le formulaire porte la
-                                          // liste ENTIÈRE, donc enregistrer ne peut rien
-                                          // effacer qui n'ait été retiré exprès. ?>
-                                    <div class="rattachements">
-                                        <?php $slots = $rattachementActuel; $slots[] = 0; ?>
-                                        <?php foreach ($slots as $i => $idActuel): ?>
-                                            <div class="ratt-ligne">
-                                                <span class="ratt-rang"><?= $i === 0 ? 'Principal' : ($i + 1) . 'e' ?></span>
-                                                <div class="duo">
-                                                    <?= secteursChampsHtml($db, 'rattachement[]', $idActuel > 0 ? (string) $idActuel : '', [
-                                                            'par' => 'id',
-                                                            'vide' => $i === 0 ? '— Aucun —' : '— Ajouter —',
-                                                            'sansSecteur' => true,
-                                                        ]) ?>
-                                                </div>
-                                            </div>
-                                        <?php endforeach; ?>
+                                    <?php // DEUX LISTES EN CASCADE, une seule réponse. Le
+                                          // département est FACULTATIF : vide, la personne
+                                          // relève de tout son secteur — c'est le cas d'un
+                                          // teamcoach, qui couvre quinze rayons. ?>
+                                    <div class="duo">
+                                        <select class="secteur-select" id="ratt-secteur" name="rattachement_secteur"
+                                                data-cible="ratt-departement" aria-label="Secteur">
+                                            <option value="">— Aucun rattachement —</option>
+                                            <?php foreach ($arbreSecteurs as $sid => $s): ?>
+                                                <option value="<?= (int) $sid ?>"<?= $secteurActuel === (int) $sid ? ' selected' : '' ?>><?= e($s['nom']) ?></option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                        <select class="departement-select" id="ratt-departement"
+                                                name="rattachement_departement" aria-label="Département">
+                                            <option value="">— Tout le secteur —</option>
+                                            <?php foreach ($arbreSecteurs as $sid => $s): ?>
+                                                <?php foreach ($s['departements'] as $did => $dnom): ?>
+                                                    <option value="<?= (int) $did ?>" data-secteur="<?= (int) $sid ?>"<?= $departementActuel === (int) $did ? ' selected' : '' ?>><?= e($dnom) ?></option>
+                                                <?php endforeach; ?>
+                                            <?php endforeach; ?>
+                                        </select>
                                     </div>
                                     <div class="aide">
-                                        L'ordre est la priorité : le premier est son rattachement principal, et c'est
-                                        celui-là que le matching de FamiJob regarde en premier.
-                                        Vider une ligne retire le rattachement ; une nouvelle case vide apparaît
-                                        après l'enregistrement.
+                                        <b>Département vide = tout le secteur.</b> C'est ce qu'il faut pour un teamcoach,
+                                        qui couvre l'ensemble de ses rayons ; un employé, lui, relève d'un rayon précis.
+                                        Ce rattachement dit <b>de quoi la personne relève</b> — il ne décide d'aucun accès.
                                     </div>
                                 <?php else: ?>
                                     <div class="fige"><?= $affichee !== '' ? e($affichee) : '—' ?></div>
-                                    <?php // Le secteur se DÉDUIT du département : il n'a pas de
-                                          // case à lui, sinon on pourrait enregistrer un secteur
-                                          // qui contredit le département choisi juste en dessous. ?>
                                     <div class="aide">
-                                        <?= $cle === 'secteur'
-                                            ? 'Découle du département : choisis le département, le secteur suit.'
-                                            : 'Modifiable par un administrateur.' ?>
+                                        <?php if ($cle === 'secteur'): ?>
+                                            Se choisit avec le département, juste en dessous.
+                                        <?php elseif ($cle === 'placement'): ?>
+                                            <?= e((string) ($champ['aide'] ?? '')) ?>
+                                        <?php else: ?>
+                                            Modifiable par un administrateur.
+                                        <?php endif; ?>
                                     </div>
                                 <?php endif; ?>
 

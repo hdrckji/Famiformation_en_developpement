@@ -41,9 +41,16 @@ Autrement dit : ce qu'un collaborateur *fait* sur la plateforme, pas ce qu'il *e
 ### Ce qui appartient à FamiJob
 
 Les horaires, les disponibilités, le matching intérim — et la table `departments`, que
-les secteurs ÉTENDENT (`sector_id`) au lieu d'en créer une seconde. Le rattachement d'une
-personne vit dans `student_department_links`, avec plusieurs départements possibles
-classés par priorité : c'est le matching qui l'impose, et Famicard doit en tenir compte.
+les secteurs ÉTENDENT (`sector_id`) au lieu d'en créer une seconde.
+
+**FamiJob est un outil de PLANIFICATION**, et c'est ce qui décide du sens de sa table
+`student_department_links` : elle répond à « **où cet étudiant peut-il être placé** »,
+avec plusieurs rayons classés par préférence. C'est un vivier de candidats.
+
+⚠️ **Famicard a besoin des mêmes secteurs pour une autre question** — « de quoi cette
+personne relève-t-elle » — et c'est un fait différent sur la même personne. Voir
+« Deux rattachements » ci-dessous : les confondre fabrique des données fausses dans les
+deux sens.
 
 ### Les cas frontière, tranchés
 
@@ -77,6 +84,59 @@ celui qu'on regarde le moins qui gagne.
 `sectors` et `departments.sector_id`). Famicard avait développé sa propre implantation en
 parallèle, sans savoir que le live en avait déjà une : elle a été abandonnée. Deux
 systèmes pour la même chose, c'est celui qui ne tourne pas qui gagne les données perdues.
+
+---
+
+## DEUX RATTACHEMENTS — et c'est la confusion la plus coûteuse du dépôt
+
+Les deux plateformes ont besoin des secteurs et des départements, **pour deux raisons
+différentes**. FamiJob est un outil de **planification** : il lui faut savoir où placer
+quelqu'un. Famicard est un outil **RH** : il lui faut savoir de quoi une personne relève.
+
+| | `student_department_links` | `famicard_rattachement` |
+|---|---|---|
+| Question | **Où peut-il être placé ?** | **De quoi relève-t-elle ?** |
+| Propriétaire | FamiJob (planification) | Famicard (RH) |
+| Combien | plusieurs, ordonnés par préférence | **un seul** |
+| `priority_rank` | ordre de placement | n'existe pas, n'aurait aucun sens |
+| Pour qui | les gens qu'on planifie | **tout le monde**, teamcoachs compris |
+
+Un étudiant qui peut travailler dans trois rayons **ne relève pas de trois départements**
+— il peut y être placé. Écrire l'un dans la table de l'autre donne, dans un sens, un
+teamcoach qui ressemble à un candidat à planifier, et dans l'autre, un étudiant qui paraît
+appartenir à trois rayons.
+
+**Le référentiel, lui, reste unique** : `sectors` et `departments`, ceux du dépôt live.
+C'est CE point que le README protège depuis le début (Famicard avait créé ses propres
+tables de secteurs, abandonnées). Deux **liens** de sens différent vers **un seul
+référentiel**, ce n'est pas la même erreur : c'est la façon d'éviter la première.
+
+### La forme : secteur, et département facultatif
+
+Décision de Jimmy, et elle vient d'un cas réel : **« Décoration » est un secteur** (15
+départements), **« Caisse » est un département** d'un autre secteur. Un teamcoach
+Décoration couvre donc un secteur entier ; lui faire cocher ses 15 rayons serait faux dès
+le rayon suivant. Un employé de caisse, lui, relève d'un département précis.
+
+```
+département renseigné  →  son périmètre est CE département
+département vide       →  son périmètre est TOUT le secteur
+```
+
+`famicardPerimetreRh()` rend cette liste de départements. ⚠️ Il rend **`null`** quand rien
+n'est renseigné, jamais un tableau vide : vide voudrait dire « ne voit rien », et un écran
+qui confondrait les deux se viderait pour tout le monde le jour de la mise en service.
+
+### À quoi ça servira
+
+À restreindre ce qu'une personne **voit**, sans toucher à ce qu'elle a le **droit de
+faire** : « un teamcoach Décoration ne voit pas les horaires de la caisse ». Le couple est
+`role` + périmètre — le rôle dit ce qu'on peut faire, le rattachement dit sur quoi. Un
+teamcoach reste un teamcoach, il en voit simplement moins.
+
+⚠️ **Rien n'est filtré aujourd'hui.** Famicard enregistre le périmètre et sait le lire.
+Brancher un filtrage est une décision de l'écran concerné — et un filtrage posé avant que
+les fiches soient renseignées viderait les écrans de tout le monde.
 
 ---
 
@@ -225,6 +285,8 @@ Famicard/
   config.php           amorçage — réutilise la config du site (session, base, CSRF)
   includes/carte.php   ⭐ LE MODÈLE : les champs et leurs règles
   includes/emploi.php  ⭐ EMPLOYEUR, CONTRAT, DOSSIER — et pourquoi pas le profil
+  includes/rattachement.php  ⭐ DE QUOI ELLE RELÈVE — à ne pas confondre avec le
+                       PLACEMENT de FamiJob (student_department_links)
   login.php            connexion (mêmes identifiants, même session que le site)
   logout.php           déconnexion
   index.php            ⭐ L'ACCUEIL DU PORTAIL : 4 tuiles, rien d'autre
@@ -318,9 +380,8 @@ tard, ne peut pas exposer ce qu'il ne doit pas.
 - [x] **Libellés créés par l'admin**, obligatoires ou non
 - [x] **Création d'un collaborateur** (`creer.php`, tuile de l'accueil) — compte,
       rattachement et accès aux services d'un seul geste
-- [x] **Rattachement modifiable** (secteur + départements) — la liste ENTIÈRE est
-      envoyée à chaque enregistrement, l'ordre porte la priorité, rien ne peut
-      disparaître par omission
+- [x] **Rattachement RH modifiable** (secteur + département facultatif) — sa propre
+      table, distincte de la planification de FamiJob
 - [x] **Identifiant modifiable** par un admin, contre son propre mot de passe
 - [x] **Employeur et type de contrat** séparés du profil (`includes/emploi.php`,
       `contrats.php`) — interne / intérim / indépendant, étudiant / flexi / fixe,
@@ -333,6 +394,14 @@ tard, ne peut pas exposer ce qu'il ne doit pas.
       n'est pas une divergence de données (une création est un INSERT, pas deux écritures
       de la même colonne), mais tant que les deux écrans existent, un compte peut naître
       sans passer par Famicard. Le retrait se fait côté live, pas d'ici.
+- [ ] **Renseigner le rattachement de tout le monde** — il se pose fiche par fiche
+      (`modifier.php`) et à la création. Le compte de ce qui manque est affiché dans
+      `contrats.php`. C'est le préalable à tout filtrage : tant que les fiches sont
+      vides, restreindre l'affichage viderait les écrans.
+- [ ] **Brancher le filtrage par périmètre** — `famicardPerimetreRh()` rend la liste des
+      départements qu'une personne couvre. Ce que chaque écran en fait est SA décision
+      (« un teamcoach Décoration ne voit pas les horaires de la caisse »). Ne jamais
+      confondre `null` (aucun périmètre enregistré) et `[]` (ne voit rien).
 - [ ] **Faire lire `contrat` par FamiJob** — le matching travaille encore sur
       `role = 'etudiant'`, qui répond donc à deux questions à la fois. La donnée propre
       existe maintenant à côté ; la bascule est une décision de FamiJob, pas d'ici, et

@@ -38,6 +38,10 @@ if ($estAdmin) {
     // includes/emploi.php : rien n'est deviné, tout ce qui n'est pas déductible
     // reste vide et se voit dans « Contrats et employeurs ».
     famicardAssureEmploi($db);
+    // La table du rattachement RH — de quoi chaque personne relève. À ne pas
+    // confondre avec les départements de PLACEMENT de FamiJob : voir
+    // includes/rattachement.php.
+    famicardAssureRattachementRh($db);
 }
 
 // ⚠️ Les accès ne sont plus écrits en dur ici. Ils viennent de la base, et
