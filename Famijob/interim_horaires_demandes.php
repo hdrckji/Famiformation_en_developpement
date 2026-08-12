@@ -328,26 +328,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $weekStartStr = $selectedWeek['start']->format('Y-m-d');
         $weekEndStr   = $selectedWeek['end']->format('Y-m-d');
 
-        // ⚠️ ADDITION, pas remplacement : retaper le même horaire dans une case
-        // veut dire « une personne de plus ». Le champ de saisie étant toujours
-        // vide à l'affichage, un envoi n'apporte que ce qui vient d'être tapé —
-        // rien n'est compté deux fois.
+        // ⚠️ UN CRÉNEAU VALIDÉ NE SE MODIFIE PLUS. C'est la règle : ce qui est
+        // approuvé est un engagement pris, et une saisie de plus dans la grille
+        // ne doit pas le remettre en question.
         //
-        // Le commentaire est ICI et non dans la requête : « // » n'est pas un
-        // commentaire SQL, MySQL le lit comme de la syntaxe et refuse tout.
-        $upsertCellStmt = $db->prepare(
+        // La version précédente écrivait en ON DUPLICATE KEY avec
+        // « validation_status = 'pending' » : ajouter une place sur un créneau
+        // déjà validé le faisait repasser en attente — l'inverse de ce qu'on
+        // veut, et sans que personne ne s'en aperçoive avant de relire l'écran
+        // de validation.
+        //
+        // On lit donc l'état AVANT d'écrire :
+        //   • rien en base  → création, en attente ;
+        //   • déjà en attente → une place de plus, toujours en attente ;
+        //   • déjà validé   → on n'y touche pas, et on le dit.
+        $lireCreneauStmt = $db->prepare(
+            'SELECT id, seats_required, validation_status
+               FROM interim_shift_requests
+              WHERE shift_date = ? AND department_name = ? AND time_slot = ?
+              LIMIT 1'
+        );
+        $creerCreneauStmt = $db->prepare(
             "INSERT INTO interim_shift_requests (shift_date, department_name, time_slot, seats_required, comment, validation_status, validated_by_user_id, validated_at, created_by_user_id)
-             VALUES (?, ?, ?, ?, NULL, 'pending', NULL, NULL, ?)
-             ON DUPLICATE KEY UPDATE
-                seats_required = seats_required + VALUES(seats_required),
-                validation_status = 'pending',
-                validated_by_user_id = NULL,
-                validated_at = NULL,
-                updated_at = CURRENT_TIMESTAMP"
+             VALUES (?, ?, ?, ?, NULL, 'pending', NULL, NULL, ?)"
+        );
+        $ajouterPlaceStmt = $db->prepare(
+            'UPDATE interim_shift_requests
+                SET seats_required = seats_required + ?, updated_at = CURRENT_TIMESTAMP
+              WHERE id = ?'
         );
 
         $createdCount = 0;
         $refuses = [];
+        $verrouilles = [];   // créneaux validés, laissés tels quels
 
         foreach ($cells as $dept => $parJour) {
             $dept = trim((string) $dept);
@@ -378,21 +391,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
 
                 foreach ($counts as $slot => $cnt) {
-                    $upsertCellStmt->execute([
-                        $dateKey,
-                        $dept,
-                        $slot,
-                        max(1, min(30, (int) $cnt)),
-                        $currentUserId,
-                    ]);
-                    $createdCount++;
+                    $places = max(1, min(30, (int) $cnt));
+
+                    $lireCreneauStmt->execute([$dateKey, $dept, $slot]);
+                    $existant = $lireCreneauStmt->fetch(PDO::FETCH_ASSOC);
+
+                    if (!$existant) {
+                        $creerCreneauStmt->execute([$dateKey, $dept, $slot, $places, $currentUserId]);
+                        $createdCount++;
+                    } elseif ((string) $existant['validation_status'] === 'approved') {
+                        // Intouchable. On le signale plutôt que de l'ignorer en
+                        // silence : sans message, la personne croirait sa place
+                        // ajoutée.
+                        $verrouilles[] = $slot;
+                    } else {
+                        $ajouterPlaceStmt->execute([$places, (int) $existant['id']]);
+                        $createdCount++;
+                    }
                 }
             }
         }
 
+        // Le message dit les deux : ce qui est passé, et ce qui a été laissé de
+        // côté parce que déjà validé. Un succès seul laisserait croire que tout
+        // a été pris en compte.
+        $bouts = [];
         if ($createdCount > 0) {
             $notifyAdminsNewDemands($createdCount, fjdT('plusieurs départements', 'meerdere afdelingen'), (string) ($selectedWeek['label'] ?? ''));
-            $message = "<div class='alert success'>" . $createdCount . ' ' . e(fjdT('créneau(x) enregistré(s).', 'tijdsblok(ken) geregistreerd.')) . "</div>";
+            $bouts[] = $createdCount . ' ' . fjdT('créneau(x) enregistré(s).', 'tijdsblok(ken) geregistreerd.');
+        }
+        if ($verrouilles) {
+            $bouts[] = fjdT('Déjà validé, non modifié : ', 'Al goedgekeurd, niet gewijzigd: ')
+                     . implode(', ', array_unique($verrouilles)) . '.';
+        }
+
+        if ($bouts) {
+            $classe = ($createdCount > 0) ? 'success' : 'error';
+            $message = "<div class='alert {$classe}'>" . e(implode(' ', $bouts)) . "</div>";
         } elseif ($refuses) {
             $message = "<div class='alert error'>" . e(fjdT('Département inconnu : ', 'Onbekende afdeling: ')) . e(implode(', ', array_keys($refuses))) . "</div>";
         } else {
@@ -408,11 +443,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!empty($_POST['retirer_place'])) {
         $rid = (int) ($_POST['request_id'] ?? 0);
         if ($rid > 0) {
-            $st = $db->prepare('SELECT seats_required FROM interim_shift_requests WHERE id = ? LIMIT 1');
+            $st = $db->prepare('SELECT seats_required, validation_status FROM interim_shift_requests WHERE id = ? LIMIT 1');
             $st->execute([$rid]);
-            $places = (int) $st->fetchColumn();
+            $ligne = $st->fetch(PDO::FETCH_ASSOC);
+            $places = (int) ($ligne['seats_required'] ?? 0);
 
-            if ($places > 1) {
+            if ($ligne && (string) $ligne['validation_status'] === 'approved') {
+                // Même règle qu'à la saisie : ce qui est validé ne se modifie
+                // plus depuis la grille. Le supprimer reste possible depuis la
+                // liste de l'onglet « grille », qui est l'écran de décision.
+                $message = "<div class='alert error'>" . e(fjdT('Ce créneau est validé : il ne se modifie plus ici.', 'Dit tijdsblok is goedgekeurd: het kan hier niet meer gewijzigd worden.')) . "</div>";
+            } elseif ($places > 1) {
                 $db->prepare('UPDATE interim_shift_requests SET seats_required = seats_required - 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
                    ->execute([$rid]);
                 $message = "<div class='alert success'>" . e(fjdT('Une place retiree.', 'Een plaats verwijderd.')) . "</div>";
@@ -975,6 +1016,7 @@ while ($vueCursor <= $selectedWeek['end']) {
         .vue-jeton { display: flex; align-items: center; justify-content: space-between; gap: 4px; }
         .vue-x { border: 0; background: none; color: inherit; opacity: .55; cursor: pointer; font-size: .78rem; line-height: 1; padding: 0 1px; }
         .vue-x:hover { opacity: 1; color: #a13e35; }
+        .vue-verrou { opacity: .5; font-size: .62rem; }
         .vue-saisie { width: 100%; min-width: 84px; border: 1px dashed #ccd6cf; border-radius: 5px; padding: 2px 5px; font-family: inherit; font-size: .68rem; background: #fff; }
         .vue-saisie:focus { border-color: #2d5a37; border-style: solid; outline: none; }
         /* Le filtre : on choisit son secteur, on ne descend pas 400 cases. */
@@ -1494,9 +1536,15 @@ while ($vueCursor <= $selectedWeek['end']) {
                                                                           // valider supprimait le premier creneau de la page
                                                                           // au lieu d'enregistrer. La croix passe donc par le
                                                                           // JS, qui pose sa cible puis envoie. ?>
+                                                                    <?php if ($c['etat'] !== 'approved'): ?>
                                                                     <button type="button"
                                                                             onclick="famijobRetirerPlace(this, '<?php echo (int) $c['id']; ?>');"
                                                                             class="vue-x" title="<?php echo e(fjdT('Retirer cette place', 'Deze plaats verwijderen')); ?>">×</button>
+                                                                    <?php else: ?>
+                                                                    <?php // Validé : pas de croix. Proposer une action que le
+                                                                          // serveur refusera est pire que ne rien proposer. ?>
+                                                                    <span class="vue-verrou" title="<?php echo e(fjdT('Validé : ne se modifie plus ici', 'Goedgekeurd: kan hier niet meer gewijzigd worden')); ?>">🔒</span>
+                                                                    <?php endif; ?>
                                                                 </div>
                                                             <?php endfor; ?>
                                                         <?php endforeach; ?>
