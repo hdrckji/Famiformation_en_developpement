@@ -663,11 +663,17 @@ foreach ($userBlocks as $b) {
 }
 
 // Onglet actif (après un envoi "par jour", on y reste ; conservé aussi au changement de semaine).
-$activeTab = 'grid';
+// ⚠️ LE CLASSEUR EST L'ONGLET PAR DEFAUT. C'est l'ecran de travail de
+// l'equipe ; « Grille (par horaire) » reste disponible pour qui prefere, mais
+// il ne doit plus etre celui sur lequel on tombe. Son formulaire exige un
+// departement en haut de page — on arrivait dessus et on se faisait demander
+// « selectionne un departement » sans comprendre pourquoi, alors qu'on voulait
+// simplement ecrire dans une case.
+$activeTab = 'byday';
 if (isset($_POST['create_requests_byday']) || isset($_POST['create_requests_cells']) || !empty($_POST['retirer_place'])) {
     $activeTab = 'byday';
 } else {
-    $requestedTab = (string) ($_GET['tab'] ?? $_POST['tab'] ?? 'grid');
+    $requestedTab = (string) ($_GET['tab'] ?? $_POST['tab'] ?? 'byday');
     if (in_array($requestedTab, ['grid', 'byday'], true)) {
         $activeTab = $requestedTab;
     }
@@ -1396,8 +1402,8 @@ while ($vueCursor <= $selectedWeek['end']) {
                 <div class="card-head"><?php echo e(fjdT('Création rapide', 'Snel aanmaken')); ?></div>
                 <div class="card-body">
                     <div class="mode-tabs">
+                        <button type="button" class="mode-tab <?php echo $activeTab === 'byday' ? 'is-active' : ''; ?>" data-panel="panel-byday" onclick="switchPanel('panel-byday', this)"><?php echo e(fjdT('Le classeur (par jour)', 'Het werkboek (per dag)')); ?></button>
                         <button type="button" class="mode-tab <?php echo $activeTab === 'grid' ? 'is-active' : ''; ?>" data-panel="panel-grid" onclick="switchPanel('panel-grid', this)"><?php echo e(fjdT('Grille (par horaire)', 'Rooster (per uurrooster)')); ?></button>
-                        <button type="button" class="mode-tab <?php echo $activeTab === 'byday' ? 'is-active' : ''; ?>" data-panel="panel-byday" onclick="switchPanel('panel-byday', this)"><?php echo e(fjdT('Par jour (copier-coller)', 'Per dag (kopiëren-plakken)')); ?></button>
                     </div>
 
                     <div id="panel-grid" class="tab-panel" style="display:<?php echo $activeTab === 'grid' ? 'block' : 'none'; ?>;">
