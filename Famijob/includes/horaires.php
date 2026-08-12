@@ -229,12 +229,24 @@ if (!function_exists('famijobResolveScheduleRecipient')) {
      * À qui part l'horaire de cette personne ?
      *
      *   • rattachée à une agence d'intérim -> les adresses de l'agence ;
-     *   • interne (ou champ « interim » vide) -> le contact interne.
+     *   • INTERNE (champ « interim » vide ou « Famiflora ») -> le service RH.
      *
-     * La table `interim_agences` porte une ligne « Famiflora » qui désigne le
-     * contact interne : c'est ELLE qui fait foi, et elle se met à jour depuis
-     * l'écran des agences, sans toucher au code. La variable Railway ne sert
-     * que de filet si cette ligne venait à disparaître.
+     * ⚠️ FAMIFLORA N'EST PAS UNE AGENCE, C'EST L'ENTREPRISE QUI RECRUTE.
+     * Sa « ligne » dans `interim_agences` est un héritage : il fallait bien
+     * ranger les recrutements directs quelque part, et cette ligne sert encore
+     * à donner sa vue au compte interne. Mais pour décider OÙ ENVOYER, c'est le
+     * réglage RH qui fait foi — pas une ligne rangée parmi les agences
+     * d'intérim, où elle n'a rien à faire.
+     *
+     * D'OÙ CET ORDRE DE PRIORITÉ, et il a changé :
+     *   1. cas interne + `FAMIJOB_HORAIRE_MAIL_FAMIFLORA` renseignée
+     *      -> c'est elle, et elle seule ;
+     *   2. sinon, la ligne `interim_agences` correspondante (une vraie agence,
+     *      ou la ligne « Famiflora » tant qu'elle existe) ;
+     *   3. sinon, une erreur qui NOMME ce qui manque.
+     *
+     * Le jour où la ligne « Famiflora » disparaîtra de la table des agences,
+     * rien ne bougera ici : la variable répondait déjà.
      *
      * @return array{kind:string,agency:string,contact:string,emails:string[],error:string}
      */
@@ -251,6 +263,20 @@ if (!function_exists('famijobResolveScheduleRecipient')) {
             'error' => '',
         ];
 
+        // ── 1. LE CAS INTERNE : LE RÉGLAGE RH D'ABORD ────────────────────
+        // Nom ET adresse viennent de la même source, jamais mélangés : afficher
+        // l'adresse du service RH sous le nom d'une personne (celui resté dans
+        // la ligne d'agence) donnerait un écran qui se contredit lui-même.
+        if ($isFamiflora) {
+            $rh = famijobFamifloraFallbackEmail();
+            if ($rh !== '' && filter_var($rh, FILTER_VALIDATE_EMAIL)) {
+                $out['emails'][] = $rh;
+                $out['contact'] = famijobFamifloraFallbackContact();
+                return $out;
+            }
+        }
+
+        // ── 2. LA TABLE DES AGENCES ──────────────────────────────────────
         $lookup = $agencyName !== '' ? $agencyName : 'Famiflora';
 
         try {
@@ -272,29 +298,15 @@ if (!function_exists('famijobResolveScheduleRecipient')) {
             }
         }
 
-        if (empty($out['emails']) && $isFamiflora) {
-            $fallback = famijobFamifloraFallbackEmail();
-            if ($fallback !== '' && filter_var($fallback, FILTER_VALIDATE_EMAIL)) {
-                $out['emails'][] = $fallback;
-                if ($out['contact'] === '') {
-                    // Aucun nom inventé : s'il n'est pas configuré, on n'en
-                    // affiche pas. Un prénom écrit en dur ici survivrait au
-                    // départ de la personne, sur un écran que plus personne
-                    // ne relit.
-                    $out['contact'] = famijobFamifloraFallbackContact();
-                }
-            }
-        }
-
         if (empty($out['emails'])) {
             // Le message NOMME la variable manquante : une configuration qui
             // manque doit se voir tout de suite, sinon les horaires internes
             // cessent de partir sans que rien ne le signale.
-            $out['error'] = $agency
-                ? 'Aucune adresse valide pour l\'agence « ' . $out['agency'] . ' ».'
-                : ($isFamiflora
-                    ? 'Aucune adresse pour les collaborateurs internes : renseigne la ligne « Famiflora »'
-                        . ' dans les agences, ou la variable FAMIJOB_HORAIRE_MAIL_FAMIFLORA.'
+            $out['error'] = $isFamiflora
+                ? 'Aucune adresse pour les collaborateurs INTERNES : renseigne la variable'
+                    . ' FAMIJOB_HORAIRE_MAIL_FAMIFLORA (l\'adresse du service RH).'
+                : ($agency
+                    ? 'Aucune adresse valide pour l\'agence « ' . $out['agency'] . ' ».'
                     : 'Agence « ' . $agencyName . ' » introuvable dans la liste des agences intérim.');
         }
 

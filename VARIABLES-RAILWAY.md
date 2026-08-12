@@ -52,8 +52,14 @@ renommage casserait une configuration en place sans rien dire.
 | `RH_NOTIF_MAIL` | Adresse prévenue quand quelqu'un devient éligible à une récompense (quiz) | **aucune notification** |
 | `MAIL_TO` | Destinataire du formulaire « créateur de contenu » (`/volontaire`) | **le formulaire refuse poliment** |
 | `CONTACT_VOLONTAIRE` | Qui l'on invite à aller voir sur cette même page | la phrase disparaît |
-| `FAMIJOB_HORAIRE_MAIL_FAMIFLORA` | Où partent les horaires des collaborateurs **internes** | filet seulement : la ligne « Famiflora » de `interim_agences` fait foi d'abord |
-| `FAMIJOB_HORAIRE_CONTACT_FAMIFLORA` | Le nom affiché en face de cette adresse | aucun nom affiché |
+| `FAMIJOB_HORAIRE_MAIL_FAMIFLORA` | **L'adresse du service RH** : où partent les horaires des collaborateurs **internes**. Elle fait foi, avant la table des agences | repli sur la ligne « Famiflora » de `interim_agences`, et si elle manque aussi : **aucun horaire interne ne part** |
+| `FAMIJOB_HORAIRE_CONTACT_FAMIFLORA` | Le nom affiché en face de cette adresse (« Service RH ») | aucun nom affiché |
+
+> **Famiflora n'est pas une agence, c'est l'entreprise qui recrute.** Sa ligne dans
+> `interim_agences` est un héritage — il fallait bien ranger les recrutements directs
+> quelque part. Depuis le 12/08/2026, c'est la **variable** qui décide où partent les
+> horaires internes, et la ligne d'agence n'est plus qu'un repli. Le jour où on la
+> supprimera de la table, rien ne bougera : la variable répondait déjà.
 
 ### Les envois d'horaires FamiJob
 
