@@ -313,6 +313,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // département doit appartenir au secteur (famicardEcritRattachementRh
     // refuse le couple incohérent).
     $rattachementChange = false;
+    // Déclaré ICI et pas dans le bloc ci-dessous : quand le rattachement n'est
+    // pas modifiable, la variable serait indéfinie au moment de l'écriture.
+    $rattachementAEcrire = null;
     if ($rattachementEditable && array_key_exists('rattachement_secteur', $_POST)) {
         $secteurVoulu = (int) $_POST['rattachement_secteur'];
         $departementVoulu = (int) ($_POST['rattachement_departement'] ?? 0);
@@ -335,6 +338,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $departementVoulu = 0; // pas de secteur, pas de département
         }
 
+        // ⚠️ ON PRÉPARE, ON N'ÉCRIT PAS ENCORE. L'écriture se fait plus bas,
+        // avec le reste, et SEULEMENT si rien n'est refusé. Écrire ici donnait
+        // un demi-enregistrement : le rattachement passait, l'email était
+        // refusé, et l'écran affichait une erreur en ayant quand même modifié
+        // la fiche. On ne sait plus alors ce qui a été enregistré.
         if ($secteurVoulu !== $secteurActuel || $departementVoulu !== $departementActuel) {
             $nomDe = static function ($sid, $did) use ($arbreSecteurs) {
                 if ($sid <= 0) { return ''; }
@@ -344,34 +352,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
                 return $nom;
             };
-            $avant = $nomDe($secteurActuel, $departementActuel);
-            $apres = $nomDe($secteurVoulu, $departementVoulu);
-
-            if (famicardEcritRattachementRh($db, $cibleId, $secteurVoulu, $departementVoulu, (int) $moi['id'])) {
-                $rattachementChange = true;
-                // Tracé comme le reste : « qui a changé ce rattachement » est
-                // la première question posée devant un matching surprenant.
-                //
-                // Tracé DÉJÀ VALIDÉ, et pas « à confirmer » : le champ est
-                // réservé à l'admin (famicardPeutModifier vient de le vérifier),
-                // donc il n'y a personne à qui demander. Surtout, « rétablir »
-                // depuis validations.php réécrit une COLONNE — ce que le
-                // rattachement n'est pas. Une ligne en attente ici serait une
-                // décision impossible à appliquer.
-                famicardTraceModification(
-                    $db, $cibleId, 'departement',
-                    $champRattachement,
-                    $avant,
-                    $apres,
-                    (int) $moi['id'],
-                    false
-                );
-                $secteurActuel = $secteurVoulu;
-                $departementActuel = $departementVoulu;
-            } else {
-                $erreurs[] = "Ce rattachement n'a pas pu être enregistré :"
-                           . ' vérifie que le département appartient bien au secteur choisi.';
-            }
+            $rattachementAEcrire = [
+                'secteur' => $secteurVoulu,
+                'departement' => $departementVoulu,
+                'avant' => $nomDe($secteurActuel, $departementActuel),
+                'apres' => $nomDe($secteurVoulu, $departementVoulu),
+            ];
         }
     }
 
@@ -526,6 +512,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // L'admin ne se valide pas lui-même : ce qu'il écrit est tracé, mais
         // déjà tranché.
         $aValider = !$estAdmin;
+
+        // ── LE RATTACHEMENT, maintenant que plus rien n'est refusé ───────
+        if ($rattachementAEcrire !== null) {
+            $ok = famicardEcritRattachementRh(
+                $db, $cibleId,
+                $rattachementAEcrire['secteur'],
+                $rattachementAEcrire['departement'],
+                (int) $moi['id']
+            );
+            if ($ok) {
+                $rattachementChange = true;
+                // Tracé DÉJÀ VALIDÉ, et pas « à confirmer » : le champ est
+                // réservé à l'admin (famicardPeutModifier l'a vérifié), donc il
+                // n'y a personne à qui demander. Surtout, « rétablir » depuis
+                // validations.php réécrit une COLONNE — ce que le rattachement
+                // n'est pas. Une ligne en attente ici serait une décision
+                // impossible à appliquer.
+                famicardTraceModification(
+                    $db, $cibleId, 'departement', $champRattachement,
+                    $rattachementAEcrire['avant'], $rattachementAEcrire['apres'],
+                    (int) $moi['id'], false
+                );
+                $secteurActuel = $rattachementAEcrire['secteur'];
+                $departementActuel = $rattachementAEcrire['departement'];
+            } else {
+                $avertissements[] = "Le rattachement n'a pas pu être enregistré :"
+                                  . ' vérifie que le département appartient bien au secteur choisi.';
+            }
+        }
 
         foreach ($aEcrire as $cle => $op) {
             famicardEcritValeur($db, $cibleId, $op['champ'], $op['apres']);
@@ -892,8 +907,24 @@ if ($photo !== '') {
                                       // une lettre. Les autres champs font pareil, plus haut. ?>
                                 <?php $brutIdent = ($erreurs && array_key_exists('champ_' . $cle, $_POST))
                                         ? trim((string) $_POST['champ_' . $cle]) : $brute; ?>
+                                <?php // ⚠️ PAS DE `name` TANT QUE LE CADENAS EST FERMÉ, et c'est
+                                      // le garde-fou principal — pas une finesse.
+                                      //
+                                      // Ce formulaire contient un champ `password`. Chrome et Edge
+                                      // y voient un couple « login + mot de passe », IGNORENT
+                                      // autocomplete="off", et remplissent ce champ-ci avec
+                                      // l'identifiant enregistré de la personne connectée. On
+                                      // n'y touche pas et il change quand même : le serveur voit
+                                      // une modification d'identifiant et refuse tout
+                                      // l'enregistrement — y compris l'email qu'on venait de
+                                      // corriger.
+                                      //
+                                      // Sans `name`, le champ n'est pas envoyé du tout : ce que
+                                      // le navigateur y écrit ne peut plus rien casser. Le
+                                      // JavaScript le pose au moment du déverrouillage. ?>
                                 <div class="verrou-ligne">
-                                    <input type="text" id="champ_<?= e($cle) ?>" name="champ_<?= e($cle) ?>"
+                                    <input type="text" id="champ_<?= e($cle) ?>"<?= $verrouRouvert ? ' name="champ_' . e($cle) . '"' : '' ?>
+                                           data-nom="champ_<?= e($cle) ?>"
                                            value="<?= e($brutIdent) ?>" maxlength="50"<?= $verrouRouvert ? '' : ' readonly' ?>
                                            autocomplete="off" spellcheck="false">
                                     <?php if ($verrouOuvrable): ?>
@@ -912,8 +943,14 @@ if ($photo !== '') {
                                           // que l'enregistrement a été refusé : sans ça, il faudrait
                                           // tout recommencer alors qu'on venait de tout saisir. ?>
                                     <div class="zone-verrou" id="zoneVerrou"<?= $verrouRouvert ? '' : ' hidden' ?>>
+                                        <?php // `disabled` tant que le cadenas est fermé : un champ
+                                              // désactivé n'est ni envoyé NI rempli par le
+                                              // gestionnaire de mots de passe du navigateur.
+                                              // « new-password » achève de lui dire que ce n'est
+                                              // pas un formulaire de connexion. ?>
                                         <input type="password" id="mdpIdentifiant" name="mdp_identifiant"
-                                               autocomplete="off" placeholder="Mot de passe de déverrouillage">
+                                               autocomplete="new-password"<?= $verrouRouvert ? '' : ' disabled' ?>
+                                               placeholder="Mot de passe de déverrouillage">
                                         <div class="aide">
                                             Ce n'est <b>pas</b> ton mot de passe de connexion : c'est celui qui protège
                                             ce champ-là. Le champ s'ouvre dès que tu écris ; c'est le
@@ -1032,14 +1069,17 @@ if ($photo !== '') {
         if (ferme) {
             zone.removeAttribute('hidden');
             cadenas.setAttribute('aria-expanded', 'true');
+            mdp.disabled = false;
             mdp.focus();
         } else {
-            // Refermer REMET tout dans l'état d'origine : mot de passe effacé,
-            // identifiant rétabli, champ figé. Sans ça, on croirait avoir
-            // annulé alors que la valeur saisie partirait quand même.
+            // Refermer REMET tout dans l'état d'origine : mot de passe effacé
+            // et désactivé, identifiant rétabli, champ figé et surtout RETIRÉ
+            // de l'envoi. Sans ça, on croirait avoir annulé alors que la
+            // valeur saisie partirait quand même.
             zone.setAttribute('hidden', '');
             cadenas.setAttribute('aria-expanded', 'false');
             mdp.value = '';
+            mdp.disabled = true;
             champ.value = initial;
             cacheVerdict();
             verrouille();
@@ -1048,11 +1088,16 @@ if ($photo !== '') {
 
     function verrouille() {
         champ.setAttribute('readonly', '');
+        // ⚠️ Retirer le `name` retire le champ de l'envoi. C'est ce qui rend
+        // le remplissage automatique du navigateur inoffensif : quoi qu'il
+        // écrive là-dedans, le serveur ne le verra jamais.
+        champ.removeAttribute('name');
         cadenas.textContent = '🔒';
         cadenas.classList.remove('ouvert');
     }
     function deverrouille() {
         champ.removeAttribute('readonly');
+        champ.setAttribute('name', champ.getAttribute('data-nom'));
         cadenas.textContent = '🔓';
         cadenas.classList.add('ouvert');
     }
