@@ -18,7 +18,10 @@ if (!function_exists('fjvhT')) {
 // sur la tuile — une tuile retiree laisse l'URL ouverte.
 $role = isset($_SESSION['role']) ? $_SESSION['role'] : '';
 if (!in_array($role, ['admin', 'teamcoach'], true)) {
-    header('Location: ' . famijobSiteUrl('index.php'));
+    // Refuse, mais renvoye chez soi : un etudiant qui arrive ici par un vieux
+    // lien revient a l'accueil FamiJob, pas sur FamiFormation. On ne change pas
+    // de site pour dire non.
+    header('Location: ' . ($role === 'etudiant' ? 'index.php' : famijobSiteUrl('index.php')));
     exit();
 }
 

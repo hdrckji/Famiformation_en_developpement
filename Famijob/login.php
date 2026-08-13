@@ -75,8 +75,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $_SESSION['last_activity'] = time();
         $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 
+        // ⚠️ ON RESTE SUR FAMIJOB. Se connecter ici et atterrir sur
+        // FamiFormation n'a aucun sens : on a demande FamiJob.
+        //
+        // La regle datait du temps ou l'accueil FamiJob n'existait que pour les
+        // admins et les teamcoachs — un etudiant n'y avait rien a faire, on le
+        // renvoyait donc sur le site. Depuis, l'accueil FamiJob porte AUSSI le
+        // bloc etudiant (mes disponibilites, mes horaires, avis) : c'est bien
+        // la qu'il doit arriver.
+        //
+        // La liste est celle du controle d'acces de index.php. Les autres roles
+        // n'ont pas d'accueil FamiJob : eux repartent vers le site, sinon
+        // index.php les y renverrait de toute facon.
         $role = (string) ($user['role'] ?? '');
-        if (in_array($role, ['admin', 'teamcoach'], true)) {
+        if (in_array($role, ['admin', 'teamcoach', 'etudiant'], true)) {
             header('Location: index.php');
             exit();
         }

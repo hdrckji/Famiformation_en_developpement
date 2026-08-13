@@ -14,7 +14,14 @@ if (!in_array($role, ['admin', 'teamcoach', 'etudiant'], true)) {
 
 // Récupérer les infos de l'utilisateur
 $user_id = $_SESSION['user_id'];
-$roleLabel = $role === 'admin' ? famiT('role.admin') : famiT('role.teamcoach');
+// Le « sinon » valait teamcoach quand seuls ces deux roles entraient ici. Un
+// etudiant y est desormais chez lui, et se voyait annoncer « Profil : TeamCoach ».
+$libellesRole = [
+    'admin'     => 'role.admin',
+    'teamcoach' => 'role.teamcoach',
+    'etudiant'  => 'role.etudiant',
+];
+$roleLabel = famiT($libellesRole[$role] ?? 'role.teamcoach');
 $unreadNotifications = famijobNotifUnreadCount($db, (int) $user_id);
 
 if (!function_exists('fjT')) {
