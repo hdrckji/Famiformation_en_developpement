@@ -51,21 +51,28 @@ foreach ($days as $idx => $d) {
     $dayIndexByKey[$d->format('Y-m-d')] = $idx;
 }
 
-// --- Affectations de la semaine ---
+// --- Les creneaux de la semaine, pourvus ou non ---
+//
+// ⚠️ ON PART DES CRENEAUX, PAS DES AFFECTATIONS. Avant, la requete partait de
+// `interim_shift_assignments` en INNER JOIN : un creneau que personne n'occupe
+// encore n'avait aucune ligne, donc n'existait pas dans le fichier. Or c'est
+// justement celui-la qu'on veut voir — le tableau se complete a la main, et on
+// ne remplit pas une ligne qui n'est pas imprimee.
+//
+// D'ou un LEFT JOIN : chaque creneau valide sort au moins une fois, avec ses
+// places occupees s'il en a. `assignment_id` sert a distinguer « pas
+// d'affectation » d'une affectation vide.
 $sql =
-    "SELECT r.shift_date, r.department_name, r.time_slot,
-            a.seat_number, a.student_id, a.external_name, a.agency_name,
+    "SELECT r.id AS request_id, r.shift_date, r.department_name, r.time_slot, r.seats_required,
+            a.id AS assignment_id, a.seat_number, a.student_id, a.external_name, a.agency_name,
             u.nom AS student_nom, u.prenom AS student_prenom, u.interim AS student_interim
-     FROM interim_shift_assignments a
-     INNER JOIN interim_shift_requests r ON r.id = a.request_id
+     FROM interim_shift_requests r
+     LEFT JOIN interim_shift_assignments a ON a.request_id = r.id
      LEFT JOIN utilisateurs u ON u.id = a.student_id
      WHERE r.shift_date BETWEEN ? AND ?";
 $sqlParams = [$weekStart->format('Y-m-d'), $weekEnd->format('Y-m-d')];
-if (!$isAdmin && $agencyName !== '') {
-    $sql .= " AND (TRIM(a.agency_name) = ? OR TRIM(u.interim) = ?)";
-    $sqlParams[] = $agencyName;
-    $sqlParams[] = $agencyName;
-}
+// Le filtre d'agence d'un teamcoach ne peut PLUS etre en SQL : il ecarterait le
+// creneau entier, places libres comprises. Il s'applique plus bas, sur les noms.
 // ⚠️ Uniquement les creneaux VALIDES, comme a l'ecran. Un planning exporte se
 // diffuse : y glisser une demande en attente, c'est annoncer une place que
 // personne n'a accordee.
@@ -77,7 +84,7 @@ if (isset($colonnesReq['validation_status'])) {
     $sql .= " AND r.validation_status = 'approved'";
 }
 
-$sql .= " ORDER BY r.department_name ASC, r.time_slot ASC, a.seat_number ASC";
+$sql .= " ORDER BY r.department_name ASC, r.time_slot ASC, r.id ASC, a.seat_number ASC";
 $stmt = $db->prepare($sql);
 $stmt->execute($sqlParams);
 $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -124,21 +131,24 @@ if ($filtreSecteurs || $filtreDept !== '') {
     }));
 }
 
-// --- Regroupement : departement -> [jour0..jour6] -> liste d'affectations ---
-$byDept = [];
+// --- Un creneau, ses places, ceux qui les occupent ---
+// Le LEFT JOIN renvoie une ligne par place occupee, et UNE ligne a vide quand le
+// creneau n'est pourvu par personne. On rassemble d'abord par creneau pour savoir
+// combien de places il compte.
+$creneaux = [];
 foreach ($rows as $r) {
-    $dept = trim((string) $r['department_name']);
-    if ($dept === '') {
-        $dept = '(sans département)';
+    $rid = (int) $r['request_id'];
+    if (!isset($creneaux[$rid])) {
+        $creneaux[$rid] = [
+            'dept'    => trim((string) $r['department_name']),
+            'date'    => (string) $r['shift_date'],
+            'horaire' => trim((string) $r['time_slot']),
+            'places'  => max(1, (int) $r['seats_required']),
+            'gens'    => [],
+        ];
     }
-    $dateKey = (string) $r['shift_date'];
-    if (!isset($dayIndexByKey[$dateKey])) {
-        continue;
-    }
-    $dayIdx = $dayIndexByKey[$dateKey];
-
-    if (!isset($byDept[$dept])) {
-        $byDept[$dept] = array_fill(0, 7, []);
+    if ($r['assignment_id'] === null) {
+        continue;   // creneau sans aucune affectation : rien a ajouter
     }
 
     $isExternal = empty($r['student_id']);
@@ -153,11 +163,41 @@ foreach ($rows as $r) {
         }
     }
 
-    $byDept[$dept][$dayIdx][] = [
-        'horaire' => trim((string) $r['time_slot']),
-        'nom' => $nom,
-        'agence' => $agence,
-    ];
+    // Un teamcoach ne lit que les noms de SON agence. La place reste occupee et
+    // se voit occupee : la laisser vide reviendrait a l'offrir deux fois.
+    if (!$isAdmin && $agencyName !== '' && $agence !== $agencyName) {
+        $nom = '(autre agence)';
+        $agence = '';
+    }
+
+    $creneaux[$rid]['gens'][] = ['nom' => $nom, 'agence' => $agence];
+}
+
+// --- Regroupement : departement -> [jour0..jour6] -> une ligne par PLACE ---
+// Une place libre sort avec son horaire et deux cases vides : c'est la ligne
+// qu'on remplit au stylo.
+$byDept = [];
+foreach ($creneaux as $c) {
+    $dept = $c['dept'] !== '' ? $c['dept'] : '(sans département)';
+    if (!isset($dayIndexByKey[$c['date']])) {
+        continue;
+    }
+    $dayIdx = $dayIndexByKey[$c['date']];
+    if (!isset($byDept[$dept])) {
+        $byDept[$dept] = array_fill(0, 7, []);
+    }
+
+    // Plus d'affectations que de places demandees ? On montre tout le monde :
+    // un nom qu'on cache est un nom qu'on oublie de prevenir.
+    $lignes = max($c['places'], count($c['gens']));
+    for ($i = 0; $i < $lignes; $i++) {
+        $g = $c['gens'][$i] ?? ['nom' => '', 'agence' => ''];
+        $byDept[$dept][$dayIdx][] = [
+            'horaire' => $c['horaire'],
+            'nom'     => $g['nom'],
+            'agence'  => $g['agence'],
+        ];
+    }
 }
 
 // Ordre des departements : alphabetique (gerable ensuite depuis Paramètres).
