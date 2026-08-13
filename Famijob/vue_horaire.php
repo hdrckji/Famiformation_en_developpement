@@ -115,10 +115,23 @@ while ($cursor <= $selectedWeek['end']) {
     $cursor = $cursor->modify('+1 day');
 }
 
+// ⚠️ UNIQUEMENT LES CRENEAUX VALIDES. Cet ecran est le planning : ce qu'on
+// regarde, ce qu'on imprime, ce qu'on envoie. Une demande en attente n'est pas
+// un horaire, c'est une intention — l'afficher ici fait croire a l'equipe
+// qu'une place est couverte alors que personne ne l'a encore accordee.
+// Les demandes en attente se lisent dans « Demandes d'horaires », leur ecran.
+$colonnesReq = [];
+foreach ($db->query('SHOW COLUMNS FROM interim_shift_requests')->fetchAll(PDO::FETCH_ASSOC) as $c) {
+    $colonnesReq[(string) $c['Field']] = true;
+}
+// La colonne est ajoutee par une migration portee par les ecrans de demandes.
+// Si elle n'est pas encore la, tout est valide par definition : rien a filtrer.
+$filtreValide = isset($colonnesReq['validation_status']) ? " AND validation_status = 'approved'" : '';
+
 $requestsStmt = $db->prepare(
     "SELECT id, shift_date, department_name, time_slot, seats_required, comment
      FROM interim_shift_requests
-     WHERE shift_date BETWEEN ? AND ?
+     WHERE shift_date BETWEEN ? AND ?" . $filtreValide . "
      ORDER BY shift_date ASC, department_name ASC, time_slot ASC"
 );
 $requestsStmt->execute([
@@ -132,6 +145,25 @@ if ($selectedSecteur !== '') {
     $requests = array_values(array_filter($requests, static function ($r) use ($vhRangement, $selectedSecteur) {
         $place = grilleSemaineResout((string) $r['department_name'], $vhRangement);
         return $place['secteur'] === $selectedSecteur;
+    }));
+}
+
+// ⚠️ FILTRE DEPARTEMENT, ICI ET PAS PLUS BAS. Il etait applique au moment de
+// construire la vue detaillee seulement : la vue classeur, elle, repartait de
+// $requests non filtre et reaffichait donc toute la semaine. D'ou des
+// departements qu'on n'avait pas demandes.
+//
+// Et la comparaison passe par le rangement, pas par un `===` sur le texte :
+// `department_name` est du texte libre, « Plantes exterieur » et « Plantes
+// extérieures » sont le meme endroit. Comparer les libelles propres rattrape
+// les alias et les accents.
+if ($selectedDepartment !== 'all') {
+    $cibleDept = grilleSemaineCle($selectedDepartment);
+    $requests = array_values(array_filter($requests, static function ($r) use ($vhRangement, $cibleDept) {
+        $place = grilleSemaineResout((string) $r['department_name'], $vhRangement);
+        // « sous » vide = le creneau porte le nom du secteur, pas d'un
+        // departement : il ne peut pas repondre a un filtre departement.
+        return $place['sous'] !== '' && grilleSemaineCle($place['sous']) === $cibleDept;
     }));
 }
 
@@ -198,9 +230,9 @@ $byDeptDay = [];
 $departmentsInView = [];
 foreach ($requests as $request) {
     $departmentName = (string) $request['department_name'];
-    if ($selectedDepartment !== 'all' && $departmentName !== $selectedDepartment) {
-        continue;
-    }
+    // Plus de filtre ici : $requests arrive deja filtre, secteur ET
+    // departement. Le refaire avec un `===` sur le texte libre rejetterait les
+    // alias que le rangement vient justement de rattraper.
     $departmentsInView[$departmentName] = true;
     $byDeptDay[$departmentName][(string) $request['shift_date']][] = $request;
 }

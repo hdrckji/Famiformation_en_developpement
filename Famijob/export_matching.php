@@ -66,11 +66,15 @@ if (!$isAdmin && $agencyName !== '') {
     $sqlParams[] = $agencyName;
     $sqlParams[] = $agencyName;
 }
-// Le departement se filtre en SQL : c'est une colonne.
-$filtreDept = trim((string) ($_GET['department'] ?? ''));
-if ($filtreDept !== '' && $filtreDept !== 'all') {
-    $sql .= " AND r.department_name = ?";
-    $sqlParams[] = $filtreDept;
+// ⚠️ Uniquement les creneaux VALIDES, comme a l'ecran. Un planning exporte se
+// diffuse : y glisser une demande en attente, c'est annoncer une place que
+// personne n'a accordee.
+$colonnesReq = [];
+foreach ($db->query('SHOW COLUMNS FROM interim_shift_requests')->fetchAll(PDO::FETCH_ASSOC) as $c) {
+    $colonnesReq[(string) $c['Field']] = true;
+}
+if (isset($colonnesReq['validation_status'])) {
+    $sql .= " AND r.validation_status = 'approved'";
 }
 
 $sql .= " ORDER BY r.department_name ASC, r.time_slot ASC, a.seat_number ASC";
@@ -96,12 +100,27 @@ if (!empty($_GET['secteurs']) && is_array($_GET['secteurs'])) {
     $filtreSecteurs = [trim((string) $_GET['secteur'])];
 }
 
-if ($filtreSecteurs) {
+// Le departement se resout de la meme facon, et pas par un `=` en SQL : « Plantes
+// exterieur » et « Plantes extérieures » sont le meme endroit, un `=` en laisserait
+// la moitie dehors.
+$filtreDept = trim((string) ($_GET['department'] ?? ''));
+if ($filtreDept === 'all') {
+    $filtreDept = '';
+}
+
+if ($filtreSecteurs || $filtreDept !== '') {
     require_once __DIR__ . '/includes/grille_semaine.php';
     $rangementExport = grilleSemaineRangement($db);
-    $rows = array_values(array_filter($rows, static function ($r) use ($rangementExport, $filtreSecteurs) {
+    $cibleDept = $filtreDept !== '' ? grilleSemaineCle($filtreDept) : '';
+    $rows = array_values(array_filter($rows, static function ($r) use ($rangementExport, $filtreSecteurs, $cibleDept) {
         $place = grilleSemaineResout((string) $r['department_name'], $rangementExport);
-        return in_array($place['secteur'], $filtreSecteurs, true);
+        if ($filtreSecteurs && !in_array($place['secteur'], $filtreSecteurs, true)) {
+            return false;
+        }
+        if ($cibleDept !== '') {
+            return $place['sous'] !== '' && grilleSemaineCle($place['sous']) === $cibleDept;
+        }
+        return true;
     }));
 }
 
