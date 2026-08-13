@@ -140,10 +140,17 @@ ksort($grille);
 // Purement indicatif : le texte est libre en base, on ne prétend pas le
 // comprendre à tous les coups — d'où l'affichage « ~ » et le silence si on
 // n'a rien su lire.
+//
+// ⚠️ TEMPS DE TRAVAIL EFFECTIF, pas amplitude. « 9h-19h » n'est pas dix heures :
+// la journée contient une heure de pause. Le total annoncé était donc trop
+// élevé, sur la page même où l'étudiant vérifie ce qu'il aura presté. La règle
+// est dans includes/temps_travail.php, partagée avec FamiJob.
+require_once __DIR__ . '/includes/temps_travail.php';
+
 $heuresSemaine = 0.0;
 $heuresLues = 0;
 foreach ($rows as $row) {
-    $d = dureeCreneau((string) ($row['time_slot'] ?? ''));
+    $d = tempsTravailEffectif((string) ($row['time_slot'] ?? ''));
     if ($d !== null) {
         $heuresSemaine += $d;
         $heuresLues++;
@@ -170,48 +177,9 @@ function nomDuJour($dateValue)
     return $jours[$dt->format('l')] ?? $dt->format('l');
 }
 
-/**
- * Durée d'un créneau écrit à la main, en heures — ou null si on n'a pas su lire.
- *
- * Le créneau est du TEXTE LIBRE en base : « 9h-17h », « 09:00 - 17:30 »,
- * « 9h à 17h »... On reconnaît les formes courantes et on renonce proprement
- * pour le reste, plutôt que d'annoncer un total faux. Une nuit qui passe
- * minuit (22h-6h) est comptée comme telle.
- */
-function dureeCreneau($texte)
-{
-    if (!preg_match_all('/(\d{1,2})\s*[h:]\s*(\d{2})?/i', (string) $texte, $m, PREG_SET_ORDER) || count($m) < 2) {
-        return null;
-    }
-
-    // Les heures sont lues DEUX PAR DEUX : « 8h-12h / 13h-17h » compte les deux
-    // demi-journées. Ne prendre que la première et la dernière donnerait 9 h au
-    // lieu de 8 — la pause de midi comptée comme du travail.
-    $total = 0.0;
-    $paires = 0;
-
-    for ($i = 0; $i + 1 < count($m); $i += 2) {
-        $debut = (int) $m[$i][1]     + (isset($m[$i][2])     && $m[$i][2]     !== '' ? ((int) $m[$i][2]) / 60 : 0);
-        $fin   = (int) $m[$i + 1][1] + (isset($m[$i + 1][2]) && $m[$i + 1][2] !== '' ? ((int) $m[$i + 1][2]) / 60 : 0);
-
-        if ($debut > 24 || $fin > 24) {
-            return null;
-        }
-        if ($fin <= $debut) {
-            $fin += 24; // le créneau passe minuit
-        }
-
-        $duree = $fin - $debut;
-        if ($duree <= 0 || $duree > 16) {
-            return null;
-        }
-
-        $total += $duree;
-        $paires++;
-    }
-
-    return ($paires > 0 && $total <= 16) ? $total : null;
-}
+// dureeCreneau() a ete retiree : elle comptait l'amplitude, pause comprise.
+// tempsTravailEffectif() la remplace, depuis includes/temps_travail.php.
+// Deux facons de lire un horaire finissent toujours par diverger.
 
 /** Le contenu d'une case : les créneaux d'un jour, pour un département. */
 function renderCase(array $items)

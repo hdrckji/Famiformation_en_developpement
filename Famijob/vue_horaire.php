@@ -72,6 +72,7 @@ if ($selectedDepartment !== 'all' && !in_array($selectedDepartment, $departmentF
 // secteur. On le RÉSOUT donc créneau par créneau, plutôt que de filtrer en SQL
 // sur une colonne qui n'existe pas.
 require_once __DIR__ . '/includes/grille_semaine.php';
+require_once __DIR__ . '/includes/temps_travail.php';
 $vhRangement = grilleSemaineRangement($db);
 
 $vhSecteurs = [];
@@ -382,6 +383,12 @@ foreach ($byDeptDay as $departmentName => $byDay) {
         .vh-h { text-align: center; font-variant-numeric: tabular-nums; font-weight: 700; }
         .vh-n { min-width: 120px; }
         .vh-libre { color: #a13e35; font-style: italic; }
+        /* Hors des bornes legales (moins de 3 h ou plus de 9 h de travail
+           effectif, pause deduite). Signale ici aussi : c'est l'ecran ou on
+           relit le planning avant de le diffuser, le dernier moment pour voir
+           qu'un creneau ne tient pas debout. */
+        .vh-hors { color: #c0392b; font-weight: 800; }
+        .vh-hors::after { content: ' ⚠'; }
         .empty-state { background: #fff; border-radius: 22px; padding: 28px; box-shadow: var(--shadow); color: var(--muted); }
         .fami-lang-switcher {
             display: inline-flex;
@@ -554,7 +561,9 @@ foreach ($byDeptDay as $departmentName => $byDay) {
                                         <td class="vh-vide<?php echo $pair; ?>"></td>
                                         <td class="vh-vide vh-fin<?php echo $pair; ?>"></td>
                                     <?php else: ?>
-                                        <td class="vh-h<?php echo $pair; ?>"><?php echo e($c['horaire']); ?></td>
+                                        <?php $ecartVh = tempsTravailHorsNormes($c['horaire']); ?>
+                                        <td class="vh-h<?php echo $pair; ?><?php echo $ecartVh !== null ? ' vh-hors' : ''; ?>"
+                                            <?php if ($ecartVh !== null): ?>title="<?php echo e(fjvhT('Hors normes : ', 'Buiten de normen: ') . tempsTravailFormate($ecartVh['heures']) . fjvhT(' de travail effectif (min 3h, max 9h)', ' effectieve werktijd (min 3u, max 9u)')); ?>"<?php endif; ?>><?php echo e($c['horaire']); ?></td>
                                         <td class="vh-n vh-fin<?php echo $pair; ?>">
                                             <?php // Une place non pourvue se voit : c'est ce qu'on
                                                   // cherche en ouvrant un planning. ?>

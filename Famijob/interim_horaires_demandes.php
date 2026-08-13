@@ -1,6 +1,7 @@
 <?php
 require_once 'config.php';
 require_once __DIR__ . '/includes/notifications.php';
+require_once __DIR__ . '/includes/temps_travail.php';
 verifierConnexion($db);
 
 $pageLang = famiLang();
@@ -1102,6 +1103,13 @@ while ($vueCursor <= $selectedWeek['end']) {
         .vue-jeton { border-radius: 5px; padding: 1px 5px; margin-bottom: 2px; font-size: .68rem; font-weight: 700; white-space: nowrap; }
         .vue-jeton.est-valide { background: #e7f6ea; color: #1d6a39; border: 1px solid #b7e0c1; }
         .vue-jeton.est-attente { background: #fff4e2; color: #a16a1e; border: 1px solid #f0d5a8; }
+        /* HORS NORMES : moins de 3 h ou plus de 9 h de travail effectif. Le
+           creneau a ete enregistre malgre l'avertissement — il reste donc
+           visible, mais il ne peut pas passer pour un creneau ordinaire.
+           Le liseré rouge se lit par-dessus l'etat (vert valide / orange en
+           attente) sans le remplacer : les deux informations comptent. */
+        .vue-jeton.hors-normes { border-color: #c0392b; box-shadow: inset 3px 0 0 #c0392b; }
+        .vue-jeton.hors-normes span:first-child::after { content: ' ⚠'; color: #c0392b; }
         .vue-case-saisie textarea { width: 100%; min-width: 88px; border: 1px dashed #ccd6cf; border-radius: 5px; padding: 2px 4px; font-family: inherit; font-size: .68rem; resize: vertical; background: #fff; }
         .vue-case-saisie textarea:focus { border-color: #2d5a37; border-style: solid; outline: none; }
         .vue-fige { color: #b9c4bd; font-size: .68rem; }
@@ -1629,8 +1637,18 @@ while ($vueCursor <= $selectedWeek['end']) {
                                                                   // de plus pour comprendre qu'il manque deux
                                                                   // personnes. ?>
                                                             <?php for ($pl = 0; $pl < max(1, (int) $c['places']); $pl++): ?>
-                                                                <div class="vue-jeton <?php echo $c['etat'] === 'approved' ? 'est-valide' : 'est-attente'; ?>"
-                                                                     <?php if ($c['note'] !== ''): ?>title="<?php echo e($c['note']); ?>"<?php endif; ?>>
+                                                                <?php
+                                                                $ecart = tempsTravailHorsNormes($c['horaire']);
+                                                                $titre = $c['note'];
+                                                                if ($ecart !== null) {
+                                                                    $alerte = fjdT('Hors normes : ', 'Buiten de normen: ')
+                                                                        . tempsTravailFormate($ecart['heures'])
+                                                                        . fjdT(' de travail effectif (min 3h, max 9h)', ' effectieve werktijd (min 3u, max 9u)');
+                                                                    $titre = $titre !== '' ? ($alerte . ' — ' . $titre) : $alerte;
+                                                                }
+                                                                ?>
+                                                                <div class="vue-jeton <?php echo $c['etat'] === 'approved' ? 'est-valide' : 'est-attente'; ?><?php echo $ecart !== null ? ' hors-normes' : ''; ?>"
+                                                                     <?php if ($titre !== ''): ?>title="<?php echo e($titre); ?>"<?php endif; ?>>
                                                                     <span><?php echo e($c['horaire']); ?></span>
                                                                     <?php // ⚠️ type="button", PAS submit. Dans un formulaire, la
                                                                           // touche Entree declenche le PREMIER bouton submit :
@@ -1991,6 +2009,141 @@ while ($vueCursor <= $selectedWeek['end']) {
     .fjd-mbtn-ok { background:#2d5a37; color:#fff; }
     .fjd-mbtn-ok:hover { background:#24492c; }
 </style>
+<?php // ── LES BORNES LEGALES, AVANT L'ENREGISTREMENT ────────────────────
+      // Entre 3 h et 9 h de travail EFFECTIF par jour. « 9h-19h » ne fait pas
+      // dix heures : la journee contient une heure de pause.
+      //
+      // On previent, on ne refuse pas. La personne qui saisit sait parfois
+      // pourquoi elle sort des clous ; ce qu'il ne faut pas, c'est qu'elle le
+      // fasse sans s'en rendre compte. Si elle confirme, le creneau part quand
+      // meme — et se retrouve marque d'un lisere rouge dans la grille.
+      //
+      // ⚠️ Les constantes viennent de PHP (tempsTravailReglesJson) : la regle
+      // n'est ecrite qu'a un seul endroit, includes/temps_travail.php. ?>
+<div class="fjd-modal-mask" id="fjdHeuresModal">
+    <div class="fjd-modal" role="dialog" aria-modal="true">
+        <div class="fjd-modal-ic" style="background:#fdecea; color:#c0392b;">⚠️</div>
+        <h3><?php echo e(fjdT('Horaire hors des bornes légales', 'Uurrooster buiten de wettelijke grenzen')); ?></h3>
+        <p><?php echo e(fjdT('Êtes-vous sûr de vouloir ajouter ce créneau ? Il ne respecte pas le nombre d\'heures légal (3 h minimum, 9 h maximum de travail effectif, pause d\'une heure déduite).', 'Weet u zeker dat u dit tijdsblok wilt toevoegen? Het voldoet niet aan het wettelijke aantal uren (min. 3 u, max. 9 u effectieve werktijd, één uur pauze afgetrokken).')); ?></p>
+        <div id="fjdHeuresListe" class="fjd-heures-liste"></div>
+        <div class="fjd-modal-actions">
+            <button type="button" class="fjd-mbtn fjd-mbtn-cancel" onclick="fjdHeuresAnnule()"><?php echo e(fjdT('Corriger', 'Corrigeren')); ?></button>
+            <button type="button" class="fjd-mbtn fjd-mbtn-danger" onclick="fjdHeuresForce()"><?php echo e(fjdT('Ajouter quand même', 'Toch toevoegen')); ?></button>
+        </div>
+    </div>
+</div>
+<style>
+    .fjd-heures-liste { text-align:left; background:#fdf3f2; border:1px solid #f3cdc7; border-radius:12px; padding:10px 12px; font-size:.85rem; color:#8c2f22; }
+    .fjd-heures-liste div { padding:2px 0; }
+    .fjd-mbtn-danger { background:#c0392b; color:#fff; }
+    .fjd-mbtn-danger:hover { background:#a5301f; }
+</style>
+<script>
+(function () {
+    var REGLES = <?php echo tempsTravailReglesJson(); ?>;
+
+    // Meme lecture qu'en PHP : les heures deux par deux, « 8h-12h / 13h-17h »
+    // compte les deux demi-journees.
+    function paires(txt) {
+        var re = /(\d{1,2})\s*[h:]\s*(\d{2})?/gi, m, pts = [];
+        while ((m = re.exec(String(txt))) !== null) {
+            var h = parseInt(m[1], 10);
+            var mi = m[2] ? parseInt(m[2], 10) : 0;
+            if (h > 24) { return null; }
+            pts.push(h + mi / 60);
+        }
+        if (pts.length < 2) { return null; }
+        var out = [];
+        for (var i = 0; i + 1 < pts.length; i += 2) {
+            var d = pts[i], f = pts[i + 1];
+            if (f <= d) { f += 24; }
+            var duree = f - d;
+            if (duree <= 0 || duree > 16) { return null; }
+            out.push([d, f]);
+        }
+        return out.length ? out : null;
+    }
+
+    function effectif(txt) {
+        var ps = paires(txt);
+        if (!ps) { return null; }
+        var total = 0;
+        for (var i = 0; i < ps.length; i++) { total += ps[i][1] - ps[i][0]; }
+        if (ps.length > 1) { return total; }          // la coupure est deja ecrite
+        for (var j = 0; j < REGLES.sansPause.length; j++) {
+            if (Math.abs(ps[0][0] - REGLES.sansPause[j][0]) < 0.001 &&
+                Math.abs(ps[0][1] - REGLES.sansPause[j][1]) < 0.001) {
+                return total;                          // creneau sans pause
+            }
+        }
+        return Math.max(0, total - REGLES.pause);
+    }
+
+    function formate(h) {
+        var e = Math.floor(h), m = Math.round((h - e) * 60);
+        if (m === 60) { e++; m = 0; }
+        return m === 0 ? (e + 'h') : (e + 'h' + (m < 10 ? '0' + m : m));
+    }
+
+    // Un horaire illisible ne declenche rien : on ne signale pas ce qu'on n'a
+    // pas su lire, une alerte a cote de la plaque se fait ignorer en trois jours.
+    function fautifs(champs) {
+        var out = [];
+        for (var i = 0; i < champs.length; i++) {
+            var v = (champs[i].value || '').trim();
+            if (v === '') { continue; }
+            var h = effectif(v);
+            if (h === null) { continue; }
+            if (h < REGLES.min - 0.001 || h > REGLES.max + 0.001) {
+                out.push(v + ' → ' + formate(h) + <?php echo json_encode(fjdT(' de travail effectif', ' effectieve werktijd')); ?>);
+            }
+        }
+        return out;
+    }
+
+    var formulaireEnAttente = null;
+
+    function verifie(form, champs) {
+        var liste = fautifs(champs);
+        if (!liste.length) { return true; }
+        formulaireEnAttente = form;
+        var boite = document.getElementById('fjdHeuresListe');
+        boite.innerHTML = '';
+        liste.forEach(function (t) {
+            var d = document.createElement('div');
+            d.textContent = '• ' + t;
+            boite.appendChild(d);
+        });
+        document.getElementById('fjdHeuresModal').classList.add('show');
+        return false;
+    }
+
+    window.fjdHeuresAnnule = function () {
+        document.getElementById('fjdHeuresModal').classList.remove('show');
+        formulaireEnAttente = null;
+    };
+
+    // form.submit() ne rejoue PAS le gestionnaire onsubmit : pas de boucle.
+    window.fjdHeuresForce = function () {
+        document.getElementById('fjdHeuresModal').classList.remove('show');
+        if (formulaireEnAttente) { formulaireEnAttente.submit(); }
+        formulaireEnAttente = null;
+    };
+
+    function branche(id, selecteur) {
+        var f = document.getElementById(id);
+        if (!f) { return; }
+        f.addEventListener('submit', function (ev) {
+            if (!verifie(f, f.querySelectorAll(selecteur))) { ev.preventDefault(); }
+        });
+    }
+
+    // Onglet grille : les lignes sont ajoutees en JS, d'ou le selecteur par nom
+    // evalue au moment de l'envoi et non une liste figee au chargement.
+    branche('createForm', 'input[name^="row_horaire"]');
+    branche('createFormCells2', 'input.vue-saisie');
+})();
+</script>
 <?php echo secteursScript(); ?>
 </body>
 </html>
