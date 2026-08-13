@@ -600,7 +600,13 @@ function renderCase(array $items)
 <div class="page">
     <div class="hero">
         <div>
-            <a href="index.php" class="back-link">← FamiFormation</a>
+            <?php // Le retour ramene la ou on etait. Cette page est hebergee par
+                  // FamiFormation mais les etudiants y arrivent maintenant par la
+                  // tuile FamiJob, qui pose ?from=famijob : sans ca, le lien les
+                  // deposerait sur un site qu'ils n'avaient pas ouvert. ?>
+            <?php $retourFamijob = (($_GET['from'] ?? '') === 'famijob'); ?>
+            <a href="<?php echo $retourFamijob ? 'famijob/index.php' : 'index.php'; ?>" class="back-link">←
+                <?php echo e($retourFamijob ? 'FamiJob' : 'FamiFormation'); ?></a>
             <h1><?php echo e(monHoraireT('Mon horaire', 'Mijn rooster')); ?></h1>
             <p><?php echo e(monHoraireT('Vue consultative de tes horaires attribues, semaine par semaine.', 'Leesweergave van je toegewezen uren, week per week.')); ?></p>
         </div>

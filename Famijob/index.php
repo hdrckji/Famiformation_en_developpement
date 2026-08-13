@@ -573,7 +573,7 @@ $famijobBackgroundUrl = resolvePublicAssetUrl(
                   // en grille. Il en existait une seconde ici, en trois listes
                   // empilees ; elle ne fait plus que rediriger. Une seule vue,
                   // pour qu'elle cesse de changer selon la porte empruntee. ?>
-            <a href="<?= e(famijobSiteUrl('mon_horaire.php')) ?>" class="tile">
+            <a href="<?= e(famijobSiteUrl('mon_horaire.php?from=famijob')) ?>" class="tile">
                 <div class="tile-icon">🕒</div>
                 <div class="tile-title"><?= e(fjT('Mes horaires attribués', 'Mijn toegewezen uren')) ?></div>
                 <div class="tile-desc"><?= e(fjT('Tes créneaux passés, du jour et à venir, en lecture seule.', 'Je vroegere, huidige en komende tijdsblokken, alleen lezen.')) ?></div>
@@ -590,6 +590,21 @@ $famijobBackgroundUrl = resolvePublicAssetUrl(
                 <div class="tile-desc"><?= e(fjT('Une question, une idée, un souci ? Envoyez votre avis à l\'équipe.', 'Een vraag, een idee, een probleem? Stuur je feedback naar het team.')) ?></div>
             </a>
             <?php endif; ?>
+
+            <?php // LA PORTE DU RETOUR, pour tous les roles.
+                  //
+                  // FamiFormation porte une tuile « FamiJob » ; l'inverse
+                  // n'existait pas. Depuis que les etudiants se connectent
+                  // directement ici, ils se retrouvaient sans aucun chemin vers
+                  // le site — il fallait connaitre l'adresse. Une tuile symetrique
+                  // ferme la boucle : les deux services se repondent.
+                  //
+                  // Hors du bloc par role : tout le monde vient du meme site. ?>
+            <a href="<?= e(famijobSiteUrl('index.php')) ?>" class="tile">
+                <div class="tile-icon">🎓</div>
+                <div class="tile-title">FamiFormation</div>
+                <div class="tile-desc"><?= e(fjT('Retour au site : formations, onboarding, quiz et modules du magasin.', 'Terug naar de site: opleidingen, onboarding, quizzen en winkelmodules.')) ?></div>
+            </a>
         </div>
     </div>
 <?php require_once __DIR__ . '/includes/topbar.php'; echo famijobScrollKeeperHtml(); ?>

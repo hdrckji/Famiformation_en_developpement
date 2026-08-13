@@ -20,5 +20,5 @@
 require_once 'config.php';
 verifierConnexion($db);
 
-header('Location: ' . famijobSiteUrl('mon_horaire.php'));
+header('Location: ' . famijobSiteUrl('mon_horaire.php?from=famijob'));
 exit();

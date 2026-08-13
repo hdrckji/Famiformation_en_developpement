@@ -226,27 +226,10 @@ $rattachementEditable = ($champRattachement !== null)
 $secteurActuel     = (int) ($cible['secteur_id'] ?? 0);
 $departementActuel = (int) ($cible['departement_id'] ?? 0);
 
-// ─────────────────────────────────────────────────────────────────────────────
-// STOCKAGE DE LA PHOTO — celui du SITE, volontairement : même dossier sur le
-// volume, même colonne `utilisateurs.photo_profil`, même compression. Un second
-// emplacement, et la photo affichée par FamiFormation ne serait plus celle
-// déposée ici. Le repli passe par famicardRacineSite() : « __DIR__ »
-// désignerait Famicard, donc un uploads/ qui n'est pas celui du site.
-// ─────────────────────────────────────────────────────────────────────────────
-$storeBase = defined('FAMI_STORAGE_BASE') ? rtrim(FAMI_STORAGE_BASE, '/') : (famicardRacineSite() . '/uploads');
-$uploadDir = $storeBase . '/divers/profils/';
-
-/** Chemin absolu d'une photo déjà enregistrée (clé volume OU ancien public/uploads). */
-function famicardCheminPhoto($valeur, $storeBase)
-{
-    $valeur = (string) $valeur;
-    if ($valeur === '') {
-        return '';
-    }
-    return (strpos($valeur, 'uploads/') === 0)
-        ? famicardRacineSite() . '/' . $valeur
-        : $storeBase . '/' . $valeur;
-}
+// Le dépôt d'une photo vit dans includes/photo.php : la création d'un
+// collaborateur en dépose une aussi, et les deux écrans doivent écrire au même
+// endroit, avec les mêmes contrôles et la même compression.
+require_once __DIR__ . '/includes/photo.php';
 
 // Le champ photo est-il modifiable par le regardeur ? La zone d'envoi n'est
 // affichée que si oui — et le POST est refusé dans le cas contraire.
@@ -293,7 +276,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             famicardRetourModif("Tu n'as pas la main sur cette photo.", $estSaPropreFiche, $cibleId);
         }
 
-        $ancienne = famicardCheminPhoto((string) ($cible['photo_profil'] ?? ''), $storeBase);
+        $ancienne = famicardCheminPhoto((string) ($cible['photo_profil'] ?? ''));
         if ($ancienne !== '' && is_file($ancienne)) {
             @unlink($ancienne);
         }
@@ -311,59 +294,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // suite plutôt que d'enregistrer le reste en laissant croire que tout
     // est passé.
     $photoDeposee = false;
-    if ($photoEditable && isset($_FILES['photo_profil']) && $_FILES['photo_profil']['error'] !== UPLOAD_ERR_NO_FILE) {
-        $file = $_FILES['photo_profil'];
-        $typesAutorises = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-        $tailleMax = 5 * 1024 * 1024; // 5 Mo
-
-        if ($file['error'] !== UPLOAD_ERR_OK) {
-            $erreurs[] = "L'envoi de la photo n'a pas abouti.";
-        } elseif ($file['size'] > $tailleMax) {
-            $erreurs[] = 'Photo trop lourde (5 Mo maximum).';
-        } elseif (!in_array($file['type'], $typesAutorises, true)) {
-            $erreurs[] = 'Format de photo non accepté : JPEG, PNG, GIF ou WebP.';
-        } elseif (!@getimagesize($file['tmp_name'])) {
-            // Le type annoncé par le navigateur se falsifie ; le contenu, non.
-            $erreurs[] = "Ce fichier n'est pas une image.";
-        } else {
-            if (!is_dir($uploadDir)) {
-                @mkdir($uploadDir, 0775, true);
+    if ($photoEditable && isset($_FILES['photo_profil'])) {
+        $erreurPhoto = '';
+        $chemin = famicardEnregistrePhoto(
+            $db, $cibleId, $_FILES['photo_profil'],
+            (string) ($cible['photo_profil'] ?? ''), $erreurPhoto
+        );
+        if ($erreurPhoto !== '') {
+            $erreurs[] = $erreurPhoto;
+        } elseif ($chemin !== '') {
+            if ($estSaPropreFiche) {
+                // Le ruban du site lit la photo dans la session : sans ça,
+                // l'ancienne resterait affichée jusqu'à la reconnexion.
+                $_SESSION['photo_profil'] = $chemin;
             }
-
-            $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-            $nomFichier = 'user_' . $cibleId . '_' . time() . '.' . $ext;
-            $destination = $uploadDir . $nomFichier;
-
-            if (move_uploaded_file($file['tmp_name'], $destination)) {
-                // L'ancienne part APRÈS que la nouvelle est en place : dans
-                // l'autre sens, un échec d'écriture laisserait la fiche sans
-                // photo du tout.
-                $ancienne = famicardCheminPhoto((string) ($cible['photo_profil'] ?? ''), $storeBase);
-                if ($ancienne !== '' && is_file($ancienne) && $ancienne !== $destination) {
-                    @unlink($ancienne);
-                }
-
-                $compress = famicardRacineSite() . '/includes/compress.php';
-                if (is_file($compress)) {
-                    require_once $compress;
-                    if (function_exists('famiCompressImageFile')) {
-                        famiCompressImageFile($destination, 600);
-                    }
-                }
-
-                $cheminRelatif = 'divers/profils/' . $nomFichier;
-                $db->prepare("UPDATE utilisateurs SET photo_profil = ? WHERE id = ?")
-                   ->execute([$cheminRelatif, $cibleId]);
-                if ($estSaPropreFiche) {
-                    // Le ruban du site lit la photo dans la session : sans ça,
-                    // l'ancienne resterait affichée jusqu'à la reconnexion.
-                    $_SESSION['photo_profil'] = $cheminRelatif;
-                }
-                famicardTraceModification($db, $cibleId, 'photo_profil', $champPhoto ?: ['libelle' => 'Photo'], '', 'photo', (int) $moi['id'], false);
-                $photoDeposee = true;
-            } else {
-                $erreurs[] = "La photo n'a pas pu être enregistrée.";
-            }
+            famicardTraceModification($db, $cibleId, 'photo_profil', $champPhoto ?: ['libelle' => 'Photo'], '', 'photo', (int) $moi['id'], false);
+            $photoDeposee = true;
         }
     }
 

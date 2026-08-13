@@ -47,6 +47,9 @@
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/includes/modifications.php';
 require_once __DIR__ . '/includes/services.php';
+// Le dépôt d'une photo est partagé avec modifier.php : mêmes contrôles, même
+// dossier, même compression (voir includes/photo.php).
+require_once __DIR__ . '/includes/photo.php';
 
 famicardExigeConnexion($db); // et non verifierConnexion() : voir Famicard/README
 // csrf.php est déjà chargé par la configuration du site.
@@ -189,7 +192,18 @@ if (($_POST['action'] ?? '') === 'creer') {
     if ($nom === '')         { $erreurs[] = 'le nom'; }
     if ($prenom === '')      { $erreurs[] = 'le prénom'; }
     if (!in_array($role, $ROLES_CREATION, true)) { $erreurs[] = 'le profil'; }
-    if ($aEmployeur && !isset($employeurs[$employeur])) { $erreurs[] = "l'employeur"; }
+    // ── TOUT SE REMPLIT À LA CRÉATION (décision de Jimmy) ────────────────
+    // Un champ laissé vide ici, c'est une fiche que personne ne complétera
+    // jamais : la personne existe, le compte marche, plus rien ne rappelle
+    // qu'il manque quelque chose. Le seul moment où l'on a quelqu'un pour
+    // répondre à ces questions, c'est maintenant.
+    //
+    // Chaque exigence est conditionnée à l'existence du champ : sur une base
+    // qui n'a pas encore la colonne, on ne réclame pas l'impossible.
+    if ($aEmployeur && !isset($employeurs[$employeur])) { $erreurs[] = "l'employeur (interne ou externe)"; }
+    if ($aContrat && !isset($contrats[$contrat]))       { $erreurs[] = 'le type de contrat'; }
+    if ($aSiteId && $magasins && $siteId === '')        { $erreurs[] = 'le lieu de travail'; }
+    if ($arbreSecteurs && $secteur <= 0)                { $erreurs[] = 'le secteur'; }
 
     // ── CE QUI NE PEUT PAS ÊTRE VRAI EN MÊME TEMPS ───────────────────────
     // Les trois questions sont indépendantes, mais pas n'importe quelles
@@ -347,6 +361,24 @@ if (($_POST['action'] ?? '') === 'creer') {
             }
 
             if ($creationOk && $userId > 0) {
+                // ── LA PHOTO, APRÈS LE COMMIT ────────────────────────────
+                // Un fichier déposé pendant la transaction resterait sur le
+                // disque en cas de retour arrière : une image orpheline, sans
+                // fiche pour la réclamer. Ici, le compte existe pour de bon.
+                //
+                // Un échec ne remet pas le compte en cause : il est créé, il
+                // marche, et la photo se dépose depuis sa fiche.
+                $photoRatee = '';
+                if (isset($_FILES['photo_profil'])) {
+                    $chemin = famicardEnregistrePhoto($db, $userId, $_FILES['photo_profil'], '', $photoRatee);
+                    if ($chemin !== '') {
+                        famicardTraceModification(
+                            $db, $userId, 'photo_profil', ['libelle' => 'Photo'],
+                            '', 'photo', $moiId, false
+                        );
+                    }
+                }
+
                 // Traces APRÈS le commit : enregistrées dans la transaction,
                 // elles disparaîtraient avec elle en cas de retour arrière.
                 famicardTraceModification(
@@ -387,6 +419,21 @@ if (($_POST['action'] ?? '') === 'creer') {
                 } else {
                     $msg = "<div class='flash ok'>✅ <b>$qui</b> est créé et peut se connecter."
                          . ' Aucun mail n\'a été envoyé, comme demandé.' . $lien . '</div>';
+                }
+
+                // Ce qui n'a pas marché SANS remettre le compte en cause est
+                // dit à la suite : le compte est créé, et on sait quoi finir.
+                if ($photoRatee !== '') {
+                    // preg_replace ancré sur la FIN, et non rtrim() : rtrim
+                    // avec « </div> » retire n'importe lequel de ces six
+                    // caractères tant qu'il en trouve, et mangerait le « > »
+                    // du </a> juste avant.
+                    $msg = preg_replace(
+                        '~</div>$~',
+                        '<br>⚠️ La photo n\'a pas été enregistrée (' . e($photoRatee)
+                            . ') : elle se dépose depuis sa fiche.</div>',
+                        $msg
+                    );
                 }
 
                 $_SESSION['famicard_creation_flash'] = $msg;
@@ -485,7 +532,9 @@ try {
         et son échec n'annule pas la création.
     </div>
 
-    <form method="POST" action="creer.php">
+    <?php // enctype indispensable : sans lui le fichier n'arrive jamais au
+          // serveur, et le formulaire semble marcher tout en perdant la photo. ?>
+    <form method="POST" action="creer.php" enctype="multipart/form-data" id="formCreation">
         <?= csrfField() ?>
         <input type="hidden" name="action" value="creer">
 
@@ -510,9 +559,20 @@ try {
                     <label for="email">Email <span class="aide">— pour le mail d'activation</span></label>
                     <input type="email" id="email" name="email" value="<?= e($saisie['email']) ?>" autocomplete="off">
                 </div>
+                <?php // La photo se dépose ICI si on l'a sous la main. Elle est
+                      // OBLIGATOIRE sur la carte (voir includes/carte.php) : la
+                      // poser à la création évite une fiche qui reste incomplète
+                      // pendant des mois. Rien n'oblige à le faire maintenant,
+                      // mais l'écran demande confirmation si on s'en passe. ?>
+                <div class="champ">
+                    <label for="photo_profil">Photo
+                        <span class="aide">— JPEG, PNG, GIF ou WebP, 5 Mo maximum</span></label>
+                    <input type="file" id="photo_profil" name="photo_profil"
+                           accept="image/jpeg,image/png,image/gif,image/webp">
+                </div>
             </div>
             <p class="rappel">
-                Le reste de la fiche — photo, ville, date d'anniversaire — se complète ensuite,
+                Le reste de la fiche — ville, date d'anniversaire — se complète ensuite,
                 par le collaborateur lui-même ou depuis sa fiche.
             </p>
         </div>
@@ -530,8 +590,13 @@ try {
                         <?php endforeach; ?>
                     </select>
                 </div>
+                <?php // Facultatif SI un email est renseigné, obligatoire sinon :
+                      // c'est la même règle vue des deux côtés, et le libellé
+                      // change tout seul selon ce qui est saisi (voir le script
+                      // en bas de page). ?>
                 <div class="champ">
-                    <label for="mot_de_passe">Mot de passe <span class="aide">— facultatif</span></label>
+                    <label for="mot_de_passe">Mot de passe
+                        <span class="aide" id="aideMdp">— facultatif si un email est renseigné</span></label>
                     <input type="password" id="mot_de_passe" name="mot_de_passe" autocomplete="new-password"
                            placeholder="laisser vide = mail d'activation">
                 </div>
@@ -572,10 +637,9 @@ try {
 
                 <?php if ($aContrat): ?>
                 <div class="champ">
-                    <label for="contrat">Type de contrat
-                        <span class="aide">— peut être précisé plus tard</span></label>
-                    <select id="contrat" name="contrat">
-                        <option value="">— À préciser —</option>
+                    <label for="contrat">Type de contrat <span class="requis">*</span></label>
+                    <select id="contrat" name="contrat" required>
+                        <option value="">— Choisir —</option>
                         <?php foreach ($contrats as $val => $lib): ?>
                             <option value="<?= e($val) ?>"<?= $saisie['contrat'] === $val ? ' selected' : '' ?>><?= e($lib) ?></option>
                         <?php endforeach; ?>
@@ -613,9 +677,9 @@ try {
             <div class="grille">
                 <?php if ($aSiteId && $magasins): ?>
                 <div class="champ">
-                    <label for="site_id">Lieu de travail</label>
-                    <select id="site_id" name="site_id">
-                        <option value="">— Non défini —</option>
+                    <label for="site_id">Lieu de travail <span class="requis">*</span></label>
+                    <select id="site_id" name="site_id" required>
+                        <option value="">— Choisir —</option>
                         <?php foreach ($magasins as $id => $nomSite): ?>
                             <option value="<?= (int) $id ?>"<?= $saisie['site_id'] === (string) $id ? ' selected' : '' ?>><?= e($nomSite) ?></option>
                         <?php endforeach; ?>
@@ -625,12 +689,12 @@ try {
 
                 <?php if ($arbreSecteurs): ?>
                 <div class="champ">
-                    <label for="rattachement_secteur">Secteur et département
+                    <label for="rattachement_secteur">Secteur <span class="requis">*</span> et département
                         <span class="aide">— de quoi elle relève</span></label>
                     <div class="duo">
                         <select class="secteur-select" id="rattachement_secteur" name="rattachement_secteur"
-                                data-cible="rattachement_departement" aria-label="Secteur">
-                            <option value="">— Aucun rattachement —</option>
+                                data-cible="rattachement_departement" aria-label="Secteur" required>
+                            <option value="">— Choisir un secteur —</option>
                             <?php foreach ($arbreSecteurs as $sid => $s): ?>
                                 <option value="<?= (int) $sid ?>"<?= $saisie['secteur'] === (string) $sid ? ' selected' : '' ?>><?= e($s['nom']) ?></option>
                             <?php endforeach; ?>
@@ -714,5 +778,64 @@ try {
 <?php // Le filtrage secteur → département. Une seule fois par page, il gère
       // tous les menus, et la page reste utilisable si le script ne part pas. ?>
 <?= function_exists('secteursScript') ? secteursScript() : '' ?>
+
+<script>
+// ── « TU ES SÛR ? » QUAND IL MANQUE L'EMAIL OU LA PHOTO ─────────────────────
+// Ces deux-là ne sont pas obligatoires, mais leur absence coûte quelque chose
+// plus tard : sans email, la personne ne reçoit aucun lien d'activation et il
+// faudra lui remettre son mot de passe en main propre ; sans photo, sa carte
+// reste marquée incomplète jusqu'à ce qu'elle y pense.
+//
+// On demande donc confirmation UNE fois, au moment où c'est encore facile à
+// corriger — et on ne bloque pas : il y a de vraies raisons de créer un compte
+// sans l'un ni l'autre.
+(function () {
+    var form  = document.getElementById('formCreation');
+    var email = document.getElementById('email');
+    var photo = document.getElementById('photo_profil');
+    var mdp   = document.getElementById('mot_de_passe');
+    var aide  = document.getElementById('aideMdp');
+    if (!form) { return; }
+
+    // ── PAS D'EMAIL ⇒ LE MOT DE PASSE DEVIENT OBLIGATOIRE ───────────────
+    // L'un des deux suffit, mais il en faut un : sans email il n'y a pas de
+    // lien d'activation, donc sans mot de passe personne ne peut ouvrir le
+    // compte. Le serveur refuse déjà les deux vides — ici on le dit AVANT,
+    // pendant qu'on a encore le curseur dans le champ.
+    function majMotDePasse() {
+        if (!mdp || !email) { return; }
+        var sansEmail = (email.value.trim() === '');
+        mdp.required = sansEmail;
+        if (aide) {
+            aide.textContent = sansEmail
+                ? '— obligatoire : sans email, c’est le seul moyen d’ouvrir le compte'
+                : '— facultatif si un email est renseigné';
+        }
+        mdp.placeholder = sansEmail ? 'obligatoire sans email' : "laisser vide = mail d'activation";
+    }
+    if (email) { email.addEventListener('input', majMotDePasse); }
+    majMotDePasse();
+
+    form.addEventListener('submit', function (e) {
+        var manque = [];
+        if (email && email.value.trim() === '') { manque.push("l'adresse email"); }
+        if (photo && photo.files && photo.files.length === 0) { manque.push('la photo'); }
+        if (manque.length === 0) { return; }
+
+        var quoi = manque.join(' ni ');
+        var texte = 'Ce collaborateur va être créé sans ' + quoi + '.\n\n';
+        if (email && email.value.trim() === '') {
+            texte += "• Sans email, il ne recevra aucun lien d'activation : il faudra lui remettre "
+                   + 'son identifiant et son mot de passe en main propre.\n';
+        }
+        if (photo && photo.files && photo.files.length === 0) {
+            texte += '• Sans photo, sa carte restera signalée comme incomplète.\n';
+        }
+        texte += '\nEnregistrer quand même ?';
+
+        if (!window.confirm(texte)) { e.preventDefault(); }
+    });
+}());
+</script>
 </body>
 </html>
