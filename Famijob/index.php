@@ -562,7 +562,11 @@ $famijobBackgroundUrl = resolvePublicAssetUrl(
                 <div class="tile-desc"><?= e(fjT('Indique tes jours de disponibilité sur les 30 prochains jours.', 'Geef je beschikbare dagen voor de komende 30 dagen aan.')) ?></div>
             </a>
 
-            <a href="mes_horaires_attribues.php" class="tile">
+            <?php // Vers mon_horaire.php sur le site : c'est LA page, la semaine
+                  // en grille. Il en existait une seconde ici, en trois listes
+                  // empilees ; elle ne fait plus que rediriger. Une seule vue,
+                  // pour qu'elle cesse de changer selon la porte empruntee. ?>
+            <a href="<?= e(famijobSiteUrl('mon_horaire.php')) ?>" class="tile">
                 <div class="tile-icon">🕒</div>
                 <div class="tile-title"><?= e(fjT('Mes horaires attribués', 'Mijn toegewezen uren')) ?></div>
                 <div class="tile-desc"><?= e(fjT('Tes créneaux passés, du jour et à venir, en lecture seule.', 'Je vroegere, huidige en komende tijdsblokken, alleen lezen.')) ?></div>
