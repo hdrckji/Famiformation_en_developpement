@@ -216,6 +216,55 @@ se termine un jour.
 
 ---
 
+## LE RÉCAP — « voici ce qu'on sait de toi, c'est juste ? »
+
+À sa **première connexion**, sur n'importe quelle plateforme, le collaborateur voit sa
+fiche et la confirme. Puis **une fois par an**. C'est le seul moment où quelqu'un relit
+vraiment ces données : ni l'admin qui a créé le compte, ni personne d'autre ne peut savoir
+que la ville a changé ou que le prénom est mal orthographié. Et sans rendez-vous annuel,
+une base juste ne le reste pas — côté RGPD, c'est ce qui prouve qu'elle est tenue à jour.
+
+Trois réponses possibles, et aucune n'est un cul-de-sac : **« tout est juste »**,
+**« il y a une erreur »** (→ sa fiche, où il corrige lui-même, et l'admin voit passer la
+correction par la mécanique existante), et **un mot pour l'administration**, remonté tel
+quel et marqué non lu dans `validations.php`.
+
+### Photo et email : deux régimes, et c'est du droit
+
+| | Base légale | Ce qu'on fait |
+|---|---|---|
+| **Email** | nécessaire au compte (lien d'activation, mot de passe) | on insiste |
+| **Photo** | **consentement** | on demande, on accepte le refus |
+
+⚠️ **La photo ne se force pas.** Un bouton « je ne souhaite pas mettre de photo » enregistre
+le refus **avec sa date** — un consentement se prouve, un refus aussi — et les rappels
+cessent. Insister après un refus, c'est transformer un consentement libre en consentement
+arraché. Il reste révocable : déposer une photo annule le refus.
+
+⚠️ **Rien n'est bloquant, jamais.** « Plus tard » est toujours là. Ce qui manque revient
+ensuite dans un **bandeau fermable**, identique sur les trois plateformes (une seule
+fonction le dessine), qui réapparaît à la connexion suivante.
+
+### Comment les autres plateformes l'appellent
+
+`includes/validation.php` **ne dépend de rien de Famicard** : il ne demande qu'un PDO,
+parce qu'il est inclus par FamiFormation et FamiJob, qui n'ont pas la configuration de
+Famicard. Leur accueil pose une question et redirige, rien de plus — la logique n'est
+écrite qu'une fois.
+
+⚠️ `famicardDoitValiderFiche()` renvoie **false** si sa table n'existe pas ou si la base ne
+répond pas. Une plateforme ne doit pas devenir inaccessible parce qu'une table manque
+ailleurs : le récap est un service rendu, pas un péage.
+
+⚠️ **Pas de redirection depuis `student.famiformation.com`.** Le cookie de session est
+host-only : quelqu'un connecté sur le sous-domaine n'est PAS connecté sur `www`, et
+l'envoyer vers `www/famicard/recap.php` le ferait atterrir sur un écran de connexion sans
+comprendre pourquoi. Sur ce sous-domaine, le récap attend sa visite sur `www` ou sur
+Famicard. C'est une limite de la coexistence des trois hôtes, pas quelque chose qui se
+règle dans cet écran.
+
+---
+
 ## LES ACCÈS AUX SERVICES
 
 Aujourd'hui deux services, FamiFormation et FamiJob. **Il y en aura d'autres**, et c'est
@@ -292,6 +341,8 @@ Famicard/
   index.php            ⭐ L'ACCUEIL DU PORTAIL : 4 tuiles, rien d'autre
   creer.php            ⭐ CRÉATION D'UN COLLABORATEUR : compte, rattachement, accès
   includes/photo.php   le dépôt d'une photo — partagé par la création et la fiche
+  includes/validation.php  ⭐ LE RÉCAP : « c'est juste ? » — appelé par les 3 plateformes
+  recap.php            l'écran de vérification, 1re connexion puis 1×/an
   fiche.php            la carte du collaborateur (c'était index.php)
   modifier.php         ⭐ ÉDITION : sa propre fiche, ou celle d'un autre (admin)
                        — la photo se dépose en haut de cet écran (plus de page à part)

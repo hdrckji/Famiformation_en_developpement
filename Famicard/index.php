@@ -20,8 +20,31 @@
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/includes/modifications.php';
 require_once __DIR__ . '/includes/services.php';
+require_once __DIR__ . '/includes/validation.php';
 
 $moi = famicardExigeConnexion($db);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LE RÉCAP — première connexion, puis une fois par an.
+//
+// On l'impose ICI, à l'accueil, et pas ailleurs : c'est le passage obligé, et
+// une redirection posée sur chaque page rendrait le site impraticable pour qui
+// veut juste consulter quelque chose. La page de récap, elle, laisse toujours
+// une porte de sortie (« plus tard ») — voir recap.php.
+//
+// ⚠️ famicardDoitValiderFiche() renvoie FALSE si sa table n'existe pas : une
+// plateforme ne doit pas devenir inaccessible parce qu'une table manque.
+if (famicardDoitValiderFiche($db, (int) $moi['id'])) {
+    header('Location: recap.php?retour=' . urlencode('index.php'));
+    exit();
+}
+
+// Le mot laissé après validation, affiché une fois.
+$flashRecap = '';
+if (!empty($_SESSION['famicard_recap_flash'])) {
+    $flashRecap = (string) $_SESSION['famicard_recap_flash'];
+    unset($_SESSION['famicard_recap_flash']);
+}
 $estAdmin = famicardEstAdmin();
 $roleMoi = (string) ($moi['role'] ?? '');
 
@@ -123,7 +146,18 @@ if ($photo !== '') {
 </head>
 <body>
 
+<?php // Le rappel de ce qui manque (photo, email). Même bandeau que sur les
+      // autres plateformes : une seule fonction le dessine, pour qu'il dise et
+      // montre la même chose partout. ?>
+<?= famicardRappelHtml($db, (int) $moi['id'], 'recap.php') ?>
+
 <div class="wrap">
+
+    <?php if ($flashRecap !== ''): ?>
+        <div class="rappel" style="background:#e7f6ea;border-left-color:#1E7A46;color:#1E7A46;margin-top:18px;">
+            <?= e($flashRecap) ?>
+        </div>
+    <?php endif; ?>
 
     <div class="tete">
         <div class="moi">

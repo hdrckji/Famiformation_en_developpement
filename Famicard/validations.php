@@ -16,6 +16,7 @@
 // ============================================================
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/includes/modifications.php';
+require_once __DIR__ . '/includes/validation.php';
 
 $moi = famicardExigeConnexion($db);
 
@@ -25,6 +26,7 @@ if (!famicardEstAdmin()) {
 }
 
 famicardAssureModifications($db);
+famicardAssureValidation($db);
 
 $message = '';
 if (!empty($_SESSION['famicard_valid_flash'])) {
@@ -34,6 +36,24 @@ if (!empty($_SESSION['famicard_valid_flash'])) {
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     requireValidCSRF();
+
+    // ── UN MOT LAISSÉ AU RÉCAP ───────────────────────────────────────────
+    // Ce n'est pas une modification à trancher : c'est un message. On le
+    // marque LU, on ne l'efface pas — savoir ce qui a été signalé, et quand,
+    // vaut mieux qu'une boîte qui se vide.
+    if (isset($_POST['commentaire_lu'])) {
+        try {
+            $db->prepare(
+                "UPDATE famicard_validation SET commentaire_lu_le = NOW(), commentaire_lu_par = ?
+                 WHERE user_id = ?"
+            )->execute([(int) $moi['id'], (int) $_POST['commentaire_lu']]);
+            $_SESSION['famicard_valid_flash'] = '✅ Message marqué comme lu.';
+        } catch (Exception $e) {
+            $_SESSION['famicard_valid_flash'] = "Ce message n'a pas pu être marqué comme lu.";
+        }
+        header('Location: validations.php');
+        exit();
+    }
 
     $id = (int) ($_POST['modif_id'] ?? 0);
     $decision = (string) ($_POST['decision'] ?? '');
@@ -49,6 +69,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $enAttente = famicardModificationsEnAttente($db);
+
+// Les mots laissés au moment du récap et pas encore lus. Ils ne se « tranchent »
+// pas : ils se lisent, et souvent ils expliquent une correction voisine.
+$motsNonLus = [];
+try {
+    $motsNonLus = $db->query(
+        "SELECT v.user_id, v.commentaire, v.commentaire_le, u.nom, u.prenom, u.identifiant
+           FROM famicard_validation v
+           JOIN utilisateurs u ON u.id = v.user_id
+          WHERE v.commentaire IS NOT NULL AND v.commentaire <> ''
+            AND v.commentaire_lu_le IS NULL
+          ORDER BY v.commentaire_le DESC"
+    )->fetchAll(PDO::FETCH_ASSOC);
+} catch (Exception $e) {
+    $motsNonLus = [];
+}
 ?>
 <!DOCTYPE html>
 <html lang="fr">
@@ -102,6 +138,41 @@ $enAttente = famicardModificationsEnAttente($db);
 
     <?php if ($message !== ''): ?>
         <div class="flash"><?= e($message) ?></div>
+    <?php endif; ?>
+
+    <?php // ── LES MOTS LAISSÉS AU RÉCAP ────────────────────────────────────
+          // Placés AVANT les modifications : ils les expliquent souvent
+          // (« j'ai changé ma ville, j'ai déménagé en mars »). Les lire après
+          // avoir tranché, c'est trancher sans savoir. ?>
+    <?php if ($motsNonLus): ?>
+        <div class="boite" style="margin-bottom:18px;">
+            <div style="padding:16px 18px 6px;">
+                <b style="color:#2d5a37;">💬 Messages laissés lors de la vérification de fiche</b>
+                <div style="color:#5a6b60;font-size:.88rem;margin-top:4px;line-height:1.5;">
+                    Ce ne sont pas des modifications à trancher : ce sont des mots. Les marquer comme lus
+                    les retire d'ici sans les effacer.
+                </div>
+            </div>
+            <?php foreach ($motsNonLus as $mot): ?>
+                <?php $qui = trim(((string) $mot['prenom']) . ' ' . ((string) $mot['nom'])) ?: (string) $mot['identifiant']; ?>
+                <div style="padding:14px 18px;border-top:1px solid #f0f4f1;display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap;">
+                    <div style="flex:1;min-width:240px;">
+                        <div style="font-weight:700;color:#2d5a37;">
+                            <a href="modifier.php?id=<?= (int) $mot['user_id'] ?>" style="color:#2d5a37;"><?= e($qui) ?></a>
+                            <span style="font-weight:400;color:#8a968f;font-size:.85rem;">
+                                — <?= e(date('d/m/Y à H\hi', strtotime((string) $mot['commentaire_le']))) ?>
+                            </span>
+                        </div>
+                        <div style="margin-top:6px;white-space:pre-wrap;line-height:1.55;"><?= e((string) $mot['commentaire']) ?></div>
+                    </div>
+                    <form method="POST">
+                        <?= csrfField() ?>
+                        <input type="hidden" name="commentaire_lu" value="<?= (int) $mot['user_id'] ?>">
+                        <button type="submit" class="bouton bouton-ok">Marquer comme lu</button>
+                    </form>
+                </div>
+            <?php endforeach; ?>
+        </div>
     <?php endif; ?>
 
     <div class="boite">

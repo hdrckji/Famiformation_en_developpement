@@ -7,6 +7,31 @@ require_once 'includes/widget.php';
 require_once 'includes/theme.php';
 require_once 'includes/events.php';
 
+// ─────────────────────────────────────────────────────────────────────────────
+// LE RÉCAP DE FAMICARD — première connexion, puis une fois par an.
+//
+// Famicard est le centre de données utilisateur : c'est LUI qui sait si cette
+// personne a déjà relu sa fiche, et c'est lui qui la lui montre. Ici on ne fait
+// que poser la question et rediriger — la logique n'est écrite qu'une fois, et
+// les trois plateformes posent exactement la même question.
+//
+// ⚠️ famicardDoitValiderFiche() renvoie FALSE si la table de Famicard n'existe
+// pas ou si la base ne répond pas : le site ne doit pas devenir inaccessible
+// parce qu'une table manque ailleurs. Le récap est un service rendu, pas un
+// péage.
+//
+// Deux dispositions coexistent (conteneur : famicard/ sous la racine servie ;
+// dépôt : dossiers frères), on essaie les deux plutôt que d'en supposer une.
+foreach ([__DIR__ . '/famicard/includes/validation.php',
+          __DIR__ . '/../Famicard/includes/validation.php'] as $__fc) {
+    if (is_file($__fc)) { require_once $__fc; break; }
+}
+if (function_exists('famicardDoitValiderFiche') && !empty($_SESSION['user_id'])
+    && famicardDoitValiderFiche($db, (int) $_SESSION['user_id'])) {
+    header('Location: famicard/recap.php?retour=' . urlencode('index.php'));
+    exit();
+}
+
 $role = currentDisplayRole(); // rôle d'AFFICHAGE (tient compte de l'aperçu admin), pas le rôle réel
 if ($role === 'agence_interim') {
     header('Location: interim_horaires.php');

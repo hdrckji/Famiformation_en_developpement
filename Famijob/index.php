@@ -12,6 +12,42 @@ if (!in_array($role, ['admin', 'teamcoach', 'etudiant'], true)) {
     exit();
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// LE RÉCAP DE FAMICARD — première connexion, puis une fois par an.
+//
+// Même question que sur FamiFormation, même code : Famicard sait si la personne
+// a relu sa fiche, on ne fait que rediriger. Rien n'est dupliqué ici.
+//
+// ⚠️ L'URL passe par famijobSiteUrl() : sur student.famiformation.com, famijob/
+// EST la racine, et un « famicard/recap.php » écrit tel quel serait réécrit en
+// famijob/famicard/recap.php — donc introuvable.
+//
+// ⚠️ Si la table de Famicard manque, la fonction répond FALSE : FamiJob reste
+// accessible. Un service rendu, pas un péage.
+foreach ([__DIR__ . '/../famicard/includes/validation.php',
+          __DIR__ . '/../Famicard/includes/validation.php'] as $__fc) {
+    if (is_file($__fc)) { require_once $__fc; break; }
+}
+// ⚠️ PAS DE REDIRECTION DEPUIS student.famiformation.com, et ce n'est pas un
+// oubli. Le cookie de session est posé HOST-ONLY (config.php : 'domain' => '') :
+// quelqu'un connecté sur le sous-domaine n'est PAS connecté sur www. L'envoyer
+// vers www/famicard/recap.php le ferait atterrir sur un écran de connexion,
+// sans comprendre pourquoi on lui redemande son mot de passe.
+//
+// Sur ce sous-domaine, le récap attendra donc sa visite sur www ou sur
+// Famicard. C'est une limite connue de la coexistence des trois hôtes, pas
+// quelque chose qui se règle ici.
+$famijobSurSousDomaine = (strtolower(explode(':', (string) ($_SERVER['HTTP_HOST'] ?? ''))[0])
+    === 'student.famiformation.com');
+
+if (!$famijobSurSousDomaine && function_exists('famicardDoitValiderFiche')
+    && !empty($_SESSION['user_id'])
+    && famicardDoitValiderFiche($db, (int) $_SESSION['user_id'])) {
+    header('Location: ' . famijobSiteUrl('famicard/recap.php')
+        . '?retour=' . urlencode(famijobSiteUrl('famijob/index.php')));
+    exit();
+}
+
 // Récupérer les infos de l'utilisateur
 $user_id = $_SESSION['user_id'];
 // Le « sinon » valait teamcoach quand seuls ces deux roles entraient ici. Un
