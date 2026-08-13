@@ -291,6 +291,7 @@ Famicard/
   logout.php           déconnexion
   index.php            ⭐ L'ACCUEIL DU PORTAIL : 4 tuiles, rien d'autre
   creer.php            ⭐ CRÉATION D'UN COLLABORATEUR : compte, rattachement, accès
+  includes/photo.php   le dépôt d'une photo — partagé par la création et la fiche
   fiche.php            la carte du collaborateur (c'était index.php)
   modifier.php         ⭐ ÉDITION : sa propre fiche, ou celle d'un autre (admin)
                        — la photo se dépose en haut de cet écran (plus de page à part)
@@ -318,6 +319,33 @@ dans deux tables à part (`famicard_champs`, `famicard_valeurs`).
 > créé, c'est modifier la table dont dépendent FamiFormation, FamiJob et le quiz — pour un
 > besoin d'affichage. Une table de valeurs ne casse personne, et un libellé supprimé ne
 > laisse pas une colonne morte derrière lui.
+
+### Ce qu'on exige à la CRÉATION
+
+Tout se remplit à la création — décision de Jimmy, et elle a une raison : un champ
+laissé vide là est un champ que **personne ne complétera jamais**. La personne existe, le
+compte marche, plus rien ne rappelle qu'il manque quelque chose. C'est le seul moment où
+l'on a quelqu'un pour répondre à ces questions.
+
+**Obligatoires** : identifiant, nom, prénom, profil, employeur (interne/intérim/
+indépendant), type de contrat, lieu de travail, secteur — et l'agence dès que l'employeur
+est l'intérim.
+
+**Facultatifs, et c'est voulu** : le **département** (vide = *tout le secteur*, ce qu'il
+faut pour un teamcoach), l'**email** et la **photo**.
+
+⚠️ Chaque exigence est conditionnée à l'existence du champ : sur une base qui n'a pas
+encore la colonne, on ne réclame pas l'impossible.
+
+**Email et mot de passe : l'un des deux suffit, mais il en faut un.** Avec un email, la
+personne reçoit son lien d'activation et choisit son mot de passe. Sans email, le mot de
+passe devient **obligatoire** — c'est le seul moyen d'ouvrir le compte, et l'écran le dit
+en changeant le libellé dès que le champ email se vide.
+
+**Sans email ou sans photo, l'écran demande confirmation** — une fois, au moment où c'est
+encore facile à corriger. Il ne bloque pas : il y a de vraies raisons de créer un compte
+sans l'un ni l'autre. Mais l'absence coûte quelque chose plus tard (pas de lien
+d'activation, carte signalée incomplète), et c'est ça qui est dit.
 
 ### Qui modifie quoi
 
