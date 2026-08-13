@@ -568,11 +568,10 @@ $famijobBackgroundUrl = resolvePublicAssetUrl(
                 <div class="tile-desc"><?= e(fjT('Tes créneaux passés, du jour et à venir, en lecture seule.', 'Je vroegere, huidige en komende tijdsblokken, alleen lezen.')) ?></div>
             </a>
 
-            <a href="vue_horaire.php" class="tile">
-                <div class="tile-icon">📅</div>
-                <div class="tile-title"><?= e(fjT('Vue horaire', 'Uurroosterweergave')) ?></div>
-                <div class="tile-desc"><?= e(fjT('Le planning de la semaine.', 'De weekplanning.')) ?></div>
-            </a>
+            <?php // PAS de « Vue horaire » ici : c'est le planning de TOUT LE
+                  // MONDE, avec les noms et les agences de chacun. Un etudiant y
+                  // lit ses propres creneaux dans « Mes horaires attribues »,
+                  // qui ne montre que les siens. ?>
 
             <a href="avis.php" class="tile">
                 <div class="tile-icon">💬</div>

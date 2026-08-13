@@ -10,11 +10,14 @@ if (!function_exists('fjvhT')) {
     }
 }
 
-// La vue horaire est LE tableau commun : l'admin la pilote, le teamcoach la
-// consulte pour son secteur, l'étudiant y lit ses créneaux. La restreindre aux
-// admins obligeait tout le monde à demander « et moi, je travaille quand ? ».
+// L'admin pilote ce tableau, le teamcoach le consulte pour son secteur.
+//
+// ⚠️ PAS L'ETUDIANT. C'est le planning de tout le monde : les noms, les agences,
+// qui travaille quand. Un etudiant lit ses propres creneaux dans « Mes horaires
+// attribues », qui ne montre que les siens. Le controle est ici et pas seulement
+// sur la tuile — une tuile retiree laisse l'URL ouverte.
 $role = isset($_SESSION['role']) ? $_SESSION['role'] : '';
-if (!in_array($role, ['admin', 'teamcoach', 'etudiant'], true)) {
+if (!in_array($role, ['admin', 'teamcoach'], true)) {
     header('Location: ' . famijobSiteUrl('index.php'));
     exit();
 }
