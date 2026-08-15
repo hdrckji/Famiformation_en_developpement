@@ -11,11 +11,21 @@ if (!function_exists('fjhT')) {
     }
 }
 
+// Les comptes AGENCE entrent ici : c'est leur outil de travail, ils y placent
+// leurs interimaires. Ce qu'ils peuvent y faire ne change pas d'un pouce — les
+// regles « non-admin » qui existaient deja les encadrent : ils ne voient que
+// leurs propres etudiants dans la liste, ne peuvent affecter ou retirer que
+// leurs gens, et l'auto-matching leur reste ferme.
+//
+// La seule chose en plus : les noms des AUTRES agences leur sont masques.
+// Voir includes/confidentialite.php.
 $role = getCurrentRole();
-if (!in_array($role, ['admin', 'teamcoach'], true)) {
+if (!in_array($role, ['admin', 'teamcoach', 'agence_interim'], true)) {
     header('Location: ' . famijobSiteUrl('index.php'));
     exit();
 }
+
+require_once __DIR__ . '/includes/confidentialite.php';
 
 $isAdmin = ($role === 'admin');
 $currentUserId = (int) ($_SESSION['user_id'] ?? 0);
@@ -1394,13 +1404,20 @@ foreach ($requests as $request) {
             if ($nom === '') {
                 $nom = (string) ($a['external_name'] ?? '');
             }
-            $agence = (string) ($a['agency_name'] ?? ($a['interim'] ?? ''));
+            $agence = trim((string) ($a['agency_name'] ?? ''));
+            if ($agence === '') { $agence = trim((string) ($a['interim'] ?? '')); }
         }
+
+        // Un compte agence ne lit pas les noms des autres agences. La place
+        // reste montree comme PRISE — l'effacer sans rien dire reviendrait a la
+        // proposer une seconde fois.
+        $lecture = famijobNomLisible($nom, $agence, $role, $agencyName);
 
         $grille[$secteur][$sousTitre][$jour][] = [
             'horaire'       => (string) $request['time_slot'],
-            'nom'           => $nom,
-            'agence'        => $agence,
+            'nom'           => $lecture['nom'],
+            'masque'        => $lecture['masque'],
+            'agence'        => $lecture['masque'] ? '' : $agence,
             'request_id'    => $rid,
             'seat'          => $i + 1,
             'assignment_id' => $a ? (int) $a['assignment_id'] : 0,

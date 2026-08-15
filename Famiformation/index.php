@@ -34,7 +34,8 @@ if (function_exists('famicardDoitValiderFiche') && !empty($_SESSION['user_id'])
 
 $role = currentDisplayRole(); // rôle d'AFFICHAGE (tient compte de l'aperçu admin), pas le rôle réel
 if ($role === 'agence_interim') {
-    header('Location: interim_horaires.php');
+    // Un compte agence n'a pas d'accueil ici : son outil est FamiJob.
+    header('Location: famijob/index.php');
     exit();
 }
 if ($role === 'evaluateur') {

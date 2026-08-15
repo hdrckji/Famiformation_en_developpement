@@ -89,7 +89,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && !empty($_SESSION['user_id'])) {
     if ($postLoginRedirect !== '' && in_array($roleConnecte, ['admin', 'teamcoach'], true)) {
         $cibleConnecte = $postLoginRedirect;
     } elseif ($roleConnecte === 'agence_interim') {
-        $cibleConnecte = 'interim_horaires.php';
+        // Le matching vit dans FamiJob : c'est la qu'un compte agence travaille.
+        $cibleConnecte = 'famijob/index.php';
     } else {
         $cibleConnecte = 'index.php';
     }
@@ -131,7 +132,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $redirectTarget = $postLoginRedirect;
         } else {
             $redirectTarget = (($user['role'] ?? '') === 'agence_interim')
-                ? 'interim_horaires.php'
+                ? 'famijob/index.php'
                 : 'index.php';
         }
 

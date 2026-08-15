@@ -252,6 +252,10 @@
             font-size: 0.76rem;
         }
 
+        /* Place prise dont on ne lit pas le nom : elle doit se distinguer d'une
+           place libre, sinon on la propose une seconde fois. */
+        .occupe-masque { display: inline-block; background: #e3e8ea; color: #55636b;
+            border-radius: 6px; padding: 2px 8px; font-size: .82rem; font-weight: 700; font-style: italic; }
         .slot-meta {
             color: var(--muted);
             font-size: 0.82rem;
@@ -723,8 +727,15 @@
                                                                     $studentName = trim((string) ($assignment['prenom'] ?? '')) . ' ' . trim((string) ($assignment['nom'] ?? ''));
                                                                     $studentAgency = trim((string) ($assignment['interim'] ?? ''));
                                                                 }
-                                                                $canSeeIdentity = $isAdmin || ($studentAgency !== '' && $studentAgency === $agencyName);
-                                                                $canUnassign = $canSeeIdentity;
+                                                                // ⚠️ LA REGLE EST CELLE DES COMPTES AGENCE, PAS CELLE
+                                                                // DES NON-ADMINS. Ecrite ici a la main, elle masquait
+                                                                // aussi les noms aux teamcoachs de Famiflora — qui n'ont
+                                                                // pas d'agence, donc ne voyaient plus personne. Une seule
+                                                                // definition desormais : includes/confidentialite.php.
+                                                                $lecture = famijobNomLisible($studentName, $studentAgency, $role, $agencyName);
+                                                                $canSeeIdentity = !$lecture['masque'];
+                                                                $canUnassign = $isAdmin
+                                                                    || famijobMemeAgence($studentAgency, $agencyName);
                                                                 ?>
                                                                 <li>
                                                                     <?php if ($canSeeIdentity): ?>
@@ -745,7 +756,7 @@
                                                                             </form>
                                                                         <?php endif; ?>
                                                                     <?php else: ?>
-                                                                        Pourvu (autre agence)
+                                                                        <span class="occupe-masque"><?php echo e(famijobLibelleOccupe()); ?> — <?php echo e(fjhT('autre agence', 'ander kantoor')); ?></span>
                                                                     <?php endif; ?>
                                                                 </li>
                                                             <?php endforeach; ?>

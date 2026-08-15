@@ -179,6 +179,16 @@ if (!function_exists('famicardAccesHistorique')) {
     function famicardAccesHistorique($role)
     {
         $role = (string) $role;
+
+        // ⚠️ LE COMPTE AGENCE EST L'EXCEPTION : FamiJob, et RIEN d'autre. Ce
+        // n'est pas un collaborateur — il ne suit pas de formation, n'a pas de
+        // fiche a tenir, et n'a aucune raison de se promener sur le site. Lui
+        // laisser FamiFormation « par defaut » lui ouvrirait un service entier
+        // par simple oubli.
+        if ($role === 'agence_interim') {
+            return ['famijob'];
+        }
+
         $codes = ['famiformation'];
 
         if (in_array($role, ['admin', 'teamcoach'], true)) {

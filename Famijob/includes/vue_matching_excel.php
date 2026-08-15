@@ -50,6 +50,13 @@
     .place-libre { display: block; width: 100%; border: 1px dashed #b9cfc0; background: #fff; color: #2d5a37; border-radius: 5px; padding: 2px 6px; font-family: inherit; font-size: .7rem; font-weight: 700; cursor: pointer; text-align: left; }
     .place-libre:hover { background: #eef7f0; border-color: #2d5a37; }
     .occupe { display: flex; align-items: center; justify-content: space-between; gap: 5px; }
+    /* Place prise dont le nom ne nous regarde pas. Elle doit se distinguer AU
+       PREMIER COUP D'OEIL d'une place libre : c'est toute la difference entre
+       « je peux proposer quelqu'un » et « c'est deja pourvu ». Fond plein, pas
+       de pointille — le pointille dit « vide » partout ailleurs dans ce
+       tableau. */
+    .occupe-masque { display: block; background: #e3e8ea; color: #55636b; border-radius: 5px;
+        padding: 2px 6px; font-size: .68rem; font-weight: 700; font-style: italic; text-align: center; }
     .retirer { border: 0; background: none; color: #b23; cursor: pointer; font-size: .78rem; padding: 0 2px; line-height: 1; }
     .retirer:hover { color: #7d1616; }
 
@@ -227,6 +234,13 @@
                                         </form>
                                         <?php endif; ?>
                                     </span>
+                                <?php elseif (!empty($place['masque'])): ?>
+                                    <?php // ⚠️ PRISE, MAIS PAR QUELQU'UN QU'ON NE NOMME PAS.
+                                          // Un compte agence ne lit pas les noms des autres
+                                          // agences. Ce n'est PAS une case libre : l'afficher
+                                          // comme telle ferait proposer la place une seconde
+                                          // fois. D'ou le libelle et la couleur. ?>
+                                    <span class="occupe-masque"><?php echo e(famijobLibelleOccupe()); ?></span>
                                 <?php elseif ($isAdmin): ?>
                                     <?php // La case vide EST le bouton : c'est le geste du classeur,
                                           // on clique là où le nom doit apparaître. ?>

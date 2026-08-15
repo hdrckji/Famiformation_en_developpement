@@ -13,8 +13,10 @@
 require_once 'config.php';
 verifierConnexion($db);
 
+require_once __DIR__ . '/includes/confidentialite.php';
+
 $role = (string) ($_SESSION['role'] ?? '');
-if (!in_array($role, ['admin', 'teamcoach'], true)) {
+if (!in_array($role, ['admin', 'teamcoach', 'agence_interim'], true)) {
     header('Location: ' . famijobSiteUrl('index.php'));
     exit();
 }
@@ -163,10 +165,13 @@ foreach ($rows as $r) {
         }
     }
 
-    // Un teamcoach ne lit que les noms de SON agence. La place reste occupee et
-    // se voit occupee : la laisser vide reviendrait a l'offrir deux fois.
-    if (!$isAdmin && $agencyName !== '' && $agence !== $agencyName) {
-        $nom = '(autre agence)';
+    // Un compte AGENCE ne lit que les noms de la sienne. La place reste occupee
+    // et se voit occupee : la laisser vide reviendrait a l'offrir deux fois.
+    // Meme regle qu'a l'ecran — includes/confidentialite.php — pour que le
+    // fichier ne dise pas autre chose que la page d'ou on l'a demande.
+    $lecture = famijobNomLisible($nom, $agence, $role, $agencyName);
+    if ($lecture['masque']) {
+        $nom = famijobLibelleOccupe() . ' (' . 'autre agence' . ')';
         $agence = '';
     }
 

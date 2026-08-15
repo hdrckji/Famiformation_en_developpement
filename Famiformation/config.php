@@ -165,15 +165,29 @@ if (isset($_SESSION['user_id'])) {
     $_SESSION['last_activity'] = time();
 }
 
-// Restriction forte : les comptes agence_interim peuvent uniquement acceder
-// aux pages de planning interim/disponibilites et se deconnecter.
+// Restriction forte : les comptes agence_interim n'ont RIEN a faire sur le
+// site. Leur outil est FamiJob — matching et vue horaire — et c'est la qu'on
+// les renvoie.
+//
+// ⚠️ LE POINT DE CHUTE A CHANGE. Il pointait sur interim_horaires.php, la
+// copie du matching restee ici : depuis que FamiJob porte le vrai ecran, une
+// agence travaillait sur l'ancien sans le savoir. Elle atterrit maintenant sur
+// l'accueil FamiJob, qui lui montre ses deux modules.
+//
+// « admin_disponibilites_etudiants.php » reste ouverte : les agences y
+// consultent les disponibilites de leurs interimaires, et cette page n'existe
+// que sur le site.
+//
+// ⚠️ Cette regle ne s'applique QU'AUX pages qui incluent ce config.php. FamiJob
+// a le sien : ce n'est pas lui qui ferme la porte a un compte agence, ce sont
+// les controles d'acces de chaque page FamiJob.
 if (isset($_SESSION['user_id']) && (($_SESSION['role'] ?? '') === 'agence_interim')) {
     $requestedPath = (string) parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH);
     $currentScript = basename($requestedPath !== '' ? $requestedPath : ($_SERVER['SCRIPT_NAME'] ?? ''));
-    $allowedScripts = ['interim_horaires.php', 'admin_disponibilites_etudiants.php', 'logout.php', 'deco.php'];
+    $allowedScripts = ['admin_disponibilites_etudiants.php', 'logout.php', 'deco.php'];
 
     if (!in_array($currentScript, $allowedScripts, true)) {
-        header('Location: interim_horaires.php');
+        header('Location: famijob/index.php');
         exit();
     }
 }

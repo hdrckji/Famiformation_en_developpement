@@ -17,12 +17,30 @@ if (!function_exists('fjvhT')) {
 // attribues », qui ne montre que les siens. Le controle est ici et pas seulement
 // sur la tuile — une tuile retiree laisse l'URL ouverte.
 $role = isset($_SESSION['role']) ? $_SESSION['role'] : '';
-if (!in_array($role, ['admin', 'teamcoach'], true)) {
+if (!in_array($role, ['admin', 'teamcoach', 'agence_interim'], true)) {
     // Refuse, mais renvoye chez soi : un etudiant qui arrive ici par un vieux
     // lien revient a l'accueil FamiJob, pas sur FamiFormation. On ne change pas
     // de site pour dire non.
     header('Location: ' . ($role === 'etudiant' ? 'index.php' : famijobSiteUrl('index.php')));
     exit();
+}
+
+// ── QUI REGARDE ─────────────────────────────────────────────────────────────
+// Un compte agence lit ce planning, mais pas les noms des autres agences. Son
+// agence se lit dans `utilisateurs.interim`, comme partout ailleurs.
+require_once __DIR__ . '/includes/confidentialite.php';
+
+$vhAgenceLecteur = '';
+if (famijobEstCompteAgence($role)) {
+    try {
+        $stAg = $db->prepare('SELECT interim FROM utilisateurs WHERE id = ? LIMIT 1');
+        $stAg->execute([(int) ($_SESSION['user_id'] ?? 0)]);
+        $vhAgenceLecteur = trim((string) $stAg->fetchColumn());
+    } catch (Exception $e) {
+        // Agence inconnue : on masque TOUT plutot que de tout montrer. Se
+        // tromper dans ce sens-la ne divulgue rien.
+        $vhAgenceLecteur = '';
+    }
 }
 
 ensureDepartmentsTable($db);
@@ -182,7 +200,10 @@ $requestIds = array_map(static function ($row) {
 if (!empty($requestIds)) {
     $placeholders = implode(', ', array_fill(0, count($requestIds), '?'));
     $assignmentsStmt = $db->prepare(
-        "SELECT a.request_id, a.seat_number, a.external_name, u.nom, u.prenom
+        // ⚠️ L'AGENCE FAIT PARTIE DE LA LECTURE. Sans elle, impossible de savoir
+        // si celui qui regarde a le droit de lire ce nom.
+        "SELECT a.request_id, a.seat_number, a.external_name, a.agency_name,
+                u.nom, u.prenom, u.interim
          FROM interim_shift_assignments a
          LEFT JOIN utilisateurs u ON u.id = a.student_id
          WHERE a.request_id IN ($placeholders)
@@ -277,13 +298,18 @@ if ($vhMode === 'classeur') {
         for ($i = 0; $i < $places; $i++) {
             $a = $affectes[$i] ?? null;
             $nom = '';
+            $agenceSiege = '';
             if ($a) {
                 $nom = trim((string) ($a['prenom'] ?? '') . ' ' . (string) ($a['nom'] ?? ''));
                 if ($nom === '') { $nom = (string) ($a['external_name'] ?? ''); }
+                $agenceSiege = trim((string) ($a['agency_name'] ?? ''));
+                if ($agenceSiege === '') { $agenceSiege = trim((string) ($a['interim'] ?? '')); }
             }
+            $lecture = famijobNomLisible($nom, $agenceSiege, $role, $vhAgenceLecteur);
             $vhGrille[$place['secteur']][$place['sous']][(string) $r['shift_date']][] = [
                 'horaire' => (string) $r['time_slot'],
-                'nom'     => $nom,
+                'nom'     => $lecture['nom'],
+                'masque'  => $lecture['masque'],
             ];
         }
     }
@@ -432,6 +458,10 @@ foreach ($byDeptDay as $departmentName => $byDay) {
         .vh-h { text-align: center; font-variant-numeric: tabular-nums; font-weight: 700; }
         .vh-n { min-width: 120px; }
         .vh-libre { color: #a13e35; font-style: italic; }
+        /* Prise, sans le nom : gris plein, a l'oppose du rouge « a pourvoir ».
+           Les deux ne doivent jamais pouvoir se confondre. */
+        .vh-occupe { display: inline-block; background: #e3e8ea; color: #55636b; border-radius: 4px;
+            padding: 0 5px; font-style: italic; font-weight: 700; }
         /* Hors des bornes legales (moins de 3 h ou plus de 9 h de travail
            effectif, pause deduite). Signale ici aussi : c'est l'ecran ou on
            relit le planning avant de le diffuser, le dernier moment pour voir
@@ -627,6 +657,11 @@ foreach ($byDeptDay as $departmentName => $byDay) {
                                                   // cherche en ouvrant un planning. ?>
                                             <?php if ($c['nom'] !== ''): ?>
                                                 <?php echo e($c['nom']); ?>
+                                            <?php elseif (!empty($c['masque'])): ?>
+                                                <?php // Prise, mais par quelqu'un qu'on ne nomme pas.
+                                                      // Surtout pas « a pourvoir » : ce serait annoncer
+                                                      // libre une place qui ne l'est pas. ?>
+                                                <span class="vh-occupe"><?php echo e(famijobLibelleOccupe()); ?></span>
                                             <?php else: ?>
                                                 <span class="vh-libre"><?php echo e(fjvhT('à pourvoir', 'in te vullen')); ?></span>
                                             <?php endif; ?>
@@ -680,9 +715,21 @@ foreach ($byDeptDay as $departmentName => $byDay) {
                                                     if (trim($studentName) === '') {
                                                         $studentName = trim((string) ($assignment['external_name'] ?? ''));
                                                     }
+                                                    $agenceSiege = trim((string) ($assignment['agency_name'] ?? ''));
+                                                    if ($agenceSiege === '') { $agenceSiege = trim((string) ($assignment['interim'] ?? '')); }
+                                                    // Meme regle que dans la vue classeur : la carte reste,
+                                                    // le nom disparait. Retirer la carte ferait croire la
+                                                    // place libre.
+                                                    $lecture = famijobNomLisible(trim($studentName), $agenceSiege, $role, $vhAgenceLecteur);
                                                     ?>
                                                     <div class="slot-card">
-                                                        <strong><?php echo e(trim($studentName) !== '' ? $studentName : '--'); ?></strong>
+                                                        <strong><?php
+                                                            if ($lecture['masque']) {
+                                                                echo '<span class="vh-occupe">' . e(famijobLibelleOccupe()) . '</span>';
+                                                            } else {
+                                                                echo e($lecture['nom'] !== '' ? $lecture['nom'] : '--');
+                                                            }
+                                                        ?></strong>
                                                         <div class="meta"><?php echo e(fjvhT('Horaire :', 'Uurrooster:')); ?> <?php echo e($request['time_slot']); ?></div>
                                                     </div>
                                                 <?php endforeach; ?>

@@ -88,7 +88,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // n'ont pas d'accueil FamiJob : eux repartent vers le site, sinon
         // index.php les y renverrait de toute facon.
         $role = (string) ($user['role'] ?? '');
-        if (in_array($role, ['admin', 'teamcoach', 'etudiant'], true)) {
+        if (in_array($role, ['admin', 'teamcoach', 'etudiant', 'agence_interim'], true)) {
             header('Location: index.php');
             exit();
         }

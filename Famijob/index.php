@@ -7,7 +7,7 @@ verifierConnexion($db);
 // horaire et leurs disponibilités. Ce qu'ils voient est décidé plus bas, tuile
 // par tuile — la porte s'ouvre, pas les droits.
 $role = isset($_SESSION['role']) ? $_SESSION['role'] : '';
-if (!in_array($role, ['admin', 'teamcoach', 'etudiant'], true)) {
+if (!in_array($role, ['admin', 'teamcoach', 'etudiant', 'agence_interim'], true)) {
     header('Location: ' . famijobSiteUrl('index.php'));
     exit();
 }
@@ -53,9 +53,10 @@ $user_id = $_SESSION['user_id'];
 // Le « sinon » valait teamcoach quand seuls ces deux roles entraient ici. Un
 // etudiant y est desormais chez lui, et se voyait annoncer « Profil : TeamCoach ».
 $libellesRole = [
-    'admin'     => 'role.admin',
-    'teamcoach' => 'role.teamcoach',
-    'etudiant'  => 'role.etudiant',
+    'admin'          => 'role.admin',
+    'teamcoach'      => 'role.teamcoach',
+    'etudiant'       => 'role.etudiant',
+    'agence_interim' => 'role.agence',
 ];
 $roleLabel = famiT($libellesRole[$role] ?? 'role.teamcoach');
 $unreadNotifications = famijobNotifUnreadCount($db, (int) $user_id);
@@ -590,6 +591,27 @@ $famijobBackgroundUrl = resolvePublicAssetUrl(
                 <div class="tile-title"><?= e(fjT('Avis & suggestions', 'Feedback & suggesties')) ?></div>
                 <div class="tile-desc"><?= e(fjT('Une question, une idée, un souci ? Envoyez votre avis à l\'équipe.', 'Een vraag, een idee, een probleem? Stuur je feedback naar het team.')) ?></div>
             </a>
+            <?php elseif ($role === 'agence_interim'): ?>
+            <?php // AGENCE INTERIM. Deux modules, pas un de plus : placer ses
+                  // interimaires, et relire le planning. Elle ne cree pas de
+                  // demande d'horaire — c'est Famiflora qui decide de ses
+                  // besoins — et elle ne lit pas les noms fournis par les autres
+                  // agences (includes/confidentialite.php).
+                  //
+                  // Pas de tuile FamiFormation ici : un compte agence n'est pas
+                  // un collaborateur, il n'a rien a y faire. ?>
+            <a href="interim_horaires.php" class="tile">
+                <div class="tile-icon">🤝</div>
+                <div class="tile-title"><?= e(famiT('tile.matching.title')) ?></div>
+                <div class="tile-desc"><?= e(fjT('Placez vos intérimaires sur les créneaux ouverts. Vous ne voyez que vos propres candidats.', 'Plaats uw uitzendkrachten op de open tijdsblokken. U ziet enkel uw eigen kandidaten.')) ?></div>
+            </a>
+
+            <a href="vue_horaire.php" class="tile">
+                <div class="tile-icon">📅</div>
+                <div class="tile-title"><?= e(fjT('Vue horaire', 'Uurroosterweergave')) ?></div>
+                <div class="tile-desc"><?= e(fjT('Le planning de la semaine. Les places tenues par une autre agence apparaissent occupées, sans le nom.', 'De weekplanning. Plaatsen van andere kantoren verschijnen als bezet, zonder naam.')) ?></div>
+            </a>
+
             <?php else: ?>
             <?php // ETUDIANT. Ses modules sont TOUS ici desormais : l'accueil de
                   // FamiFormation ne porte plus qu'une tuile « FamiJob » qui
@@ -636,11 +658,15 @@ $famijobBackgroundUrl = resolvePublicAssetUrl(
                   // ferme la boucle : les deux services se repondent.
                   //
                   // Hors du bloc par role : tout le monde vient du meme site. ?>
+            <?php // Sauf pour les comptes agence : ils n'ont pas de place sur le
+                  // site, l'y envoyer ne ferait que les faire rebondir. ?>
+            <?php if ($role !== 'agence_interim'): ?>
             <a href="<?= e(famijobSiteUrl('index.php')) ?>" class="tile">
                 <div class="tile-icon">🎓</div>
                 <div class="tile-title">FamiFormation</div>
                 <div class="tile-desc"><?= e(fjT('Retour au site : formations, onboarding, quiz et modules du magasin.', 'Terug naar de site: opleidingen, onboarding, quizzen en winkelmodules.')) ?></div>
             </a>
+            <?php endif; ?>
         </div>
     </div>
 <?php require_once __DIR__ . '/includes/topbar.php'; echo famijobScrollKeeperHtml(); ?>
