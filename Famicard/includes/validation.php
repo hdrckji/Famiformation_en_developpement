@@ -104,6 +104,15 @@ if (!function_exists('famicardDoitValiderFiche')) {
             return false;
         }
         try {
+            // ⚠️ UNE AGENCE N'A PAS DE FICHE À RELIRE. Lui demander de
+            // confirmer son prénom et de déposer une photo n'aurait aucun sens :
+            // ce n'est pas quelqu'un, c'est l'accès d'une société.
+            $st = $db->prepare("SELECT role FROM utilisateurs WHERE id = ? LIMIT 1");
+            $st->execute([$userId]);
+            if ((string) $st->fetchColumn() === 'agence_interim') {
+                return false;
+            }
+
             $st = $db->prepare(
                 "SELECT valide_le FROM famicard_validation WHERE user_id = ? LIMIT 1"
             );
@@ -238,13 +247,14 @@ if (!function_exists('famicardRappelHtml')) {
         }
 
         try {
-            $st = $db->prepare("SELECT photo_profil, email FROM utilisateurs WHERE id = ? LIMIT 1");
+            $st = $db->prepare("SELECT photo_profil, email, role FROM utilisateurs WHERE id = ? LIMIT 1");
             $st->execute([$userId]);
             $ligne = $st->fetch(PDO::FETCH_ASSOC);
         } catch (Exception $e) {
             return '';
         }
-        if (!$ligne) {
+        // Même raison que ci-dessus : on ne réclame pas sa photo à une société.
+        if (!$ligne || (string) ($ligne['role'] ?? '') === 'agence_interim') {
             return '';
         }
 

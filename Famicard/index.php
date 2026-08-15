@@ -21,6 +21,7 @@ require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/includes/modifications.php';
 require_once __DIR__ . '/includes/services.php';
 require_once __DIR__ . '/includes/validation.php';
+require_once __DIR__ . '/includes/agence.php';
 
 $moi = famicardExigeConnexion($db);
 
@@ -85,10 +86,15 @@ $sansContrat = $estAdmin ? famicardCompteContratsAPreciser($db) : 0;
 // La carte est-elle complète ? On le dit ICI, sur l'accueil, plutôt que
 // d'attendre que le collaborateur ouvre sa fiche : c'est la seule façon qu'un
 // champ obligatoire vide soit vu par quelqu'un.
+// ⚠️ UNE AGENCE N'EST PAS UNE PERSONNE. Elle n'a ni photo, ni date de
+// naissance, ni secteur : lui annoncer « ta carte est incomplète » serait lui
+// reprocher de ne pas être quelqu'un. On saute donc tout ce bloc pour elle.
+$estAgence = famicardEstCompteAgence($roleMoi);
+
 $champs    = famicardChamps($db);
 $magasins  = famicardMagasins($db);
 $libres    = famicardValeursLibres($db, (int) $moi['id']);
-$manquants = famicardChampsManquants($champs, $moi, $libres, $magasins);
+$manquants = $estAgence ? [] : famicardChampsManquants($champs, $moi, $libres, $magasins);
 
 $prenom = trim((string) ($moi['prenom'] ?? ''));
 if ($prenom === '') {
@@ -189,6 +195,18 @@ if ($photo !== '') {
             <div class="nom">Ma fiche</div>
             <div class="quoi">Ta carte d'identité Famiflora, tes informations et ton badge.</div>
         </a>
+
+        <?php // ── L'AGENCE VOIT SES GENS, ET RIEN D'AUTRE ─────────────────
+              // Nom, prénom, « étudiant » ou « intérimaire ». Pas d'email, pas
+              // de rayon : ce qui n'est pas nécessaire ne se partage pas avec
+              // un tiers (voir includes/agence.php). ?>
+        <?php if ($estAgence): ?>
+        <a class="tuile" href="mes_interimaires.php">
+            <span class="ico">👥</span>
+            <div class="nom">Mes intérimaires</div>
+            <div class="quoi">Les personnes que vous nous envoyez : leur nom, et s'il s'agit d'un étudiant.</div>
+        </a>
+        <?php endif; ?>
 
         <?php if ($estAdmin): ?>
         <a class="tuile" href="admin.php">

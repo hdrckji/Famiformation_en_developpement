@@ -181,12 +181,27 @@ if (isset($_SESSION['user_id'])) {
 // ⚠️ Cette regle ne s'applique QU'AUX pages qui incluent ce config.php. FamiJob
 // a le sien : ce n'est pas lui qui ferme la porte a un compte agence, ce sont
 // les controles d'acces de chaque page FamiJob.
+// ⚠️ FAMICARD EST DESORMAIS OUVERT AUX AGENCES (decision de Jimmy). Elles y
+// consultent leur propre fiche et la liste des personnes qu'elles nous
+// envoient — rien d'autre : Famicard verifie lui-meme ce qu'un compte agence a
+// le droit de voir, ecran par ecran.
+//
+// ⚠️ LE TEST PORTE SUR LE DOSSIER, PAS SUR LE NOM DU FICHIER. La liste blanche
+// ci-dessous compare un basename : y ajouter « index.php » aurait ouvert
+// l'accueil du SITE en meme temps que celui de Famicard. On regarde donc le
+// chemin, et l'hote — sur famicard.famiformation.com, le dossier famicard/ est
+// la racine et n'apparait pas forcement dans l'URI.
 if (isset($_SESSION['user_id']) && (($_SESSION['role'] ?? '') === 'agence_interim')) {
     $requestedPath = (string) parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH);
     $currentScript = basename($requestedPath !== '' ? $requestedPath : ($_SERVER['SCRIPT_NAME'] ?? ''));
     $allowedScripts = ['admin_disponibilites_etudiants.php', 'logout.php', 'deco.php'];
 
-    if (!in_array($currentScript, $allowedScripts, true)) {
+    $hoteCourant = strtolower(explode(':', (string) ($_SERVER['HTTP_HOST'] ?? ''))[0]);
+    $dansFamicard = (strpos($requestedPath, '/famicard/') !== false)
+                 || (strpos((string) ($_SERVER['SCRIPT_NAME'] ?? ''), '/famicard/') !== false)
+                 || ($hoteCourant === 'famicard.famiformation.com');
+
+    if (!$dansFamicard && !in_array($currentScript, $allowedScripts, true)) {
         header('Location: famijob/index.php');
         exit();
     }

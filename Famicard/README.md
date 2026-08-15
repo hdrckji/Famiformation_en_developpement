@@ -298,6 +298,60 @@ supprime pas du tout** : ce n'est pas une agence, c'est le suivi interne.
 
 ---
 
+## UNE AGENCE DANS FAMICARD — et ce qu'elle y voit
+
+Décision de Jimmy : **les agences entrent dans Famicard.** Elles y trouvent deux choses,
+et deux seulement — leur propre fiche, et la liste des personnes qu'elles nous envoient.
+
+### Ce qu'elles voient de ces personnes
+
+| | |
+|---|---|
+| ✅ | nom, prénom, et « **Étudiant** » ou « **Intérimaire** » |
+| ❌ | email, téléphone, photo, ville, secteur, lieu de travail, horaires |
+
+⚠️ **La restriction est dans la REQUÊTE, pas dans le gabarit.** `famicardPersonnesDeLAgence()`
+ne lit que trois colonnes : ce qui n'est pas lu ne peut pas fuiter par une page qui
+afficherait une ligne entière un jour de distraction. C'est de la minimisation, et c'est ce
+que le RGPD attend d'un partage avec un tiers.
+
+⚠️ **Le périmètre ne vient JAMAIS d'un paramètre.** Il est lu sur le compte connecté
+(`utilisateurs.interim`). Un nom d'agence accepté depuis l'URL laisserait n'importe quelle
+agence lire la liste d'une autre en changeant un mot dans la barre d'adresse.
+
+Une agence ne se voit pas elle-même dans la liste, ni les accès d'une consœur. Les comptes
+inactifs en sont exclus aussi.
+
+### Ce qui a dû être levé pour ça
+
+`Famiformation/config.php` **éjectait tout compte agence vers FamiJob**, sur n'importe
+quelle page incluant sa configuration — donc sur tout Famicard. La règle laisse désormais
+passer ce qui est sous `/famicard/`.
+
+⚠️ Le test porte sur le **dossier**, pas sur le nom du fichier : la liste blanche existante
+compare un `basename`, et y ajouter « index.php » aurait ouvert l'accueil du **site** en
+même temps que celui de Famicard. L'hôte est vérifié aussi, parce que sur
+`famicard.famiformation.com` le dossier `famicard/` est la racine et n'apparaît pas
+forcément dans l'URI.
+
+`Famicard/login.php` refusait également ces comptes : ce refus est levé. **Ce qu'ils voient
+se décide écran par écran, pas à la porte** — tous les écrans d'administration restent
+fermés par `famicardEstAdmin()`.
+
+### Trois écrans qui les traitaient comme des personnes
+
+- **Le récap** ne leur est plus proposé : demander à une société de confirmer son prénom et
+  de déposer une photo n'a aucun sens ;
+- **le bandeau de rappel** non plus, pour la même raison ;
+- **l'accueil** ne leur annonce plus « ta carte est incomplète » : elle n'a ni photo, ni
+  date de naissance, ni secteur, et le lui reprocher serait lui reprocher de ne pas être
+  quelqu'un.
+
+Enfin, une agence ne se voit plus proposer **FamiFormation** : elle ne suit aucune
+formation, et cette tuile ne menait qu'à un refus. Son outil est FamiJob.
+
+---
+
 ## LES ACCÈS AUX SERVICES
 
 Aujourd'hui deux services, FamiFormation et FamiJob. **Il y en aura d'autres**, et c'est
@@ -387,6 +441,8 @@ Famicard/
   relance_mdp.php      renvoyer le lien de création de mot de passe (venu du site)
   admin.php            la base des collaborateurs (liste, filtres, badge, export)
   agences.php          ⭐ LES AGENCES D'INTÉRIM — et les accès qu'on leur ouvre
+  includes/agence.php  ⭐ CE QU'UNE AGENCE A LE DROIT DE VOIR
+  mes_interimaires.php l'écran d'une agence : ses gens, nom + prénom + type
   badge.php            le badge imprimable 75 × 36 mm
   export.php           l'export Excel, colonnes au choix
   admin_champs.php     création des libellés par l'administrateur

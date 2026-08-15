@@ -65,13 +65,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         && !empty($user['mot_de_passe'])
         && password_verify($mdp, $user['mot_de_passe']);
 
-    if ($motDePasseValide && (string) ($user['role'] ?? '') === 'agence_interim') {
-        // Refus explicite plutôt que connexion suivie d'un mur. config.php
-        // enferme ces comptes sur les pages de planning intérim : connectés ici,
-        // ils seraient renvoyés vers interim_horaires.php, qui n'existe pas dans
-        // Famicard — donc une 404 en boucle, sans explication.
-        $erreur = "Ce compte agence n'a pas accès à Famicard.";
-    } elseif ($motDePasseValide) {
+    // ⚠️ LES COMPTES AGENCE ENTRENT MAINTENANT (décision de Jimmy). Ils étaient
+    // refusés ici parce que le config.php du site les renvoyait aussitôt vers
+    // le planning : connectés, ils tombaient dans une boucle sans explication.
+    // Cette porte est ouverte (voir Famiformation/config.php, qui laisse
+    // désormais passer tout ce qui est sous /famicard/).
+    //
+    // Ce qu'ils voient est décidé ÉCRAN PAR ÉCRAN, pas ici : leur fiche, et la
+    // liste des personnes qu'ils nous envoient — nom, prénom, et rien d'autre.
+    if ($motDePasseValide) {
         // Mêmes clés que login.php du site : la session est interchangeable.
         session_regenerate_id(true);
         $_SESSION['user_id'] = $user['id'];
