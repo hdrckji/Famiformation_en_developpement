@@ -73,8 +73,38 @@
     /* Les deux pastilles d'action se distinguent de la navigation : l'une sort
        un fichier, l'autre envoie un message. Ce ne sont pas des liens vers une
        page de plus. */
-    .pill-export { background: #1f7a3d !important; color: #fff !important; border-color: #1f7a3d !important; }
-    .pill-avis { background: #fff3e0 !important; color: #8a5a00 !important; border-color: #f0d5a8 !important; }
+    .bandeau-nav { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+    /* ── LES DEUX ACTIONS DE LA BARRE BLANCHE ─────────────────────────────
+       Meme hauteur que les menus deroulants a cote (34 px) : deux boutons qui
+       depassent d'un cheveu se remarquent plus que s'ils etaient franchement
+       differents. Meme forme, meme graisse, seule la couleur separe l'action
+       principale de la secondaire. */
+    .barre-actions { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+    /* « .barre .act » et non « .act » : la regle generique « .barre button »
+       plus haut est plus specifique qu'une simple classe, et reprenait la main
+       sur le rembourrage et la bordure du bouton d'auto-matching. */
+    .barre .act { display: inline-flex; align-items: center; gap: 7px; padding: 7px 15px;
+        border-radius: 8px; text-decoration: none; font-weight: 700; font-size: .84rem; line-height: 1.35;
+        white-space: nowrap; border: 1px solid transparent; transition: background .15s, box-shadow .15s; }
+    .barre .act-ic { font-size: .95em; line-height: 1; }
+    .barre .act-export { background: #1f7a3d; color: #fff; box-shadow: 0 2px 6px rgba(31,122,61,.28); }
+    .barre .act-export:hover { background: #19632f; box-shadow: 0 4px 10px rgba(31,122,61,.34); }
+    .barre .act-avis { background: #fff; color: #8a5a00; border-color: #e8d3a6; }
+    .barre .act-avis:hover { background: #fff8ec; border-color: #d8b976; }
+    /* La bascule de vue prend la meme forme : trois boutons de trois formes
+       differentes dans la meme barre, c'est ce qui faisait desordre. */
+    .barre .act-vue { background: #fff; color: #2d5a37; border-color: #cfdad3; }
+    .barre .act-vue:hover { background: #f2f8f4; border-color: #2d5a37; }
+    .barre .act-auto { background: #2d5a37; color: #fff; cursor: pointer; font-family: inherit; }
+    .barre .act-auto:hover { background: #24492c; }
+
+    /* Sur un ecran etroit, les actions passent sous les filtres et s'etalent
+       plutot que de se tasser dans un coin. */
+    @media (max-width: 900px) {
+        .barre-actions { margin-left: 0; width: 100%; }
+        .barre-actions .act { flex: 1; justify-content: center; }
+    }
 
     /* ── FENÊTRE D'AFFECTATION ───────────────────────────────────────────
        UNE seule liste d'étudiants pour toute la page. Un menu déroulant par
@@ -97,30 +127,20 @@
 
 <div class="bandeau">
     <h1><?php echo e(fjhT('Matching intérim — la semaine', 'Matching interim — de week')); ?></h1>
-    <?php // LA BANDE DU HAUT, calee a droite au-dessus de dimanche.
+    <?php // Le bandeau vert ne porte QUE la navigation, et seulement pour
+          // Famiflora : une agence n'a acces ni aux demandes ni a l'accueil,
+          // ces deux pastilles ne menaient chez elle qu'a une redirection.
           //
-          // « Demandes » et « Accueil » ne sont proposes qu'a Famiflora : une
-          // agence n'a acces ni a l'un ni a l'autre, ces deux pastilles ne
-          // menaient chez elle qu'a une redirection.
-          //
-          // Les deux autres servent a tout le monde : exporter ce qu'on regarde,
-          // et dire quelque chose a l'equipe sans avoir a chercher ou. ?>
-    <div>
-        <?php if (!famijobEstCompteAgence($role)): ?>
-            <a class="pill" href="interim_horaires_demandes.php"><?php echo e(fjhT('Demandes', 'Aanvragen')); ?></a>
-            <a class="pill" href="index.php">&larr; <?php echo e(fjhT('Accueil', 'Onthaal')); ?></a>
-        <?php endif; ?>
-
-        <?php // L'export suit les filtres affiches : exporter autre chose que ce
-              // qu'on regarde est le meilleur moyen de diffuser un planning faux. ?>
-        <a class="pill pill-export" href="export_matching.php?week=<?php echo e($selectedWeekKey); ?><?php
-                echo $mSecteur !== '' ? '&secteur=' . urlencode($mSecteur) : '';
-                echo $mDept !== '' ? '&department=' . urlencode($mDept) : ''; ?>">
-            ↓ <?php echo e(fjhT('Export Excel', 'Export Excel')); ?>
-        </a>
-
-        <a class="pill pill-avis" href="avis.php">💬 <?php echo e(fjhT('Avis & suggestions', 'Feedback & suggesties')); ?></a>
+          // Exporter et ecrire a l'equipe sont des ACTIONS : elles sont dans la
+          // barre blanche, avec les filtres, calees a droite au-dessus de
+          // dimanche. Les mettre ici les noyait dans le degrade vert — un
+          // bouton vert sur fond vert ne se voit pas. ?>
+    <?php if (!famijobEstCompteAgence($role)): ?>
+    <div class="bandeau-nav">
+        <a class="pill" href="interim_horaires_demandes.php"><?php echo e(fjhT('Demandes', 'Aanvragen')); ?></a>
+        <a class="pill" href="index.php">&larr; <?php echo e(fjhT('Accueil', 'Onthaal')); ?></a>
     </div>
+    <?php endif; ?>
 </div>
 
 <div class="barre">
@@ -167,8 +187,9 @@
           // Pas propose aux agences : la vue detaillee ne leur est pas ouverte,
           // un bouton qui ramene sur place est pire que pas de bouton. ?>
     <?php if ($peutChangerDeVue): ?>
-        <a class="pill" style="background:#fff; color:#2d5a37; border:1px solid #cfdad3;"
-           href="<?php echo e($lienVue('liste')); ?>">☰ <?php echo e(fjhT('Vue détaillée', 'Gedetailleerde weergave')); ?></a>
+        <a class="act act-vue" href="<?php echo e($lienVue('liste')); ?>">
+            <span class="act-ic">☰</span><?php echo e(fjhT('Vue détaillée', 'Gedetailleerde weergave')); ?>
+        </a>
     <?php endif; ?>
 
     <?php // L'auto-matching existe toujours dans le traitement : sans ce bouton,
@@ -177,9 +198,34 @@
     <form method="POST" onsubmit="return confirm('<?php echo e(fjhT('Lancer l\'auto-matching sur toute la semaine ?', 'Auto-matching voor de hele week starten?')); ?>');">
         <?php echo csrfField(); ?>
         <input type="hidden" name="week" value="<?php echo e($selectedWeekKey); ?>">
-        <button type="submit" name="auto_match_week" value="1">⚡ <?php echo e(fjhT('Auto-matching de la semaine', 'Auto-matching van de week')); ?></button>
+        <button type="submit" name="auto_match_week" value="1" class="act act-auto">
+            <span class="act-ic">⚡</span><?php echo e(fjhT('Auto-matching de la semaine', 'Auto-matching van de week')); ?>
+        </button>
     </form>
     <?php endif; ?>
+
+    <?php // ── LES DEUX ACTIONS, TOUT A DROITE ──────────────────────────────
+          // « margin-left:auto » les pousse au bout de la barre : les filtres
+          // s'allongent ou raccourcissent selon qu'un secteur est choisi, une
+          // position fixe les aurait fait danser d'un ecran a l'autre.
+          //
+          // Regroupees dans un meme bloc pour qu'elles passent A LA LIGNE
+          // ENSEMBLE sur un ecran etroit, au lieu de se separer. ?>
+    <div class="barre-actions">
+        <?php // L'export suit les filtres affiches : exporter autre chose que ce
+              // qu'on regarde est le meilleur moyen de diffuser un planning faux. ?>
+        <a class="act act-export" href="export_matching.php?week=<?php echo e($selectedWeekKey); ?><?php
+                echo $mSecteur !== '' ? '&secteur=' . urlencode($mSecteur) : '';
+                echo $mDept !== '' ? '&department=' . urlencode($mDept) : ''; ?>"
+           title="<?php echo e(fjhT('Télécharger la semaine affichée au format Excel', 'De getoonde week downloaden in Excel-formaat')); ?>">
+            <span class="act-ic">⤓</span><?php echo e(fjhT('Export Excel', 'Export Excel')); ?>
+        </a>
+
+        <a class="act act-avis" href="avis.php"
+           title="<?php echo e(fjhT('Écrire à l\'équipe : question, idée, souci', 'Schrijf het team: vraag, idee, probleem')); ?>">
+            <span class="act-ic">💬</span><?php echo e(fjhT('Avis & suggestions', 'Feedback')); ?>
+        </a>
+    </div>
 </div>
 
 <?php if (!empty($message)) { echo $message; } ?>
