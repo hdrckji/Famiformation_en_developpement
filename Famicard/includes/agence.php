@@ -71,6 +71,150 @@ if (!function_exists('famicardTypeInterimaire')) {
     }
 }
 
+if (!function_exists('famicardChampsAgence')) {
+    /**
+     * LA FICHE D'UN COMPTE AGENCE — et elle n'a presque rien à voir avec celle
+     * d'un collaborateur (décision de Jimmy).
+     *
+     * CE QU'ON RETIRE, et pourquoi :
+     *   • tout le RATTACHEMENT (secteur, département, lieu de travail,
+     *     employeur, contrat, placement) — une agence ne relève d'aucun rayon,
+     *     ne travaille dans aucun magasin et n'a pas de contrat chez nous.
+     *     Ces lignes n'étaient pas seulement vides : elles laissaient croire
+     *     qu'il manquait quelque chose ;
+     *   • le PRÉNOM, la PHOTO, la DATE D'ANNIVERSAIRE — ce n'est pas quelqu'un ;
+     *   • du CONTACT, il ne reste que la VILLE.
+     *
+     * CE QU'ON MET À LA PLACE : ce qui identifie vraiment une agence — son nom,
+     * sa personne de contact, ses adresses. Ces quatre-là vivent dans
+     * `interim_agences` et non dans `utilisateurs` : ce sont des PSEUDO-colonnes,
+     * posées dans la ligne par famicardAjouteAgence().
+     *
+     * ⚠️ EN LECTURE SEULE. Ces informations décident où partent les horaires
+     * (voir Famijob/includes/horaires.php) : elles se règlent dans agences.php,
+     * par un administrateur, et à un seul endroit. Deux écrans qui écrivent la
+     * même adresse finissent toujours par diverger.
+     */
+    function famicardChampsAgence()
+    {
+        return [
+            'agence_nom' => [
+                'libelle' => "Nom de l'agence", 'libelle_nl' => 'Naam van het kantoor',
+                'colonne' => 'agence_nom', 'groupe' => 'agence',
+                'requis' => false, 'nature' => 'service', 'visible' => 'soi',
+                'modifiable' => 'jamais', 'saisie' => 'texte', 'badge' => false,
+            ],
+            'agence_contact' => [
+                'libelle' => 'Personne de contact', 'libelle_nl' => 'Contactpersoon',
+                'colonne' => 'agence_contact', 'groupe' => 'agence',
+                'requis' => false, 'nature' => 'service', 'visible' => 'soi',
+                'modifiable' => 'jamais', 'saisie' => 'texte', 'badge' => false,
+                'aide' => 'Se modifie dans « Agences », côté administration.',
+            ],
+            'agence_email1' => [
+                'libelle' => 'Email principal', 'libelle_nl' => 'Hoofdmailadres',
+                'colonne' => 'agence_email1', 'groupe' => 'agence',
+                'requis' => false, 'nature' => 'service', 'visible' => 'soi',
+                'modifiable' => 'jamais', 'saisie' => 'texte', 'badge' => false,
+                'aide' => 'C\'est là que partent les horaires de vos intérimaires.',
+            ],
+            'agence_email2' => [
+                'libelle' => 'Second email', 'libelle_nl' => 'Tweede mailadres',
+                'colonne' => 'agence_email2', 'groupe' => 'agence',
+                'requis' => false, 'nature' => 'service', 'visible' => 'soi',
+                'modifiable' => 'jamais', 'saisie' => 'texte', 'badge' => false,
+            ],
+
+            // Du contact, la ville et rien d'autre.
+            'ville' => [
+                'libelle' => 'Ville', 'libelle_nl' => 'Stad',
+                'colonne' => 'ville', 'groupe' => 'contact',
+                'requis' => false, 'nature' => 'service', 'visible' => 'soi',
+                'modifiable' => 'soi', 'saisie' => 'texte', 'badge' => false,
+            ],
+
+            // Le compte, inchangé : c'est avec ça qu'on se connecte.
+            'identifiant' => [
+                'libelle' => 'Identifiant', 'libelle_nl' => 'Gebruikersnaam',
+                'colonne' => 'identifiant', 'groupe' => 'compte',
+                'requis' => true, 'nature' => 'service', 'visible' => 'soi',
+                'modifiable' => 'admin', 'saisie' => 'texte', 'badge' => false,
+            ],
+            'role' => [
+                'libelle' => 'Profil', 'libelle_nl' => 'Profiel',
+                'colonne' => 'role', 'groupe' => 'compte',
+                'requis' => true, 'nature' => 'service', 'visible' => 'soi',
+                'modifiable' => 'admin', 'saisie' => 'liste', 'badge' => false,
+            ],
+            'statut' => [
+                'libelle' => 'Statut', 'libelle_nl' => 'Status',
+                'colonne' => 'statut', 'groupe' => 'compte',
+                'requis' => false, 'nature' => 'service', 'visible' => 'admin',
+                'modifiable' => 'admin', 'saisie' => 'liste', 'badge' => false,
+            ],
+            'derniere_visite' => [
+                'libelle' => 'Dernière visite', 'libelle_nl' => 'Laatste bezoek',
+                'colonne' => 'derniere_visite', 'groupe' => 'compte',
+                'requis' => false, 'nature' => 'service', 'visible' => 'admin',
+                'modifiable' => 'jamais', 'saisie' => 'texte', 'badge' => false,
+            ],
+        ];
+    }
+}
+
+if (!function_exists('famicardGroupesAgence')) {
+    /** Les mêmes groupes, plus celui qui n'existe que pour une agence. */
+    function famicardGroupesAgence()
+    {
+        $groupes = ['agence' => ['libelle' => "L'agence", 'libelle_nl' => 'Het kantoor']];
+        foreach (famicardGroupes() as $cle => $g) {
+            // On ne garde que les groupes réellement utilisés par la fiche
+            // d'une agence : un titre suivi de rien fait un écran cassé.
+            if (in_array($cle, ['contact', 'compte'], true)) {
+                $groupes[$cle] = $g;
+            }
+        }
+        return $groupes;
+    }
+}
+
+if (!function_exists('famicardAjouteAgence')) {
+    /**
+     * Pose les pseudo-colonnes de l'agence dans une ligne `utilisateurs`.
+     *
+     * Les clés sont TOUJOURS posées, même vides : sans ça,
+     * famicardValeurAffichee() ne trouverait pas la colonne et renverrait ''
+     * sans qu'on puisse distinguer « pas renseigné » de « colonne oubliée ».
+     */
+    function famicardAjouteAgence(PDO $db, array $ligne)
+    {
+        $ligne['agence_nom'] = trim((string) ($ligne['interim'] ?? ''));
+        $ligne['agence_contact'] = '';
+        $ligne['agence_email1'] = '';
+        $ligne['agence_email2'] = '';
+
+        if ($ligne['agence_nom'] === '') {
+            return $ligne;
+        }
+
+        try {
+            $st = $db->prepare(
+                'SELECT nom_contact, email_1, email_2 FROM interim_agences WHERE nom_agence = ? LIMIT 1'
+            );
+            $st->execute([$ligne['agence_nom']]);
+            $a = $st->fetch(PDO::FETCH_ASSOC);
+        } catch (Exception $e) {
+            return $ligne;
+        }
+        if ($a) {
+            $ligne['agence_contact'] = (string) ($a['nom_contact'] ?? '');
+            $ligne['agence_email1']  = (string) ($a['email_1'] ?? '');
+            $ligne['agence_email2']  = (string) ($a['email_2'] ?? '');
+        }
+        return $ligne;
+    }
+}
+
 if (!function_exists('famicardPersonnesDeLAgence')) {
     /**
      * Les personnes rattachées à cette agence, RÉDUITES À CE QU'ELLE PEUT VOIR.

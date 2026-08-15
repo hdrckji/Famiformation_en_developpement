@@ -322,6 +322,27 @@ agence lire la liste d'une autre en changeant un mot dans la barre d'adresse.
 Une agence ne se voit pas elle-même dans la liste, ni les accès d'une consœur. Les comptes
 inactifs en sont exclus aussi.
 
+### Leur fiche n'est pas celle d'un collaborateur
+
+Décision de Jimmy : la carte d'une agence porte **ce qui identifie une agence**, pas les
+cases vides d'une fiche de personne.
+
+| Groupe | Contenu |
+|---|---|
+| **L'agence** | nom de l'agence, personne de contact, email principal, second email |
+| **Contact** | la ville, et rien d'autre |
+| **Compte** | identifiant, profil, statut, dernière visite |
+
+**Retiré** : tout le rattachement (secteur, département, lieu de travail, employeur,
+contrat, placement), la photo, le prénom, la date d'anniversaire. Ces lignes n'étaient pas
+seulement vides — elles laissaient croire qu'il manquait quelque chose.
+
+Les quatre champs d'agence viennent de **`interim_agences`** et non de `utilisateurs` : ce
+sont des pseudo-colonnes, posées par `famicardAjouteAgence()`. ⚠️ **En lecture seule** :
+ils décident où partent les horaires, ils se règlent dans `agences.php`, par un
+administrateur, **à un seul endroit**. Deux écrans qui écrivent la même adresse finissent
+toujours par diverger.
+
 ### Ce qui a dû être levé pour ça
 
 `Famiformation/config.php` **éjectait tout compte agence vers FamiJob**, sur n'importe

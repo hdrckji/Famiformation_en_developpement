@@ -11,25 +11,45 @@
 // champ lui-même (voir includes/carte.php).
 // ============================================================
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/includes/agence.php';
 
 $moi = famicardExigeConnexion($db);
 $estAdmin = famicardEstAdmin();
 
-// Secteur et département : ils ne sont pas dans `utilisateurs`, on les pose
-// dans la ligne pour que le modèle les lise comme les autres champs.
-$moi = famicardAjouteRattachement(
-    $moi,
-    famicardRattachementsRh($db, [(int) $moi['id']]),   // de quoi il relève
-    famicardPlacements($db, [(int) $moi['id']])         // où FamiJob peut le placer
-);
+// ⚠️ UNE AGENCE N'A PAS LA MÊME CARTE. Pas de rattachement, pas de photo, pas
+// de prénom : à la place, ce qui l'identifie vraiment — son nom, sa personne de
+// contact, ses adresses. Voir includes/agence.php pour le détail et le pourquoi.
+$estAgence = famicardEstCompteAgence($moi['role'] ?? '');
 
-$champs    = famicardChamps($db);
-$groupes   = famicardGroupes();
+if ($estAgence) {
+    $moi       = famicardAjouteAgence($db, $moi);
+    $champs    = famicardChampsAgence();
+    $groupes   = famicardGroupesAgence();
+    $libres    = [];
+    // Aucun champ obligatoire pour une agence : lui annoncer une carte
+    // incomplète serait lui reprocher de ne pas être quelqu'un.
+    $manquants = [];
+} else {
+    // Secteur et département : ils ne sont pas dans `utilisateurs`, on les pose
+    // dans la ligne pour que le modèle les lise comme les autres champs.
+    $moi = famicardAjouteRattachement(
+        $moi,
+        famicardRattachementsRh($db, [(int) $moi['id']]),   // de quoi il relève
+        famicardPlacements($db, [(int) $moi['id']])         // où FamiJob peut le placer
+    );
+    $champs    = famicardChamps($db);
+    $groupes   = famicardGroupes();
+    $libres    = famicardValeursLibres($db, (int) $moi['id']);
+    $manquants = famicardChampsManquants($champs, $moi, $libres, famicardMagasins($db));
+}
+
 $magasins  = famicardMagasins($db);
-$libres    = famicardValeursLibres($db, (int) $moi['id']);
-$manquants = famicardChampsManquants($champs, $moi, $libres, $magasins);
 
-$nomComplet = trim(((string) ($moi['prenom'] ?? '')) . ' ' . ((string) ($moi['nom'] ?? '')));
+// Le titre de la carte : le nom de l'agence pour une agence, celui de la
+// personne sinon. « Prénom Nom » sur un compte de société donne une carte vide.
+$nomComplet = $estAgence
+    ? trim((string) ($moi['agence_nom'] ?? ''))
+    : trim(((string) ($moi['prenom'] ?? '')) . ' ' . ((string) ($moi['nom'] ?? '')));
 if ($nomComplet === '') {
     $nomComplet = (string) ($moi['identifiant'] ?? '');
 }
@@ -112,7 +132,7 @@ if ($photo !== '') {
             <?php if ($photoUrl !== ''): ?>
                 <img class="avatar" src="<?= e($photoUrl) ?>" alt="">
             <?php else: ?>
-                <div class="avatar avatar-vide">👤</div>
+                <div class="avatar avatar-vide"><?= $estAgence ? '🏢' : '👤' ?></div>
             <?php endif; ?>
             <div>
                 <h1><?= e($nomComplet) ?></h1>

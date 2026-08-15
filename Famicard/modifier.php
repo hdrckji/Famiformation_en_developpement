@@ -27,6 +27,7 @@
 // ============================================================
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/includes/modifications.php';
+require_once __DIR__ . '/includes/agence.php';
 
 $moi = famicardExigeConnexion($db);
 $estAdmin = famicardEstAdmin();
@@ -66,16 +67,25 @@ if ($estAdmin) {
 if ($estAdmin) {
     famicardAssureRattachementRh($db);
 }
-$cible = famicardAjouteRattachement(
-    $cible,
-    famicardRattachementsRh($db, [$cibleId]),   // de quoi il relève (Famicard)
-    famicardPlacements($db, [$cibleId])         // où le planning peut le placer (FamiJob)
-);
+// ⚠️ UNE AGENCE N'A PAS LA MÊME CARTE : ni rattachement, ni photo, ni prénom.
+// Le modèle change avec la nature du compte (voir includes/agence.php).
+$cibleEstAgence = famicardEstCompteAgence($cible['role'] ?? '');
 
-$champs   = famicardChamps($db);
+if ($cibleEstAgence) {
+    $cible  = famicardAjouteAgence($db, $cible);
+    $champs = famicardChampsAgence();
+} else {
+    $cible = famicardAjouteRattachement(
+        $cible,
+        famicardRattachementsRh($db, [$cibleId]),   // de quoi il relève (Famicard)
+        famicardPlacements($db, [$cibleId])         // où le planning peut le placer (FamiJob)
+    );
+    $champs = famicardChamps($db);
+}
+
 $magasins = famicardMagasins($db);
 $libres   = famicardValeursLibres($db, $cibleId);
-$groupes  = famicardGroupes();
+$groupes  = $cibleEstAgence ? famicardGroupesAgence() : famicardGroupes();
 
 // ─────────────────────────────────────────────────────────────────────────────
 // LE RATTACHEMENT RH — DE QUOI CETTE PERSONNE RELÈVE.
@@ -761,6 +771,11 @@ if ($photo !== '') {
                 </div>
             </div>
 
+            <?php // ⚠️ PAS DE ZONE PHOTO POUR UNE AGENCE. Le modèle n'a pas de
+                  // champ photo, et afficher une silhouette vide avec « seul le
+                  // collaborateur dépose sa photo » n'aurait rien à dire à une
+                  // société. ?>
+            <?php if (!$cibleEstAgence): ?>
             <div class="zone-photo">
                 <?php if ($photoEditable): ?>
                     <label class="depose">
@@ -790,6 +805,7 @@ if ($photo !== '') {
                     <div class="photo-figee">Seul le collaborateur dépose sa photo.</div>
                 <?php endif; ?>
             </div>
+            <?php endif; ?>
 
             <?php foreach ($groupes as $cleGroupe => $groupe): ?>
                 <?php
