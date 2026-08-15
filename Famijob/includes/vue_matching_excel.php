@@ -184,6 +184,12 @@
 
 <?php if (!empty($message)) { echo $message; } ?>
 
+<?php // ⚠️ LA QUESTION AVANT D'AFFECTER. Elle n'etait posee que dans la vue
+      // detaillee : depuis ce classeur, une affectation qui declenchait le
+      // moindre avertissement ne produisait rien du tout. Meme code des deux
+      // cotes desormais. ?>
+<?php require __DIR__ . '/confirmation_affectation.php'; ?>
+
 <?php if (!$grille): ?>
     <div class="rien"><?php echo e(fjhT('Aucun créneau demandé cette semaine.', 'Geen aangevraagde tijdslots deze week.')); ?></div>
 <?php else: ?>
@@ -272,7 +278,7 @@
                                 <?php if ($place['nom'] !== ''): ?>
                                     <span class="occupe">
                                         <span><?php echo e($place['nom']); ?></span>
-                                        <?php if ($isAdmin): ?>
+                                        <?php if (!empty($place['peutRetirer'])): ?>
                                         <form method="POST" style="display:inline;" onsubmit="return confirm('<?php echo e(fjhT('Retirer cette personne ?', 'Deze persoon verwijderen?')); ?>');">
                                             <?php echo csrfField(); ?>
                                             <input type="hidden" name="assignment_id" value="<?php echo (int) $place['assignment_id']; ?>">

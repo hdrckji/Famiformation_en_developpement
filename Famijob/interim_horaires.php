@@ -806,6 +806,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'student_name' => $studentName,
                     'student_id' => $studentId,
                     'matching_mode' => ($studentId > 0 ? 'list' : 'name'),
+                    // Sans ca, le mot de l'agence serait perdu des qu'une
+                    // question est posee — et personne ne le retape.
+                    'agency_comment' => $commentaireAgence,
                 ];
             }
         }
@@ -928,8 +931,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     throw new RuntimeException($rhBlockMessage);
                 }
 
+                // Meme remarque que pour le retrait : une seule facon de comparer
+                // deux noms d'agence dans toute l'application.
                 $studentInterim = trim((string) ($student['interim'] ?? ''));
-                if (!$isAdmin && ($studentInterim === '' || $studentInterim !== $agencyName)) {
+                if (!$isAdmin && !famijobMemeAgence($studentInterim, $agencyName)) {
                     throw new RuntimeException('Cet étudiant ne fait pas partie de votre agence.');
                 }
 
@@ -1093,8 +1098,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     throw new RuntimeException('Affectation introuvable.');
                 }
 
+                // ⚠️ MEME COMPARAISON QU'A L'AFFICHAGE. Un `!==` strict ici et une
+                // comparaison souple pour decider d'afficher la croix, et
+                // « Randstad » face a « randstad » donnait un bouton qui refuse
+                // de fonctionner — le pire des deux mondes.
                 $ownerAgency = trim((string) ($assignmentRow['owner_agency'] ?? ''));
-                if (!$isAdmin && ($ownerAgency === '' || $ownerAgency !== $agencyName)) {
+                if (!$isAdmin && !famijobMemeAgence($ownerAgency, $agencyName)) {
                     throw new RuntimeException('Vous ne pouvez retirer que vos propres affectations.');
                 }
 
@@ -1441,6 +1450,11 @@ foreach ($requests as $request) {
             'masque'        => $lecture['masque'],
             'agence'        => $lecture['masque'] ? '' : $agence,
             'mot'           => $motAgence,
+            // Retirer quelqu'un obeit a la meme regle que dans la vue
+            // detaillee : ses propres gens, ou tout le monde pour un admin.
+            // Le classeur ne montrait la croix qu'aux admins — une agence
+            // pouvait placer quelqu'un sans pouvoir corriger son erreur.
+            'peutRetirer'   => ($a !== null) && ($isAdmin || famijobMemeAgence($agence, $agencyName)),
             'request_id'    => $rid,
             'seat'          => $i + 1,
             'assignment_id' => $a ? (int) $a['assignment_id'] : 0,

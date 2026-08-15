@@ -500,31 +500,9 @@
 
         <?php echo $message; ?>
 
-        <?php if ($pendingConfirm !== null): ?>
-            <div class="modal-overlay" id="confirmModal">
-                <div class="modal-box">
-                    <div class="modal-title"><?php echo e(fjhT('Confirmation', 'Bevestiging')); ?></div>
-                    <div class="modal-text"><?php echo e($pendingConfirm['message']); ?></div>
-                    <div class="modal-actions">
-                        <button type="button" class="btn btn-soft" onclick="document.getElementById('confirmModal').style.display='none';"><?php echo e(fjhT('Non', 'Nee')); ?></button>
-                        <form method="POST" style="display:inline;">
-                            <?php echo csrfField(); ?>
-                            <?php $confirmMode = (string) ($pendingConfirm['matching_mode'] ?? 'name'); ?>
-                            <input type="hidden" name="assign_student" value="1">
-                            <input type="hidden" name="request_id" value="<?php echo (int) $pendingConfirm['request_id']; ?>">
-                            <input type="hidden" name="matching_mode" value="<?php echo e($confirmMode); ?>">
-                            <?php if ($confirmMode === 'list'): ?>
-                                <input type="hidden" name="student_id" value="<?php echo (int) ($pendingConfirm['student_id'] ?? 0); ?>">
-                            <?php else: ?>
-                                <input type="hidden" name="student_name" value="<?php echo e($pendingConfirm['student_name']); ?>">
-                            <?php endif; ?>
-                            <input type="hidden" name="confirm_assign" value="1">
-                            <button type="submit" class="btn btn-primary"><?php echo e(fjhT('Oui, affecter', 'Ja, toewijzen')); ?></button>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        <?php endif; ?>
+        <?php // La question est posee par le MEME code que dans le classeur.
+              // Voir includes/confirmation_affectation.php. ?>
+        <?php require __DIR__ . '/confirmation_affectation.php'; ?>
 
         <section class="toolbar">
             <form method="GET">
