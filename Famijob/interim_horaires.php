@@ -1297,7 +1297,13 @@ foreach ($weekDays as $weekDay) {
 if (function_exists('secteursCharge')) {
     secteursCharge();
 }
-$arbreSecteurs = function_exists('secteursListe') ? secteursListe($db) : [];
+// ⚠️ « true » : INCLURE LES SECTEURS SANS DEPARTEMENT. Par defaut
+// secteursListe() les ecarte — utile pour un menu de departements, faux ici.
+// Un secteur sans departement recoit quand meme des horaires (on a le droit de
+// ne pas preciser), et il etait absent de $arbreSecteurs : donc absent du menu
+// des secteurs, et ses creneaux ranges sous « Sans secteur ». Choisir ce
+// secteur dans le filtre etait litteralement impossible.
+$arbreSecteurs = function_exists('secteursListe') ? secteursListe($db, true) : [];
 
 // ⚠️ LES NOMS DANS LES DEMANDES NE SONT PAS PROPRES. `department_name` est du
 // texte libre saisi au fil des années : « Plantes extérieur » au singulier pour
@@ -1418,8 +1424,24 @@ $ordreSecteurs[] = fjhT('Sans secteur', 'Zonder sector');
 $mSecteur = trim((string) ($_GET['m_secteur'] ?? ''));
 $mDept    = trim((string) ($_GET['m_dept'] ?? ''));
 
-if ($mSecteur !== '' && isset($grille[$mSecteur])) {
-    $grille = [$mSecteur => $grille[$mSecteur]];
+// ⚠️ LE SECTEUR SE VALIDE SUR LA LISTE DES SECTEURS, PAS SUR LA GRILLE.
+// $grille ne contient que les secteurs qui ont des creneaux CETTE SEMAINE.
+// Valider dessus faisait qu'un secteur sans creneau retombait dans le « sinon »
+// et remettait le filtre a zero : on choisissait « Famizoo », tout le tableau
+// revenait, et le menu reaffichait « Tous ». Le filtre avait l'air casse alors
+// qu'il n'y avait simplement rien a montrer.
+//
+// Maintenant le choix TIENT : la grille se vide, le menu garde le secteur, et
+// la vue dit qu'il n'y a pas de creneau plutot que d'en montrer 300 autres.
+if ($mSecteur !== '' && !in_array($mSecteur, $ordreSecteurs, true)) {
+    $mSecteur = '';   // secteur inconnu (lien trafique, secteur supprime)
+}
+if ($mSecteur === '') {
+    $mDept = '';      // un departement sans son secteur ne veut rien dire
+}
+
+if ($mSecteur !== '') {
+    $grille = [$mSecteur => $grille[$mSecteur] ?? []];
 
     if ($mDept !== '') {
         // La clé vide — les créneaux du secteur lui-même — reste toujours
@@ -1430,9 +1452,66 @@ if ($mSecteur !== '' && isset($grille[$mSecteur])) {
         if (isset($grille[$mSecteur][$mDept])) { $garde[$mDept] = $grille[$mSecteur][$mDept]; }
         $grille[$mSecteur] = $garde;
     }
-} else {
-    $mSecteur = '';
-    $mDept = '';
+}
+
+// ⚠️ LA VUE LISTE OBEIT AU MEME FILTRE. Elle part de $requestsByDate, pas de
+// $grille : le filtre secteur ne l'atteignait pas du tout. On choisissait un
+// secteur, on basculait sur la vue detaillee, et les 300 creneaux de la semaine
+// revenaient — le filtre semblait ne marcher qu'une fois sur deux.
+//
+// Le secteur se RESOUT ici comme ailleurs, il ne se lit pas dans une colonne :
+// `department_name` est du texte libre qui peut porter un departement comme un
+// secteur. Une seule fonction pour les trois usages ci-dessous, sinon ils
+// finiraient par ne plus ranger pareil.
+$placeDe = function ($departmentName) use ($cle, $aliasSecteurs, $nomsSecteurs, $secteurParDept, $libelleDept) {
+    $k = $cle((string) $departmentName);
+    if (isset($aliasSecteurs[$k]))      { return ['secteur' => $aliasSecteurs[$k], 'sous' => '']; }
+    if (isset($nomsSecteurs[$k]))       { return ['secteur' => $nomsSecteurs[$k],  'sous' => '']; }
+    if (isset($secteurParDept[$k])) {
+        $sec    = $secteurParDept[$k];
+        $propre = $libelleDept[$k] ?? (string) $departmentName;
+        return ['secteur' => $sec, 'sous' => ($cle($propre) === $cle($sec)) ? '' : $propre];
+    }
+    return null;   // sans secteur connu : hors du filtre par definition
+};
+
+// Un creneau porte au nom du secteur (« sous » vide) reste visible quel que
+// soit le departement choisi : il appartient a tout le secteur.
+$retenu = function ($departmentName) use ($placeDe, $mSecteur, $mDept) {
+    $p = $placeDe($departmentName);
+    if ($p === null || $p['secteur'] !== $mSecteur) { return false; }
+    return !($mDept !== '' && $p['sous'] !== '' && $p['sous'] !== $mDept);
+};
+
+if ($mSecteur !== '') {
+    foreach ($requestsByDate as $jour => $liste) {
+        $garde = [];
+        foreach ($liste as $r) {
+            if ($retenu((string) $r['department_name'])) { $garde[] = $r; }
+        }
+        if ($garde) { $requestsByDate[$jour] = $garde; }
+        else        { unset($requestsByDate[$jour]); }
+    }
+
+    // Le recap « reste a pourvoir » compte par departement : sans ce passage il
+    // annoncerait des departements que la liste ne montre plus.
+    foreach ($remainingByDayDept as $jour => $parDept) {
+        $garde = [];
+        foreach ($parDept as $nomDept => $reste) {
+            if ($retenu((string) $nomDept)) { $garde[$nomDept] = $reste; }
+        }
+        $remainingByDayDept[$jour] = $garde;
+    }
+
+    // $visibleWeekDays a ete calcule AVANT ce filtre : un jour vide serait
+    // reste affiche, avec son titre et rien dessous.
+    $visibleWeekDays = [];
+    foreach ($weekDays as $weekDay) {
+        $dayKey = (string) $weekDay['key'];
+        if ($selectedDayFilter !== 'all' && $dayKey !== $selectedDayFilter) { continue; }
+        if (empty($requestsByDate[$dayKey])) { continue; }
+        $visibleWeekDays[] = $weekDay;
+    }
 }
 
 // Les départements proposés au second menu, pour le secteur choisi.
@@ -1461,15 +1540,36 @@ $semaineUrl = 'interim_horaires.php?week=' . urlencode($selectedWeekKey);
 // préparées ci-dessus. Rien de ce qui écrit en base n'est dupliqué : changer de
 // vue ne change que ce qu'on regarde.
 // ─────────────────────────────────────────────────────────────────────────────
-$vueMode = (string) ($_GET['vue'] ?? 'excel');
+// ⚠️ LE PARAMETRE S'APPELLE « affichage », PLUS « vue ». Le nom etait DEJA
+// PRIS par le filtre de remplissage de la vue liste (tous / a pourvoir /
+// attribues). Deux champs du meme nom dans le meme formulaire : le second
+// ecrasait le premier, si bien que filtrer depuis la vue liste renvoyait
+// « vue=a_pourvoir », donc ni « liste » ni « excel » — et on repartait sur la
+// vue classeur a chaque filtre. C'est ce qui donnait l'impression que les
+// filtres ne marchaient pas.
+//
+// L'ancien nom reste accepte pour ne pas casser les liens deja envoyes, mais
+// seulement quand il porte une valeur de VUE.
+$vueMode = (string) ($_GET['affichage'] ?? '');
+if ($vueMode === '' && in_array((string) ($_GET['vue'] ?? ''), ['excel', 'liste'], true)) {
+    $vueMode = (string) $_GET['vue'];
+}
 if (!in_array($vueMode, ['excel', 'liste'], true)) {
     $vueMode = 'excel';
 }
 
-// Conserve la semaine et le mode dans les liens : sans ça, changer de vue
-// ramènerait sur la semaine courante.
-$lienVue = static function ($mode) use ($selectedWeekKey) {
-    return 'interim_horaires.php?week=' . urlencode($selectedWeekKey) . '&vue=' . urlencode($mode);
+// Conserve la semaine ET LES FILTRES dans les liens : changer de vue ne doit
+// pas ramener sur la semaine courante, tous secteurs confondus. Un filtre qui
+// se vide quand on change de fenetre passe pour un filtre qui ne marche pas.
+$lienVue = static function ($mode) use ($selectedWeekKey, $mSecteur, $mDept,
+                                        $selectedDayFilter, $selectedVueFilter, $matchingMode) {
+    $p = ['week' => $selectedWeekKey, 'affichage' => $mode];
+    if ($mSecteur !== '')                 { $p['m_secteur'] = $mSecteur; }
+    if ($mDept !== '')                    { $p['m_dept'] = $mDept; }
+    if ($selectedDayFilter !== 'all')     { $p['day'] = $selectedDayFilter; }
+    if ($selectedVueFilter !== 'all')     { $p['vue'] = $selectedVueFilter; }
+    if ($matchingMode !== '')             { $p['matching_mode'] = $matchingMode; }
+    return 'interim_horaires.php?' . http_build_query($p);
 };
 
 require __DIR__ . ($vueMode === 'liste'

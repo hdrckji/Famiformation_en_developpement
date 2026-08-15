@@ -87,7 +87,7 @@
           // l'un doit conserver les autres. Trois formulaires separes se
           // seraient effaces mutuellement a chaque selection. ?>
     <form method="GET" style="display:flex; gap:9px; align-items:center; flex-wrap:wrap;">
-        <input type="hidden" name="vue" value="excel">
+        <input type="hidden" name="affichage" value="excel">
 
         <label for="week" style="font-weight:700; font-size:.85rem;"><?php echo e(fjhT('Semaine', 'Week')); ?></label>
         <select name="week" id="week" onchange="this.form.submit()">
@@ -161,6 +161,15 @@
     </thead>
     <tbody>
     <?php $colonnes = count($weekDays) * 3; ?>
+    <?php // Un secteur choisi mais vide se DIT. Sans cette ligne, le tableau
+          // n'affichait que ses en-tetes de jours : on ne savait pas s'il n'y
+          // avait aucun creneau ou si le filtre avait echoue. ?>
+    <?php if ($mSecteur !== '' && empty($grille[$mSecteur])): ?>
+        <tr><td colspan="<?php echo (int) $colonnes; ?>" style="padding:18px; text-align:center; color:#6b7d72; font-style:italic;">
+            <?php echo e(fjhT('Aucun créneau cette semaine pour ', 'Geen tijdsblok deze week voor ') . $mSecteur
+                . ($mDept !== '' ? ' — ' . $mDept : '') . '.'); ?>
+        </td></tr>
+    <?php endif; ?>
     <?php foreach ($ordreSecteurs as $secteur): ?>
         <?php if (empty($grille[$secteur])) { continue; } ?>
 

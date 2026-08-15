@@ -526,7 +526,12 @@
             <form method="GET">
                 <?php // Sans ce champ, changer de semaine renverrait sur la vue
                       // classeur — on perdrait la vue choisie a chaque filtre. ?>
-                <input type="hidden" name="vue" value="liste">
+                <?php // ⚠️ « affichage », pas « vue » : le nom etait deja pris par
+                      // le filtre de remplissage, plus bas dans CE MEME
+                      // formulaire. Deux champs homonymes, et le second
+                      // ecrasait le premier — filtrer ici renvoyait donc sur la
+                      // vue classeur a tous les coups. ?>
+                <input type="hidden" name="affichage" value="liste">
                 <div>
                     <label for="week"><?php echo e(fjhT('Semaine', 'Week')); ?></label>
                     <select id="week" name="week">
@@ -546,6 +551,31 @@
                         <?php endforeach; ?>
                     </select>
                 </div>
+                <?php // Les memes filtres que la vue classeur, et sous les memes
+                      // noms : basculer d'une vue a l'autre conserve le choix au
+                      // lieu de le perdre. ?>
+                <div>
+                    <label for="m_secteur"><?php echo e(fjhT('Secteur', 'Sector')); ?></label>
+                    <select id="m_secteur" name="m_secteur"
+                            onchange="if (this.form.m_dept) { this.form.m_dept.value = ''; } this.form.submit();">
+                        <option value=""><?php echo e(fjhT('Tous les secteurs', 'Alle sectoren')); ?></option>
+                        <?php foreach ($ordreSecteurs as $nomSec): ?>
+                            <?php if ($nomSec === fjhT('Sans secteur', 'Zonder sector')) { continue; } ?>
+                            <option value="<?php echo e($nomSec); ?>" <?php echo $mSecteur === $nomSec ? 'selected' : ''; ?>><?php echo e($nomSec); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <?php if ($mDeptsProposes): ?>
+                    <div>
+                        <label for="m_dept"><?php echo e(fjhT('Département du secteur', 'Afdeling van de sector')); ?></label>
+                        <select id="m_dept" name="m_dept" onchange="this.form.submit()">
+                            <option value=""><?php echo e(fjhT('Tout le secteur', 'Hele sector')); ?></option>
+                            <?php foreach ($mDeptsProposes as $nomDep): ?>
+                                <option value="<?php echo e($nomDep); ?>" <?php echo $mDept === $nomDep ? 'selected' : ''; ?>><?php echo e($nomDep); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                <?php endif; ?>
                 <div>
                     <label for="department"><?php echo e(fjhT('Département', 'Afdeling')); ?></label>
                     <select id="department" name="department">
