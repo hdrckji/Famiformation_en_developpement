@@ -265,6 +265,39 @@ règle dans cet écran.
 
 ---
 
+## LES AGENCES — pas des collaborateurs
+
+Décision de Jimmy : **« Mes collaborateurs » et « Agences » sont deux modules distincts.**
+Une agence n'est pas quelqu'un de la maison, c'est une société extérieure à qui l'on ouvre
+une porte pour qu'elle voie **ses** intérimaires. Son compte n'a ni fiche, ni photo, ni
+contrat, ni secteur : mélangé aux gens, il remplissait la base de lignes vides qu'on
+prenait pour des fiches incomplètes.
+
+`admin.php` et `export.php` excluent donc `role = 'agence_interim'` — et le filtre
+« profil » ne le propose plus, puisqu'il serait garanti vide. Un **filtre agence** répond
+en revanche à « qui ai-je chez Konvert », à l'écran comme dans le fichier exporté.
+
+### ⚠️ C'est le NOM qui relie tout, et c'est fragile
+
+FamiJob compare `utilisateurs.interim` au nom de l'agence pour décider qui voit quoi. Il
+n'y a pas d'identifiant entre les deux, juste une chaîne de caractères.
+
+**Conséquence que la page du site ne traite pas : renommer une agence coupait tout le
+monde.** Le nom changeait dans `interim_agences`, les fiches gardaient l'ancien, et
+l'agence se retrouvait avec un écran vide — sans message, sans erreur. `agences.php`
+réécrit donc aussi les fiches concernées, dans une transaction, et dit combien ont suivi.
+
+Les accès sont lus **par le nom**, pas par `interim_agence_users` : c'est le nom qui donne
+réellement la vue, et un compte créé ailleurs peut n'avoir aucune ligne de liaison.
+La liaison est tenue à jour quand même, pour que la page du site dise la même chose.
+Les accès qui pointent sur une agence disparue sont **signalés en tête** — c'est
+exactement ce que produisait un renommage.
+
+Une agence ne se supprime pas tant que quelqu'un y est rattaché, et **« Famiflora » ne se
+supprime pas du tout** : ce n'est pas une agence, c'est le suivi interne.
+
+---
+
 ## LES ACCÈS AUX SERVICES
 
 Aujourd'hui deux services, FamiFormation et FamiJob. **Il y en aura d'autres**, et c'est
@@ -353,6 +386,7 @@ Famicard/
   tri_profils.php      passer les comptes beta en profil employé (venu du site)
   relance_mdp.php      renvoyer le lien de création de mot de passe (venu du site)
   admin.php            la base des collaborateurs (liste, filtres, badge, export)
+  agences.php          ⭐ LES AGENCES D'INTÉRIM — et les accès qu'on leur ouvre
   badge.php            le badge imprimable 75 × 36 mm
   export.php           l'export Excel, colonnes au choix
   admin_champs.php     création des libellés par l'administrateur

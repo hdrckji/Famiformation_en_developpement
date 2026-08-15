@@ -197,6 +197,18 @@ if ($photo !== '') {
             <div class="nom">Mes collaborateurs</div>
             <div class="quoi">Les fiches de l'équipe, leur badge et l'export.</div>
         </a>
+
+        <?php // ── LES AGENCES, À PART DES COLLABORATEURS ──────────────────
+              // Une agence n'est pas quelqu'un de la maison : c'est une société
+              // extérieure à qui l'on ouvre une porte pour qu'elle voie SES
+              // intérimaires. Ses comptes n'ont ni fiche, ni photo, ni contrat
+              // — les mélanger aux gens remplissait la base de lignes vides
+              // qu'on prenait pour des fiches incomplètes. ?>
+        <a class="tuile" href="agences.php">
+            <span class="ico">🏢</span>
+            <div class="nom">Agences</div>
+            <div class="quoi">Les agences d'intérim, leurs contacts, et les accès qu'on leur ouvre.</div>
+        </a>
         <?php endif; ?>
     </div>
 
