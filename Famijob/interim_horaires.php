@@ -26,6 +26,7 @@ if (!in_array($role, ['admin', 'teamcoach', 'agence_interim'], true)) {
 }
 
 require_once __DIR__ . '/includes/confidentialite.php';
+require_once __DIR__ . '/includes/validation_planning.php';
 
 $isAdmin = ($role === 'admin');
 $currentUserId = (int) ($_SESSION['user_id'] ?? 0);
@@ -680,6 +681,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             $message = "<div class='alert error'>Auto-matching semaine : aucune nouvelle affectation.</div>";
         }
+    }
+
+    // ── VALIDER LE PLANNING DE LA SEMAINE ────────────────────────────────
+    // Le geste qui dit « c'est arrete ». Reserve aux admins : une agence ne
+    // decide pas que la semaine de Famiflora est finie.
+    if ($isAdmin && isset($_POST['valider_planning'])) {
+        $rapport = famijobValidePlanningSemaine($db, $selectedWeek['start'], $currentUserId);
+
+        $lignes = [];
+        if ($rapport['ok']) {
+            $lignes[] = '<strong>' . count($rapport['ok']) . ' envoi(s) partis :</strong> '
+                      . e(implode(', ', $rapport['ok']));
+        }
+        if ($rapport['ignores']) {
+            $lignes[] = '<strong>Non concernés :</strong> ' . e(implode(' · ', $rapport['ignores']));
+        }
+        if ($rapport['ko']) {
+            // Les echecs en ROUGE et separes : un rapport qui melange les deux
+            // se lit « c'est parti », et on ne rappelle jamais les manquants.
+            $message .= "<div class='alert error'><strong>Échecs :</strong> "
+                      . e(implode(' | ', $rapport['ko'])) . '</div>';
+        }
+        $message .= "<div class='alert success'>Planning de la semaine validé."
+                  . ($lignes ? '<br>' . implode('<br>', $lignes) : '') . '</div>';
     }
 
     if (isset($_POST['assign_student'])) {
@@ -1617,6 +1642,11 @@ if (!in_array($vueMode, ['excel', 'liste'], true)) {
 // l'outil d'arbitrage de Famiflora, pas celui d'un fournisseur. Le verrou est
 // ici et pas seulement sur le bouton — une bascule cachee laisse l'URL ouverte.
 $peutChangerDeVue = !famijobEstCompteAgence($role);
+
+// L'etat de la semaine affichee : « En preparation » tant que personne n'a
+// tranche, « Valide » ensuite. C'est le meme mot dans le bandeau et dans les
+// mails, il n'est ecrit qu'a un endroit (includes/validation_planning.php).
+$etatSemaine = famijobStatutSemaine($db, $selectedWeek['start']);
 if (!$peutChangerDeVue) {
     $vueMode = 'excel';
 }

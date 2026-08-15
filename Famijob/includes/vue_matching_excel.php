@@ -123,6 +123,16 @@
     .barre .act-vue:hover { background: #f2f8f4; border-color: #2d5a37; }
     .barre .act-auto { background: #2d5a37; color: #fff; cursor: pointer; font-family: inherit; }
     .barre .act-auto:hover { background: #24492c; }
+    /* Valider est l'action la plus lourde de l'ecran : elle envoie des mails a
+       des dizaines de personnes. Elle se distingue donc de l'auto-matching, qui
+       ne fait que remplir des cases. */
+    .barre .act-valider { background: #1f7a3d; color: #fff; cursor: pointer; font-family: inherit;
+        box-shadow: 0 2px 6px rgba(31,122,61,.28); }
+    .barre .act-valider:hover { background: #19632f; }
+    .etat-semaine { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px;
+        border-radius: 999px; font-size: .78rem; font-weight: 800; white-space: nowrap; }
+    .etat-prepa { background: #fff3d6; color: #8a5a00; border: 1px solid #f0d5a8; }
+    .etat-valide { background: #e7f6ea; color: #1d6a39; border: 1px solid #b7e0c1; }
 
     /* Sur un ecran etroit, les actions passent sous les filtres et s'etalent
        plutot que de se tasser dans un coin. */
@@ -243,6 +253,44 @@
             <span class="act-ic">⚡</span><?php echo e(fjhT('Auto-matching de la semaine', 'Auto-matching van de week')); ?>
         </button>
     </form>
+    <?php endif; ?>
+
+    <?php // ── L'ETAT DE LA SEMAINE, ET LE GESTE QUI L'ARRETE ───────────────
+          // Tout a droite, au-dessus de dimanche, sur la ligne de
+          // l'auto-matching. Valider n'est pas un filtre : c'est la fin du
+          // travail de la semaine, et c'est de la que partent les mails.
+          //
+          // La pastille d'etat est TOUJOURS visible, meme une fois validee :
+          // « je peux encore modifier » et « c'est parti chez les agences » ne
+          // sont pas la meme situation, et rien d'autre ne le dit. ?>
+    <?php if ($isAdmin): ?>
+    <div class="barre-actions">
+        <span class="etat-semaine etat-<?php echo $etatSemaine['statut'] === 'valide' ? 'valide' : 'prepa'; ?>"
+              <?php if ($etatSemaine['statut'] === 'valide' && $etatSemaine['le'] !== ''): ?>
+              title="<?php echo e('Validé le ' . date('d/m/Y à H:i', strtotime($etatSemaine['le']))
+                      . ($etatSemaine['par'] !== '' ? ' par ' . $etatSemaine['par'] : '')
+                      . ' — ' . $etatSemaine['envois_ok'] . ' envoi(s) partis'
+                      . ($etatSemaine['envois_ko'] > 0 ? ', ' . $etatSemaine['envois_ko'] . ' en echec' : '')); ?>"
+              <?php endif; ?>>
+            <?php echo $etatSemaine['statut'] === 'valide' ? '✔' : '✎'; ?>
+            <?php echo e(famijobLibelleStatutSemaine($etatSemaine['statut'])); ?>
+        </span>
+
+        <?php // Confirmation explicite : on ne renvoie pas des horaires a toute
+              // une semaine d'etudiants et a leurs agences par un clic distrait.
+              // Le texte annonce ce qui va PARTIR, pas ce qui va etre coche. ?>
+        <form method="POST" onsubmit="return confirm('<?php echo e($etatSemaine['statut'] === 'valide'
+                ? 'Ce planning est déjà validé. Renvoyer les horaires et les fichiers à tout le monde ?'
+                : 'Valider le planning de la semaine ? Chaque étudiant recevra son horaire, chaque agence concernée son fichier.'); ?>');">
+            <?php echo csrfField(); ?>
+            <input type="hidden" name="week" value="<?php echo e($selectedWeekKey); ?>">
+            <button type="submit" name="valider_planning" value="1" class="act act-valider">
+                <span class="act-ic">✔</span><?php echo e($etatSemaine['statut'] === 'valide'
+                    ? fjhT('Renvoyer', 'Opnieuw versturen')
+                    : fjhT('Valider le planning', 'Planning valideren')); ?>
+            </button>
+        </form>
+    </div>
     <?php endif; ?>
 
     <?php // ── LES DEUX ACTIONS, POUR LES AGENCES SEULEMENT ─────────────────

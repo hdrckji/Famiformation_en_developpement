@@ -821,7 +821,7 @@ if (!function_exists('ensureStudentDepartmentLinksTable')) {
 }
 
 if (!function_exists('sendMailViaSmtpSocket')) {
-    function sendMailViaSmtpSocket($to, $subject, $body, $isHtml = true, $textBody = null)
+    function sendMailViaSmtpSocket($to, $subject, $body, $isHtml = true, $textBody = null, array $attachments = [])
     {
         $host = famiGetEnv('SMTP_HOST', '');
         $port = (int) famiGetEnv('SMTP_PORT', 465);
@@ -928,6 +928,68 @@ if (!function_exists('sendMailViaSmtpSocket')) {
                 $messageBody = chunk_split(base64_encode((string) $body), 76, "\r\n");
             }
 
+            // Une piece jointe impose une enveloppe multipart/mixed AUTOUR de ce
+            // qui precede : le corps (simple ou alternatif) devient la premiere
+            // partie, les fichiers suivent. On ne touche donc pas au corps, on
+            // l'emballe.
+            $piecesUtiles = [];
+            foreach ($attachments as $piece) {
+                $contenu = (string) ($piece['contenu'] ?? '');
+                $nomPiece = trim((string) ($piece['nom'] ?? ''));
+                if ($contenu !== '' && $nomPiece !== '') {
+                    $piecesUtiles[] = ['contenu' => $contenu, 'nom' => $nomPiece,
+                                       'type' => (string) ($piece['type'] ?? 'application/octet-stream')];
+                }
+            }
+            if ($piecesUtiles) {
+                $typeCorps = '';
+                foreach ($headers as $i => $h) {
+                    if (stripos($h, 'Content-Type:') === 0) {
+                        $typeCorps = trim(substr($h, strlen('Content-Type:')));
+                        unset($headers[$i]);
+                    }
+                }
+                $encodageCorps = '';
+                foreach ($headers as $i => $h) {
+                    if (stripos($h, 'Content-Transfer-Encoding:') === 0) {
+                        $encodageCorps = trim(substr($h, strlen('Content-Transfer-Encoding:')));
+                        unset($headers[$i]);
+                    }
+                }
+                $headers = array_values($headers);
+
+                $mixte = 'famimix_' . bin2hex(random_bytes(12));
+                $headers[] = 'Content-Type: multipart/mixed; boundary="' . $mixte . '"';
+
+                $corps = '--' . $mixte . "
+"
+                    . 'Content-Type: ' . ($typeCorps !== '' ? $typeCorps : 'text/plain; charset=UTF-8') . "
+"
+                    . ($encodageCorps !== '' ? 'Content-Transfer-Encoding: ' . $encodageCorps . "
+" : '')
+                    . "
+" . $messageBody . "
+";
+
+                foreach ($piecesUtiles as $piece) {
+                    $corps .= '--' . $mixte . "
+"
+                        . 'Content-Type: ' . $piece['type'] . '; name="' . $piece['nom'] . "\"
+"
+                        . "Content-Transfer-Encoding: base64
+"
+                        . 'Content-Disposition: attachment; filename="' . $piece['nom'] . "\"
+
+"
+                        . chunk_split(base64_encode($piece['contenu']), 76, "
+") . "
+";
+                }
+                $corps .= '--' . $mixte . "--
+";
+                $messageBody = $corps;
+            }
+
             // base64 ne produit jamais de ligne trop longue ni de ligne commençant
             // par un point : plus rien à échapper avant l'envoi.
             $payload = implode("\r\n", $headers) . "\r\n\r\n" . $messageBody . "\r\n.\r\n";
@@ -953,7 +1015,17 @@ if (!function_exists('sendMailViaSmtpSocket')) {
 }
 
 if (!function_exists('sendMail')) {
-    function sendMail($to, $subject, $body, $isHtml = true)
+    /**
+     * @param array $attachments Pieces jointes : [['nom' => 'x.xlsx',
+     *        'contenu' => (octets), 'type' => 'application/...'], ...]
+     *
+     * Les octets sont passes en MEMOIRE, pas par un chemin de fichier : le
+     * classeur envoye a la validation du planning est fabrique a la volee et
+     * n'existe nulle part sur le disque. L'ecrire dans un fichier temporaire
+     * pour le relire aussitot ne servirait qu'a laisser trainer des plannings
+     * nominatifs sur le serveur.
+     */
+    function sendMail($to, $subject, $body, $isHtml = true, array $attachments = [])
     {
         setLastMailError('');
 
@@ -1041,6 +1113,19 @@ if (!function_exists('sendMail')) {
                 if ($isHtml) {
                     $mail->AltBody = $textBody;
                 }
+                foreach ($attachments as $piece) {
+                    $contenu = (string) ($piece['contenu'] ?? '');
+                    $nomPiece = trim((string) ($piece['nom'] ?? ''));
+                    if ($contenu === '' || $nomPiece === '') {
+                        continue;
+                    }
+                    $mail->addStringAttachment(
+                        $contenu,
+                        $nomPiece,
+                        PHPMailer\PHPMailer\PHPMailer::ENCODING_BASE64,
+                        (string) ($piece['type'] ?? 'application/octet-stream')
+                    );
+                }
                 return $mail->send();
             } catch (Throwable $e) {
                 $smtpError = trim((string) $e->getMessage());
@@ -1049,7 +1134,7 @@ if (!function_exists('sendMail')) {
                 }
                 setLastMailError($smtpError);
                 error_log('[FamiFormation] sendMail SMTP failed: ' . $smtpError);
-                if (sendMailViaSmtpSocket($to, $subject, $body, $isHtml, $textBody)) {
+                if (sendMailViaSmtpSocket($to, $subject, $body, $isHtml, $textBody, $attachments)) {
                     return true;
                 }
 

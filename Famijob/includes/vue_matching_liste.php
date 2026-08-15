@@ -417,6 +417,10 @@
             box-shadow: 0 -3px 0 var(--accent) inset;
         }
 
+        .etat-semaine { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px;
+            border-radius: 999px; font-size: .78rem; font-weight: 800; white-space: nowrap; align-self: end; }
+        .etat-prepa { background: #fff3d6; color: #8a5a00; border: 1px solid #f0d5a8; }
+        .etat-valide { background: #e7f6ea; color: #1d6a39; border: 1px solid #b7e0c1; }
         .modal-overlay {
             position: fixed;
             inset: 0;
@@ -580,6 +584,15 @@
                 <input type="hidden" name="matching_mode" value="<?php echo e($matchingMode); ?>">
                 <button type="submit" class="btn btn-soft"><?php echo e(fjhT('Afficher', 'Tonen')); ?></button>
             </form>
+
+            <?php // L'etat de la semaine se lit ici AUSSI. Il n'y a qu'un
+                  // planning : savoir s'il est arrete ne doit pas dependre de la
+                  // vue qu'on a choisie. La validation, elle, reste dans le
+                  // classeur — un seul endroit pour un geste irreversible. ?>
+            <span class="etat-semaine etat-<?php echo $etatSemaine['statut'] === 'valide' ? 'valide' : 'prepa'; ?>">
+                <?php echo $etatSemaine['statut'] === 'valide' ? '✔' : '✎'; ?>
+                <?php echo e(famijobLibelleStatutSemaine($etatSemaine['statut'])); ?>
+            </span>
             <?php if ($isAdmin): ?>
                 <form method="POST" style="display:flex;align-items:end;gap:10px;">
                     <?php echo csrfField(); ?>
