@@ -127,6 +127,20 @@ if (!$isAdmin) {
 // colonne : une saisie plus longue serait tronquee par MySQL sans rien dire.
 $commentaireAgence = mb_substr(trim((string) ($_POST['agency_comment'] ?? '')), 0, 500);
 
+// ── LE PLANNING VALIDE EST VERROUILLE ───────────────────────────────────────
+// Une semaine validee est une semaine dont les horaires sont PARTIS : chez les
+// etudiants, chez les agences. La modifier en douce ferait travailler des gens
+// sur un planning qui n'est plus celui qu'ils ont recu.
+//
+// On ne l'interdit pas pour autant — la vie change les plannings. Il faut
+// seulement le vouloir : « Modifier » rouvre la semaine, et la validation
+// suivante ne previendra QUE ceux dont l'horaire a change.
+//
+// ⚠️ Le verrou est teste dans le TRAITEMENT, pas seulement a l'affichage. Un
+// bouton cache n'empeche pas un POST.
+$etatSemaine = famijobStatutSemaine($db, $selectedWeek['start']);
+$planningVerrouille = ($etatSemaine['statut'] === 'valide');
+
 $message = '';
 $pendingConfirm = null; // Confirmation "modale" en attente (par nom ET par liste) : ['message','request_id','student_name','student_id','matching_mode']
 
@@ -681,6 +695,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             $message = "<div class='alert error'>Auto-matching semaine : aucune nouvelle affectation.</div>";
         }
+    }
+
+    // ── ROUVRIR UNE SEMAINE VALIDEE ──────────────────────────────────────
+    // Le meme emplacement que « Valider » : c'est le meme geste, dans l'autre
+    // sens. Les empreintes d'envoi ne sont PAS effacees — c'est ce qui permet
+    // au prochain envoi de ne toucher que les gens reellement impactes.
+    if ($isAdmin && isset($_POST['rouvrir_planning'])) {
+        famijobRouvrePlanningSemaine($db, $selectedWeek['start'], $currentUserId);
+        $etatSemaine = famijobStatutSemaine($db, $selectedWeek['start']);
+        $planningVerrouille = false;
+        $message .= "<div class='alert success'>Planning rouvert. Vous pouvez le modifier ;"
+                  . ' à la prochaine validation, seules les personnes concernées par un changement seront prévenues.</div>';
+    }
+
+    // ⚠️ TOUTE ECRITURE EST REFUSEE TANT QUE LA SEMAINE EST VALIDEE. Le test
+    // est ici, en amont des trois traitements (affecter, retirer, auto-matching)
+    // plutot que recopie dans chacun : un quatrieme traitement ajoute demain
+    // serait protege sans que personne ait a y penser.
+    $ecritureDemandee = isset($_POST['assign_student']) || isset($_POST['unassign_student'])
+        || isset($_POST['auto_match_request']) || isset($_POST['auto_match_week']);
+    if ($planningVerrouille && $ecritureDemandee) {
+        $message .= "<div class='alert error'>Ce planning est validé : les horaires sont déjà partis."
+                  . ' Cliquez sur <strong>Modifier</strong> pour le rouvrir.</div>';
+        $_POST = ['week' => $_POST['week'] ?? ''];
     }
 
     // ── VALIDER LE PLANNING DE LA SEMAINE ────────────────────────────────
@@ -1479,7 +1517,10 @@ foreach ($requests as $request) {
             // detaillee : ses propres gens, ou tout le monde pour un admin.
             // Le classeur ne montrait la croix qu'aux admins — une agence
             // pouvait placer quelqu'un sans pouvoir corriger son erreur.
-            'peutRetirer'   => ($a !== null) && ($isAdmin || famijobMemeAgence($agence, $agencyName)),
+            // Verrouille = on ne retire plus personne. La croix disparait pour
+            // tout le monde, y compris l'admin : c'est lui qui a valide.
+            'peutRetirer'   => ($a !== null) && !$planningVerrouille
+                               && ($isAdmin || famijobMemeAgence($agence, $agencyName)),
             'request_id'    => $rid,
             'seat'          => $i + 1,
             'assignment_id' => $a ? (int) $a['assignment_id'] : 0,
@@ -1643,10 +1684,11 @@ if (!in_array($vueMode, ['excel', 'liste'], true)) {
 // ici et pas seulement sur le bouton — une bascule cachee laisse l'URL ouverte.
 $peutChangerDeVue = !famijobEstCompteAgence($role);
 
-// L'etat de la semaine affichee : « En preparation » tant que personne n'a
-// tranche, « Valide » ensuite. C'est le meme mot dans le bandeau et dans les
-// mails, il n'est ecrit qu'a un endroit (includes/validation_planning.php).
+// ⚠️ RELECTURE DE L'ETAT. Il a ete lu avant les traitements, mais valider ou
+// rouvrir vient peut-etre de le changer : l'affichage doit montrer l'etat
+// d'APRES, pas celui d'avant le clic.
 $etatSemaine = famijobStatutSemaine($db, $selectedWeek['start']);
+$planningVerrouille = ($etatSemaine['statut'] === 'valide');
 if (!$peutChangerDeVue) {
     $vueMode = 'excel';
 }

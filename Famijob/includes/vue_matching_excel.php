@@ -70,6 +70,10 @@
 
     .place-libre { display: block; width: 100%; border: 1px dashed #b9cfc0; background: #fff; color: #2d5a37; border-radius: 5px; padding: 2px 4px; font-family: inherit; font-size: .66rem; font-weight: 700; cursor: pointer; text-align: center; overflow-wrap: anywhere; }
     .place-libre:hover { background: #eef7f0; border-color: #2d5a37; }
+    /* La meme place, planning arrete : toujours lisible comme « non pourvue »,
+       mais sans le pointille ni le « + » qui invitent a cliquer. */
+    .place-fermee { display: block; text-align: center; color: #9aa8a0; font-size: .66rem;
+        font-style: italic; padding: 2px 4px; }
     .occupe { display: flex; align-items: center; justify-content: space-between; gap: 5px; }
     /* Place prise dont le nom ne nous regarde pas. Elle doit se distinguer AU
        PREMIER COUP D'OEIL d'une place libre : c'est toute la difference entre
@@ -129,6 +133,11 @@
     .barre .act-valider { background: #1f7a3d; color: #fff; cursor: pointer; font-family: inherit;
         box-shadow: 0 2px 6px rgba(31,122,61,.28); }
     .barre .act-valider:hover { background: #19632f; }
+    /* Rouvrir n'est pas une action anodine mais ce n'est pas un envoi : ton plus
+       sobre que « Valider », pour qu'on ne confonde pas les deux au clic. */
+    .barre .act-modifier { background: #fff; color: #8a5a00; border-color: #e8d3a6;
+        cursor: pointer; font-family: inherit; }
+    .barre .act-modifier:hover { background: #fff8ec; border-color: #d8b976; }
     .etat-semaine { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px;
         border-radius: 999px; font-size: .78rem; font-weight: 800; white-space: nowrap; }
     .etat-prepa { background: #fff3d6; color: #8a5a00; border: 1px solid #f0d5a8; }
@@ -245,7 +254,7 @@
 
     <?php // L'auto-matching existe toujours dans le traitement : sans ce bouton,
           // la fonction serait devenue inatteignable en changeant d'écran. ?>
-    <?php if ($isAdmin): ?>
+    <?php if ($isAdmin && !$planningVerrouille): ?>
     <form method="POST" onsubmit="return confirm('<?php echo e(fjhT('Lancer l\'auto-matching sur toute la semaine ?', 'Auto-matching voor de hele week starten?')); ?>');">
         <?php echo csrfField(); ?>
         <input type="hidden" name="week" value="<?php echo e($selectedWeekKey); ?>">
@@ -297,20 +306,35 @@
         </span>
 
         <?php if ($isAdmin): ?>
-            <?php // Confirmation explicite : on ne renvoie pas des horaires a toute
-                  // une semaine d'etudiants et a leurs agences par un clic distrait.
-                  // Le texte annonce ce qui va PARTIR, pas ce qui va etre coche. ?>
-            <form method="POST" style="display:inline;" onsubmit="return confirm('<?php echo e($etatValide
-                    ? 'Ce planning est déjà validé. Renvoyer les horaires et les fichiers à tout le monde ?'
-                    : 'Valider le planning de la semaine ? Chaque étudiant recevra son horaire, chaque agence concernée son fichier.'); ?>');">
-                <?php echo csrfField(); ?>
-                <input type="hidden" name="week" value="<?php echo e($selectedWeekKey); ?>">
-                <button type="submit" name="valider_planning" value="1" class="act act-valider">
-                    <span class="act-ic">✔</span><?php echo e($etatValide
-                        ? fjhT('Renvoyer', 'Opnieuw versturen')
-                        : fjhT('Valider le planning', 'Planning valideren')); ?>
-                </button>
-            </form>
+            <?php // UN SEUL BOUTON, DEUX SENS. Valide, il devient « Modifier » —
+                  // c'est le meme geste dans l'autre sens, et le mettre au meme
+                  // endroit evite de chercher.
+                  //
+                  // Confirmation explicite dans les deux cas : on n'envoie pas
+                  // des horaires a toute une semaine d'etudiants, et on ne
+                  // rouvre pas un planning deja parti, par un clic distrait. Le
+                  // texte annonce ce qui va SE PASSER. ?>
+            <?php if ($etatValide): ?>
+                <form method="POST" style="display:inline;" onsubmit="return confirm('<?php echo e(
+                        'Rouvrir ce planning ? Les horaires sont déjà partis. À la prochaine validation, '
+                        . 'seules les personnes concernées par un changement seront prévenues.'); ?>');">
+                    <?php echo csrfField(); ?>
+                    <input type="hidden" name="week" value="<?php echo e($selectedWeekKey); ?>">
+                    <button type="submit" name="rouvrir_planning" value="1" class="act act-modifier">
+                        <span class="act-ic">✎</span><?php echo e(fjhT('Modifier', 'Wijzigen')); ?>
+                    </button>
+                </form>
+            <?php else: ?>
+                <form method="POST" style="display:inline;" onsubmit="return confirm('<?php echo e(
+                        'Valider le planning de la semaine ? Chaque étudiant concerné recevra son horaire, '
+                        . 'et chaque agence son fichier.'); ?>');">
+                    <?php echo csrfField(); ?>
+                    <input type="hidden" name="week" value="<?php echo e($selectedWeekKey); ?>">
+                    <button type="submit" name="valider_planning" value="1" class="act act-valider">
+                        <span class="act-ic">✔</span><?php echo e(fjhT('Valider le planning', 'Planning valideren')); ?>
+                    </button>
+                </form>
+            <?php endif; ?>
         <?php endif; ?>
 
         <?php // Export et avis : cette page est le SEUL ecran d'une agence, sans
@@ -459,6 +483,12 @@
                                           // comme telle ferait proposer la place une seconde
                                           // fois. D'ou le libelle et la couleur. ?>
                                     <span class="occupe-masque"><?php echo e(famijobLibelleOccupe()); ?></span>
+                                <?php elseif ($planningVerrouille): ?>
+                                    <?php // Planning arrete : la place reste visible comme non
+                                          // pourvue — c'est une information — mais elle ne
+                                          // s'ouvre plus. Un bouton qui repond « non » est pire
+                                          // qu'un bouton absent. ?>
+                                    <span class="place-fermee"><?php echo e(fjhT('à pourvoir', 'in te vullen')); ?></span>
                                 <?php else: ?>
                                     <?php // La case vide EST le bouton : c'est le geste du classeur,
                                           // on clique là où le nom doit apparaître.

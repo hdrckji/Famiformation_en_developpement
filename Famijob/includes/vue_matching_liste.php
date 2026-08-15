@@ -725,8 +725,9 @@
                                                                 // definition desormais : includes/confidentialite.php.
                                                                 $lecture = famijobNomLisible($studentName, $studentAgency, $role, $agencyName);
                                                                 $canSeeIdentity = !$lecture['masque'];
-                                                                $canUnassign = $isAdmin
-                                                                    || famijobMemeAgence($studentAgency, $agencyName);
+                                                                // Planning valide = plus personne ne bouge, admin compris.
+                                                                $canUnassign = !$planningVerrouille
+                                                                    && ($isAdmin || famijobMemeAgence($studentAgency, $agencyName));
                                                                 ?>
                                                                 <li>
                                                                     <?php if ($canSeeIdentity): ?>
@@ -768,6 +769,15 @@
                                                             </ul>
                                                         <?php endif; ?>
 
+                                                        <?php // Planning valide : plus de formulaire d'affectation.
+                                                              // Le laisser afficher serait proposer un geste que le
+                                                              // traitement refusera. ?>
+                                                        <?php if ($planningVerrouille): ?>
+                                                        <div class="slot-meta" style="padding:10px 0;font-style:italic;">
+                                                            <?php echo e(fjhT('Planning validé — cliquez sur « Modifier » dans la vue classeur pour le rouvrir.',
+                                                                              'Planning gevalideerd — klik op « Wijzigen » in de werkboekweergave om het te heropenen.')); ?>
+                                                        </div>
+                                                        <?php else: ?>
                                                         <form method="POST" class="fill-form">
                                                             <?php echo csrfField(); ?>
                                                             <input type="hidden" name="assign_student" value="1">
@@ -789,8 +799,9 @@
 
                                                             <button type="submit" class="btn btn-primary" style="width:100%;margin-top:10px;">Affecter</button>
                                                         </form>
+                                                        <?php endif; ?>
 
-                                                        <?php if ($isAdmin): ?>
+                                                        <?php if ($isAdmin && !$planningVerrouille): ?>
                                                             <form method="POST" style="margin-top:8px;">
                                                                 <?php echo csrfField(); ?>
                                                                 <input type="hidden" name="auto_match_request" value="1">

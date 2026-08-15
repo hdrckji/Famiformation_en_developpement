@@ -71,6 +71,97 @@ if (!function_exists('famijobAssurePlanningSemaine')) {
     }
 }
 
+if (!function_exists('famijobAssureEnvoisPlanning')) {
+    /**
+     * Ce qui a DEJA ete envoye, et sous quelle forme.
+     *
+     * ⚠️ C'EST CETTE TABLE QUI PERMET DE NE PAS SPAMMER. A la revalidation, on
+     * recalcule l'empreinte de ce que chacun devrait recevoir et on la compare a
+     * celle enregistree : identique, on n'ecrit pas. Sans elle, corriger un
+     * seul creneau le jeudi renverrait son horaire a toute l'entreprise — et au
+     * troisieme envoi, plus personne ne les ouvre.
+     *
+     * `cible` est une cle stable : « etu:12 », « ext:jean dupont »,
+     * « ag:randstad », « interne ».
+     */
+    function famijobAssureEnvoisPlanning(PDO $db)
+    {
+        static $fait = false;
+        if ($fait) {
+            return;
+        }
+        $db->exec(
+            "CREATE TABLE IF NOT EXISTS interim_planning_envois (
+                week_start DATE NOT NULL,
+                cible VARCHAR(120) NOT NULL,
+                empreinte CHAR(40) NOT NULL,
+                envoye_le DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (week_start, cible)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+        );
+        $fait = true;
+    }
+}
+
+if (!function_exists('famijobEmpreintesEnvoyees')) {
+    /** Les empreintes deja envoyees pour cette semaine : [cible => empreinte]. */
+    function famijobEmpreintesEnvoyees(PDO $db, DateTimeImmutable $weekStart)
+    {
+        famijobAssureEnvoisPlanning($db);
+        $out = [];
+        try {
+            $st = $db->prepare('SELECT cible, empreinte FROM interim_planning_envois WHERE week_start = ?');
+            $st->execute([$weekStart->format('Y-m-d')]);
+            foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $l) {
+                $out[(string) $l['cible']] = (string) $l['empreinte'];
+            }
+        } catch (Exception $e) {
+            // Table absente : on considere que rien n'a ete envoye. Un envoi de
+            // trop vaut mieux qu'un horaire que personne ne recoit.
+        }
+        return $out;
+    }
+}
+
+if (!function_exists('famijobNoteEnvoi')) {
+    /** Enregistre ce qui vient de partir, pour ne pas le renvoyer a l'identique. */
+    function famijobNoteEnvoi(PDO $db, DateTimeImmutable $weekStart, $cible, $empreinte)
+    {
+        famijobAssureEnvoisPlanning($db);
+        try {
+            $db->prepare(
+                'INSERT INTO interim_planning_envois (week_start, cible, empreinte, envoye_le)
+                 VALUES (?, ?, ?, NOW())
+                 ON DUPLICATE KEY UPDATE empreinte = VALUES(empreinte), envoye_le = NOW()'
+            )->execute([$weekStart->format('Y-m-d'), (string) $cible, (string) $empreinte]);
+        } catch (Exception $e) {
+            // Sans trace, le prochain envoi repartira : c'est le bon sens de
+            // l'erreur.
+        }
+    }
+}
+
+if (!function_exists('famijobRouvrePlanningSemaine')) {
+    /**
+     * Rouvre une semaine validee.
+     *
+     * ⚠️ ON NE TOUCHE PAS AUX EMPREINTES. C'est tout l'interet : apres
+     * modification, seuls ceux dont l'horaire a CHANGE recevront un nouveau
+     * mail. Les effacer ici reviendrait a tout renvoyer a la prochaine
+     * validation, ce qu'on cherche precisement a eviter.
+     */
+    function famijobRouvrePlanningSemaine(PDO $db, DateTimeImmutable $weekStart, $userId)
+    {
+        famijobAssurePlanningSemaine($db);
+        $db->prepare(
+            "INSERT INTO interim_planning_semaine (week_start, statut, valide_par_user_id, valide_le)
+             VALUES (?, 'preparation', ?, NULL)
+             ON DUPLICATE KEY UPDATE statut = 'preparation'"
+        )->execute([$weekStart->format('Y-m-d'), (int) $userId > 0 ? (int) $userId : null]);
+        return true;
+    }
+}
+
 if (!function_exists('famijobStatutSemaine')) {
     /**
      * @return array ['statut' => 'preparation'|'valide', 'le' => string, 'par' => string]
@@ -282,6 +373,13 @@ if (!function_exists('famijobValidePlanningSemaine')) {
             return $rapport;
         }
 
+        // Ce qui est DEJA parti, et sous quelle forme. Une empreinte identique
+        // = rien n'a change pour cette personne = on ne lui reecrit pas.
+        $dejaEnvoye = famijobEmpreintesEnvoyees($db, $weekStart);
+        $inchange = static function ($cible, $empreinte) use ($dejaEnvoye) {
+            return isset($dejaEnvoye[$cible]) && $dejaEnvoye[$cible] === $empreinte;
+        };
+
         $modeTest = famijobScheduleMailIsTestMode();
         $adresseTest = famijobScheduleMailTestRecipient();
 
@@ -324,6 +422,22 @@ if (!function_exists('famijobValidePlanningSemaine')) {
                 $rapport['ignores'][] = $p['nom'] . ' : pas d\'adresse e-mail';
                 continue;
             }
+
+            // L'empreinte porte sur CE QU'IL VA LIRE : ses creneaux, tries. Si
+            // on lui a deja envoye exactement ca, il n'apprendrait rien.
+            $cible = 'etu:' . $p['student_id'];
+            $lignes = [];
+            foreach ($p['shifts'] as $s) {
+                $lignes[] = $s['date'] . '|' . $s['horaire'] . '|' . $s['departement'];
+            }
+            sort($lignes);
+            $empreinte = sha1(implode("\n", $lignes));
+
+            if ($inchange($cible, $empreinte)) {
+                $rapport['ignores'][] = $p['nom'] . ' : horaire inchangé';
+                continue;
+            }
+
             list($ok, $err) = $envoie(
                 [$p['email']],
                 'Ton horaire — semaine du ' . $periode,
@@ -331,6 +445,7 @@ if (!function_exists('famijobValidePlanningSemaine')) {
             );
             if ($ok) {
                 $rapport['ok'][] = $p['nom'];
+                famijobNoteEnvoi($db, $weekStart, $cible, $empreinte);
             } else {
                 $rapport['ko'][] = $p['nom'] . ' — ' . $err;
             }
@@ -365,6 +480,16 @@ if (!function_exists('famijobValidePlanningSemaine')) {
                 'role'            => 'agence_interim',   // masque les noms des autres agences
                 'seulementAgence' => true,               // et ne garde que ses creneaux
             ]);
+            // L'empreinte de l'agence porte sur le CONTENU DU FICHIER qu'elle
+            // recevrait. C'est plus juste qu'une liste de noms : un horaire
+            // deplace d'une heure ne change pas la liste, mais change le fichier.
+            $cibleAg = 'ag:' . mb_strtolower($bloc['nom']);
+            $empreinteAg = sha1(json_encode($donnees));
+            if ($inchange($cibleAg, $empreinteAg)) {
+                $rapport['ignores'][] = 'Agence ' . $bloc['nom'] . ' : planning inchangé';
+                continue;
+            }
+
             $fichier = famijobSemaineXlsx($weekStart, $donnees['deptNames'], $donnees['byDept']);
             $pieces = [];
             if (is_string($fichier) && $fichier !== '') {
@@ -389,6 +514,7 @@ if (!function_exists('famijobValidePlanningSemaine')) {
             );
             if ($ok) {
                 $rapport['ok'][] = 'Agence ' . $bloc['nom'] . ' (' . count($bloc['gens']) . ')';
+                famijobNoteEnvoi($db, $weekStart, $cibleAg, $empreinteAg);
             } else {
                 $rapport['ko'][] = 'Agence ' . $bloc['nom'] . ' — ' . $err;
             }
@@ -398,8 +524,23 @@ if (!function_exists('famijobValidePlanningSemaine')) {
         $interne = famijobFamifloraFallbackEmail();
         if ($interne === '') {
             $rapport['ignores'][] = 'Envoi interne : FAMIJOB_HORAIRE_MAIL_FAMIFLORA n\'est pas renseignée';
-        } else {
-            $donnees = famijobSemaineDonnees($db, $weekStart, ['role' => 'admin']);
+        }
+
+        // Variable dediee : « $donnees » servait deja dans la boucle des agences,
+        // et la reutiliser ici rendait le code faux a la premiere relecture.
+        $donneesInternes = null;
+        $empreinteInterne = '';
+        if ($interne !== '') {
+            $donneesInternes = famijobSemaineDonnees($db, $weekStart, ['role' => 'admin']);
+            $empreinteInterne = sha1(json_encode($donneesInternes));
+            if ($inchange('interne', $empreinteInterne)) {
+                $rapport['ignores'][] = 'Service interne : planning inchangé';
+                $donneesInternes = null;
+            }
+        }
+
+        if ($donneesInternes !== null) {
+            $donnees = $donneesInternes;
             $fichier = famijobSemaineXlsx($weekStart, $donnees['deptNames'], $donnees['byDept']);
             $pieces = [[
                 'nom'     => 'planning_complet_' . $weekStart->format('Y-m-d')
@@ -419,6 +560,7 @@ if (!function_exists('famijobValidePlanningSemaine')) {
             list($ok, $err) = $envoie([$interne], 'Planning complet — semaine du ' . $periode, $corps, $pieces);
             if ($ok) {
                 $rapport['ok'][] = 'Service interne';
+                famijobNoteEnvoi($db, $weekStart, 'interne', $empreinteInterne);
             } else {
                 $rapport['ko'][] = 'Service interne — ' . $err;
             }

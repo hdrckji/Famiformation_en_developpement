@@ -961,31 +961,44 @@ if (!function_exists('sendMailViaSmtpSocket')) {
                 $mixte = 'famimix_' . bin2hex(random_bytes(12));
                 $headers[] = 'Content-Type: multipart/mixed; boundary="' . $mixte . '"';
 
-                $corps = '--' . $mixte . "
+                $corps = '--' . $mixte . "
+
 "
-                    . 'Content-Type: ' . ($typeCorps !== '' ? $typeCorps : 'text/plain; charset=UTF-8') . "
+                    . 'Content-Type: ' . ($typeCorps !== '' ? $typeCorps : 'text/plain; charset=UTF-8') . "
+
 "
-                    . ($encodageCorps !== '' ? 'Content-Transfer-Encoding: ' . $encodageCorps . "
+                    . ($encodageCorps !== '' ? 'Content-Transfer-Encoding: ' . $encodageCorps . "
+
 " : '')
-                    . "
-" . $messageBody . "
+                    . "
+
+" . $messageBody . "
+
 ";
 
                 foreach ($piecesUtiles as $piece) {
-                    $corps .= '--' . $mixte . "
+                    $corps .= '--' . $mixte . "
+
 "
-                        . 'Content-Type: ' . $piece['type'] . '; name="' . $piece['nom'] . "\"
+                        . 'Content-Type: ' . $piece['type'] . '; name="' . $piece['nom'] . "\"
+
 "
-                        . "Content-Transfer-Encoding: base64
+                        . "Content-Transfer-Encoding: base64
+
 "
-                        . 'Content-Disposition: attachment; filename="' . $piece['nom'] . "\"
-
+                        . 'Content-Disposition: attachment; filename="' . $piece['nom'] . "\"
+
+
+
 "
-                        . chunk_split(base64_encode($piece['contenu']), 76, "
-") . "
+                        . chunk_split(base64_encode($piece['contenu']), 76, "
+
+") . "
+
 ";
                 }
-                $corps .= '--' . $mixte . "--
+                $corps .= '--' . $mixte . "--
+
 ";
                 $messageBody = $corps;
             }
@@ -1143,7 +1156,10 @@ if (!function_exists('sendMail')) {
         }
 
         if ($smtpConfigured) {
-            if (sendMailViaSmtpSocket($to, $subject, $body, $isHtml, $textBody)) {
+            // ⚠️ $attachments ETAIT OUBLIE ICI. C'est ce chemin qui sert quand
+            // PHPMailer n'est pas trouve (vendor/ ailleurs que dans famijob/) :
+            // le mail partait, sans sa piece jointe, et rien ne le signalait.
+            if (sendMailViaSmtpSocket($to, $subject, $body, $isHtml, $textBody, $attachments)) {
                 return true;
             }
 
@@ -1166,6 +1182,13 @@ if (!function_exists('sendMail')) {
         // Comme pour l'envoi SMTP : base64 pour ne jamais dépasser la limite de
         // 998 octets par ligne, et sujet encodé pour que les accents passent.
         $headers .= 'Content-Transfer-Encoding: base64' . "\r\n";
+
+        // Dernier recours : mail() ne sait pas joindre de fichier ici. On le DIT
+        // plutot que d'envoyer un mail qui promet une piece jointe absente.
+        if ($attachments) {
+            setLastMailError('Pièce jointe impossible sans SMTP : configurez SMTP_HOST / SMTP_USER / SMTP_PASS.');
+            return false;
+        }
 
         $mailSent = mail(
             $to,
