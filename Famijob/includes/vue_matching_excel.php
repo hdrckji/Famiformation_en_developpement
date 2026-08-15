@@ -95,6 +95,10 @@
        un fichier, l'autre envoie un message. Ce ne sont pas des liens vers une
        page de plus. */
     .bandeau-nav { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    /* La sortie ne se confond pas avec la navigation : c'est la seule pastille
+       qui ne mene pas a un autre ecran du meme travail. */
+    .pill-sortie { background: rgba(0,0,0,.18); border-color: rgba(255,255,255,.3); }
+    .pill-sortie:hover { background: rgba(0,0,0,.3); }
 
     /* ── LES DEUX ACTIONS DE LA BARRE BLANCHE ─────────────────────────────
        Meme hauteur que les menus deroulants a cote (34 px) : deux boutons qui
@@ -156,12 +160,21 @@
           // barre blanche, avec les filtres, calees a droite au-dessus de
           // dimanche. Les mettre ici les noyait dans le degrade vert — un
           // bouton vert sur fond vert ne se voit pas. ?>
-    <?php if (!famijobEstCompteAgence($role)): ?>
     <div class="bandeau-nav">
-        <a class="pill" href="interim_horaires_demandes.php"><?php echo e(fjhT('Demandes', 'Aanvragen')); ?></a>
-        <a class="pill" href="index.php">&larr; <?php echo e(fjhT('Accueil', 'Onthaal')); ?></a>
+        <?php if (!famijobEstCompteAgence($role)): ?>
+            <a class="pill" href="interim_horaires_demandes.php"><?php echo e(fjhT('Demandes', 'Aanvragen')); ?></a>
+            <a class="pill" href="index.php">&larr; <?php echo e(fjhT('Accueil', 'Onthaal')); ?></a>
+        <?php endif; ?>
+
+        <?php // ⚠️ LA DECONNEXION MANQUAIT A TOUT LE MONDE ICI. La vue detaillee
+              // porte le ruban FamiJob, qui en contient une ; ce classeur, non.
+              // Un admin s'en sortait en passant par l'accueil — une agence,
+              // elle, n'a pas d'accueil : cette page etait la seule qu'elle
+              // voyait, et il n'y avait aucun moyen d'en sortir. ?>
+        <a class="pill pill-sortie" href="logout.php">
+            ⏻ <?php echo e(fjhT('Se déconnecter', 'Uitloggen')); ?>
+        </a>
     </div>
-    <?php endif; ?>
 </div>
 
 <div class="barre">
