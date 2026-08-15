@@ -255,60 +255,69 @@
     </form>
     <?php endif; ?>
 
-    <?php // ── L'ETAT DE LA SEMAINE, ET LE GESTE QUI L'ARRETE ───────────────
-          // Tout a droite, au-dessus de dimanche, sur la ligne de
-          // l'auto-matching. Valider n'est pas un filtre : c'est la fin du
-          // travail de la semaine, et c'est de la que partent les mails.
+    <?php // ── TOUT A DROITE : L'ETAT DE LA SEMAINE, PUIS LES ACTIONS ───────
+          // Un seul bloc, cale au bout de la barre par « margin-left:auto » —
+          // les filtres s'allongent ou raccourcissent selon qu'un secteur est
+          // choisi, une position fixe aurait fait danser les boutons d'un ecran
+          // a l'autre. Regroupes pour passer a la ligne ENSEMBLE sur un ecran
+          // etroit, au lieu de se separer.
           //
-          // La pastille d'etat est TOUJOURS visible, meme une fois validee :
-          // « je peux encore modifier » et « c'est parti chez les agences » ne
-          // sont pas la meme situation, et rien d'autre ne le dit. ?>
-    <?php if ($isAdmin): ?>
+          // ⚠️ LA PASTILLE D'ETAT EST POUR TOUT LE MONDE, AGENCES COMPRISES.
+          // C'est l'information la plus utile de la page pour un fournisseur :
+          // « en préparation » veut dire que ce qu'il lit peut encore bouger et
+          // qu'aucun mail n'est parti ; « validé » veut dire que c'est arrete et
+          // que ses gens ont ete prevenus. Sans elle, une agence ne peut pas
+          // savoir si le tableau qu'elle regarde est un brouillon.
+          //
+          // Le BOUTON, lui, reste aux admins : une agence ne decide pas que la
+          // semaine de Famiflora est finie. ?>
+    <?php
+    $etatValide = ($etatSemaine['statut'] === 'valide');
+    if ($etatValide) {
+        $infoEtat = 'Planning arrêté';
+        if ($etatSemaine['le'] !== '') {
+            $infoEtat .= ' le ' . date('d/m/Y à H:i', strtotime($etatSemaine['le']));
+        }
+        if ($isAdmin) {
+            if ($etatSemaine['par'] !== '') { $infoEtat .= ' par ' . $etatSemaine['par']; }
+            $infoEtat .= ' — ' . $etatSemaine['envois_ok'] . ' envoi(s) partis';
+            if ($etatSemaine['envois_ko'] > 0) { $infoEtat .= ', ' . $etatSemaine['envois_ko'] . ' en échec'; }
+        } else {
+            $infoEtat .= ' — les personnes concernées ont été prévenues';
+        }
+    } else {
+        $infoEtat = 'Le planning de cette semaine peut encore changer. Aucun horaire n\'a été envoyé.';
+    }
+    ?>
     <div class="barre-actions">
-        <span class="etat-semaine etat-<?php echo $etatSemaine['statut'] === 'valide' ? 'valide' : 'prepa'; ?>"
-              <?php if ($etatSemaine['statut'] === 'valide' && $etatSemaine['le'] !== ''): ?>
-              title="<?php echo e('Validé le ' . date('d/m/Y à H:i', strtotime($etatSemaine['le']))
-                      . ($etatSemaine['par'] !== '' ? ' par ' . $etatSemaine['par'] : '')
-                      . ' — ' . $etatSemaine['envois_ok'] . ' envoi(s) partis'
-                      . ($etatSemaine['envois_ko'] > 0 ? ', ' . $etatSemaine['envois_ko'] . ' en echec' : '')); ?>"
-              <?php endif; ?>>
-            <?php echo $etatSemaine['statut'] === 'valide' ? '✔' : '✎'; ?>
+        <span class="etat-semaine etat-<?php echo $etatValide ? 'valide' : 'prepa'; ?>"
+              title="<?php echo e($infoEtat); ?>">
+            <?php echo $etatValide ? '✔' : '✎'; ?>
             <?php echo e(famijobLibelleStatutSemaine($etatSemaine['statut'])); ?>
         </span>
 
-        <?php // Confirmation explicite : on ne renvoie pas des horaires a toute
-              // une semaine d'etudiants et a leurs agences par un clic distrait.
-              // Le texte annonce ce qui va PARTIR, pas ce qui va etre coche. ?>
-        <form method="POST" onsubmit="return confirm('<?php echo e($etatSemaine['statut'] === 'valide'
-                ? 'Ce planning est déjà validé. Renvoyer les horaires et les fichiers à tout le monde ?'
-                : 'Valider le planning de la semaine ? Chaque étudiant recevra son horaire, chaque agence concernée son fichier.'); ?>');">
-            <?php echo csrfField(); ?>
-            <input type="hidden" name="week" value="<?php echo e($selectedWeekKey); ?>">
-            <button type="submit" name="valider_planning" value="1" class="act act-valider">
-                <span class="act-ic">✔</span><?php echo e($etatSemaine['statut'] === 'valide'
-                    ? fjhT('Renvoyer', 'Opnieuw versturen')
-                    : fjhT('Valider le planning', 'Planning valideren')); ?>
-            </button>
-        </form>
-    </div>
-    <?php endif; ?>
+        <?php if ($isAdmin): ?>
+            <?php // Confirmation explicite : on ne renvoie pas des horaires a toute
+                  // une semaine d'etudiants et a leurs agences par un clic distrait.
+                  // Le texte annonce ce qui va PARTIR, pas ce qui va etre coche. ?>
+            <form method="POST" style="display:inline;" onsubmit="return confirm('<?php echo e($etatValide
+                    ? 'Ce planning est déjà validé. Renvoyer les horaires et les fichiers à tout le monde ?'
+                    : 'Valider le planning de la semaine ? Chaque étudiant recevra son horaire, chaque agence concernée son fichier.'); ?>');">
+                <?php echo csrfField(); ?>
+                <input type="hidden" name="week" value="<?php echo e($selectedWeekKey); ?>">
+                <button type="submit" name="valider_planning" value="1" class="act act-valider">
+                    <span class="act-ic">✔</span><?php echo e($etatValide
+                        ? fjhT('Renvoyer', 'Opnieuw versturen')
+                        : fjhT('Valider le planning', 'Planning valideren')); ?>
+                </button>
+            </form>
+        <?php endif; ?>
 
-    <?php // ── LES DEUX ACTIONS, POUR LES AGENCES SEULEMENT ─────────────────
-          // Cette page est le seul ecran d'une agence : sans ces deux boutons,
-          // elle n'aurait aucun moyen d'emporter son planning ni d'ecrire a
-          // l'equipe.
-          //
-          // Famiflora, elle, les a deja ailleurs et mieux placees : l'export
-          // dans la vue horaire — l'ecran de consultation, celui qu'on imprime
-          // et qu'on envoie — et les avis sur l'accueil FamiJob. Les repeter
-          // ici n'ajoutait rien et chargeait la barre.
-          //
-          // « margin-left:auto » les pousse au bout : les filtres s'allongent ou
-          // raccourcissent selon qu'un secteur est choisi, une position fixe les
-          // aurait fait danser d'un ecran a l'autre. Regroupees dans un meme
-          // bloc pour passer a la ligne ENSEMBLE sur un ecran etroit. ?>
-    <?php if (famijobEstCompteAgence($role)): ?>
-    <div class="barre-actions">
+        <?php // Export et avis : cette page est le SEUL ecran d'une agence, sans
+              // eux elle n'aurait aucun moyen d'emporter son planning ni d'ecrire
+              // a l'equipe. Famiflora les a deja ailleurs et mieux places —
+              // l'export dans la vue horaire, les avis sur l'accueil FamiJob. ?>
+        <?php if (famijobEstCompteAgence($role)): ?>
         <?php // L'export suit les filtres affiches : exporter autre chose que ce
               // qu'on regarde est le meilleur moyen de diffuser un planning faux. ?>
         <a class="act act-export" href="export_matching.php?week=<?php echo e($selectedWeekKey); ?><?php
@@ -322,8 +331,8 @@
            title="<?php echo e(fjhT('Écrire à l\'équipe : question, idée, souci', 'Schrijf het team: vraag, idee, probleem')); ?>">
             <span class="act-ic">💬</span><?php echo e(fjhT('Avis & suggestions', 'Feedback')); ?>
         </a>
+        <?php endif; ?>
     </div>
-    <?php endif; ?>
 </div>
 
 <?php if (!empty($message)) { echo $message; } ?>
