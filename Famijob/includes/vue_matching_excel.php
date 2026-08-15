@@ -161,9 +161,16 @@
           // dimanche. Les mettre ici les noyait dans le degrade vert — un
           // bouton vert sur fond vert ne se voit pas. ?>
     <div class="bandeau-nav">
+        <?php // « Demandes » est parti : l'accueil FamiJob y mene deja, et une
+              // pastille de plus dans un bandeau n'est pas une navigation, c'est
+              // un raccourci de plus a lire.
+              //
+              // « Accueil » sans la fleche : elle disait « retour », alors que
+              // c'est un aller vers un autre ecran.
+              //
+              // Rien de tout ca pour une agence : elle n'a pas d'accueil. ?>
         <?php if (!famijobEstCompteAgence($role)): ?>
-            <a class="pill" href="interim_horaires_demandes.php"><?php echo e(fjhT('Demandes', 'Aanvragen')); ?></a>
-            <a class="pill" href="index.php">&larr; <?php echo e(fjhT('Accueil', 'Onthaal')); ?></a>
+            <a class="pill" href="index.php"><?php echo e(fjhT('Accueil', 'Onthaal')); ?></a>
         <?php endif; ?>
 
         <?php // ⚠️ LA DECONNEXION MANQUAIT A TOUT LE MONDE ICI. La vue detaillee
@@ -238,13 +245,21 @@
     </form>
     <?php endif; ?>
 
-    <?php // ── LES DEUX ACTIONS, TOUT A DROITE ──────────────────────────────
-          // « margin-left:auto » les pousse au bout de la barre : les filtres
-          // s'allongent ou raccourcissent selon qu'un secteur est choisi, une
-          // position fixe les aurait fait danser d'un ecran a l'autre.
+    <?php // ── LES DEUX ACTIONS, POUR LES AGENCES SEULEMENT ─────────────────
+          // Cette page est le seul ecran d'une agence : sans ces deux boutons,
+          // elle n'aurait aucun moyen d'emporter son planning ni d'ecrire a
+          // l'equipe.
           //
-          // Regroupees dans un meme bloc pour qu'elles passent A LA LIGNE
-          // ENSEMBLE sur un ecran etroit, au lieu de se separer. ?>
+          // Famiflora, elle, les a deja ailleurs et mieux placees : l'export
+          // dans la vue horaire — l'ecran de consultation, celui qu'on imprime
+          // et qu'on envoie — et les avis sur l'accueil FamiJob. Les repeter
+          // ici n'ajoutait rien et chargeait la barre.
+          //
+          // « margin-left:auto » les pousse au bout : les filtres s'allongent ou
+          // raccourcissent selon qu'un secteur est choisi, une position fixe les
+          // aurait fait danser d'un ecran a l'autre. Regroupees dans un meme
+          // bloc pour passer a la ligne ENSEMBLE sur un ecran etroit. ?>
+    <?php if (famijobEstCompteAgence($role)): ?>
     <div class="barre-actions">
         <?php // L'export suit les filtres affiches : exporter autre chose que ce
               // qu'on regarde est le meilleur moyen de diffuser un planning faux. ?>
@@ -260,6 +275,7 @@
             <span class="act-ic">💬</span><?php echo e(fjhT('Avis & suggestions', 'Feedback')); ?>
         </a>
     </div>
+    <?php endif; ?>
 </div>
 
 <?php if (!empty($message)) { echo $message; } ?>
