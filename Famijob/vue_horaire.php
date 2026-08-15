@@ -337,15 +337,64 @@ foreach ($byDeptDay as $departmentName => $byDay) {
             color:#2d5a37; border:1px solid #cfdad3; font-weight:800; font-size:.92rem;
             padding:11px 18px; border-radius:12px; }
         .btn-vue:hover { border-color:#2d5a37; }
+        /* -- LE PANNEAU D'EXPORT ------------------------------------------
+           ATTENTION : les !important ci-dessous sont necessaires. Cette page
+           pose deux regles GLOBALES, ecrites pour les menus de la barre de
+           filtres :
+               label { display:block; text-transform:uppercase; letter-spacing }
+               input { width:100%; padding:10px 11px; border-radius:12px }
+           Elles frappaient aussi les cases du panneau : chaque nom de secteur
+           sortait en majuscules grises espacees, et chaque case a cocher
+           devenait un rectangle pleine largeur de 40 px de haut. C'est ce qui
+           rendait la fenetre illisible. On les neutralise ici, dans le panneau
+           seulement. */
         .export-choix { position: relative; }
-        .export-choix summary { list-style: none; cursor: pointer; }
-        .export-choix summary::-webkit-details-marker { display: none; }
-        .export-panneau { position: absolute; right: 0; top: calc(100% + 8px); z-index: 30;
-            background: #fff; border: 1px solid #d8e2db; border-radius: 14px; padding: 14px 16px;
-            box-shadow: 0 14px 34px rgba(22,49,33,.18); min-width: 260px; }
-        .export-titre { margin: 0 0 2px; font-weight: 800; font-size: .9rem; }
-        .export-aide { margin: 0 0 10px; color: var(--muted); font-size: .78rem; }
-        .export-case { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: .88rem; cursor: pointer; }
+        .export-choix > summary { list-style: none; cursor: pointer; }
+        .export-choix > summary::-webkit-details-marker { display: none; }
+        .export-panneau {
+            position: absolute; right: 0; top: calc(100% + 10px); z-index: 40;
+            width: 380px; max-width: calc(100vw - 40px);
+            background: #fff; border: 1px solid #d8e2db; border-radius: 16px;
+            box-shadow: 0 18px 44px rgba(22,49,33,.22);
+        }
+        /* La fleche qui rattache le panneau a son bouton : sans elle il
+           flottait au-dessus de la barre sans qu'on voie d'ou il sortait. */
+        .export-panneau::before {
+            content: ''; position: absolute; top: -7px; right: 26px; width: 12px; height: 12px;
+            background: #fff; border-left: 1px solid #d8e2db; border-top: 1px solid #d8e2db;
+            transform: rotate(45deg);
+        }
+        .export-tete { padding: 14px 16px 11px; border-bottom: 1px solid #edf2ee; }
+        .export-titre { margin: 0; font-weight: 800; font-size: .95rem; color: var(--text);
+            text-transform: none; letter-spacing: 0; }
+        .export-aide { margin: 3px 0 0; color: var(--muted); font-size: .78rem; line-height: 1.45; }
+
+        /* DEUX COLONNES : neuf secteurs empiles faisaient une colonne
+           interminable qu'il fallait parcourir de haut en bas. */
+        .export-liste { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 8px;
+            padding: 10px 12px; max-height: 260px; overflow-y: auto; }
+        .export-case {
+            display: flex !important; align-items: center; gap: 8px;
+            margin: 0 !important; padding: 7px 8px; border-radius: 9px; cursor: pointer;
+            font-size: .85rem; font-weight: 600; line-height: 1.25;
+            color: var(--text) !important; text-transform: none !important; letter-spacing: 0 !important;
+        }
+        .export-case:hover { background: var(--accent-soft); }
+        .export-case input[type=checkbox] {
+            width: 16px !important; height: 16px; flex: 0 0 16px;
+            padding: 0 !important; margin: 0; border-radius: 4px !important; accent-color: #1f7a3d;
+        }
+        /* Le secteur coche se voit du premier coup d'oeil : celui qu'on regarde
+           a l'ecran part coche par defaut. */
+        .export-case.est-coche { background: #e8f4ec; }
+
+        .export-pied { display: flex; align-items: center; gap: 10px;
+            padding: 11px 14px; border-top: 1px solid #edf2ee; background: #fafcfb;
+            border-radius: 0 0 16px 16px; }
+        .export-tout { background: none; border: none; padding: 0; cursor: pointer;
+            color: var(--accent); font-weight: 700; font-size: .8rem; text-decoration: underline;
+            font-family: inherit; }
+        .export-pied .btn { margin-left: auto; padding: 10px 18px; }
         label { display: block; margin-bottom: 6px; font-size: 0.82rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 700; }
         input, select { width: 100%; box-sizing: border-box; border: 1px solid #cfdad3; border-radius: 12px; padding: 10px 11px; font-size: 0.95rem; font-family: inherit; background: #fff; }
         .btn { border: none; border-radius: 12px; padding: 10px 14px; font-weight: 700; cursor: pointer; font-size: 0.9rem; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
@@ -488,26 +537,35 @@ foreach ($byDeptDay as $departmentName => $byDay) {
               // ca se referme tout seul. ?>
         <details class="export-choix">
             <summary class="btn-export">↓ <?php echo e(fjvhT('Exporter Excel', 'Naar Excel')); ?></summary>
-            <form method="get" action="export_matching.php" class="export-panneau">
+            <form method="get" action="export_matching.php" class="export-panneau" id="exportPanneau">
                 <input type="hidden" name="week" value="<?php echo e($selectedWeekKey); ?>">
                 <?php if ($selectedDepartment !== 'all'): ?>
                     <input type="hidden" name="department" value="<?php echo e($selectedDepartment); ?>">
                 <?php endif; ?>
 
-                <p class="export-titre"><?php echo e(fjvhT('Quels secteurs exporter ?', 'Welke sectoren exporteren?')); ?></p>
-                <p class="export-aide"><?php echo e(fjvhT('Aucune case cochée = tous les secteurs.', 'Geen vakje aangevinkt = alle sectoren.')); ?></p>
+                <div class="export-tete">
+                    <p class="export-titre"><?php echo e(fjvhT('Quels secteurs exporter ?', 'Welke sectoren exporteren?')); ?></p>
+                    <p class="export-aide"><?php echo e(fjvhT('Aucune case cochée : tous les secteurs partent dans le fichier.', 'Geen vakje aangevinkt: alle sectoren gaan mee in het bestand.')); ?></p>
+                </div>
 
-                <?php foreach ($vhSecteurs as $nomSecteur): ?>
-                    <label class="export-case">
-                        <input type="checkbox" name="secteurs[]" value="<?php echo e($nomSecteur); ?>"
-                               <?php echo $selectedSecteur === $nomSecteur ? 'checked' : ''; ?>>
-                        <?php echo e($nomSecteur); ?>
-                    </label>
-                <?php endforeach; ?>
+                <div class="export-liste">
+                    <?php foreach ($vhSecteurs as $nomSecteur): ?>
+                        <label class="export-case<?php echo $selectedSecteur === $nomSecteur ? ' est-coche' : ''; ?>">
+                            <input type="checkbox" name="secteurs[]" value="<?php echo e($nomSecteur); ?>"
+                                   <?php echo $selectedSecteur === $nomSecteur ? 'checked' : ''; ?>>
+                            <span><?php echo e($nomSecteur); ?></span>
+                        </label>
+                    <?php endforeach; ?>
+                </div>
 
-                <button type="submit" class="btn btn-primary" style="margin-top:10px; width:100%;">
-                    <?php echo e(fjvhT('Télécharger', 'Downloaden')); ?>
-                </button>
+                <div class="export-pied">
+                    <?php // Neuf secteurs coches un par un, c'est neuf clics pour une
+                          // selection large. Le bouton bascule : tout, puis rien. ?>
+                    <button type="button" class="export-tout" onclick="vhBasculeSecteurs(this)"
+                            data-tout="<?php echo e(fjvhT('Tout cocher', 'Alles aanvinken')); ?>"
+                            data-rien="<?php echo e(fjvhT('Tout décocher', 'Alles uitvinken')); ?>"><?php echo e(fjvhT('Tout cocher', 'Alles aanvinken')); ?></button>
+                    <button type="submit" class="btn btn-primary"><?php echo e(fjvhT('Télécharger', 'Downloaden')); ?></button>
+                </div>
             </form>
         </details>
         <div class="legend"><?php echo e(fjvhT('Colonnes = jours de la semaine. Lignes = départements. L\'horaire est indiqué dans chaque bulle.', 'Kolommen = weekdagen. Rijen = afdelingen. Het uurrooster staat in elke bubbel.')); ?></div>
@@ -640,5 +698,48 @@ foreach ($byDeptDay as $departmentName => $byDay) {
         </div>
     <?php endif; ?>
 </div>
+<script>
+// ── LE PANNEAU D'EXPORT ──────────────────────────────────────────────────────
+// Trois commodites, et rien d'indispensable : sans JavaScript, le panneau
+// s'ouvre, se coche et s'envoie quand meme. C'est pour ca que c'est un
+// <details> et pas une modale.
+(function () {
+    var panneau = document.getElementById('exportPanneau');
+    if (!panneau) { return; }
+    var boite = panneau.closest('details');
+    var cases = panneau.querySelectorAll('.export-case input[type=checkbox]');
+
+    // 1. La ligne cochee se teinte. :has() n'est pas partout, on le fait a la main.
+    function peint(c) {
+        c.closest('.export-case').classList.toggle('est-coche', c.checked);
+    }
+    cases.forEach(function (c) { c.addEventListener('change', function () { peint(c); majBouton(); }); });
+
+    // 2. Tout cocher, puis tout decocher : le meme bouton, qui dit ce qu'il fera.
+    var bouton = panneau.querySelector('.export-tout');
+    function majBouton() {
+        var coches = 0;
+        cases.forEach(function (c) { if (c.checked) { coches++; } });
+        bouton.textContent = (coches === cases.length && coches > 0)
+            ? bouton.dataset.rien : bouton.dataset.tout;
+    }
+    window.vhBasculeSecteurs = function () {
+        var toutCoche = true;
+        cases.forEach(function (c) { if (!c.checked) { toutCoche = false; } });
+        cases.forEach(function (c) { c.checked = !toutCoche; peint(c); });
+        majBouton();
+    };
+    majBouton();
+
+    // 3. Un clic ailleurs referme. Un panneau ouvert qu'on a oublie masque la
+    //    moitie du tableau, et rien n'indique comment s'en debarrasser.
+    document.addEventListener('click', function (ev) {
+        if (boite && boite.open && !boite.contains(ev.target)) { boite.open = false; }
+    });
+    document.addEventListener('keydown', function (ev) {
+        if (ev.key === 'Escape' && boite) { boite.open = false; }
+    });
+})();
+</script>
 </body>
 </html>
