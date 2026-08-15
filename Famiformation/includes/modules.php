@@ -152,9 +152,15 @@ if (!function_exists('ensureModulesTable')) {
                     ['Classement', "Ta place face aux collègues, points à l'appui. Et ça se prépare dans l'ombre… 👀", '🏆', $nonEtu, 'classement.php'],
                     ['Sécurité au travail', "Tout le nécessaire pour travailler en sécurité. Ici, rien n'est optionnel.", '🦺', $nonEtu, 'securite_travail.php'],
                     ['Famijob', 'Plateforme Famijob (gestion des jobs étudiants).', '💼', 'admin,teamcoach', 'famijob/index.php'],
-                    ['Demandes Horaires Intérim', 'Créer/modifier/supprimer les demandes d\'horaires intérim.', '📝', 'admin', 'interim_horaires_demandes.php'],
-                    ['Matching Intérim', 'Assigner les étudiants aux créneaux intérim.', '🤝', 'admin', 'interim_horaires.php'],
-                    ['Validation demandes horaires', 'Valider ou refuser les demandes d\'horaires.', '✅', 'admin', 'validation_demandes_horaires.php'],
+                    // ⚠️ LES TROIS ECRANS INTERIM VIVENT DANS FAMIJOB. Ces liens
+                    // pointaient sur les copies du site, restees au 28 juillet :
+                    // selon la porte empruntee, un admin tombait sur la version
+                    // d'aujourd'hui ou sur celle d'il y a trois semaines. Les
+                    // copies redirigent desormais, mais autant que les liens
+                    // seedes visent la bonne page directement.
+                    ['Demandes Horaires Intérim', 'Créer/modifier/supprimer les demandes d\'horaires intérim.', '📝', 'admin', 'famijob/interim_horaires_demandes.php'],
+                    ['Matching Intérim', 'Assigner les étudiants aux créneaux intérim.', '🤝', 'admin', 'famijob/interim_horaires.php'],
+                    ['Validation demandes horaires', 'Valider ou refuser les demandes d\'horaires.', '✅', 'admin', 'famijob/validation_demandes_horaires.php'],
                     ['RH', 'Gestion des comptes et scores.', '👥', 'admin', 'admin.php'],
                     ['Dispos Etudiants', 'Disponibilités étudiantes par semaine et secteur.', '🗓️', 'admin', 'admin_disponibilites_etudiants.php'],
                     ['Gestion Questions', 'Ajouter / modifier les quiz.', '⚙️', 'admin,teamcoach', 'admin_questions.php'],
