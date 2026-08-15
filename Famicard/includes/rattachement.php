@@ -333,3 +333,52 @@ if (!function_exists('famicardCompteRattachementsManquants')) {
         }
     }
 }
+
+if (!function_exists('famicardRetrouveRattachementParNom')) {
+    /**
+     * L'INVERSE de famicardRattachementResume() : « Décoration > Bougies »
+     * redevient un couple d'identifiants.
+     *
+     * ⚠️ POURQUOI CETTE FONCTION EXISTE. Le registre des modifications ne garde
+     * que du TEXTE (`avant`, `apres`) : c'est ce qui le rend lisible des années
+     * plus tard, même si un département a disparu. Mais « rétablir » a besoin
+     * d'identifiants pour réécrire. Sans cette traduction, refuser une
+     * modification de rattachement marquait la ligne comme tranchée sans rien
+     * remettre en place — le pire des deux mondes.
+     *
+     * @return array|null ['secteur' => int, 'departement' => int] ; null si le
+     *                    libellé ne correspond plus à rien (secteur renommé,
+     *                    département supprimé) — l'appelant doit alors le DIRE.
+     */
+    function famicardRetrouveRattachementParNom(PDO $db, $texte)
+    {
+        $texte = trim((string) $texte);
+        if ($texte === '') {
+            // Chaîne vide = « aucun rattachement », et c'est une réponse
+            // valable : la rétablir veut dire retirer le rattachement.
+            return ['secteur' => 0, 'departement' => 0];
+        }
+
+        $morceaux = array_map('trim', explode('>', $texte));
+        $nomSecteur = (string) ($morceaux[0] ?? '');
+        $nomDepartement = (string) ($morceaux[1] ?? '');
+
+        foreach (famicardArbreSecteurs($db) as $sid => $secteur) {
+            if (strcasecmp((string) $secteur['nom'], $nomSecteur) !== 0) {
+                continue;
+            }
+            if ($nomDepartement === '') {
+                return ['secteur' => (int) $sid, 'departement' => 0];
+            }
+            foreach ($secteur['departements'] as $did => $nom) {
+                if (strcasecmp((string) $nom, $nomDepartement) === 0) {
+                    return ['secteur' => (int) $sid, 'departement' => (int) $did];
+                }
+            }
+            // Le secteur existe, le département non : on ne devine pas. Rendre
+            // le secteur seul élargirait le périmètre de quelqu'un à son insu.
+            return null;
+        }
+        return null;
+    }
+}

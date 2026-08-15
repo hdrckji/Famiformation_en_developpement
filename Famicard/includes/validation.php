@@ -172,6 +172,45 @@ if (!function_exists('famicardEnregistreValidationFiche')) {
     }
 }
 
+if (!function_exists('famicardLaisseCommentaire')) {
+    /**
+     * UN MOT LAISSÉ EN ENREGISTRANT SA FICHE, sans rien valider.
+     *
+     * ⚠️ NE TOUCHE PAS À `valide_le`, et c'est toute la différence avec
+     * famicardEnregistreValidationFiche(). Laisser un mot n'est pas confirmer
+     * sa fiche : quelqu'un qui écrit « je crois que mon contrat est faux » ne
+     * dit pas « tout est juste ». Confondre les deux repousserait sa prochaine
+     * relecture d'un an sur la foi d'un message qui dit l'inverse.
+     *
+     * Le mot est daté et marqué NON LU : c'est ce qui le fait remonter dans
+     * validations.php, à côté des corrections qu'il explique souvent.
+     */
+    function famicardLaisseCommentaire(PDO $db, $userId, $commentaire)
+    {
+        $userId = (int) $userId;
+        $commentaire = trim((string) $commentaire);
+        if ($userId <= 0 || $commentaire === '') {
+            return false;
+        }
+
+        try {
+            famicardAssureValidation($db);
+            $db->prepare(
+                "INSERT INTO famicard_validation (user_id, commentaire, commentaire_le)
+                 VALUES (?, ?, NOW())
+                 ON DUPLICATE KEY UPDATE
+                    commentaire = VALUES(commentaire),
+                    commentaire_le = VALUES(commentaire_le),
+                    commentaire_lu_le = NULL,
+                    commentaire_lu_par = NULL"
+            )->execute([$userId, $commentaire]);
+            return true;
+        } catch (Exception $e) {
+            return false;
+        }
+    }
+}
+
 if (!function_exists('famicardRefusePhoto')) {
     /**
      * Enregistre — ou retire — le refus de déposer une photo.

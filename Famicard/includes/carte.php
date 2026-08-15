@@ -55,20 +55,22 @@ if (!function_exists('famicardChampsSocle')) {
     {
         return [
             // ── IDENTITÉ ───────────────────────────────────────────────────
-            // Nom et prénom restent à l'admin : ils sont sur le badge, dans
-            // toutes les listes et dans les exports. Une faute de frappe se
-            // corrige en le demandant, ce n'est pas un champ du quotidien.
+            // ⚠️ NOM ET PRÉNOM SONT PASSÉS À « SOI » (décision de Jimmy). Ils
+            // étaient réservés à l'admin parce qu'ils figurent sur le badge et
+            // dans les exports — mais c'est la personne qui sait comment son
+            // prénom s'écrit, et le contrôle existe : la correction s'applique,
+            // puis l'admin confirme ou rétablit (validations.php).
             'prenom' => [
                 'libelle' => 'Prénom', 'libelle_nl' => 'Voornaam',
                 'colonne' => 'prenom', 'groupe' => 'identite',
                 'requis' => true, 'nature' => 'service', 'visible' => 'tous',
-                'modifiable' => 'admin', 'saisie' => 'texte', 'badge' => true,
+                'modifiable' => 'soi', 'saisie' => 'texte', 'badge' => true,
             ],
             'nom' => [
                 'libelle' => 'Nom', 'libelle_nl' => 'Naam',
                 'colonne' => 'nom', 'groupe' => 'identite',
                 'requis' => true, 'nature' => 'service', 'visible' => 'tous',
-                'modifiable' => 'admin', 'saisie' => 'texte', 'badge' => false,
+                'modifiable' => 'soi', 'saisie' => 'texte', 'badge' => false,
             ],
             // OBLIGATOIRE (décision Jimmy). Le seul champ requis que le
             // collaborateur dépose lui-même. Il ne s'édite pas dans le
@@ -104,13 +106,16 @@ if (!function_exists('famicardChampsSocle')) {
             ],
 
             // ── RATTACHEMENT ───────────────────────────────────────────────
-            // Données de GESTION : où la personne travaille et pour quelle
-            // agence. Ce n'est pas au collaborateur de se réaffecter.
+            // ⚠️ OUVERT AU COLLABORATEUR (décision de Jimmy). C'était de la
+            // « donnée de gestion » réservée à l'admin — sauf que la personne
+            // sait mieux que quiconque où elle travaille et pour quelle agence.
+            // Elle propose, l'admin confirme ou rétablit. Le contrôle n'a pas
+            // disparu : il est passé après.
             'site_id' => [
                 'libelle' => 'Lieu de travail', 'libelle_nl' => 'Werkplaats',
                 'colonne' => 'site_id', 'groupe' => 'rattachement',
                 'requis' => false, 'nature' => 'service', 'visible' => 'tous',
-                'modifiable' => 'admin', 'saisie' => 'liste', 'badge' => false,
+                'modifiable' => 'soi', 'saisie' => 'liste', 'badge' => false,
             ],
             // ── EMPLOI : CHEZ QUI, ET COMMENT ──────────────────────────────
             // Trois questions distinctes, trois champs, et aucun qui décide
@@ -120,14 +125,14 @@ if (!function_exists('famicardChampsSocle')) {
                 'libelle' => 'Employeur', 'libelle_nl' => 'Werkgever',
                 'colonne' => 'employeur', 'groupe' => 'rattachement',
                 'requis' => false, 'nature' => 'service', 'visible' => 'soi',
-                'modifiable' => 'admin', 'saisie' => 'liste', 'badge' => false,
+                'modifiable' => 'soi', 'saisie' => 'liste', 'badge' => false,
                 'aide' => 'Chez qui elle travaille. « Externe » n\'est pas une valeur : c\'est tout ce qui n\'est pas interne.',
             ],
             'contrat' => [
                 'libelle' => 'Type de contrat', 'libelle_nl' => 'Contracttype',
                 'colonne' => 'contrat', 'groupe' => 'rattachement',
                 'requis' => false, 'nature' => 'service', 'visible' => 'soi',
-                'modifiable' => 'admin', 'saisie' => 'liste', 'badge' => false,
+                'modifiable' => 'soi', 'saisie' => 'liste', 'badge' => false,
                 'aide' => 'Comment elle est engagée. Indépendant de l\'employeur : un intérimaire peut être étudiant, flexi ou fixe.',
             ],
             // ⚠️ CE CHAMP NE DIT PAS « est-elle intérimaire ». Il dit QUI SUIT
@@ -138,8 +143,8 @@ if (!function_exists('famicardChampsSocle')) {
             'interim' => [
                 'libelle' => 'Dossier suivi par', 'libelle_nl' => 'Dossier beheerd door',
                 'colonne' => 'interim', 'groupe' => 'rattachement',
-                'requis' => false, 'nature' => 'service', 'visible' => 'admin',
-                'modifiable' => 'admin', 'saisie' => 'liste', 'badge' => false,
+                'requis' => false, 'nature' => 'service', 'visible' => 'soi',
+                'modifiable' => 'soi', 'saisie' => 'liste', 'badge' => false,
                 'aide' => 'Son agence si elle est en intérim, Famiflora (le suivi interne) si elle a été recrutée en direct.',
             ],
             // ── SECTEUR ET DÉPARTEMENT : DE QUOI ELLE RELÈVE ───────────────
@@ -162,13 +167,13 @@ if (!function_exists('famicardChampsSocle')) {
                 'libelle' => 'Secteur', 'libelle_nl' => 'Sector',
                 'colonne' => 'secteur_nom', 'groupe' => 'rattachement',
                 'requis' => false, 'nature' => 'service', 'visible' => 'tous',
-                'modifiable' => 'admin', 'saisie' => 'rattachement', 'badge' => false,
+                'modifiable' => 'soi', 'saisie' => 'rattachement', 'badge' => false,
             ],
             'departement' => [
                 'libelle' => 'Département', 'libelle_nl' => 'Afdeling',
                 'colonne' => 'departement_nom', 'groupe' => 'rattachement',
                 'requis' => false, 'nature' => 'service', 'visible' => 'tous',
-                'modifiable' => 'admin', 'saisie' => 'rattachement', 'badge' => false,
+                'modifiable' => 'soi', 'saisie' => 'rattachement', 'badge' => false,
                 'aide' => 'Vide = elle relève de tout le secteur. C\'est le cas d\'un teamcoach.',
             ],
             // Ce que FamiJob sait, montré pour qu'on ne se demande pas pourquoi
@@ -200,6 +205,12 @@ if (!function_exists('famicardChampsSocle')) {
                 'modifiable' => 'admin', 'saisie' => 'texte', 'badge' => false,
                 'aide' => 'C\'est avec ça qu\'il se connecte : le changer rend son ancien identifiant inutilisable.',
             ],
+            // ⚠️ LE PROFIL RESTE À L'ADMIN, ET CE N'EST PAS NÉGOCIABLE — c'est
+            // lui qui ouvre les portes. Ici la validation vient APRÈS la
+            // modification : quelqu'un qui pourrait choisir son propre profil
+            // se donnerait « admin » et l'AURAIT, le temps que quelqu'un s'en
+            // aperçoive. Le statut suit la même logique, il conditionne tous
+            // les accès. Ce sont les deux seuls champs fermés de la fiche.
             'role' => [
                 'libelle' => 'Profil', 'libelle_nl' => 'Profiel',
                 'colonne' => 'role', 'groupe' => 'compte',

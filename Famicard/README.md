@@ -373,6 +373,26 @@ formation, et cette tuile ne menait qu'à un refus. Son outil est FamiJob.
 
 ---
 
+## AVIS ET SUGGESTIONS
+
+« Dans la même idée que FamiJob » (Jimmy) — et littéralement : **c'est la même table**.
+`interim_feedback` existe déjà côté FamiJob ; en ouvrir une seconde aurait donné deux
+boîtes à idées, dont une que personne ne relève. Une colonne `source` dit d'où vient le
+message, pour qu'un administrateur sache de quel écran on lui parle.
+
+**Ouvert à tout le monde, agences comprises.** Un module qui recueille la parole des
+équipes et n'est visible que par ceux qui décident ne recueille rien.
+
+⚠️ **Un non-admin ne voit que ses propres messages**, et la condition est dans le SQL. Une
+boîte à idées où chacun lit les remarques des autres n'en recueille plus : les gens s'y
+censurent.
+
+⚠️ **On n'efface jamais un message.** « Traité » le range, ne le supprime pas — une boîte
+qui se vide est une boîte dont on ne peut plus dire ce qui a été proposé, ni ce qu'on en a
+fait. Répondre rouvre le sujet.
+
+---
+
 ## LES ACCÈS AUX SERVICES
 
 Aujourd'hui deux services, FamiFormation et FamiJob. **Il y en aura d'autres**, et c'est
@@ -462,6 +482,7 @@ Famicard/
   relance_mdp.php      renvoyer le lien de création de mot de passe (venu du site)
   admin.php            la base des collaborateurs (liste, filtres, badge, export)
   agences.php          ⭐ LES AGENCES D'INTÉRIM — et les accès qu'on leur ouvre
+  avis.php             avis et suggestions — la MÊME boîte que celle de FamiJob
   includes/agence.php  ⭐ CE QU'UNE AGENCE A LE DROIT DE VOIR
   mes_interimaires.php l'écran d'une agence : ses gens, nom + prénom + type
   badge.php            le badge imprimable 75 × 36 mm
@@ -511,9 +532,28 @@ d'activation, carte signalée incomplète), et c'est ça qui est dit.
 
 ### Qui modifie quoi
 
-Le collaborateur corrige **ses coordonnées** : email, ville, date d'anniversaire, photo.
-Le reste — profil, statut, lieu de travail, agence, employeur, contrat, rattachement — est
-de la donnée de gestion et reste à l'administrateur.
+**Le collaborateur corrige presque tout sur sa fiche** — décision de Jimmy. Prénom, nom,
+email, ville, date d'anniversaire, photo, lieu de travail, agence, employeur, type de
+contrat, secteur et département. Il sait mieux que quiconque où il travaille et comment
+son prénom s'écrit ; le contrôle n'a pas disparu, il vient **après** : la correction
+s'applique, puis l'admin confirme ou rétablit (`validations.php`).
+
+⚠️ **Deux champs restent fermés, et c'est de la sécurité, pas du confort** : le **profil**
+et le **statut**. Ici la validation vient *après* la modification — quelqu'un qui pourrait
+choisir son propre profil se donnerait « admin » et **l'aurait**, le temps que quelqu'un
+s'en aperçoive.
+
+**Un mot peut accompagner l'enregistrement.** Facultatif, sur sa propre fiche, il remonte
+dans `validations.php` à côté des corrections qu'il explique souvent. ⚠️ Il **ne vaut pas
+validation de la fiche** : « je crois que mon contrat est faux » ne dit pas « tout est
+juste », et confondre les deux repousserait la prochaine relecture d'un an sur la foi d'un
+message qui dit l'inverse.
+
+⚠️ **Rétablir un rattachement demande une traduction.** Le registre ne garde que du texte
+(« Décoration > Bougies ») — c'est ce qui le rend lisible des années plus tard. Pour
+rétablir, `famicardRetrouveRattachementParNom()` le retraduit en identifiants, et **refuse
+de trancher** si le libellé ne correspond plus à rien : marquer une ligne réglée sans rien
+remettre en place serait le pire des deux mondes.
 
 **L'identifiant se modifie, mais le champ est VERROUILLÉ par défaut.** Un cadenas est posé
 à côté. Il ouvre une **fenêtre** qui demande un **mot de passe dédié**, rangé dans les

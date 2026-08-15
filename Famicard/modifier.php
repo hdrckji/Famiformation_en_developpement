@@ -28,6 +28,7 @@
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/includes/modifications.php';
 require_once __DIR__ . '/includes/agence.php';
+require_once __DIR__ . '/includes/validation.php';
 
 $moi = famicardExigeConnexion($db);
 $estAdmin = famicardEstAdmin();
@@ -542,10 +543,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // validations.php réécrit une COLONNE — ce que le rattachement
                 // n'est pas. Une ligne en attente ici serait une décision
                 // impossible à appliquer.
+                // Tracé « à confirmer » quand ce n'est PAS l'admin qui écrit :
+                // depuis que le rattachement est ouvert au collaborateur, il
+                // suit le même chemin que les autres corrections. Rétablir sait
+                // désormais le remettre en place (voir famicardTrancheModification).
                 famicardTraceModification(
                     $db, $cibleId, 'departement', $champRattachement,
                     $rattachementAEcrire['avant'], $rattachementAEcrire['apres'],
-                    (int) $moi['id'], false
+                    (int) $moi['id'], !$estAdmin
                 );
                 $secteurActuel = $rattachementAEcrire['secteur'];
                 $departementActuel = $rattachementAEcrire['departement'];
@@ -558,6 +563,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         foreach ($aEcrire as $cle => $op) {
             famicardEcritValeur($db, $cibleId, $op['champ'], $op['apres']);
             famicardTraceModification($db, $cibleId, $cle, $op['champ'], $op['avant'], $op['apres'], (int) $moi['id'], $aValider);
+        }
+
+        // ── LE MOT LAISSÉ EN ENREGISTRANT ────────────────────────────────
+        // Facultatif, et il ne vaut PAS validation de la fiche : « je crois que
+        // mon contrat est faux » ne veut pas dire « tout est juste ». Il part
+        // simplement à l'administration, marqué non lu.
+        $motLaisse = trim((string) ($_POST['commentaire'] ?? ''));
+        if ($motLaisse !== '' && $estSaPropreFiche) {
+            famicardLaisseCommentaire($db, $cibleId, $motLaisse);
         }
 
         // ── APRÈS UN CHANGEMENT D'IDENTIFIANT ────────────────────────────
@@ -585,6 +599,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $combien = count($aEcrire);
         $suffixe = $avertissements ? ' ⚠️ ' . implode(' ', $avertissements) : '';
+        if ($motLaisse !== '' && $estSaPropreFiche) {
+            $suffixe = ' 💬 Ton message est transmis à l\'administration.' . $suffixe;
+        }
 
         if ($combien === 0 && !$photoDeposee && !$rattachementChange) {
             famicardRetourModif("Rien n'a changé." . $suffixe, $estSaPropreFiche, $cibleId);
@@ -694,7 +711,8 @@ if ($photo !== '') {
     .ligne { margin-bottom: 15px; }
     .ligne label { display: block; font-weight: 600; font-size: .86rem; color: #444; margin-bottom: 5px; }
     .ligne .obl { color: #c0392b; }
-    input[type="text"], input[type="email"], input[type="date"], input[type="password"], select { width: 100%; padding: 10px 12px; border: 1px solid #ccd6cf; border-radius: 10px; font-family: inherit; font-size: .95rem; background: #fff; }
+    input[type="text"], input[type="email"], input[type="date"], input[type="password"], select, textarea { width: 100%; padding: 10px 12px; border: 1px solid #ccd6cf; border-radius: 10px; font-family: inherit; font-size: .95rem; background: #fff; }
+    textarea { resize: vertical; min-height: 76px; }
     .aide { color: #888; font-size: .78rem; margin-top: 4px; line-height: 1.45; }
     .fige { background: #f5f7f6; border-radius: 10px; padding: 10px 12px; color: #777; font-size: .92rem; }
 
@@ -1021,6 +1039,25 @@ if ($photo !== '') {
                     <?php endforeach; ?>
                 </div>
             <?php endforeach; ?>
+
+            <?php // ── UN MOT POUR L'ADMINISTRATION ─────────────────────────
+                  // Sur SA PROPRE fiche seulement : un admin qui édite celle
+                  // d'un autre n'a personne à qui écrire — il se parlerait à
+                  // lui-même. Facultatif, et il ne vaut pas validation de la
+                  // fiche (voir famicardLaisseCommentaire). ?>
+            <?php if ($estSaPropreFiche): ?>
+                <div class="groupe">
+                    <h2>💬 Un mot pour l'administration</h2>
+                    <div class="ligne">
+                        <textarea name="commentaire" rows="3"
+                                  placeholder="Facultatif — une information qu'on n'a pas, quelque chose que tu ne peux pas corriger toi-même…"></textarea>
+                        <div class="aide">
+                            Il part avec ton enregistrement et sera lu par un administrateur.
+                            Le laisser vide n'empêche rien.
+                        </div>
+                    </div>
+                </div>
+            <?php endif; ?>
 
             <div class="actions">
                 <button type="submit" class="bouton bouton-plein">Enregistrer</button>

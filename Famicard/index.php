@@ -83,6 +83,18 @@ $aValider = $estAdmin ? famicardCompteModificationsEnAttente($db) : 0;
 // quand le travail est fini : c'est la seule façon qu'une reprise se termine.
 $sansContrat = $estAdmin ? famicardCompteContratsAPreciser($db) : 0;
 
+// Les avis en attente. Compté seulement pour les admins : c'est à eux d'y
+// répondre, et une pastille sur la tuile de tout le monde n'aurait aucun sens.
+// La table peut ne pas exister encore — la pastille vaut alors zéro.
+$avisATraiter = 0;
+if ($estAdmin) {
+    try {
+        $avisATraiter = (int) $db->query("SELECT COUNT(*) FROM interim_feedback WHERE status = 'open'")->fetchColumn();
+    } catch (Exception $e) {
+        $avisATraiter = 0;
+    }
+}
+
 // La carte est-elle complète ? On le dit ICI, sur l'accueil, plutôt que
 // d'attendre que le collaborateur ouvre sa fiche : c'est la seule façon qu'un
 // champ obligatoire vide soit vu par quelqu'un.
@@ -194,6 +206,18 @@ if ($photo !== '') {
             <span class="ico">🪪</span>
             <div class="nom">Ma fiche</div>
             <div class="quoi">Ta carte d'identité Famiflora, tes informations et ton badge.</div>
+        </a>
+
+        <?php // ── AVIS ET SUGGESTIONS, POUR TOUT LE MONDE ─────────────────
+              // Y compris les agences. Un module qui recueille la parole des
+              // équipes et n'est ouvert qu'à ceux qui décident ne recueille
+              // rien. C'est la même boîte que celle de FamiJob — une seconde
+              // aurait fait deux boîtes, dont une que personne ne relève. ?>
+        <a class="tuile" href="avis.php">
+            <?php if ($avisATraiter > 0): ?><span class="pastille"><?= (int) $avisATraiter ?> à lire</span><?php endif; ?>
+            <span class="ico">💬</span>
+            <div class="nom">Avis et suggestions</div>
+            <div class="quoi">Une idée, une question, quelque chose qui ne va pas ? Dis-le, on te répond ici.</div>
         </a>
 
         <?php // ── L'AGENCE VOIT SES GENS, ET RIEN D'AUTRE ─────────────────

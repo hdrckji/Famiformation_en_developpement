@@ -216,10 +216,30 @@ if (!function_exists('famicardTrancheModification')) {
         }
 
         if ($decision === 'retabli') {
-            $champs = famicardChamps($db);
             $cle = (string) $modif['champ'];
-            if (isset($champs[$cle])) {
-                famicardEcritValeur($db, (int) $modif['user_id'], $champs[$cle], $modif['avant']);
+
+            // ⚠️ LE RATTACHEMENT NE SE RÉTABLIT PAS COMME UNE COLONNE. Il vit
+            // dans `famicard_rattachement`, et le registre n'en garde que le
+            // LIBELLÉ (« Décoration > Bougies ») : il faut le retraduire en
+            // identifiants. Si le libellé ne correspond plus à rien — secteur
+            // renommé, département supprimé — on REFUSE de trancher plutôt que
+            // de marquer la ligne réglée sans rien remettre en place.
+            if ($cle === 'departement' || $cle === 'secteur') {
+                if (!function_exists('famicardRetrouveRattachementParNom')) {
+                    return false;
+                }
+                $vise = famicardRetrouveRattachementParNom($db, (string) $modif['avant']);
+                if ($vise === null) {
+                    return false;
+                }
+                famicardEcritRattachementRh(
+                    $db, (int) $modif['user_id'], $vise['secteur'], $vise['departement'], (int) $adminId
+                );
+            } else {
+                $champs = famicardChamps($db);
+                if (isset($champs[$cle])) {
+                    famicardEcritValeur($db, (int) $modif['user_id'], $champs[$cle], $modif['avant']);
+                }
             }
         }
 
