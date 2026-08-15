@@ -48,11 +48,21 @@ $aValider = famicardCompteModificationsEnAttente($db);
 // ─────────────────────────────────────────────────────────────────────────────
 $roles = [];
 try {
-    $roles = $db->query("SELECT DISTINCT role FROM utilisateurs WHERE role IS NOT NULL AND role <> '' ORDER BY role")
-                ->fetchAll(PDO::FETCH_COLUMN);
+    // Sans le filtre, « Agence intérim » apparaissait dans la liste des profils
+    // d'un écran qui n'en montre aucun : on proposait un filtre garanti vide.
+    $roles = $db->query(
+        "SELECT DISTINCT role FROM utilisateurs
+          WHERE role IS NOT NULL AND role <> '' AND role <> 'agence_interim'
+          ORDER BY role"
+    )->fetchAll(PDO::FETCH_COLUMN);
 } catch (Exception $e) {
     $roles = [];
 }
+
+// Les agences connues, pour le filtre. Elles viennent de `interim_agences`,
+// jamais d'un DISTINCT sur `utilisateurs.interim` : une faute de frappe dans
+// une fiche créerait sinon une « agence » de plus dans le menu.
+$agencesConnues = famicardAgences($db);
 
 $fRole  = (string) ($_GET['role'] ?? '');
 $fRole  = in_array($fRole, $roles, true) ? $fRole : '';
@@ -60,9 +70,24 @@ $fSite  = (string) ($_GET['site'] ?? '');
 $fSite  = isset($magasins[(int) $fSite]) ? (string) (int) $fSite : '';
 $fTexte = trim((string) ($_GET['q'] ?? ''));
 
+// L'agence : quelle société suit le dossier de cette personne. C'est le filtre
+// qui manquait pour répondre à « qui ai-je chez Konvert ». La valeur est
+// contrainte à la liste connue, jamais concaténée telle quelle dans le SQL.
+$fAgence = (string) ($_GET['agence'] ?? '');
+$fAgence = in_array($fAgence, $agencesConnues, true) ? $fAgence : '';
+
 $conditions = [];
 $params     = [];
-if ($fRole !== '')  { $conditions[] = 'role = ?';    $params[] = $fRole; }
+
+// ⚠️ LES COMPTES D'AGENCE NE SONT PAS DES COLLABORATEURS, et cet écran ne
+// parle que des collaborateurs. Un compte `agence_interim` est un accès donné à
+// une société extérieure pour qu'elle voie SES intérimaires : il n'a ni fiche,
+// ni photo, ni contrat, ni secteur — l'y afficher remplissait la base de lignes
+// vides qu'on croyait incomplètes. Ils se gèrent dans agences.php.
+$conditions[] = "role <> 'agence_interim'";
+
+if ($fRole !== '')   { $conditions[] = 'role = ?';    $params[] = $fRole; }
+if ($fAgence !== '') { $conditions[] = 'interim = ?'; $params[] = $fAgence; }
 if ($fSite !== '')  { $conditions[] = 'site_id = ?'; $params[] = (int) $fSite; }
 if ($fTexte !== '') {
     $conditions[] = '(nom LIKE ? OR prenom LIKE ? OR identifiant LIKE ? OR email LIKE ?)';
@@ -73,9 +98,10 @@ $where = $conditions ? (' WHERE ' . implode(' AND ', $conditions)) : '';
 
 // Les filtres, reconduits tels quels vers l'export.
 $filtresUrl = http_build_query(array_filter([
-    'role' => $fRole,
-    'site' => $fSite,
-    'q'    => $fTexte,
+    'role'   => $fRole,
+    'agence' => $fAgence,
+    'site'   => $fSite,
+    'q'      => $fTexte,
 ], static function ($v) { return $v !== ''; }));
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -227,6 +253,19 @@ if ($aDesChampsLibres && $lignes) {
                 <?php endforeach; ?>
             </select>
         </div>
+        <?php if ($agencesConnues): ?>
+        <div>
+            <label for="agence">Agence</label>
+            <select id="agence" name="agence">
+                <option value="">Toutes les agences</option>
+                <?php foreach ($agencesConnues as $a): ?>
+                    <option value="<?= e($a) ?>"<?= $fAgence === $a ? ' selected' : '' ?>>
+                        <?= e($a) ?><?= famicardEstAgenceInterne($a) ? ' (recrutement direct)' : '' ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <?php endif; ?>
         <div>
             <label for="site">Lieu de travail</label>
             <select id="site" name="site">
@@ -242,7 +281,8 @@ if ($aDesChampsLibres && $lignes) {
         <a class="bouton bouton-vide" href="export.php<?= $filtresUrl !== '' ? '?' . e($filtresUrl) : '' ?>">📊 Exporter en Excel</a>
     </form>
 
-    <p class="compte"><b><?= count($lignes) ?></b> collaborateur<?= count($lignes) > 1 ? 's' : '' ?><?= ($fRole !== '' || $fSite !== '' || $fTexte !== '') ? ' pour ces critères' : ' au total' ?>.</p>
+    <p class="compte"><b><?= count($lignes) ?></b> collaborateur<?= count($lignes) > 1 ? 's' : '' ?><?= ($fRole !== '' || $fAgence !== '' || $fSite !== '' || $fTexte !== '') ? ' pour ces critères' : ' au total' ?>.
+        <span style="color:#8a968f;">Les comptes d'agence ne sont pas comptés ici : ils se gèrent dans <a href="agences.php">Agences</a>.</span></p>
 
     <p class="aide-tableau">Clique sur un nom pour ouvrir sa fiche et la modifier.</p>
 

@@ -22,22 +22,43 @@
 
     /* ── LA GRILLE ───────────────────────────────────────────────────────
        Reprise du classeur : une colonne par jour, chacune découpée en
-       horaire / nom / agence. Le tableau défile horizontalement plutôt que
-       de comprimer les colonnes jusqu'à l'illisible. */
+       horaire / nom / agence.
+
+       ⚠️ ELLE TIENT DANS LA PAGE, et ça a demandé de renoncer à trois choses.
+       Avant : « width: max-content », « white-space: nowrap » et des
+       min-width sur les colonnes nom (130 px) et agence (62 px). Vingt et une
+       colonnes qui refusent de se replier, ça fait un tableau de deux mètres
+       qu'on lit en poussant une barre de défilement — et une semaine qu'on ne
+       voit jamais entière, ce qui est pourtant tout l'intérêt du classeur.
+
+       Maintenant : « table-layout: fixed » avec des largeurs déclarées en
+       pourcentage (voir le <colgroup>), et le texte qui passe à la ligne. Un
+       nom long tient sur deux lignes au lieu d'élargir sa colonne pour les
+       sept jours.
+
+       Le min-width de 900 px garde le défilement sur un écran étroit : en
+       dessous, sept jours ne rentrent de toute façon pas, et des colonnes de
+       30 px seraient pires qu'une barre de défilement. */
     .cadre { overflow-x: auto; padding: 0 12px; }
-    table.semaine { border-collapse: collapse; font-size: .72rem; width: max-content; min-width: 100%; }
-    table.semaine th, table.semaine td { border: 1px solid #c8d3cc; padding: 2px 5px; white-space: nowrap; }
+    table.semaine { border-collapse: collapse; font-size: .7rem; table-layout: fixed;
+        width: 100%; min-width: 900px; }
+    table.semaine th, table.semaine td { border: 1px solid #c8d3cc; padding: 2px 4px;
+        white-space: normal; overflow-wrap: anywhere; }
 
     .jour-tete { background: #2d5a37; color: #fff; font-size: .78rem; font-weight: 800; text-align: center; padding: 6px 4px; }
     .sous-tete { background: #f0f4f1; color: #55665c; font-size: .65rem; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; text-align: center; }
 
     /* Les couleurs du classeur : secteur en vert, département en jaune. */
+    .l-secteur td, .l-departement td { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .l-secteur td { background: #7ed321; color: #1d3d12; font-weight: 800; text-align: center; font-size: .78rem; padding: 3px; }
     .l-departement td { background: #ffff66; color: #4a4a00; font-weight: 700; text-align: center; font-size: .74rem; padding: 2px; }
 
-    td.horaire { background: #fbfdfb; color: #33443a; text-align: center; font-variant-numeric: tabular-nums; }
-    td.nom { min-width: 130px; }
-    td.agence { min-width: 62px; color: #55665c; text-align: center; }
+    td.horaire { background: #fbfdfb; color: #33443a; text-align: center; font-variant-numeric: tabular-nums;
+        font-size: .68rem; line-height: 1.25; }
+    /* Plus de min-width : c'est le <colgroup> qui repartit la largeur, et une
+       min-width aurait repris la main sur lui. */
+    td.nom { line-height: 1.25; }
+    td.agence { color: #55665c; text-align: center; font-size: .64rem; line-height: 1.2; }
     /* SÉPARATION DES JOURS. Une bordure fine se noyait dans le quadrillage :
        sur sept colonnes triples, l'oeil perdait la limite entre mardi et
        mercredi. D'où une barre épaisse ET un fond alterné — deux repères
@@ -47,7 +68,7 @@
     td.jour-pair.horaire { background: #dfe8e1; }
     td.vide-jour { background: #f7f9f8; }
 
-    .place-libre { display: block; width: 100%; border: 1px dashed #b9cfc0; background: #fff; color: #2d5a37; border-radius: 5px; padding: 2px 6px; font-family: inherit; font-size: .7rem; font-weight: 700; cursor: pointer; text-align: left; }
+    .place-libre { display: block; width: 100%; border: 1px dashed #b9cfc0; background: #fff; color: #2d5a37; border-radius: 5px; padding: 2px 4px; font-family: inherit; font-size: .66rem; font-weight: 700; cursor: pointer; text-align: center; overflow-wrap: anywhere; }
     .place-libre:hover { background: #eef7f0; border-color: #2d5a37; }
     .occupe { display: flex; align-items: center; justify-content: space-between; gap: 5px; }
     /* Place prise dont le nom ne nous regarde pas. Elle doit se distinguer AU
@@ -241,6 +262,18 @@
 <?php else: ?>
 <div class="cadre">
 <table class="semaine">
+    <?php // ⚠️ CE COLGROUP EST CE QUI FAIT TENIR LE TABLEAU DANS LA PAGE.
+          // Avec « table-layout: fixed », le navigateur ne regarde plus le
+          // contenu : il applique ces largeurs, point. Sept jours a 14,28 %,
+          // repartis entre horaire / nom / agence — le nom prend la plus
+          // grosse part parce que c'est le seul texte vraiment variable. ?>
+    <colgroup>
+        <?php for ($iCol = 0; $iCol < count($weekDays); $iCol++): ?>
+            <col style="width: 4.8%;">
+            <col style="width: 6.4%;">
+            <col style="width: 3.08%;">
+        <?php endfor; ?>
+    </colgroup>
     <thead>
         <tr>
             <?php foreach ($weekDays as $iJour => $jour): ?>

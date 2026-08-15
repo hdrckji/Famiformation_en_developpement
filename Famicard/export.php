@@ -43,9 +43,24 @@ $fSite  = (string) ($_GET['site'] ?? '');
 $fSite  = isset($magasins[(int) $fSite]) ? (string) (int) $fSite : '';
 $fTexte = trim((string) ($_GET['q'] ?? ''));
 
+// Le MÊME filtre agence que la base des collaborateurs : l'export reprend les
+// filtres de l'écran, il doit donc en connaître autant que lui.
+$agencesConnues = famicardAgences($db);
+$fAgence = (string) ($_GET['agence'] ?? '');
+$fAgence = in_array($fAgence, $agencesConnues, true) ? $fAgence : '';
+
 $conditions = [];
 $params     = [];
-if ($fRole !== '')  { $conditions[] = 'role = ?';    $params[] = $fRole; }
+
+// ⚠️ LES COMPTES D'AGENCE NE SONT PAS DES COLLABORATEURS, et cet écran ne
+// parle que des collaborateurs. Un compte `agence_interim` est un accès donné à
+// une société extérieure pour qu'elle voie SES intérimaires : il n'a ni fiche,
+// ni photo, ni contrat, ni secteur — l'y afficher remplissait la base de lignes
+// vides qu'on croyait incomplètes. Ils se gèrent dans agences.php.
+$conditions[] = "role <> 'agence_interim'";
+
+if ($fRole !== '')   { $conditions[] = 'role = ?';    $params[] = $fRole; }
+if ($fAgence !== '') { $conditions[] = 'interim = ?'; $params[] = $fAgence; }
 if ($fSite !== '')  { $conditions[] = 'site_id = ?'; $params[] = (int) $fSite; }
 if ($fTexte !== '') {
     $conditions[] = '(nom LIKE ? OR prenom LIKE ? OR identifiant LIKE ? OR email LIKE ?)';
