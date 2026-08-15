@@ -7,7 +7,15 @@ verifierConnexion($db);
 // horaire et leurs disponibilités. Ce qu'ils voient est décidé plus bas, tuile
 // par tuile — la porte s'ouvre, pas les droits.
 $role = isset($_SESSION['role']) ? $_SESSION['role'] : '';
-if (!in_array($role, ['admin', 'teamcoach', 'etudiant', 'agence_interim'], true)) {
+// Une agence n'a pas d'accueil : sa page, c'est le matching. Elle arrive ici
+// par un vieux lien ou par le bouton « retour » d'un autre ecran — on la remet
+// simplement au travail au lieu de lui montrer une grille de tuiles vide.
+if ($role === 'agence_interim') {
+    header('Location: interim_horaires.php');
+    exit();
+}
+
+if (!in_array($role, ['admin', 'teamcoach', 'etudiant'], true)) {
     header('Location: ' . famijobSiteUrl('index.php'));
     exit();
 }
@@ -591,27 +599,8 @@ $famijobBackgroundUrl = resolvePublicAssetUrl(
                 <div class="tile-title"><?= e(fjT('Avis & suggestions', 'Feedback & suggesties')) ?></div>
                 <div class="tile-desc"><?= e(fjT('Une question, une idée, un souci ? Envoyez votre avis à l\'équipe.', 'Een vraag, een idee, een probleem? Stuur je feedback naar het team.')) ?></div>
             </a>
-            <?php elseif ($role === 'agence_interim'): ?>
-            <?php // AGENCE INTERIM. Deux modules, pas un de plus : placer ses
-                  // interimaires, et relire le planning. Elle ne cree pas de
-                  // demande d'horaire — c'est Famiflora qui decide de ses
-                  // besoins — et elle ne lit pas les noms fournis par les autres
-                  // agences (includes/confidentialite.php).
-                  //
-                  // Pas de tuile FamiFormation ici : un compte agence n'est pas
-                  // un collaborateur, il n'a rien a y faire. ?>
-            <a href="interim_horaires.php" class="tile">
-                <div class="tile-icon">🤝</div>
-                <div class="tile-title"><?= e(famiT('tile.matching.title')) ?></div>
-                <div class="tile-desc"><?= e(fjT('Placez vos intérimaires sur les créneaux ouverts. Vous ne voyez que vos propres candidats.', 'Plaats uw uitzendkrachten op de open tijdsblokken. U ziet enkel uw eigen kandidaten.')) ?></div>
-            </a>
-
-            <a href="vue_horaire.php" class="tile">
-                <div class="tile-icon">📅</div>
-                <div class="tile-title"><?= e(fjT('Vue horaire', 'Uurroosterweergave')) ?></div>
-                <div class="tile-desc"><?= e(fjT('Le planning de la semaine. Les places tenues par une autre agence apparaissent occupées, sans le nom.', 'De weekplanning. Plaatsen van andere kantoren verschijnen als bezet, zonder naam.')) ?></div>
-            </a>
-
+            <?php // Pas de bloc « agence » ici : un compte agence est renvoye
+                  // au matching des l'entree, il ne voit jamais cet accueil. ?>
             <?php else: ?>
             <?php // ETUDIANT. Ses modules sont TOUS ici desormais : l'accueil de
                   // FamiFormation ne porte plus qu'une tuile « FamiJob » qui

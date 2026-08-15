@@ -105,6 +105,15 @@ if (!$assignmentStudentNullable) {
     // student_id peut etre NULL pour une personne externe (non inscrite) affectee via son nom.
     $db->exec('ALTER TABLE interim_shift_assignments MODIFY COLUMN student_id INT NULL');
 }
+// LE MOT DE L'AGENCE. Elle place quelqu'un et veut parfois dire quelque chose
+// avec — « arrive 15 min plus tard », « premiere fois chez vous », « parle mal
+// francais ». Sans un endroit pour l'ecrire, ca se dit par telephone, ou pas
+// du tout. C'est porte par l'AFFECTATION et non par le creneau : le mot
+// concerne la personne placee, il part avec elle si on la retire.
+if (!isset($assignmentColumns['agency_comment'])) {
+    $db->exec('ALTER TABLE interim_shift_assignments ADD COLUMN agency_comment VARCHAR(500) NULL AFTER agency_name');
+    $assignmentColumns['agency_comment'] = true;
+}
 
 $agencyName = '';
 if (!$isAdmin) {
@@ -112,6 +121,10 @@ if (!$isAdmin) {
     $agencyStmt->execute([$currentUserId]);
     $agencyName = trim((string) $agencyStmt->fetchColumn());
 }
+
+// Le mot laisse par l'agence au moment d'affecter. Coupe a la taille de la
+// colonne : une saisie plus longue serait tronquee par MySQL sans rien dire.
+$commentaireAgence = mb_substr(trim((string) ($_POST['agency_comment'] ?? '')), 0, 500);
 
 $message = '';
 $pendingConfirm = null; // Confirmation "modale" en attente (par nom ET par liste) : ['message','request_id','student_name','student_id','matching_mode']
@@ -848,7 +861,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
 
                 $insertAssignStmt = $db->prepare(
-                    'INSERT INTO interim_shift_assignments (request_id, seat_number, student_id, external_name, assigned_by_user_id, agency_name) VALUES (?, ?, NULL, ?, ?, ?)'
+                    'INSERT INTO interim_shift_assignments (request_id, seat_number, student_id, external_name, assigned_by_user_id, agency_name, agency_comment) VALUES (?, ?, NULL, ?, ?, ?, ?)'
                 );
                 $insertAssignStmt->execute([
                     $requestId,
@@ -856,6 +869,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $externalName,
                     $currentUserId,
                     $isAdmin ? '' : $agencyName,
+                    $commentaireAgence !== '' ? $commentaireAgence : null,
                 ]);
 
                 $db->commit();
@@ -1029,7 +1043,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
 
                 $insertAssignStmt = $db->prepare(
-                    'INSERT INTO interim_shift_assignments (request_id, seat_number, student_id, assigned_by_user_id, agency_name) VALUES (?, ?, ?, ?, ?)'
+                    'INSERT INTO interim_shift_assignments (request_id, seat_number, student_id, assigned_by_user_id, agency_name, agency_comment) VALUES (?, ?, ?, ?, ?, ?)'
                 );
                 $insertAssignStmt->execute([
                     $requestId,
@@ -1037,6 +1051,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $studentId,
                     $currentUserId,
                     $isAdmin ? $studentInterim : $agencyName,
+                    $commentaireAgence !== '' ? $commentaireAgence : null,
                 ]);
 
                 $db->commit();
@@ -1123,6 +1138,7 @@ if (!empty($requestIds)) {
     $placeholders = implode(', ', array_fill(0, count($requestIds), '?'));
     $assignmentsStmt = $db->prepare(
         "SELECT a.id AS assignment_id, a.request_id, a.seat_number, a.agency_name, a.external_name,
+                a.agency_comment,
                 u.id AS student_id, u.nom, u.prenom, u.interim
          FROM interim_shift_assignments a
          LEFT JOIN utilisateurs u ON u.id = a.student_id
@@ -1413,11 +1429,18 @@ foreach ($requests as $request) {
         // proposer une seconde fois.
         $lecture = famijobNomLisible($nom, $agence, $role, $agencyName);
 
+        // Le mot de l'agence suit sa place — et disparait avec le nom quand la
+        // place appartient a une autre agence. Il est adresse a Famiflora, pas
+        // aux concurrents : « premiere mission chez vous » en dit deja long sur
+        // qui a ete place.
+        $motAgence = ($a && !$lecture['masque']) ? trim((string) ($a['agency_comment'] ?? '')) : '';
+
         $grille[$secteur][$sousTitre][$jour][] = [
             'horaire'       => (string) $request['time_slot'],
             'nom'           => $lecture['nom'],
             'masque'        => $lecture['masque'],
             'agence'        => $lecture['masque'] ? '' : $agence,
+            'mot'           => $motAgence,
             'request_id'    => $rid,
             'seat'          => $i + 1,
             'assignment_id' => $a ? (int) $a['assignment_id'] : 0,
@@ -1572,6 +1595,15 @@ if ($vueMode === '' && in_array((string) ($_GET['vue'] ?? ''), ['excel', 'liste'
     $vueMode = (string) $_GET['vue'];
 }
 if (!in_array($vueMode, ['excel', 'liste'], true)) {
+    $vueMode = 'excel';
+}
+
+// ⚠️ UNE AGENCE N'A QUE LE CLASSEUR. La vue detaillee affiche les
+// disponibilites, les suggestions et le remplissage de chaque creneau : c'est
+// l'outil d'arbitrage de Famiflora, pas celui d'un fournisseur. Le verrou est
+// ici et pas seulement sur le bouton — une bascule cachee laisse l'URL ouverte.
+$peutChangerDeVue = !famijobEstCompteAgence($role);
+if (!$peutChangerDeVue) {
     $vueMode = 'excel';
 }
 

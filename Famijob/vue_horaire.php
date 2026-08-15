@@ -16,8 +16,11 @@ if (!function_exists('fjvhT')) {
 // qui travaille quand. Un etudiant lit ses propres creneaux dans « Mes horaires
 // attribues », qui ne montre que les siens. Le controle est ici et pas seulement
 // sur la tuile — une tuile retiree laisse l'URL ouverte.
+// ⚠️ PAS LES AGENCES. Elles ont le matching, qui montre exactement le meme
+// tableau — a la difference pres qu'elles peuvent y travailler. Deux ecrans
+// pour la meme chose, c'est une question de plus a se poser en arrivant.
 $role = isset($_SESSION['role']) ? $_SESSION['role'] : '';
-if (!in_array($role, ['admin', 'teamcoach', 'agence_interim'], true)) {
+if (!in_array($role, ['admin', 'teamcoach'], true)) {
     // Refuse, mais renvoye chez soi : un etudiant qui arrive ici par un vieux
     // lien revient a l'accueil FamiJob, pas sur FamiFormation. On ne change pas
     // de site pour dire non.

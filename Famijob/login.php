@@ -88,7 +88,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // n'ont pas d'accueil FamiJob : eux repartent vers le site, sinon
         // index.php les y renverrait de toute facon.
         $role = (string) ($user['role'] ?? '');
-        if (in_array($role, ['admin', 'teamcoach', 'etudiant', 'agence_interim'], true)) {
+
+        // UNE AGENCE N'A PAS D'ACCUEIL. Elle vient faire une chose : placer ses
+        // interimaires. Un ecran de tuiles a une seule tuile utile est un
+        // detour, pas un accueil — elle va droit au matching.
+        if ($role === 'agence_interim') {
+            header('Location: interim_horaires.php');
+            exit();
+        }
+
+        if (in_array($role, ['admin', 'teamcoach', 'etudiant'], true)) {
             header('Location: index.php');
             exit();
         }

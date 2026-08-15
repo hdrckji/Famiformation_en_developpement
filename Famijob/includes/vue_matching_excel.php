@@ -62,6 +62,20 @@
 
     .rien { padding: 30px 20px; text-align: center; color: #667; }
 
+    /* Une case horaire qui porte un mot de l'agence. Ambre plein et souligne
+       pointille : ca ne ressemble a rien d'autre dans ce tableau, et c'est le
+       but — un commentaire qu'on ne repere pas n'existe pas. */
+    .horaire.a-mot { background: #fff3d6 !important; color: #8a5a00; cursor: pointer;
+        text-decoration: underline dotted #d19a00; font-weight: 800; }
+    .horaire.a-mot::after { content: ' 💬'; font-size: .7em; }
+    .horaire.a-mot:hover { background: #ffe9b3 !important; }
+
+    /* Les deux pastilles d'action se distinguent de la navigation : l'une sort
+       un fichier, l'autre envoie un message. Ce ne sont pas des liens vers une
+       page de plus. */
+    .pill-export { background: #1f7a3d !important; color: #fff !important; border-color: #1f7a3d !important; }
+    .pill-avis { background: #fff3e0 !important; color: #8a5a00 !important; border-color: #f0d5a8 !important; }
+
     /* ── FENÊTRE D'AFFECTATION ───────────────────────────────────────────
        UNE seule liste d'étudiants pour toute la page. Un menu déroulant par
        case, sur 7 jours et des dizaines de départements, aurait produit un
@@ -83,9 +97,29 @@
 
 <div class="bandeau">
     <h1><?php echo e(fjhT('Matching intérim — la semaine', 'Matching interim — de week')); ?></h1>
+    <?php // LA BANDE DU HAUT, calee a droite au-dessus de dimanche.
+          //
+          // « Demandes » et « Accueil » ne sont proposes qu'a Famiflora : une
+          // agence n'a acces ni a l'un ni a l'autre, ces deux pastilles ne
+          // menaient chez elle qu'a une redirection.
+          //
+          // Les deux autres servent a tout le monde : exporter ce qu'on regarde,
+          // et dire quelque chose a l'equipe sans avoir a chercher ou. ?>
     <div>
-        <a class="pill" href="interim_horaires_demandes.php"><?php echo e(fjhT('Demandes', 'Aanvragen')); ?></a>
-        <a class="pill" href="index.php">&larr; <?php echo e(fjhT('Accueil', 'Onthaal')); ?></a>
+        <?php if (!famijobEstCompteAgence($role)): ?>
+            <a class="pill" href="interim_horaires_demandes.php"><?php echo e(fjhT('Demandes', 'Aanvragen')); ?></a>
+            <a class="pill" href="index.php">&larr; <?php echo e(fjhT('Accueil', 'Onthaal')); ?></a>
+        <?php endif; ?>
+
+        <?php // L'export suit les filtres affiches : exporter autre chose que ce
+              // qu'on regarde est le meilleur moyen de diffuser un planning faux. ?>
+        <a class="pill pill-export" href="export_matching.php?week=<?php echo e($selectedWeekKey); ?><?php
+                echo $mSecteur !== '' ? '&secteur=' . urlencode($mSecteur) : '';
+                echo $mDept !== '' ? '&department=' . urlencode($mDept) : ''; ?>">
+            ↓ <?php echo e(fjhT('Export Excel', 'Export Excel')); ?>
+        </a>
+
+        <a class="pill pill-avis" href="avis.php">💬 <?php echo e(fjhT('Avis & suggestions', 'Feedback & suggesties')); ?></a>
     </div>
 </div>
 
@@ -129,9 +163,13 @@
         <?php endif; ?>
     </form>
 
-    <?php // Changer de vue sans perdre la semaine ni le filtre. ?>
-    <a class="pill" style="background:#fff; color:#2d5a37; border:1px solid #cfdad3;"
-       href="<?php echo e($lienVue('liste')); ?>">☰ <?php echo e(fjhT('Vue détaillée', 'Gedetailleerde weergave')); ?></a>
+    <?php // Changer de vue sans perdre la semaine ni le filtre.
+          // Pas propose aux agences : la vue detaillee ne leur est pas ouverte,
+          // un bouton qui ramene sur place est pire que pas de bouton. ?>
+    <?php if ($peutChangerDeVue): ?>
+        <a class="pill" style="background:#fff; color:#2d5a37; border:1px solid #cfdad3;"
+           href="<?php echo e($lienVue('liste')); ?>">☰ <?php echo e(fjhT('Vue détaillée', 'Gedetailleerde weergave')); ?></a>
+    <?php endif; ?>
 
     <?php // L'auto-matching existe toujours dans le traitement : sans ce bouton,
           // la fonction serait devenue inatteignable en changeant d'écran. ?>
@@ -220,7 +258,16 @@
                             <td class="vide-jour<?php echo $pair; ?>"></td>
                             <td class="vide-jour fin-jour<?php echo $pair; ?>"></td>
                         <?php else: ?>
-                            <td class="horaire<?php echo $pair; ?>"><?php echo e($place['horaire']); ?></td>
+                            <?php // ⚠️ L'HORAIRE PORTE LE MOT DE L'AGENCE. Colore quand il
+                                  // y en a un, et cliquable pour le lire. Sans cette
+                                  // couleur, un commentaire laisse dans un tableau de
+                                  // 400 cases n'aurait jamais ete lu — donc jamais
+                                  // ecrit une seconde fois. ?>
+                            <?php $mot = (string) ($place['mot'] ?? ''); ?>
+                            <td class="horaire<?php echo $pair; ?><?php echo $mot !== '' ? ' a-mot' : ''; ?>"
+                                <?php if ($mot !== ''): ?>data-mot="<?php echo e($mot); ?>"
+                                data-ou="<?php echo e($dept . ' · ' . $jour['label'] . ' · ' . $place['horaire']); ?>"
+                                title="<?php echo e(fjhT('Un mot de l\'agence — cliquez', 'Een woordje van het kantoor — klik')); ?>"<?php endif; ?>><?php echo e($place['horaire']); ?></td>
                             <td class="nom<?php echo $pair; ?>">
                                 <?php if ($place['nom'] !== ''): ?>
                                     <span class="occupe">
@@ -241,16 +288,18 @@
                                           // comme telle ferait proposer la place une seconde
                                           // fois. D'ou le libelle et la couleur. ?>
                                     <span class="occupe-masque"><?php echo e(famijobLibelleOccupe()); ?></span>
-                                <?php elseif ($isAdmin): ?>
+                                <?php else: ?>
                                     <?php // La case vide EST le bouton : c'est le geste du classeur,
-                                          // on clique là où le nom doit apparaître. ?>
+                                          // on clique là où le nom doit apparaître.
+                                          //
+                                          // Ouverte aux AGENCES aussi : c'est leur seul ecran, et le
+                                          // traitement refuse deja un candidat qui n'est pas des leurs.
+                                          // Le bouton ne decide de rien, il ouvre une fenetre. ?>
                                     <button type="button" class="place-libre"
                                             data-request="<?php echo (int) $place['request_id']; ?>"
                                             data-ou="<?php echo e($dept . ' · ' . $jour['label'] . ' · ' . $place['horaire']); ?>">
                                         + <?php echo e(fjhT('à pourvoir', 'in te vullen')); ?>
                                     </button>
-                                <?php else: ?>
-                                    <span style="color:#aab;">—</span>
                                 <?php endif; ?>
                             </td>
                             <td class="agence fin-jour<?php echo $pair; ?>"><?php echo e($place['agence']); ?></td>
@@ -265,7 +314,6 @@
 </div>
 <?php endif; ?>
 
-<?php if ($isAdmin): ?>
 <div class="voile" id="voile">
     <div class="fenetre">
         <h2><?php echo e(fjhT('Affecter quelqu\'un', 'Iemand toewijzen')); ?></h2>
@@ -293,6 +341,21 @@
                 <?php endforeach; ?>
             </datalist>
 
+            <?php // LE MOT DE L'AGENCE. Elle sait des choses sur la personne
+                  // qu'elle place et que Famiflora ne saura pas autrement :
+                  // « premiere mission chez vous », « arrive a 9h15 ».
+                  // Facultatif — un champ obligatoire se remplirait de « ras ».
+                  //
+                  // Reserve aux agences : quand Famiflora affecte quelqu'un,
+                  // elle n'a personne a qui laisser un mot, elle EST le
+                  // destinataire. ?>
+            <?php if (famijobEstCompteAgence($role)): ?>
+                <label for="agency_comment"><?php echo e(fjhT('Un mot pour Famiflora (facultatif)', 'Een woordje voor Famiflora (optioneel)')); ?></label>
+                <input type="text" name="agency_comment" id="agency_comment" maxlength="500"
+                       autocomplete="off"
+                       placeholder="<?php echo e(fjhT('Ex : première mission chez vous, arrive à 9h15…', 'Bijv.: eerste opdracht bij u, komt om 9u15…')); ?>">
+            <?php endif; ?>
+
             <div class="actions">
                 <button type="button" class="btn btn-non" id="fermer"><?php echo e(fjhT('Annuler', 'Annuleren')); ?></button>
                 <button type="submit" name="assign_student" value="1" class="btn btn-ok"><?php echo e(fjhT('Affecter', 'Toewijzen')); ?></button>
@@ -312,6 +375,8 @@
         champRequest.value = bouton.getAttribute('data-request');
         ou.textContent = bouton.getAttribute('data-ou') || '';
         document.getElementById('student_name').value = '';
+        var mot = document.getElementById('agency_comment');
+        if (mot) { mot.value = ''; }
         voile.classList.add('ouvert');
         document.getElementById('student_name').focus();
     }
@@ -330,7 +395,43 @@
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { fermer(); } });
 }());
 </script>
-<?php endif; ?>
+
+<?php // LIRE LE MOT DE L'AGENCE. Une fenetre plutot qu'une info-bulle : une
+      // info-bulle disparait des qu'on bouge la souris, ne se lit pas au doigt
+      // sur une tablette, et coupe les phrases longues. ?>
+<div class="voile" id="voileMot">
+    <div class="fenetre">
+        <h2>💬 <?php echo e(fjhT('Mot de l\'agence', 'Woordje van het kantoor')); ?></h2>
+        <div class="ou" id="motOu"></div>
+        <p id="motTexte" style="margin:0 0 16px; color:#33413a; font-size:.95rem; line-height:1.5; white-space:pre-wrap;"></p>
+        <div class="actions">
+            <button type="button" class="btn btn-non" id="motFermer"><?php echo e(fjhT('Fermer', 'Sluiten')); ?></button>
+        </div>
+    </div>
+</div>
+<script>
+(function () {
+    var voile = document.getElementById('voileMot');
+    if (!voile) { return; }
+    var texte = document.getElementById('motTexte');
+    var ou = document.getElementById('motOu');
+
+    function fermer() { voile.classList.remove('ouvert'); }
+
+    // Delegation : les cases se comptent par centaines.
+    document.addEventListener('click', function (e) {
+        var c = e.target.closest ? e.target.closest('.horaire.a-mot') : null;
+        if (!c) { return; }
+        texte.textContent = c.getAttribute('data-mot') || '';
+        ou.textContent = c.getAttribute('data-ou') || '';
+        voile.classList.add('ouvert');
+    });
+
+    document.getElementById('motFermer').addEventListener('click', fermer);
+    voile.addEventListener('click', function (e) { if (e.target === voile) { fermer(); } });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { fermer(); } });
+}());
+</script>
 
 </body>
 </html>
