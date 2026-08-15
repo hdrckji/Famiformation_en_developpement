@@ -33,10 +33,21 @@ $GLOBALS['__fami_topbar_done'] = true;
 initCSRF();
 ensureUserAccountAccessColumns($db);
 
-// Déjà connecté : le formulaire n'a plus rien à demander.
-if ($_SERVER['REQUEST_METHOD'] === 'GET' && !empty($_SESSION['user_id'])) {
-    header('Location: index.php');
-    exit();
+// ⚠️ DEJA CONNECTE : ON NE REDIRIGE PLUS EN SILENCE. C'etait un bug de
+// securite, et il a ete rencontre pour de vrai : venir ici avec une session
+// admin ouverte renvoyait a l'accueil SANS montrer le formulaire. On croyait
+// s'etre connecte avec l'autre compte, on naviguait en fait toujours en admin
+// -- et la tuile FamiJob ouvrait la vue admin.
+//
+// On affiche donc qui est connecte, et on laisse le formulaire accessible pour
+// changer de compte. Se tromper de compte doit etre VISIBLE, jamais silencieux.
+$dejaConnecte = null;
+if (!empty($_SESSION['user_id'])) {
+    $dejaConnecte = [
+        'nom'  => trim((string) ($_SESSION['prenom'] ?? '') . ' ' . (string) ($_SESSION['nom'] ?? ''))
+                  ?: (string) ($_SESSION['username'] ?? ''),
+        'role' => (string) ($_SESSION['role'] ?? ''),
+    ];
 }
 
 $erreur = '';
@@ -74,8 +85,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Ce qu'ils voient est décidé ÉCRAN PAR ÉCRAN, pas ici : leur fiche, et la
     // liste des personnes qu'ils nous envoient — nom, prénom, et rien d'autre.
     if ($motDePasseValide) {
-        // Mêmes clés que login.php du site : la session est interchangeable.
+        // ⚠️ ON VIDE LA SESSION AVANT D'EN OUVRIR UNE AUTRE.
+        //
+        // session_regenerate_id() change l'IDENTIFIANT de session, PAS son
+        // contenu : toutes les cles de la session precedente survivaient, et
+        // seules les sept reecrites ci-dessous changeaient. Une session admin
+        // laissait donc derriere elle de quoi continuer a se comporter en admin
+        // -- l'apercu de profil (apercu_role), les filtres memorises, et tout
+        // ce que les autres plateformes y rangent.
+        //
+        // Changer de compte doit vraiment changer de compte.
+        $_SESSION = [];
         session_regenerate_id(true);
+
+        // Mêmes clés que login.php du site : la session est interchangeable.
         $_SESSION['user_id'] = $user['id'];
         $_SESSION['username'] = $user['identifiant'];
         $_SESSION['role'] = $user['role'];
@@ -126,6 +149,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     button { width: 100%; background: #2d5a37; color: #fff; border: 0; border-radius: 30px; padding: 13px; font-family: inherit; font-size: 1rem; font-weight: 700; cursor: pointer; transition: background .2s; }
     button:hover { background: #388e3c; }
     .erreur { background: #fdecea; border-left: 4px solid #d93025; color: #a3271c; border-radius: 8px; padding: 10px 14px; margin-bottom: 18px; font-size: .88rem; }
+    .deja { background: #fff8e1; border-left: 4px solid #E9A93C; color: #6a5400; border-radius: 8px; padding: 12px 14px; margin-bottom: 18px; font-size: .88rem; line-height: 1.55; }
+    .deja-actions { display: flex; gap: 14px; margin-top: 8px; }
+    .deja-actions a { color: #6a5400; font-weight: 700; }
+    .deja-note { margin-top: 8px; font-size: .82rem; opacity: .85; }
     .liens { margin-top: 20px; display: flex; flex-direction: column; gap: 8px; text-align: center; }
     .liens a { color: #2d5a37; text-decoration: none; font-weight: 700; font-size: .86rem; }
 </style>
@@ -141,6 +168,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         <?php if ($erreur !== ''): ?>
             <div class="erreur"><?= e($erreur) ?></div>
+        <?php endif; ?>
+
+        <?php // ⚠️ QUI EST CONNECTÉ, ANNONCÉ EN CLAIR. Sans ça, on arrivait ici
+              // avec une session ouverte, on était renvoyé à l'accueil sans voir
+              // le formulaire, et l'on croyait avoir changé de compte alors
+              // qu'on naviguait toujours avec le précédent. ?>
+        <?php if ($dejaConnecte !== null): ?>
+            <div class="deja">
+                Tu es déjà connecté en tant que <b><?= e($dejaConnecte['nom']) ?></b>
+                <?php if ($dejaConnecte['role'] !== ''): ?>
+                    (<?= e(famicardLibelleRole($dejaConnecte['role'])) ?>)
+                <?php endif; ?>.
+                <div class="deja-actions">
+                    <a href="index.php">Continuer avec ce compte</a>
+                    <a href="logout.php">Se déconnecter</a>
+                </div>
+                <div class="deja-note">Pour changer de compte, connecte-toi ci-dessous : la session en cours sera remplacée.</div>
+            </div>
         <?php endif; ?>
 
         <form method="POST">

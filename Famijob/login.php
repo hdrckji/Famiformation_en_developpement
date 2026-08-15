@@ -65,6 +65,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if ($user && empty($user['account_activation_pending']) && !empty($user['mot_de_passe']) && password_verify($mdp, $user['mot_de_passe'])) {
+        // ⚠️ ON VIDE LA SESSION AVANT D'EN OUVRIR UNE AUTRE.
+        //
+        // session_regenerate_id() change l'IDENTIFIANT de session, PAS son
+        // contenu : toutes les cles de la session precedente survivent, et
+        // seules celles reecrites ci-dessous changent. Une session admin
+        // laissait donc derriere elle de quoi continuer a se comporter en
+        // admin -- l'apercu de profil (apercu_role) et tout ce que les autres
+        // plateformes rangent la. Changer de compte doit vraiment changer de
+        // compte.
+        $_SESSION = [];
         session_regenerate_id(true);
         $_SESSION['user_id'] = (int) $user['id'];
         $_SESSION['username'] = (string) ($user['identifiant'] ?? '');
