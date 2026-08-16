@@ -22,6 +22,7 @@ require_once __DIR__ . '/includes/modifications.php';
 require_once __DIR__ . '/includes/services.php';
 require_once __DIR__ . '/includes/validation.php';
 require_once __DIR__ . '/includes/agence.php';
+require_once __DIR__ . '/includes/avatar.php';
 
 $moi = famicardExigeConnexion($db);
 
@@ -123,6 +124,15 @@ if ($photo !== '') {
         $photoUrl = famicardSiteUrl($photoUrl);
     }
 }
+
+// L'AVATAR — sa figurine, à côté de sa photo et jamais à sa place. On ne fait
+// que LIRE ici : la table est créée par l'atelier (avatar.php), et si elle
+// n'existe pas encore, la lecture rend simplement « pas d'avatar ».
+// Une agence n'en a pas : ce n'est pas quelqu'un (voir avatar.php).
+$avatar = $estAgence ? ['existe' => false, 'image' => '', 'maj' => ''] : famicardAvatarDe($db, (int) $moi['id']);
+$avatarUrl = ($avatar['existe'] && $avatar['image'] !== '')
+    ? famicardAvatarImageUrl((int) $moi['id'], (string) $avatar['maj'])
+    : '';
 ?>
 <!DOCTYPE html>
 <html lang="fr">
@@ -158,6 +168,10 @@ if ($photo !== '') {
     .tuile .nom { color: #2d5a37; font-weight: 800; font-size: 1.15rem; }
     .tuile .quoi { color: #666; font-size: .87rem; margin-top: 7px; line-height: 1.5; }
     .pastille { position: absolute; top: 14px; right: 14px; background: #E9A93C; color: #fff; border-radius: 999px; padding: 3px 11px; font-size: .72rem; font-weight: 800; }
+
+    /* La figurine sur sa tuile : c'est elle l'icône, quand elle existe. Un
+       personnage entier ne se recadre pas en rond — il se pose sur le fond. */
+    .tuile .figurine { display: block; height: 78px; width: auto; margin: -4px 0 8px; object-fit: contain; }
 
     .titre-groupe { color: #fff; text-shadow: 0 2px 8px rgba(0,0,0,.35); font-size: .8rem; text-transform: uppercase; letter-spacing: .09em; font-weight: 700; margin: 30px 0 12px; }
 </style>
@@ -207,6 +221,30 @@ if ($photo !== '') {
             <div class="nom">Ma fiche</div>
             <div class="quoi">Ta carte d'identité Famiflora, tes informations et ton badge.</div>
         </a>
+
+        <?php // ── L'AVATAR ─────────────────────────────────────────────────
+              // Sur la même rangée que la fiche, et pas dans un coin : c'est
+              // l'autre moitié de « qui je suis ici ». La photo dit qui on est,
+              // la figurine dit comment on se présente.
+              //
+              // ⚠️ Pas de tuile pour une agence : une société n'a pas de coupe
+              // de cheveux (même règle que la carte). ?>
+        <?php if (!$estAgence): ?>
+        <a class="tuile" href="avatar.php">
+            <?php if (!$avatar['existe']): ?><span class="pastille">nouveau</span><?php endif; ?>
+            <?php if ($avatarUrl !== ''): ?>
+                <img class="figurine" src="<?= e($avatarUrl) ?>" alt="">
+            <?php else: ?>
+                <span class="ico">🧍</span>
+            <?php endif; ?>
+            <div class="nom">Mon avatar</div>
+            <div class="quoi">
+                <?= $avatar['existe']
+                    ? "Ta figurine 3D : change de coupe, de tenue, d'équipement."
+                    : "Crée ton personnage en 3D : coupe, teint, tenue, équipement." ?>
+            </div>
+        </a>
+        <?php endif; ?>
 
         <?php // ── AVIS ET SUGGESTIONS, POUR TOUT LE MONDE ─────────────────
               // Y compris les agences. Un module qui recueille la parole des

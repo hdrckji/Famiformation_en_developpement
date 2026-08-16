@@ -12,6 +12,7 @@
 // ============================================================
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/includes/agence.php';
+require_once __DIR__ . '/includes/avatar.php';
 
 $moi = famicardExigeConnexion($db);
 $estAdmin = famicardEstAdmin();
@@ -65,6 +66,19 @@ if ($photo !== '') {
         $photoUrl = famicardSiteUrl($photoUrl);
     }
 }
+
+// ── L'AVATAR, À CÔTÉ DE LA PHOTO ────────────────────────────────────────────
+// La photo reste ce qui identifie ; la figurine est ce qu'on choisit. Les deux
+// se voient d'un coup d'œil, et aucune ne prend la place de l'autre.
+//
+// ⚠️ C'est la VIGNETTE PNG qui est affichée ici, pas la scène 3D. Charger un
+// moteur 3D sur une page qu'on ouvre pour lire son numéro de téléphone serait
+// payer six cents kilo-octets pour une image de cent pixels. La 3D vit dans
+// l'atelier, là où elle sert vraiment (avatar.php).
+$avatar = $estAgence ? ['existe' => false, 'image' => '', 'maj' => ''] : famicardAvatarDe($db, (int) $moi['id']);
+$avatarUrl = ($avatar['existe'] && $avatar['image'] !== '')
+    ? famicardAvatarImageUrl((int) $moi['id'], (string) $avatar['maj'])
+    : '';
 ?>
 <!DOCTYPE html>
 <html lang="fr">
@@ -89,6 +103,14 @@ if ($photo !== '') {
     .avatar-vide { display: flex; align-items: center; justify-content: center; font-size: 2.2rem; color: #2d5a37; border-style: dashed; }
     .carte-tete h1 { margin: 0 0 6px; font-size: 1.6rem; font-weight: 800; }
     .etiquette { display: inline-block; background: rgba(255,255,255,.22); border: 1px solid rgba(255,255,255,.5); border-radius: 999px; padding: 3px 14px; font-size: .82rem; font-weight: 700; }
+
+    /* La figurine, en bout de bandeau. Pas de rond ni de cadre : un personnage
+       entier se pose, il ne se recadre pas. `margin-left:auto` la pousse à
+       l'opposé de la photo — les deux identités, chacune de son côté. */
+    .figurine { margin-left: auto; height: 108px; width: auto; object-fit: contain; filter: drop-shadow(0 4px 8px rgba(0,0,0,.25)); }
+    .figurine-vide { margin-left: auto; display: flex; flex-direction: column; align-items: center; gap: 4px; color: #fff; text-decoration: none; font-size: .74rem; font-weight: 700; opacity: .9; border: 1px dashed rgba(255,255,255,.6); border-radius: 14px; padding: 12px 14px; }
+    .figurine-vide span { font-size: 1.6rem; }
+    @media (max-width: 560px) { .figurine, .figurine-vide { margin-left: 0; } }
 
     .rappel { background: #fff8e6; border-bottom: 1px solid #f0dfb5; color: #7a4a11; padding: 14px 26px; font-size: .92rem; line-height: 1.55; }
     .rappel a { color: #7a4a11; font-weight: 700; }
@@ -138,6 +160,13 @@ if ($photo !== '') {
                 <h1><?= e($nomComplet) ?></h1>
                 <span class="etiquette"><?= e(famicardLibelleRole($moi['role'] ?? '')) ?></span>
             </div>
+            <?php if (!$estAgence): ?>
+                <?php if ($avatarUrl !== ''): ?>
+                    <a href="avatar.php" title="Modifier mon avatar"><img class="figurine" src="<?= e($avatarUrl) ?>" alt="Mon avatar"></a>
+                <?php else: ?>
+                    <a class="figurine-vide" href="avatar.php"><span>🧍</span>Créer mon avatar</a>
+                <?php endif; ?>
+            <?php endif; ?>
         </div>
 
         <?php if ($manquants): ?>
@@ -194,6 +223,9 @@ if ($photo !== '') {
                   // que le reste (en haut de modifier.php). Un bouton de plus pour
                   // un seul champ, c'était un aller-retour pour rien. ?>
             <a class="bouton bouton-plein" href="modifier.php">✏️ Modifier mes informations</a>
+            <?php if (!$estAgence): ?>
+                <a class="bouton bouton-vide" href="avatar.php">🧍 <?= $avatar['existe'] ? 'Mon avatar' : 'Créer mon avatar' ?></a>
+            <?php endif; ?>
             <a class="bouton bouton-vide" href="badge.php">🖨️ Imprimer mon badge</a>
             <?php if ($estAdmin): ?>
                 <a class="bouton bouton-vide" href="export.php">📊 Exporter en Excel</a>

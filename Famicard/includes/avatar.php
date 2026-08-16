@@ -443,6 +443,29 @@ if (!function_exists('famicardAvatarCouleur')) {
     }
 }
 
+if (!function_exists('famicardAvatarLook')) {
+    /**
+     * La configuration, couleurs RÉSOLUES — ce que le JavaScript sait dessiner.
+     *
+     * C'est la frontière entre les deux mondes : la base parle en mots
+     * (« châtain »), le moteur 3D parle en codes (« #6B4429»). La traduction se
+     * fait ICI, et donc une seule fois. avatar3d.js n'a aucune idée de ce
+     * qu'est un châtain, et c'est ce qui permet de retoucher toute la palette
+     * sans ouvrir une ligne de JavaScript.
+     */
+    function famicardAvatarLook(array $config)
+    {
+        $config = famicardAvatarNormalise($config);
+        $look = [];
+        foreach (famicardAvatarChamps() as $cle => $champ) {
+            $look[$cle] = ($champ['type'] === 'couleur')
+                ? (string) $champ['valeurs'][$config[$cle]]['hex']
+                : $config[$cle];
+        }
+        return $look;
+    }
+}
+
 if (!function_exists('famicardAssureAvatars')) {
     /**
      * Crée la table si elle manque.

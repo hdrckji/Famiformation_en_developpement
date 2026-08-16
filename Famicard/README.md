@@ -658,6 +658,9 @@ tard, ne peut pas exposer ce qu'il ne doit pas.
 - [x] **Employeur et type de contrat** séparés du profil (`includes/emploi.php`,
       `contrats.php`) — interne / intérim / indépendant, étudiant / flexi / fixe,
       **sans toucher au RBAC**
+- [x] **Avatar 3D** (`avatar.php`, `assets/avatar3d.js`) — personnage entier construit en
+      code, 20 réglages, vignette PNG pour les petits affichages, et une porte JSON
+      (`avatar_data.php`) pour que FamiFormation l'affiche sans rien reconstruire
 
 ## Ce qui reste
 
@@ -691,7 +694,10 @@ tard, ne peut pas exposer ce qu'il ne doit pas.
       changé ce champ, et quand » demande encore une requête SQL à la main.
 - [ ] **Famicard comme autorité d'accès** : ouvrir/fermer FamiFormation et FamiJob depuis ici
 - [ ] **Volet RGPD** — voir plus bas
-- [ ] **Bitmoji 3D** — le personnage réutilisé dans les jeux three.js de FamiFormation
+- [ ] **Brancher l'avatar dans FamiFormation** — le personnage existe et sa porte JSON
+      aussi (voir « L'AVATAR 3D » plus bas). Ce qui reste est une décision de FamiFormation :
+      où il apparaît (profil, classement, jeux three.js) et sous quelle forme (vignette ou
+      scène animée). Rien à reconstruire côté Famicard.
 
 ---
 
@@ -733,6 +739,88 @@ chose que la liste », et personne ne sait laquelle des deux a raison.
 
 Repli **CSV** (avec BOM UTF-8) si PhpSpreadsheet est indisponible : mieux vaut un fichier
 ouvrable qu'une page d'erreur.
+
+---
+
+## L'AVATAR 3D — la figurine du collaborateur
+
+**Décision de Jimmy : l'avatar ne remplace pas la photo, il vit à côté.**
+La photo reste la pièce qui identifie (fiche, badge, RH) ; l'avatar est l'identité
+« vivante » — l'accueil, demain FamiFormation. Aucun écran existant ne perd son visage
+réel, et personne ne se retrouve avec un badge sans photo.
+
+L'atelier est `avatar.php`. Le personnage est **entier** (pas un buste) : c'est ce qui
+rend la **tenue** visible, et ce qui permettra de le réutiliser en mascotte animée
+ailleurs.
+
+### Ce qui a été tranché, et pourquoi
+
+**Aucun fichier 3D.** Tout est bâti en code, à partir de sphères, capsules, boîtes et
+tores (`assets/avatar3d.js`). Pas de `.glb` à héberger, pas de licence d'asset, rien qui
+puisse manquer au déploiement — le personnage pèse le poids d'un fichier JavaScript. Le
+prix à payer est un style volontairement « jouet » : c'est le seul qu'on peut tenir sans
+budget d'assets, et il vieillit mieux qu'un modèle réaliste raté.
+
+**La base stocke des mots, pas des pixels.** `famicard_avatars` garde une ligne de
+quelques centaines d'octets : `coupe = mi_long`, `couleur_cheveux = chatain`… Deux
+conséquences qui valent la peine :
+
+- on peut **retoucher la palette ou améliorer une coupe sans migration** — l'avatar de
+  tout le monde s'améliore au prochain affichage ;
+- FamiFormation lira **la même ligne** et affichera **le même personnage**.
+
+**Le PNG est un dérivé, jamais la source.** Une vignette 512 px est enregistrée sur le
+volume (`divers/avatars/`) pour que les petits affichages (un rond de 40 px sur l'accueil,
+une liste, demain un e-mail) n'aient pas à charger un moteur 3D. Si elle disparaît, on la
+regénère ; si elle manque, l'écran retombe sur son repli habituel.
+
+**Le catalogue vit en PHP, et nulle part ailleurs** (`includes/avatar.php`). Une seule
+liste d'options, envoyée telle quelle au JavaScript : ce que l'atelier **propose** est
+exactement ce que le serveur **accepte**. Les couleurs arrivent au moteur 3D **déjà
+résolues** en codes hexadécimaux (`famicardAvatarLook()`) — `avatar3d.js` ignore ce qu'est
+un « châtain », donc toute la palette se retouche sans ouvrir une ligne de JavaScript.
+
+> ⚠️ **Les clés sont des engagements.** `mi_long` est écrit en base pour chaque personne :
+> renommer la clé efface le choix de tout le monde. Les libellés et les codes couleur, eux,
+> se changent librement — ils ne sont jamais stockés.
+
+**La vignette ne passe pas par `media.php`.** Ce script vit sur www ; depuis
+`famicard.famiformation.com`, la session de www n'existe pas (cookie host-only) et l'image
+reviendrait en 403 — donc un avatar cassé une visite sur deux selon l'adresse d'entrée.
+Famicard sert **sa** vignette avec **sa** session : `avatar_image.php`.
+
+**Une agence n'a pas d'avatar.** Une société extérieure n'a ni coupe de cheveux ni tenue
+de travail. Même règle que pour la carte (voir `includes/agence.php`).
+
+### La réutilisation dans FamiFormation
+
+C'est la raison d'être du découpage. Rien n'est à reconstruire :
+
+```js
+fetch('/famicard/avatar_data.php?u=12')
+  .then(r => r.json())
+  .then(d => creerAvatar(monDiv, d.look));   // d.look : couleurs déjà résolues
+```
+
+avec `import { creerAvatar } from '/famicard/assets/avatar3d.js'`.
+`avatar_data.php` renvoie aussi `image_url` pour ceux qui ne veulent qu'une vignette.
+Ni la table, ni la palette, ni le rangement des fichiers ne sortent de Famicard.
+
+`creerAvatar()` accepte `cadrage: 'buste'` pour un cadrage serré sur le visage, et
+`interactif` / `rotationAuto` / `anime` pour une figurine décorative qui ne capte pas la
+souris.
+
+### Les points à surveiller
+
+- **three.js vient du CDN jsdelivr, en version figée** (`0.169.0`) — même choix que pdfjs
+  dans FamiFormation. Un `@latest` ferait dépendre l'apparence de tout le monde d'une mise
+  à jour qu'on ne contrôle pas. Pour l'héberger nous-mêmes, il n'y a qu'une ligne à changer,
+  en tête de `assets/avatar3d.js`.
+- **Pas de 3D dans une page de consultation.** `fiche.php` et `index.php` affichent la
+  vignette PNG, pas la scène : charger six cents kilo-octets de moteur 3D pour un rond de
+  cent pixels serait payer très cher un détail. La 3D vit dans l'atelier, où elle sert.
+- **Un poste sans WebGL** garde l'atelier utilisable : les boutons de choix fonctionnent,
+  seul l'aperçu manque, et un message le dit. La configuration s'enregistre quand même.
 
 ---
 
