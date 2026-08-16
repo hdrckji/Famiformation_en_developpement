@@ -90,10 +90,21 @@ if (!function_exists('famicardChampsAgence')) {
      * `interim_agences` et non dans `utilisateurs` : ce sont des PSEUDO-colonnes,
      * posées dans la ligne par famicardAjouteAgence().
      *
-     * ⚠️ EN LECTURE SEULE. Ces informations décident où partent les horaires
-     * (voir Famijob/includes/horaires.php) : elles se règlent dans agences.php,
-     * par un administrateur, et à un seul endroit. Deux écrans qui écrivent la
-     * même adresse finissent toujours par diverger.
+     * ⚠️ L'AGENCE CORRIGE SES PROPRES INFORMATIONS (décision de Jimmy) :
+     * personne de contact et adresses. Elle sait avant nous que son contact a
+     * changé, et le contrôle existe — la correction s'applique, puis l'admin
+     * confirme ou rétablit, exactement comme pour un collaborateur.
+     *
+     * ⚠️ SAUF LE NOM DE L'AGENCE, et pour une raison précise : c'est la CLÉ
+     * qui relie l'agence à ses gens (FamiJob compare `utilisateurs.interim` à
+     * ce nom). Le changer sans réécrire toutes les fiches rattachées couperait
+     * l'agence de ses propres intérimaires. Ce report existe — il est fait dans
+     * agences.php, dans une transaction — et il n'a pas à être refait ici, ni
+     * confié à un tiers.
+     *
+     * ⚠️ 'saisie' => 'agence' : ces champs ne vivent PAS dans `utilisateurs`.
+     * L'écriture générique les refuse (famicardEcritValeur), et modifier.php
+     * les envoie à famicardEcritChampAgence().
      */
     function famicardChampsAgence()
     {
@@ -102,27 +113,27 @@ if (!function_exists('famicardChampsAgence')) {
                 'libelle' => "Nom de l'agence", 'libelle_nl' => 'Naam van het kantoor',
                 'colonne' => 'agence_nom', 'groupe' => 'agence',
                 'requis' => false, 'nature' => 'service', 'visible' => 'soi',
-                'modifiable' => 'jamais', 'saisie' => 'texte', 'badge' => false,
+                'modifiable' => 'jamais', 'saisie' => 'agence', 'badge' => false,
+                'aide' => 'Ce nom relie l\'agence à ses intérimaires : il se change côté administration, qui reporte le changement sur les fiches.',
             ],
             'agence_contact' => [
                 'libelle' => 'Personne de contact', 'libelle_nl' => 'Contactpersoon',
                 'colonne' => 'agence_contact', 'groupe' => 'agence',
                 'requis' => false, 'nature' => 'service', 'visible' => 'soi',
-                'modifiable' => 'jamais', 'saisie' => 'texte', 'badge' => false,
-                'aide' => 'Se modifie dans « Agences », côté administration.',
+                'modifiable' => 'soi', 'saisie' => 'agence', 'badge' => false,
             ],
             'agence_email1' => [
                 'libelle' => 'Email principal', 'libelle_nl' => 'Hoofdmailadres',
                 'colonne' => 'agence_email1', 'groupe' => 'agence',
                 'requis' => false, 'nature' => 'service', 'visible' => 'soi',
-                'modifiable' => 'jamais', 'saisie' => 'texte', 'badge' => false,
+                'modifiable' => 'soi', 'saisie' => 'agence', 'badge' => false,
                 'aide' => 'C\'est là que partent les horaires de vos intérimaires.',
             ],
             'agence_email2' => [
                 'libelle' => 'Second email', 'libelle_nl' => 'Tweede mailadres',
                 'colonne' => 'agence_email2', 'groupe' => 'agence',
                 'requis' => false, 'nature' => 'service', 'visible' => 'soi',
-                'modifiable' => 'jamais', 'saisie' => 'texte', 'badge' => false,
+                'modifiable' => 'soi', 'saisie' => 'agence', 'badge' => false,
             ],
 
             // Du contact, la ville et rien d'autre.
@@ -212,6 +223,61 @@ if (!function_exists('famicardAjouteAgence')) {
             $ligne['agence_email2']  = (string) ($a['email_2'] ?? '');
         }
         return $ligne;
+    }
+}
+
+if (!function_exists('famicardColonneAgence')) {
+    /**
+     * Le champ de la fiche → la colonne d'`interim_agences`.
+     *
+     * Une table de correspondance, et une seule : l'écriture et le
+     * rétablissement la lisent tous les deux. Deux listes finiraient par ne
+     * plus dire la même chose, et l'une des deux écrirait dans le vide.
+     *
+     * Le NOM n'y figure pas : il ne se modifie pas depuis la fiche.
+     */
+    function famicardColonneAgence($cle)
+    {
+        $table = [
+            'agence_contact' => 'nom_contact',
+            'agence_email1'  => 'email_1',
+            'agence_email2'  => 'email_2',
+        ];
+        return $table[(string) $cle] ?? '';
+    }
+}
+
+if (!function_exists('famicardEcritChampAgence')) {
+    /**
+     * Écrit UN champ d'agence, dans `interim_agences`.
+     *
+     * ⚠️ Ne contrôle NI les droits NI le format : c'est fait en amont
+     * (famicardPeutModifier, et la validation des adresses dans modifier.php).
+     * Cette fonction écrit — comme famicardEcritValeur pour `utilisateurs`.
+     *
+     * On vise la ligne PAR SON NOM, celui inscrit sur le compte : c'est le même
+     * chemin que partout ailleurs, et il évite de faire circuler un identifiant
+     * de table dans un formulaire.
+     */
+    function famicardEcritChampAgence(PDO $db, $nomAgence, $cle, $valeur)
+    {
+        $nomAgence = trim((string) $nomAgence);
+        $colonne = famicardColonneAgence($cle);
+        if ($nomAgence === '' || $colonne === '') {
+            return false;
+        }
+        try {
+            // Le nom de colonne vient de la table ci-dessus, jamais d'une
+            // requête : rien à échapper, mais le test reste une ceinture.
+            if (!preg_match('~^[a-z_0-9]+$~', $colonne)) {
+                return false;
+            }
+            $db->prepare("UPDATE interim_agences SET `$colonne` = ? WHERE nom_agence = ?")
+               ->execute([($valeur === '' ? null : $valeur), $nomAgence]);
+            return true;
+        } catch (Exception $e) {
+            return false;
+        }
     }
 }
 

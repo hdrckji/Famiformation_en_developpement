@@ -87,6 +87,14 @@ if (!function_exists('famicardEcritValeur')) {
             return false;
         }
 
+        // ⚠️ MÊME RAISON POUR LES CHAMPS D'AGENCE. Ils vivent dans
+        // `interim_agences`, pas dans `utilisateurs` : un UPDATE générique
+        // chercherait une colonne « agence_contact » qui n'existe pas.
+        // Ils s'écrivent avec famicardEcritChampAgence() (includes/agence.php).
+        if (($champ['saisie'] ?? '') === 'agence') {
+            return false;
+        }
+
         // Champ libre : sa valeur ne vit pas dans `utilisateurs`.
         if (!empty($champ['champ_id'])) {
             $champId = (int) $champ['champ_id'];
@@ -224,7 +232,13 @@ if (!function_exists('famicardTrancheModification')) {
             // identifiants. Si le libellé ne correspond plus à rien — secteur
             // renommé, département supprimé — on REFUSE de trancher plutôt que
             // de marquer la ligne réglée sans rien remettre en place.
-            if ($cle === 'departement' || $cle === 'secteur') {
+            // Un champ d'agence se rétablit dans `interim_agences`, en
+            // retrouvant l'agence par le nom inscrit sur le compte.
+            if (function_exists('famicardColonneAgence') && famicardColonneAgence($cle) !== '') {
+                $q = $db->prepare('SELECT interim FROM utilisateurs WHERE id = ? LIMIT 1');
+                $q->execute([(int) $modif['user_id']]);
+                famicardEcritChampAgence($db, (string) $q->fetchColumn(), $cle, (string) $modif['avant']);
+            } elseif ($cle === 'departement' || $cle === 'secteur') {
                 if (!function_exists('famicardRetrouveRattachementParNom')) {
                     return false;
                 }

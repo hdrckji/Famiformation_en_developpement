@@ -424,6 +424,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     continue;
                 }
             }
+        } elseif (($champ['saisie'] ?? '') === 'agence') {
+            // Les deux adresses de l'agence : c'est là que partent les horaires
+            // de ses intérimaires. Une adresse fausse ne se voit pas — le mail
+            // part, personne ne le reçoit, et personne ne le signale.
+            if (in_array($cle, ['agence_email1', 'agence_email2'], true)
+                && $nouvelle !== '' && !filter_var($nouvelle, FILTER_VALIDATE_EMAIL)) {
+                $erreurs[] = "Cette adresse email n'est pas valide.";
+                continue;
+            }
+
         } elseif ($cle === 'identifiant') {
             // ── LA SEULE MODIFICATION QUI PEUT METTRE QUELQU'UN DEHORS ────
             // L'identifiant est ce avec quoi on se connecte. Le changer par
@@ -561,7 +571,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         foreach ($aEcrire as $cle => $op) {
-            famicardEcritValeur($db, $cibleId, $op['champ'], $op['apres']);
+            if (($op['champ']['saisie'] ?? '') === 'agence') {
+                // Dans `interim_agences`, et non dans `utilisateurs` : c'est la
+                // fiche de l'AGENCE, pas celle du compte qui s'y connecte.
+                famicardEcritChampAgence($db, (string) ($cible['interim'] ?? ''), $cle, $op['apres']);
+            } else {
+                famicardEcritValeur($db, $cibleId, $op['champ'], $op['apres']);
+            }
             famicardTraceModification($db, $cibleId, $cle, $op['champ'], $op['avant'], $op['apres'], (int) $moi['id'], $aValider);
         }
 
@@ -1032,6 +1048,14 @@ if ($photo !== '') {
                                       // une date, et le champ HTML la refuserait de toute façon. ?>
                                 <input type="date" id="champ_<?= e($cle) ?>" name="champ_<?= e($cle) ?>"
                                        value="<?= ($brute !== '' && $brute !== '0000-00-00') ? e(substr($brute, 0, 10)) : '' ?>">
+
+                            <?php elseif ($saisie === 'agence'): ?>
+                                <?php // Champ de l'agence : il vit dans `interim_agences`.
+                                      // Les deux adresses en type « email » pour que le
+                                      // navigateur signale une faute avant l'envoi. ?>
+                                <input type="<?= in_array($cle, ['agence_email1', 'agence_email2'], true) ? 'email' : 'text' ?>"
+                                       id="champ_<?= e($cle) ?>" name="champ_<?= e($cle) ?>"
+                                       value="<?= e($brute) ?>" maxlength="255">
 
                             <?php elseif ($saisie === 'email'): ?>
                                 <input type="email" id="champ_<?= e($cle) ?>" name="champ_<?= e($cle) ?>" value="<?= e($brute) ?>">

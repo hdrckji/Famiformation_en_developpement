@@ -103,6 +103,9 @@ if ($estAdmin) {
 // naissance, ni secteur : lui annoncer « ta carte est incomplète » serait lui
 // reprocher de ne pas être quelqu'un. On saute donc tout ce bloc pour elle.
 $estAgence = famicardEstCompteAgence($roleMoi);
+// Le nom de l'agence, pour l'accueillir par son nom plutôt que par
+// l'identifiant technique de son compte.
+$nomAgence = $estAgence ? trim((string) ($moi['interim'] ?? '')) : '';
 
 $champs    = famicardChamps($db);
 $magasins  = famicardMagasins($db);
@@ -146,23 +149,59 @@ $avatarUrl = ($avatar['existe'] && $avatar['image'] !== '')
 <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
     *, *::before, *::after { box-sizing: border-box; }
-    body { font-family: 'Open Sans', sans-serif; background: url('<?= e(famicardSiteUrl('background.jpg')) ?>') no-repeat center center fixed; background-size: cover; margin: 0; padding: 0 0 40px; color: #333; }
-    .wrap { max-width: 900px; margin: 0 auto; padding: 0 16px; }
 
-    .tete { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 22px 0 18px; }
-    .moi { display: flex; align-items: center; gap: 14px; }
-    .avatar { width: 58px; height: 58px; border-radius: 50%; object-fit: cover; border: 3px solid rgba(255,255,255,.9); background: #e8f5e9; }
-    .avatar-vide { display: flex; align-items: center; justify-content: center; font-size: 1.5rem; color: #2d5a37; background: rgba(255,255,255,.9); }
-    .bonjour { color: #fff; text-shadow: 0 2px 8px rgba(0,0,0,.35); }
-    .bonjour .salut { font-size: 1.35rem; font-weight: 800; line-height: 1.2; }
-    .bonjour .sous { font-size: .85rem; opacity: .95; }
-    .deco { background: rgba(255,255,255,.92); border-radius: 30px; padding: 9px 18px; text-decoration: none; color: #2d5a37; font-weight: 700; font-size: .85rem; box-shadow: 0 4px 10px rgba(0,0,0,.1); }
+    /* ⚠️ LE FOND EST SUR <html>, PAS SUR <body>, et c'est ce qui corrige la
+       cassure nette en bas de page. Posé sur le body, il s'arrête où le contenu
+       s'arrête : sur un écran haut avec peu de tuiles, la moitié basse virait
+       à une autre teinte. Sur <html> il habille toute la fenêtre, quelle que
+       soit la hauteur du contenu. */
+    html {
+        min-height: 100%;
+        background: #dfe9e0 url('<?= e(famicardSiteUrl('background.jpg')) ?>') no-repeat center center fixed;
+        background-size: cover;
+    }
+    body {
+        font-family: 'Open Sans', sans-serif;
+        margin: 0;
+        padding: 0 0 56px;
+        color: #333;
+        min-height: 100vh;
+        min-height: 100dvh;   /* mobile : la barre d'adresse ne laisse plus de bande */
+        background: transparent;
+    }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 0 20px; }
+
+    /* ── L'EN-TÊTE, DANS UNE CARTE ──────────────────────────────────────
+       Le nom et le bouton flottaient sur l'image, avec une ombre portée pour
+       rester lisibles. Sur un fond clair, ça restait pâle. Une carte, et le
+       texte redevient net quel que soit le fond. */
+    .tete {
+        display: flex; align-items: center; justify-content: space-between;
+        gap: 18px; flex-wrap: wrap;
+        background: rgba(255,255,255,.94);
+        border-radius: 20px;
+        padding: 18px 22px;
+        margin: 26px 0 24px;
+        box-shadow: 0 8px 26px rgba(20,50,32,.14);
+    }
+    .moi { display: flex; align-items: center; gap: 15px; min-width: 0; }
+    .avatar { width: 60px; height: 60px; border-radius: 50%; object-fit: cover; border: 3px solid #e8f5e9; background: #e8f5e9; flex: 0 0 auto; }
+    .avatar-vide { display: flex; align-items: center; justify-content: center; font-size: 1.6rem; color: #2d5a37; }
+    .bonjour { min-width: 0; }
+    .bonjour .salut { font-size: 1.4rem; font-weight: 800; line-height: 1.2; color: #1f4a2c; overflow-wrap: anywhere; }
+    .bonjour .sous { font-size: .84rem; color: #6a7d72; margin-top: 3px; }
+    .deco { background: #eef4ef; border-radius: 30px; padding: 10px 20px; text-decoration: none; color: #2d5a37; font-weight: 700; font-size: .85rem; border: 1px solid #d8e6dc; white-space: nowrap; }
+    .deco:hover { background: #2d5a37; color: #fff; border-color: #2d5a37; }
 
     .rappel { background: #fff8e6; border-left: 5px solid #E9A93C; border-radius: 12px; color: #7a4a11; padding: 14px 18px; font-size: .9rem; line-height: 1.55; margin-bottom: 20px; }
     .rappel a { color: #7a4a11; font-weight: 700; }
 
-    .tuiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; }
-    .tuile { position: relative; display: block; background: rgba(255,255,255,.96); border-radius: 18px; padding: 26px 24px; text-decoration: none; color: inherit; box-shadow: 0 8px 24px rgba(0,0,0,.12); border: 2px solid transparent; transition: transform .15s, border-color .15s, box-shadow .15s; }
+    /* ⚠️ « auto-fill » ET NON « auto-fit ». Avec auto-fit, une rangée qui ne
+       contient qu'une tuile l'étire sur toute la largeur : le bloc « Mes accès »
+       affichait un FamiJob de 900 px de large, seul sur sa ligne, et ça faisait
+       tout de suite bricolé. auto-fill garde la largeur d'une colonne. */
+    .tuiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 18px; align-items: stretch; }
+    .tuile { position: relative; display: flex; flex-direction: column; background: rgba(255,255,255,.97); border-radius: 18px; padding: 24px 22px; text-decoration: none; color: inherit; box-shadow: 0 8px 24px rgba(20,50,32,.12); border: 2px solid transparent; transition: transform .15s, border-color .15s, box-shadow .15s; }
     .tuile:hover { transform: translateY(-3px); border-color: #2d5a37; box-shadow: 0 12px 30px rgba(0,0,0,.18); }
     .tuile .ico { font-size: 2.1rem; line-height: 1; display: block; margin-bottom: 12px; }
     .tuile .nom { color: #2d5a37; font-weight: 800; font-size: 1.15rem; }
@@ -173,7 +212,16 @@ $avatarUrl = ($avatar['existe'] && $avatar['image'] !== '')
        personnage entier ne se recadre pas en rond — il se pose sur le fond. */
     .tuile .figurine { display: block; height: 78px; width: auto; margin: -4px 0 8px; object-fit: contain; }
 
-    .titre-groupe { color: #fff; text-shadow: 0 2px 8px rgba(0,0,0,.35); font-size: .8rem; text-transform: uppercase; letter-spacing: .09em; font-weight: 700; margin: 30px 0 12px; }
+    /* Le titre de section était en blanc sur l'image : illisible dès que le
+       fond s'éclaircit. Une pastille le tient sur tous les fonds. */
+    .titre-groupe {
+        display: inline-block;
+        background: rgba(31,74,44,.88);
+        color: #fff;
+        font-size: .74rem; text-transform: uppercase; letter-spacing: .1em; font-weight: 800;
+        padding: 6px 14px; border-radius: 999px;
+        margin: 32px 0 14px;
+    }
 </style>
 </head>
 <body>
@@ -196,10 +244,13 @@ $avatarUrl = ($avatar['existe'] && $avatar['image'] !== '')
             <?php if ($photoUrl !== ''): ?>
                 <img class="avatar" src="<?= e($photoUrl) ?>" alt="">
             <?php else: ?>
-                <div class="avatar avatar-vide">👤</div>
+                <div class="avatar avatar-vide"><?= $estAgence ? '🏢' : '👤' ?></div>
             <?php endif; ?>
             <div class="bonjour">
-                <div class="salut">Bonjour <?= e($prenom) ?></div>
+                <?php // Une agence n'a pas de prénom : on l'accueille par SON NOM,
+                      // celui de l'agence, et pas par l'identifiant technique du
+                      // compte (« Bonjour asup » ne veut rien dire pour personne). ?>
+                <div class="salut">Bonjour <?= e($estAgence && $nomAgence !== '' ? $nomAgence : $prenom) ?></div>
                 <div class="sous"><?= e(famicardLibelleRole($roleMoi)) ?></div>
             </div>
         </div>
@@ -219,7 +270,9 @@ $avatarUrl = ($avatar['existe'] && $avatar['image'] !== '')
             <?php if ($manquants): ?><span class="pastille">à compléter</span><?php endif; ?>
             <span class="ico">🪪</span>
             <div class="nom">Ma fiche</div>
-            <div class="quoi">Ta carte d'identité Famiflora, tes informations et ton badge.</div>
+            <div class="quoi"><?= $estAgence
+                ? 'Les informations de votre agence : contact et adresses.'
+                : "Ta carte d'identité Famiflora, tes informations et ton badge." ?></div>
         </a>
 
         <?php // ── L'AVATAR ─────────────────────────────────────────────────
