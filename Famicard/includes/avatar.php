@@ -62,6 +62,25 @@ if (!function_exists('famicardAvatarCatalogue')) {
                 'libelle' => 'Silhouette',
                 'icone'   => '🧍',
                 'champs'  => [
+                    // LA POSE FAIT PARTIE DE L'AVATAR, pas des réglages d'écran.
+                    // C'est ce qui fait qu'elle se retrouve toute seule sur la
+                    // vignette de la fiche : la vignette est une photo du
+                    // personnage tel qu'il est enregistré. Une pose choisie
+                    // ailleurs (un bouton d'affichage) aurait donné une fiche
+                    // où tout le monde est au garde-à-vous.
+                    'pose' => [
+                        'libelle' => 'Pose',
+                        'type'    => 'liste',
+                        'defaut'  => 'neutre',
+                        'valeurs' => [
+                            'neutre'       => ['libelle' => 'Debout'],
+                            'salut'        => ['libelle' => 'Coucou'],
+                            'hanches'      => ['libelle' => 'Mains sur les hanches'],
+                            'bras_croises' => ['libelle' => 'Bras croisés'],
+                            'victoire'     => ['libelle' => 'Bras levés'],
+                            'presente'     => ['libelle' => 'Bras tendu'],
+                        ],
+                    ],
                     'peau' => [
                         'libelle' => 'Teint',
                         'type'    => 'couleur',
@@ -78,6 +97,28 @@ if (!function_exists('famicardAvatarCatalogue')) {
                             'ambre'      => ['libelle' => 'Ambré',      'hex' => '#8A5430'],
                             'brun'       => ['libelle' => 'Brun',       'hex' => '#66391F'],
                             'ebene'      => ['libelle' => 'Ébène',      'hex' => '#432414'],
+                        ],
+                    ],
+                    // ── LA MORPHOLOGIE, ET PAS « LE SEXE » ──────────────────
+                    // C'est une FORME DE FIGURINE, pas une donnée d'état civil.
+                    // La nuance n'est pas de la coquetterie : Famicard est
+                    // soumis au RGPD (voir le README), et le sexe y est une
+                    // donnée qu'on n'a aucune raison de collecter pour dessiner
+                    // un bonhomme. On demande donc la silhouette qu'on veut
+                    // avoir, ce qui est un choix d'apparence — comme la coupe
+                    // de cheveux — et non une déclaration sur soi.
+                    //
+                    // « Neutre » est le défaut et n'est pas un pis-aller : c'est
+                    // la silhouette la plus proche du style jouet, et personne
+                    // n'est obligé de se ranger dans une case pour commencer.
+                    'silhouette' => [
+                        'libelle' => 'Morphologie',
+                        'type'    => 'liste',
+                        'defaut'  => 'neutre',
+                        'valeurs' => [
+                            'neutre'    => ['libelle' => 'Neutre'],
+                            'feminine'  => ['libelle' => 'Féminine'],
+                            'masculine' => ['libelle' => 'Masculine'],
                         ],
                     ],
                     'carrure' => [
@@ -177,6 +218,20 @@ if (!function_exists('famicardAvatarCatalogue')) {
                             'sourire'  => ['libelle' => 'Sourire'],
                             'joyeux'   => ['libelle' => 'Joyeux'],
                             'determine'=> ['libelle' => 'Déterminé'],
+                        ],
+                    ],
+                    // Les cils sont un CHAMP À PART, et pas une conséquence
+                    // automatique de la morphologie féminine. Les accrocher à
+                    // la silhouette aurait gravé un stéréotype dans le modèle ;
+                    // séparés, ils sont à la disposition de tout le monde.
+                    'cils' => [
+                        'libelle' => 'Cils',
+                        'type'    => 'liste',
+                        'defaut'  => 'aucun',
+                        'valeurs' => [
+                            'aucun'    => ['libelle' => 'Aucun'],
+                            'discrets' => ['libelle' => 'Discrets'],
+                            'marques'  => ['libelle' => 'Marqués'],
                         ],
                     ],
                     'sourcils' => [

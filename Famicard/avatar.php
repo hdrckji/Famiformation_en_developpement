@@ -132,6 +132,9 @@ if ($prenom === '') {
 
     .mini { border: 1px solid #d3e0d7; background: #fff; color: #2d5a37; border-radius: 30px; padding: 8px 15px; font-family: inherit; font-weight: 700; font-size: .82rem; cursor: pointer; }
     .mini:hover { background: #eef6f0; }
+    /* Le verrou enclenché se voit : un bouton bascule qui garde l'air d'un
+       bouton ordinaire laisse deviner son état, donc le fait oublier. */
+    .mini[aria-pressed="true"] { background: #2d5a37; color: #fff; border-color: #2d5a37; }
 
     /* LES OPTIONS */
     .options { background: rgba(255,255,255,.95); border-radius: 22px; box-shadow: 0 10px 30px rgba(0,0,0,.15); overflow: hidden; }
@@ -217,6 +220,10 @@ if ($prenom === '') {
             </div>
             <div class="scene-outils">
                 <button type="button" class="mini" id="btnFace">🎯 De face</button>
+                <?php // Le verrou ARRÊTE le manège, il ne bloque pas la souris :
+                      // on veut pouvoir regarder un détail sans que le
+                      // personnage s'en aille, pas s'interdire de le tourner. ?>
+                <button type="button" class="mini" id="btnFiger" aria-pressed="false">⏸️ Figer la rotation</button>
                 <button type="button" class="mini" id="btnHasard">🎲 Au hasard</button>
                 <button type="button" class="mini" id="btnAnnuler">↩️ Repartir de zéro</button>
             </div>
@@ -374,6 +381,27 @@ document.querySelectorAll('.onglet').forEach(function (onglet) {
 document.getElementById('btnFace').addEventListener('click', function () {
     if (vue) { vue.recentre(); }
 });
+
+// ── LE VERROU DE ROTATION ───────────────────────────────────────────────────
+// Le choix est RETENU d'une visite à l'autre : quelqu'un que le manège gêne est
+// gêné à chaque fois, et redemander le verrou à chaque ouverture serait le lui
+// faire redire. C'est une préférence d'affichage, pas une donnée de la personne
+// — elle reste donc dans le navigateur, pas en base.
+const btnFiger = document.getElementById('btnFiger');
+let fige = false;
+try { fige = (window.localStorage.getItem('famicard_avatar_fige') === '1'); } catch (e) { fige = false; }
+
+function appliqueVerrou() {
+    if (vue) { vue.rotationAuto(!fige); }
+    btnFiger.textContent = fige ? '▶️ Relancer la rotation' : '⏸️ Figer la rotation';
+    btnFiger.setAttribute('aria-pressed', fige ? 'true' : 'false');
+}
+btnFiger.addEventListener('click', function () {
+    fige = !fige;
+    try { window.localStorage.setItem('famicard_avatar_fige', fige ? '1' : '0'); } catch (e) { /* navigation privée */ }
+    appliqueVerrou();
+});
+appliqueVerrou();
 
 document.getElementById('btnHasard').addEventListener('click', function () {
     // Un tirage complet, y compris les couleurs : le but est de donner un point

@@ -115,24 +115,41 @@ function mesures(look) {
     const t = { petite: 0.93, moyenne: 1, grande: 1.07 }[look.taille] || 1;      // hauteur
     const c = { fine: 0.87, standard: 1, large: 1.17 }[look.carrure] || 1;       // largeur
 
+    // ── LA MORPHOLOGIE ──────────────────────────────────────────────────────
+    // Trois nombres suffisent à changer une silhouette : la largeur d'épaules,
+    // la largeur de hanches, et la présence d'une poitrine. Tout le reste du
+    // personnage s'y adapte tout seul, parce que chaque pièce est placée par
+    // rapport à ces mesures et non par des coordonnées écrites à la main.
+    const forme = {
+        neutre:    { epaules: 1.00, hanches: 1.00, buste: 0 },
+        feminine:  { epaules: 0.92, hanches: 1.14, buste: 1 },
+        masculine: { epaules: 1.08, hanches: 0.94, buste: 0 }
+    }[look.silhouette] || { epaules: 1, hanches: 1, buste: 0 };
+
     const m = {
         t: t,
         c: c,
+        forme: forme,
         rTete: 0.225,
         hPied: 0.085,
         hJambe: 0.70 * t,
         hTorse: 0.58 * t,
-        lTorse: 0.50 * c,     // largeur d'épaules
-        pTorse: 0.26 * c,     // profondeur
+        lTorse: 0.50 * c * forme.epaules,   // largeur d'épaules
+        pTorse: 0.26 * c,                   // profondeur
         rJambe: 0.088 * Math.sqrt(c),
         rBras: 0.066 * Math.sqrt(c),
         hBras: 0.50 * t
     };
 
+    // Les hanches ne suivent PAS les épaules : c'est justement leur écart qui
+    // dessine la silhouette. On repart donc de la largeur de base, avant le
+    // facteur d'épaules.
+    m.lHanche = 0.50 * c * forme.hanches;
+
     m.yHanche = m.hPied + m.hJambe;
     m.yEpaule = m.yHanche + m.hTorse;
     m.yTete   = m.yEpaule + 0.055 + m.rTete;
-    m.ecartJambes = m.lTorse * 0.24;
+    m.ecartJambes = m.lHanche * 0.24;
     m.hauteurTotale = m.yTete + m.rTete * 1.35;   // marge pour cheveux/chapeau
 
     return m;
@@ -189,6 +206,22 @@ function construireTete(look, m, mats) {
         const pupille = balle(R * 0.042, mats.noir, 12);
         pupille.scale.set(1, 1, 0.6);
         oeil.add(place(pupille, 0, 0, R * 0.135));
+
+        // Les cils sont accrochés À L'ŒIL, pas à la tête : ils se ferment donc
+        // avec lui au clignement, sans une ligne de plus dans l'animation.
+        if (look.cils && look.cils !== 'aucun') {
+            const fort = (look.cils === 'marques');
+            const trait = boite(R * 0.34, R * (fort ? 0.055 : 0.038), R * 0.10, mats.noir);
+            trait.rotation.z = s * 0.12;
+            oeil.add(place(trait, 0, R * 0.14, R * 0.06));
+            if (fort) {
+                // Deux pointes aux coins extérieurs : c'est ce qui distingue des
+                // cils « marqués » d'un simple trait plus épais.
+                const pointe = boite(R * 0.11, R * 0.035, R * 0.08, mats.noir);
+                pointe.rotation.z = s * 0.75;
+                oeil.add(place(pointe, s * R * 0.17, R * 0.18, R * 0.05));
+            }
+        }
 
         place(oeil, s * R * 0.36, R * 0.10, R * 0.86);
         tete.add(oeil);
@@ -581,6 +614,28 @@ function construireTorse(look, m, mats) {
     const demiL = m.lTorse / 2;
     const demiP = m.pTorse / 2;
 
+    // ── CE QUE LA MORPHOLOGIE AJOUTE ────────────────────────────────────────
+    // La largeur d'épaules est déjà prise en compte dans les mesures ; il reste
+    // ce qui ne se règle pas par un simple facteur.
+    //
+    // La poitrine est posée EN PREMIER, donc sous le col, la patte de
+    // boutonnage et le tablier : c'est le vêtement qui doit passer par-dessus,
+    // pas l'inverse.
+    if (m.forme.buste) {
+        [-1, 1].forEach(function (s) {
+            const sein = balle(demiL * 0.34, mats.haut, 18);
+            sein.scale.set(1, 0.92, 0.80);
+            g.add(place(sein, s * demiL * 0.34, yEp - m.hTorse * 0.30, demiP * 0.66));
+        });
+    }
+    if (m.forme.epaules > 1.02) {
+        // Un buste qui s'élargit vers le haut, plutôt qu'un tube. Sans lui, une
+        // morphologie masculine n'est qu'un personnage un peu plus large.
+        const carrure = balle(demiL * 0.98, mats.haut, 20);
+        carrure.scale.set(1, 0.34, (m.pTorse / m.lTorse) * 1.10);
+        g.add(place(carrure, 0, yEp - m.hTorse * 0.16, 0));
+    }
+
     // Le cou : sa couleur dépend du vêtement — un col roulé ne laisse pas voir
     // la peau, un débardeur si.
     const cou = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.082, 0.11, 16), mats.peau);
@@ -654,42 +709,120 @@ function construireTorse(look, m, mats) {
     return g;
 }
 
-/** Un bras complet : épaule → main, avec sa manche s'il en faut une. */
+/**
+ * Un bras complet, EN DEUX SEGMENTS ARTICULÉS.
+ *
+ * ⚠️ LE COUDE EST CE QUI REND LES POSES POSSIBLES. Un bras d'une seule pièce ne
+ * sait faire que « le long du corps » ou « tendu » : impossible de croiser les
+ * bras, de poser les mains sur les hanches ou de faire un signe. D'où deux
+ * groupes emboîtés — l'épaule, et le coude qui pend dedans. Une pose n'est plus
+ * alors qu'une paire d'angles par bras (voir POSES).
+ *
+ * @returns {Object} { epaule, coude } — les deux pivots, que l'animation et les
+ *                   poses font tourner. Le reste y est simplement accroché.
+ */
 function construireBras(cote, look, m, mats) {
-    const bras = new THREE.Group();   // pivot posé à l'épaule
     const rB = m.rBras;
-    const longueur = m.hBras;
+    const lHaut = m.hBras * 0.46;   // épaule → coude
+    const lBas  = m.hBras * 0.54;   // coude → poignet
 
-    const membre = capsule(rB, longueur - rB * 2, mats.peau);
-    bras.add(place(membre, 0, -longueur / 2, 0));
+    const epaule = new THREE.Group();
+    const haut = capsule(rB, Math.max(0.01, lHaut - rB * 2), mats.peau);
+    epaule.add(place(haut, 0, -lHaut / 2, 0));
+
+    const coude = new THREE.Group();
+    place(coude, 0, -lHaut, 0);
+    epaule.add(coude);
+
+    const avant = capsule(rB * 0.94, Math.max(0.01, lBas - rB * 2), mats.peau);
+    coude.add(place(avant, 0, -lBas / 2, 0));
 
     const main = balle(rB * 1.18, look.accessoire === 'gants' ? mats.gant : mats.peau, 16);
     main.scale.set(1, 1.15, 0.85);
-    bras.add(place(main, 0, -longueur - rB * 0.15, 0));
+    coude.add(place(main, 0, -lBas - rB * 0.10, 0));
 
     if (look.accessoire === 'gants') {
-        const poignet = new THREE.Mesh(new THREE.TorusGeometry(rB * 1.05, rB * 0.30, 8, 16), mats.gantOmbre);
+        const poignet = new THREE.Mesh(new THREE.TorusGeometry(rB * 1.02, rB * 0.30, 8, 16), mats.gantOmbre);
         poignet.rotation.x = Math.PI / 2;
-        bras.add(place(poignet, 0, -longueur + rB * 0.35, 0));
+        coude.add(place(poignet, 0, -lBas + rB * 0.30, 0));
     }
 
     // La manche : courte pour un t-shirt, longue pour un pull. Le débardeur n'en
-    // a pas — et c'est exactement ce qui le distingue à l'écran.
+    // a pas — et c'est exactement ce qui le distingue à l'écran. Une manche
+    // longue est en DEUX morceaux, un par segment : d'un seul tenant, elle
+    // resterait droite pendant que le bras se plie.
     const longues = (look.haut === 'chemise' || look.haut === 'pull' || look.haut === 'sweat' || look.haut === 'veste');
     if (look.haut !== 'debardeur') {
-        const lm = longues ? longueur * 0.86 : longueur * 0.34;
-        const manche = capsule(rB * 1.22, lm - rB * 1.2, mats.haut);
-        bras.add(place(manche, 0, -lm / 2 + rB * 0.10, 0));
+        const lm = longues ? lHaut : lHaut * 0.62;
+        const manche = capsule(rB * 1.22, Math.max(0.01, lm - rB * 1.2), mats.haut);
+        epaule.add(place(manche, 0, -lm / 2 + rB * 0.10, 0));
+
         if (longues) {
-            const bord = new THREE.Mesh(new THREE.TorusGeometry(rB * 1.15, rB * 0.22, 8, 16), mats.hautOmbre);
+            const bas = lBas * 0.80;
+            const manchette = capsule(rB * 1.16, Math.max(0.01, bas - rB * 1.2), mats.haut);
+            coude.add(place(manchette, 0, -bas / 2 + rB * 0.16, 0));
+            const bord = new THREE.Mesh(new THREE.TorusGeometry(rB * 1.10, rB * 0.22, 8, 16), mats.hautOmbre);
             bord.rotation.x = Math.PI / 2;
-            bras.add(place(bord, 0, -lm + rB * 0.20, 0));
+            coude.add(place(bord, 0, -bas + rB * 0.16, 0));
         }
     }
 
-    place(bras, cote * (m.lTorse / 2 + rB * 0.35), m.yEpaule - 0.075, 0);
-    bras.rotation.z = cote * 0.13;    // les bras ne collent pas au corps
-    return bras;
+    place(epaule, cote * (m.lTorse / 2 + rB * 0.35), m.yEpaule - 0.075, 0);
+    return { epaule: epaule, coude: coude };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LES POSES.
+//
+// Une pose = deux angles par bras (l'épaule et le coude), plus un mouvement de
+// tête. Rien d'autre : c'est ce qui la rend lisible en silhouette, et surtout
+// ce qui permet d'en ajouter une en trois lignes.
+//
+// Repères, parce qu'ils ne sont pas devinables :
+//   • le bras pend vers -Y ; une rotation Z POSITIVE emmène la main vers +X.
+//     Donc pour lever le bras de droite (côté +X), on tourne vers +π ; pour
+//     celui de gauche, vers -π. D'où les signes opposés partout.
+//   • une rotation X NÉGATIVE amène l'avant-bras vers l'avant (+Z).
+//
+// `balance` dit combien du balancement d'attente il reste : un personnage qui
+// croise les bras ne doit pas continuer à les balancer, mais un personnage
+// debout, si. `agite` désigne le bras qui fait coucou.
+// ─────────────────────────────────────────────────────────────────────────────
+const POSES = {
+    neutre: {
+        g: { ep: [0, 0, -0.13], co: [0, 0, 0] },
+        d: { ep: [0, 0, 0.13], co: [0, 0, 0] },
+        tete: [0, 0, 0], balance: 1
+    },
+    salut: {
+        g: { ep: [0, 0, -0.16], co: [0, 0, 0] },
+        d: { ep: [0, 0, 2.30], co: [0, 0, -0.25] },
+        tete: [0, -0.12, 0.08], balance: 0.30, agite: 'd'
+    },
+    hanches: {
+        g: { ep: [0, 0, -0.60], co: [-0.25, 0, 1.45] },
+        d: { ep: [0, 0, 0.60], co: [-0.25, 0, -1.45] },
+        tete: [0, 0, 0], balance: 0.12
+    },
+    bras_croises: {
+        g: { ep: [-0.30, 0, -0.30], co: [-0.55, 0, 1.60] },
+        d: { ep: [-0.30, 0, 0.30], co: [-0.55, 0, -1.60] },
+        tete: [0, 0, 0], balance: 0.10
+    },
+    victoire: {
+        g: { ep: [0, 0, -2.55], co: [0, 0, 0.18] },
+        d: { ep: [0, 0, 2.55], co: [0, 0, -0.18] },
+        tete: [-0.10, 0, 0], balance: 0.35
+    },
+    presente: {
+        g: { ep: [0, 0, -0.16], co: [0, 0, 0] },
+        d: { ep: [0, 0, 1.55], co: [0, 0, 0] },
+        tete: [0, -0.22, 0], balance: 0.20
+    }
+};
+
+function poseDe(look) {
+    return POSES[look.pose] || POSES.neutre;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -731,22 +864,30 @@ function construireJambes(look, m, mats) {
         g.add(construireChaussure(look, m, mats, x));
     });
 
+    // ── LE BASSIN ───────────────────────────────────────────────────────────
+    // Il ne suit PAS la largeur d'épaules : c'est l'écart entre les deux qui
+    // dessine une silhouette. D'où `m.lHanche`, calculé à part (voir mesures()).
+    // Il vient aussi combler la jonction torse / jambes, qui sans lui se voit
+    // comme une coupure nette.
+    const bassin = balle(m.lHanche * 0.42, (cv > 0 || bas === 'jupe') ? mats.bas : mats.peau, 20);
+    bassin.scale.set(1, 0.62, (m.pTorse / m.lHanche) * 1.05);
+    g.add(place(bassin, 0, m.yHanche - 0.03, 0));
+
     if (bas === 'jupe') {
         // Un tronc de cône : la seule forme qui tombe correctement.
         const jupe = new THREE.Mesh(
-            new THREE.CylinderGeometry(m.lTorse * 0.46, m.lTorse * 0.72, m.hJambe * 0.46, 26, 1, true),
+            new THREE.CylinderGeometry(m.lHanche * 0.46, m.lHanche * 0.74, m.hJambe * 0.46, 26, 1, true),
             mats.basDouble
         );
         g.add(place(jupe, 0, m.yHanche - m.hJambe * 0.20, 0));
-        const ceinture = new THREE.Mesh(new THREE.TorusGeometry(m.lTorse * 0.45, 0.028, 8, 26), mats.basOmbre);
+        const ceinture = new THREE.Mesh(new THREE.TorusGeometry(m.lHanche * 0.45, 0.028, 8, 26), mats.basOmbre);
         ceinture.rotation.x = Math.PI / 2;
         g.add(place(ceinture, 0, m.yHanche + 0.02, 0));
     } else {
-        // La ceinture de taille : elle cache la jonction torse/jambes, qui sans
-        // elle se voit comme une coupure.
-        const ceinture = new THREE.Mesh(new THREE.TorusGeometry(m.lTorse * 0.40, 0.032, 8, 26), mats.basOmbre);
+        // La ceinture de taille.
+        const ceinture = new THREE.Mesh(new THREE.TorusGeometry(m.lHanche * 0.41, 0.032, 8, 26), mats.basOmbre);
         ceinture.rotation.x = Math.PI / 2;
-        ceinture.scale.set(1, (m.pTorse / m.lTorse) * 1.15, 1);
+        ceinture.scale.set(1, (m.pTorse / m.lHanche) * 1.15, 1);
         g.add(place(ceinture, 0, m.yHanche + 0.01, 0));
     }
 
@@ -924,8 +1065,17 @@ function construirePersonnage(look) {
 
     const brasG = construireBras(-1, look, m, mats);
     const brasD = construireBras(1, look, m, mats);
-    racine.add(brasG);
-    racine.add(brasD);
+    racine.add(brasG.epaule);
+    racine.add(brasD.epaule);
+
+    // La pose est posée TOUT DE SUITE, avant même la première image : sans ça,
+    // la vignette prise dans la foulée attraperait un personnage encore au
+    // garde-à-vous.
+    const pose = poseDe(look);
+    brasG.epaule.rotation.set(pose.g.ep[0], pose.g.ep[1], pose.g.ep[2]);
+    brasG.coude.rotation.set(pose.g.co[0], pose.g.co[1], pose.g.co[2]);
+    brasD.epaule.rotation.set(pose.d.ep[0], pose.d.ep[1], pose.d.ep[2]);
+    brasD.coude.rotation.set(pose.d.co[0], pose.d.co[1], pose.d.co[2]);
 
     racine.add(construireEquipement(look, m, mats));
 
@@ -938,6 +1088,7 @@ function construirePersonnage(look) {
     tete.groupe.add(construireLunettes(look, m, mats));
     tete.groupe.add(construireCouvreChef(look, m, mats));
     place(tete.groupe, 0, m.yTete, 0);
+    tete.groupe.rotation.set(pose.tete[0], pose.tete[1], pose.tete[2]);
     racine.add(tete.groupe);
 
     return {
@@ -947,7 +1098,8 @@ function construirePersonnage(look) {
         tete: tete.groupe,
         yeux: tete.yeux,
         brasG: brasG,
-        brasD: brasD
+        brasD: brasD,
+        pose: pose
     };
 }
 
@@ -1155,14 +1307,33 @@ export function creerAvatar(hote, look, options) {
         if (personnage && o.anime) {
             // Respiration + balancement : trois lignes qui font toute la
             // différence entre « une statue » et « quelqu'un ».
+            //
+            // ⚠️ TOUT S'AJOUTE À LA POSE, rien ne la remplace. Écrire
+            // `rotation.z = …` écraserait des bras croisés à la première image :
+            // le balancement est une petite variation AUTOUR de la position
+            // choisie, et il s'efface presque complètement quand la pose est
+            // tenue (voir `balance`).
             const souffle = Math.sin(t * 1.6);
+            const P = personnage.pose;
+            const b = P.balance;
+
             personnage.tete.position.y = personnage.mesures.yTete + souffle * 0.008;
-            personnage.tete.rotation.z = Math.sin(t * 0.7) * 0.03;
-            personnage.tete.rotation.x = Math.sin(t * 0.9 + 1) * 0.025;
-            personnage.brasG.rotation.x = Math.sin(t * 1.1) * 0.10;
-            personnage.brasD.rotation.x = Math.sin(t * 1.1 + Math.PI) * 0.10;
-            personnage.brasG.rotation.z = -0.13 - Math.abs(souffle) * 0.02;
-            personnage.brasD.rotation.z = 0.13 + Math.abs(souffle) * 0.02;
+            personnage.tete.rotation.x = P.tete[0] + Math.sin(t * 0.9 + 1) * 0.025;
+            personnage.tete.rotation.y = P.tete[1];
+            personnage.tete.rotation.z = P.tete[2] + Math.sin(t * 0.7) * 0.03;
+
+            personnage.brasG.epaule.rotation.x = P.g.ep[0] + Math.sin(t * 1.1) * 0.10 * b;
+            personnage.brasD.epaule.rotation.x = P.d.ep[0] + Math.sin(t * 1.1 + Math.PI) * 0.10 * b;
+            personnage.brasG.epaule.rotation.z = P.g.ep[2] - Math.abs(souffle) * 0.02 * b;
+            personnage.brasD.epaule.rotation.z = P.d.ep[2] + Math.abs(souffle) * 0.02 * b;
+
+            // Le coucou : c'est l'AVANT-BRAS qui va et vient, pas l'épaule —
+            // agiter tout le bras donnerait un moulin, pas un salut.
+            if (P.agite) {
+                const bras = (P.agite === 'd') ? personnage.brasD : personnage.brasG;
+                const base = (P.agite === 'd') ? P.d.co[2] : P.g.co[2];
+                bras.coude.rotation.z = base + Math.sin(t * 4.2) * 0.34;
+            }
 
             // Le clignement, à intervalle irrégulier mais calculé : un rythme
             // parfaitement régulier se remarque et met mal à l'aise.
@@ -1197,6 +1368,26 @@ export function creerAvatar(hote, look, options) {
 
         /** Remet le personnage de face (utilisé avant une capture). */
         recentre: function () { rotationCible = 0; inclinaison = 0; },
+
+        /**
+         * Arrête (ou relance) la rotation automatique.
+         *
+         * ⚠️ ELLE NE BLOQUE PAS LA SOURIS, et c'est voulu : « bloquer » veut
+         * dire « arrête de tourner tout seul pendant que je regarde », pas
+         * « je ne peux plus le tourner ». On garde donc la main, on perd
+         * seulement le manège.
+         *
+         * @param {boolean} actif
+         * @returns {boolean} l'état après l'appel
+         */
+        rotationAuto: function (actif) {
+            o.rotationAuto = !!actif;
+            // On repart du repos : sans ça, relancer la rotation la fait
+            // démarrer en sursaut, le compteur d'inactivité ayant couru pendant
+            // tout le temps où elle était figée.
+            reposDepuis = 0;
+            return o.rotationAuto;
+        },
 
         /**
          * La vignette PNG, fond transparent.

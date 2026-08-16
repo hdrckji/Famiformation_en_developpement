@@ -774,6 +774,23 @@ volume (`divers/avatars/`) pour que les petits affichages (un rond de 40 px sur 
 une liste, demain un e-mail) n'aient pas à charger un moteur 3D. Si elle disparaît, on la
 regénère ; si elle manque, l'écran retombe sur son repli habituel.
 
+**La pose fait partie de l'avatar, pas de l'écran.** Debout, coucou, mains sur les hanches,
+bras croisés, bras levés, bras tendu. C'est un champ comme un autre, donc **enregistré** —
+et c'est ce qui fait qu'elle se retrouve toute seule sur la vignette de la fiche : la
+vignette est une photo du personnage tel qu'il est enregistré. Une pose choisie côté
+affichage aurait donné une fiche où tout le monde est au garde-à-vous.
+Techniquement, le bras est en **deux segments articulés** (épaule + coude) : un bras d'une
+seule pièce ne sait faire que « le long du corps », et aucune pose n'était possible.
+
+**« Morphologie », et surtout pas « sexe ».** Neutre, féminine, masculine — c'est une
+**forme de figurine**, pas une donnée d'état civil. La nuance n'est pas de la coquetterie :
+le sexe est une donnée personnelle qu'on n'a aucune raison de collecter pour dessiner un
+bonhomme (voir le chantier RGPD plus bas). On demande la silhouette qu'on veut **avoir**,
+ce qui est un choix d'apparence au même titre que la coupe de cheveux. « Neutre » est le
+défaut, et n'est pas un pis-aller : personne n'est obligé de se ranger dans une case pour
+commencer. Les **cils** sont un champ séparé, à la disposition de tout le monde — les
+accrocher à la morphologie féminine aurait gravé un stéréotype dans le modèle.
+
 **Le catalogue vit en PHP, et nulle part ailleurs** (`includes/avatar.php`). Une seule
 liste d'options, envoyée telle quelle au JavaScript : ce que l'atelier **propose** est
 exactement ce que le serveur **accepte**. Les couleurs arrivent au moteur 3D **déjà
