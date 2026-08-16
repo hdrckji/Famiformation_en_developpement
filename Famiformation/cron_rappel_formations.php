@@ -62,7 +62,7 @@ try {
             . '</style></head><body>'
             . '<div class="mail-container">'
             . '<div class="mail-header">'
-            . '<img src="https://famiformation.com/logo.png" alt="Logo FamiFormation" style="max-width:120px; margin-bottom:12px;">'
+            . '<img src="' . famiAppBaseUrl() . '/logo.png" alt="Logo FamiFormation" style="max-width:120px; margin-bottom:12px;">'
             . '<div class="mail-title">Rappel : Formation prévue demain</div>'
             . '</div>'
             . '<div class="mail-section">Bonjour ' . htmlspecialchars($insc['prenom']) . ' ' . htmlspecialchars($insc['nom']) . ',</div>'

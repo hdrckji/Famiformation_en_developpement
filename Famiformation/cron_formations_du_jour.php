@@ -90,7 +90,7 @@ try {
         . '</style></head><body>'
         . '<div class="mail-container">'
         . '<div class="mail-header">'
-        . '<img src="https://famiformation.com/logo.png" alt="Logo FamiFormation" style="max-width:120px; margin-bottom:12px;">'
+        . '<img src="' . famiAppBaseUrl() . '/logo.png" alt="Logo FamiFormation" style="max-width:120px; margin-bottom:12px;">'
         . '<div class="mail-title">Rapport des formations du jour</div>'
         . '<div class="mail-section">Voici le résumé des formations prévues aujourd&#39;hui (' . date('d/m/Y') . ') :</div>'
         . '</div>';

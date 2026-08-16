@@ -22,7 +22,10 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] === 'etudiant') {
     <div class="container">
         <a href="/securite_travail.php" style="display:inline-block;margin-bottom:18px;padding:8px 18px;background:#2d5a37;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;box-shadow:0 2px 8px rgba(44,90,55,0.08);transition:background 0.2s;">&larr; Retour</a>
         <h2>Formation secourisme</h2>
-        <iframe src="https://famiformation.com/1secours.pdf" class="pdf-frame"></iframe>
+        <?php // Le fichier est servi par CETTE installation, pas par le domaine
+              // live : sur fami.up.railway.app, l'adresse figee affichait le PDF
+              // d'un autre deploiement — ou rien du tout. ?>
+        <iframe src="<?php echo e(famiAppBaseUrl() . '/1secours.pdf'); ?>" class="pdf-frame"></iframe>
     </div>
     <script src="/pdf-viewer.js" defer></script>
 </body>

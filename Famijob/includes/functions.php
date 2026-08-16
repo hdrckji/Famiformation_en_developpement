@@ -1825,7 +1825,16 @@ if (!function_exists('famiAppBaseUrl')) {
 
         $host = trim((string) ($_SERVER['HTTP_HOST'] ?? $_SERVER['SERVER_NAME'] ?? ''));
         if ($host === '') {
-            return 'https://famiformation.com';
+            // ⚠️ AUCUN HOTE : on est en ligne de commande, donc dans un CRON.
+            // Il n'y a rien a deviner — et deviner « famiformation.com » etait
+            // le pire choix possible : les mails d'un deploiement de test
+            // renvoyaient vers le site de production, sans que rien ne cloche a
+            // l'oeil. On rend une adresse VIDE, et le lien construit dessus
+            // saute aux yeux au lieu de mener au mauvais endroit.
+            //
+            // Le vrai remede tient en une variable : APP_URL, dans Railway.
+            // C'est la seule facon pour un cron de savoir ou il tourne.
+            return '';
         }
 
         $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
