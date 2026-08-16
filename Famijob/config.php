@@ -128,6 +128,40 @@ date_default_timezone_set(famiGetEnv('APP_TIMEZONE', 'Europe/Brussels'));
 
 // 3. CONFIGURATION STRICTE DES SESSIONS (AVANT session_start)
 $session_timeout = (int) famiGetEnv('SESSION_TIMEOUT', 7200); // 7200 secondes = 2 heures d'inactivité
+// ─────────────────────────────────────────────────────────────────────────────
+// LE DOMAINE DU COOKIE DE SESSION — une session, ou trois ?
+//
+// Il valait '' : cookie HOST-ONLY. Chaque hote a donc sa propre session, et
+// c'est ce qui oblige a se reconnecter en passant de famicard.famiformation.com
+// a www, ou a student. C'est aussi pour ca que Famicard a du se doter de son
+// propre login.
+//
+// SESSION_COOKIE_DOMAIN (variable d'environnement) permet de n'en faire qu'une.
+// Pose a « .famiformation.com », le cookie vaut pour www, student ET famicard :
+// on se connecte une fois, on circule entre les trois.
+//
+// ⚠️ VIDE PAR DEFAUT, ET CE N'EST PAS UNE HESITATION. Un cookie partage
+// s'etend a TOUS les sous-domaines du domaine indique. Le deduire de l'hote
+// donnerait « .up.railway.app » sur le deploiement Railway — c'est-a-dire un
+// cookie de session envoye a toutes les applications hebergees chez Railway.
+// Ce reglage se declare donc a la main, en connaissance de cause, ou pas du
+// tout.
+//
+// ⚠️ Le domaine est IGNORE s'il ne correspond pas a l'hote servi : un cookie
+// pose sur un domaine etranger n'est de toute facon pas accepte par le
+// navigateur, et le poser quand meme ferait disparaitre la session sans que
+// rien n'explique pourquoi.
+$famiCookieDomaine = trim((string) famiGetEnv('SESSION_COOKIE_DOMAIN', ''));
+if ($famiCookieDomaine !== '') {
+    $famiHoteCourant = strtolower(explode(':', (string) ($_SERVER['HTTP_HOST'] ?? ''))[0]);
+    $famiSuffixe = ltrim($famiCookieDomaine, '.');
+    $famiCorrespond = ($famiHoteCourant === $famiSuffixe)
+        || (substr($famiHoteCourant, -strlen('.' . $famiSuffixe)) === '.' . $famiSuffixe);
+    if (!$famiCorrespond) {
+        $famiCookieDomaine = '';
+    }
+}
+
 if (session_status() === PHP_SESSION_NONE) {
     ini_set('session.gc_maxlifetime', $session_timeout);
     $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
@@ -137,7 +171,7 @@ if (session_status() === PHP_SESSION_NONE) {
     session_set_cookie_params([
         'lifetime' => 0, 
         'path' => '/',
-        'domain' => '', 
+        'domain' => $famiCookieDomaine, 
         'secure' => $isHttps,
         'httponly' => true, // Empêche l'accès au cookie via JavaScript
         'samesite' => 'Lax'
