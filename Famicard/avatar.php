@@ -93,6 +93,16 @@ if ($prenom === '') {
 <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
     *, *::before, *::after { box-sizing: border-box; }
+
+    /* ⚠️ L'ATTRIBUT `hidden` NE MASQUE RIEN dès qu'une règle d'auteur pose un
+       `display` sur l'élément : `[hidden] { display: none }` vient de la feuille
+       du NAVIGATEUR, et n'importe quelle règle écrite ici la bat.
+       C'est exactement ce qui a envoyé la scène 3D SOUS la carte : le message de
+       secours « pas de 3D », jamais masqué malgré son `hidden`, occupait la
+       hauteur entière du cadre et poussait le canvas dehors. On remet donc la
+       règle de notre côté, une fois pour toute la page. */
+    [hidden] { display: none !important; }
+
     body { font-family: 'Open Sans', sans-serif; background: url('<?= e(famicardSiteUrl('background.jpg')) ?>') no-repeat center center fixed; background-size: cover; margin: 0; padding: 0 0 120px; color: #333; }
     .top-nav { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 16px; }
     .pill { background: rgba(255,255,255,.92); padding: 10px 20px; border-radius: 30px; box-shadow: 0 4px 10px rgba(0,0,0,.1); text-decoration: none; color: #2d5a37; font-weight: 700; font-size: .9rem; }
@@ -108,9 +118,16 @@ if ($prenom === '') {
     .scene-tete { padding: 16px 20px 6px; }
     .scene-tete h1 { margin: 0; font-size: 1.25rem; font-weight: 800; color: #2d5a37; }
     .scene-tete p { margin: 4px 0 0; font-size: .84rem; color: #666; }
-    .scene { height: 420px; background: linear-gradient(170deg, #eaf4ec 0%, #d6e8db 60%, #c7ded0 100%); position: relative; }
+    /* La scène est un CADRE FERMÉ : le canvas et le message de secours y sont
+       posés l'un SUR l'autre (position absolue), pas l'un APRÈS l'autre. Deux
+       éléments qui s'empilent dans le flux additionnent leurs hauteurs, et le
+       second déborde — c'est ce qui s'était produit. `overflow: hidden` est la
+       deuxième ceinture : quoi qu'on ajoute ici demain, rien ne sortira du
+       cadre. */
+    .scene { height: 420px; background: linear-gradient(170deg, #eaf4ec 0%, #d6e8db 60%, #c7ded0 100%); position: relative; overflow: hidden; }
     @media (max-width: 860px) { .scene { height: 340px; } }
-    .scene-vide { display: flex; align-items: center; justify-content: center; height: 100%; padding: 24px; text-align: center; color: #6a6a6a; font-size: .9rem; line-height: 1.6; }
+    .scene > canvas { position: absolute; inset: 0; }
+    .scene-vide { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 24px; text-align: center; color: #6a6a6a; font-size: .9rem; line-height: 1.6; }
     .scene-outils { display: flex; gap: 8px; flex-wrap: wrap; padding: 12px 16px; background: #f7faf8; border-top: 1px solid #eee; }
 
     .mini { border: 1px solid #d3e0d7; background: #fff; color: #2d5a37; border-radius: 30px; padding: 8px 15px; font-family: inherit; font-weight: 700; font-size: .82rem; cursor: pointer; }
