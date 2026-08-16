@@ -134,9 +134,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       // réécrit vers famicard/ et introuvable. D'où famicardSiteUrl(). ?>
 <link rel="shortcut icon" type="image/x-icon" href="<?= e(famicardSiteUrl('favicon.ico')) ?>">
 <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<?php // Le cadre commun à toutes les pages (fond, largeur, respiration).
+      // Chargé AVANT le <style> de la page, qui garde donc le dernier mot. ?>
+<link rel="stylesheet" href="assets/famicard.css">
+<style>
+    :root { --famicard-fond: url('<?= e(famicardSiteUrl('background.jpg')) ?>'); }
+</style>
 <style>
     *, *::before, *::after { box-sizing: border-box; }
-    body { font-family: 'Open Sans', sans-serif; background: url('<?= e(famicardSiteUrl('background.jpg')) ?>') no-repeat center center fixed; background-size: cover; margin: 0; color: #333; }
+    body { font-family: 'Open Sans', sans-serif; margin: 0; color: #333; }
     .enveloppe { display: flex; justify-content: center; min-height: 100vh; min-height: 100dvh; padding: 18px; }
     .boite { background: rgba(255,255,255,.96); border-radius: 22px; box-shadow: 0 10px 30px rgba(0,0,0,.18); padding: 38px 34px; max-width: 430px; width: 100%; margin: auto; }
     .logo { display: flex; justify-content: center; margin-bottom: 16px; }

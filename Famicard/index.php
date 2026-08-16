@@ -147,6 +147,12 @@ $avatarUrl = ($avatar['existe'] && $avatar['image'] !== '')
       // réécrit vers famicard/ et introuvable. D'où famicardSiteUrl(). ?>
 <link rel="shortcut icon" type="image/x-icon" href="<?= e(famicardSiteUrl('favicon.ico')) ?>">
 <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<?php // Le cadre commun à toutes les pages (fond, largeur, respiration).
+      // Chargé AVANT le <style> de la page, qui garde donc le dernier mot. ?>
+<link rel="stylesheet" href="assets/famicard.css">
+<style>
+    :root { --famicard-fond: url('<?= e(famicardSiteUrl('background.jpg')) ?>'); }
+</style>
 <style>
     *, *::before, *::after { box-sizing: border-box; }
 
@@ -299,18 +305,6 @@ $avatarUrl = ($avatar['existe'] && $avatar['image'] !== '')
         </a>
         <?php endif; ?>
 
-        <?php // ── AVIS ET SUGGESTIONS, POUR TOUT LE MONDE ─────────────────
-              // Y compris les agences. Un module qui recueille la parole des
-              // équipes et n'est ouvert qu'à ceux qui décident ne recueille
-              // rien. C'est la même boîte que celle de FamiJob — une seconde
-              // aurait fait deux boîtes, dont une que personne ne relève. ?>
-        <a class="tuile" href="avis.php">
-            <?php if ($avisATraiter > 0): ?><span class="pastille"><?= (int) $avisATraiter ?> à lire</span><?php endif; ?>
-            <span class="ico">💬</span>
-            <div class="nom">Avis et suggestions</div>
-            <div class="quoi">Une idée, une question, quelque chose qui ne va pas ? Dis-le, on te répond ici.</div>
-        </a>
-
         <?php // ── L'AGENCE VOIT SES GENS, ET RIEN D'AUTRE ─────────────────
               // Nom, prénom, « étudiant » ou « intérimaire ». Pas d'email, pas
               // de rayon : ce qui n'est pas nécessaire ne se partage pas avec
@@ -422,6 +416,27 @@ $avatarUrl = ($avatar['existe'] && $avatar['image'] !== '')
             </a>
         </div>
     <?php endif; ?>
+
+
+    <?php // ── AVIS ET SUGGESTIONS, EN DERNIER ─────────────────────────────
+          // À la fin (demande de Jimmy) : ce n'est pas un outil de travail,
+          // c'est une porte ouverte. On la trouve quand on la cherche, elle ne
+          // s'interpose pas entre quelqu'un et ce qu'il est venu faire.
+          //
+          // Ouvert à TOUT LE MONDE, agences comprises : un module qui recueille
+          // la parole des équipes et n'est ouvert qu'à ceux qui décident ne
+          // recueille rien. C'est la même boîte que celle de FamiJob — une
+          // seconde aurait fait deux boîtes, dont une que personne ne relève. ?>
+    <div class="titre-groupe">Un mot à nous dire ?</div>
+
+    <div class="tuiles">
+        <a class="tuile" href="avis.php">
+            <?php if ($avisATraiter > 0): ?><span class="pastille"><?= (int) $avisATraiter ?> à lire</span><?php endif; ?>
+            <span class="ico">💬</span>
+            <div class="nom">Avis et suggestions</div>
+            <div class="quoi">Une idée, une question, quelque chose qui ne va pas ? Dis-le, on te répond ici.</div>
+        </a>
+    </div>
 
 </div>
 </body>

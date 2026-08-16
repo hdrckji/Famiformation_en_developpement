@@ -170,9 +170,15 @@ $prenom = trim((string) ($moi['prenom'] ?? '')) ?: (string) ($moi['identifiant']
 <title>Mes informations - Famicard</title>
 <link rel="shortcut icon" type="image/x-icon" href="<?= e(famicardSiteUrl('favicon.ico')) ?>">
 <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<?php // Le cadre commun à toutes les pages (fond, largeur, respiration).
+      // Chargé AVANT le <style> de la page, qui garde donc le dernier mot. ?>
+<link rel="stylesheet" href="assets/famicard.css">
+<style>
+    :root { --famicard-fond: url('<?= e(famicardSiteUrl('background.jpg')) ?>'); }
+</style>
 <style>
     *, *::before, *::after { box-sizing: border-box; }
-    body { font-family: 'Open Sans', sans-serif; background: #eef4ef; margin: 0; padding: 24px 16px 60px; color: #244230; }
+    body { font-family: 'Open Sans', sans-serif; margin: 0; padding: 24px 16px 60px; color: #244230; }
     .wrap { max-width: 720px; margin: 0 auto; }
     h1 { color: #2d5a37; font-size: 1.5rem; margin: 0 0 6px; }
     .sous { color: #5a6b60; margin: 0 0 20px; line-height: 1.6; }
@@ -203,7 +209,7 @@ $prenom = trim((string) ($moi['prenom'] ?? '')) ?: (string) ($moi['identifiant']
     .final { position: sticky; bottom: 0; background: #eef4ef; padding: 14px 0 4px; }
 </style>
 </head>
-<body>
+<body class="voile">
 <div class="wrap">
 
     <h1>Bonjour <?= e($prenom) ?> 👋</h1>

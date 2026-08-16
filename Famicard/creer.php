@@ -473,9 +473,15 @@ try {
     <title>Nouveau collaborateur - Famicard</title>
     <link rel="shortcut icon" type="image/x-icon" href="<?= e(famicardSiteUrl('favicon.ico')) ?>">
     <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <style>
+    <?php // Le cadre commun à toutes les pages (fond, largeur, respiration).
+      // Chargé AVANT le <style> de la page, qui garde donc le dernier mot. ?>
+<link rel="stylesheet" href="assets/famicard.css">
+<style>
+    :root { --famicard-fond: url('<?= e(famicardSiteUrl('background.jpg')) ?>'); }
+</style>
+<style>
         *, *::before, *::after { box-sizing: border-box; }
-        body { font-family: 'Open Sans', sans-serif; background: #eef4ef; margin: 0; padding: 24px 16px 60px; color: #244230; }
+        body { font-family: 'Open Sans', sans-serif; margin: 0; padding: 24px 16px 60px; color: #244230; }
         .wrap { max-width: 960px; margin: 0 auto; }
         h1 { color: #2d5a37; font-size: 1.6rem; margin: 0 0 4px; }
         .sub { color: #5a6b60; margin: 0 0 18px; line-height: 1.55; }
@@ -519,7 +525,7 @@ try {
         .scroll { overflow-x: auto; }
     </style>
 </head>
-<body>
+<body class="voile">
 <div class="wrap">
     <h1>➕ Nouveau collaborateur</h1>
     <p class="sub">Créer le compte d'un arrivant : son identité, son profil, et ce à quoi il a accès.</p>

@@ -47,9 +47,15 @@ $interimaires = count($gens) - $etudiants;
 <title>Mes intérimaires - Famicard</title>
 <link rel="shortcut icon" type="image/x-icon" href="<?= e(famicardSiteUrl('favicon.ico')) ?>">
 <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<?php // Le cadre commun à toutes les pages (fond, largeur, respiration).
+      // Chargé AVANT le <style> de la page, qui garde donc le dernier mot. ?>
+<link rel="stylesheet" href="assets/famicard.css">
+<style>
+    :root { --famicard-fond: url('<?= e(famicardSiteUrl('background.jpg')) ?>'); }
+</style>
 <style>
     *, *::before, *::after { box-sizing: border-box; }
-    body { font-family: 'Open Sans', sans-serif; background: #eef3ef; margin: 0; padding: 0 0 50px; color: #333; }
+    body { font-family: 'Open Sans', sans-serif; margin: 0; padding: 0 0 50px; color: #333; }
     .bandeau { background: linear-gradient(135deg, #2d5a37, #4a8b5c); color: #fff; padding: 18px 22px; display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap; }
     .bandeau h1 { margin: 0; font-size: 1.25rem; font-weight: 800; }
     .pill { background: rgba(255,255,255,.18); border: 1px solid rgba(255,255,255,.45); padding: 8px 18px; border-radius: 30px; text-decoration: none; color: #fff; font-weight: 700; font-size: .85rem; }
@@ -71,7 +77,7 @@ $interimaires = count($gens) - $etudiants;
     .rien { padding: 40px; text-align: center; color: #888; }
 </style>
 </head>
-<body>
+<body class="voile">
 
 <div class="bandeau">
     <h1>👥 Mes intérimaires<?= $agence !== '' ? ' — ' . e($agence) : '' ?></h1>

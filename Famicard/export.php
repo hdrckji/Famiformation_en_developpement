@@ -266,8 +266,14 @@ $groupes = famicardGroupes();
       // vers famicard/ sur le sous-domaine (voir famicardSiteUrl). ?>
 <link rel="shortcut icon" type="image/x-icon" href="<?= e(famicardSiteUrl('favicon.ico')) ?>">
 <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<?php // Le cadre commun à toutes les pages (fond, largeur, respiration).
+      // Chargé AVANT le <style> de la page, qui garde donc le dernier mot. ?>
+<link rel="stylesheet" href="assets/famicard.css">
 <style>
-    body { font-family: 'Open Sans', sans-serif; background: #eef3ef; margin: 0; padding: 0 0 60px; color: #333; }
+    :root { --famicard-fond: url('<?= e(famicardSiteUrl('background.jpg')) ?>'); }
+</style>
+<style>
+    body { font-family: 'Open Sans', sans-serif; margin: 0; padding: 0 0 60px; color: #333; }
     .bandeau { background: linear-gradient(135deg, #2d5a37, #4a8b5c); color: #fff; padding: 18px 22px; display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap; }
     .bandeau h1 { margin: 0; font-size: 1.25rem; font-weight: 800; }
     .pill { background: rgba(255,255,255,.18); border: 1px solid rgba(255,255,255,.45); padding: 8px 18px; border-radius: 30px; text-decoration: none; color: #fff; font-weight: 700; font-size: .85rem; }
@@ -288,7 +294,7 @@ $groupes = famicardGroupes();
     .lien-mini { background: none; border: 0; color: #2d5a37; font-family: inherit; font-size: .86rem; text-decoration: underline; cursor: pointer; padding: 0; }
 </style>
 </head>
-<body>
+<body class="voile">
 
 <div class="bandeau">
     <h1>Export Excel</h1>
