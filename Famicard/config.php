@@ -120,13 +120,48 @@ if (!function_exists('famicardSurSousDomaine')) {
     }
 }
 
+if (!function_exists('famicardBaseSite')) {
+    /**
+     * L'adresse du site principal, vue depuis un SOUS-DOMAINE.
+     *
+     * ⚠️ ELLE ETAIT ECRITE EN DUR : « https://www.famiformation.com/ ». Sur un
+     * deploiement qui n'est pas la production — fami.up.railway.app — un
+     * sous-domaine pointe pourtant vers CE deploiement : cliquer sur un lien
+     * inter-services renvoyait donc l'utilisateur vers le site LIVE, une autre
+     * installation avec d'autres comptes. C'est ce qui faisait « je retourne
+     * quand meme sur famiformation ».
+     *
+     * APP_URL fait foi quand elle est posee. Sinon on DEDUIT le domaine parent
+     * de l'hote courant (famicard.exemple.be -> www.exemple.be) : le lien reste
+     * dans l'installation d'ou l'on vient, quelle qu'elle soit.
+     */
+    function famicardBaseSite()
+    {
+        if (function_exists('famiGetEnv')) {
+            $configure = rtrim(trim((string) famiGetEnv('APP_URL', '')), '/');
+            if ($configure !== '') {
+                return $configure;
+            }
+        }
+
+        $host = strtolower(explode(':', (string) ($_SERVER['HTTP_HOST'] ?? ''))[0]);
+        $morceaux = explode('.', $host);
+        if (count($morceaux) > 2) {
+            array_shift($morceaux);              // on retire « famicard »
+            return 'https://www.' . implode('.', $morceaux);
+        }
+
+        return $host !== '' ? 'https://' . $host : '';
+    }
+}
+
 if (!function_exists('famicardSiteUrl')) {
     function famicardSiteUrl($chemin = '')
     {
         $chemin = ltrim((string) $chemin, '/');
 
         if (famicardSurSousDomaine()) {
-            return 'https://www.famiformation.com/' . $chemin;
+            return famicardBaseSite() . '/' . $chemin;
         }
 
         return '/' . $chemin;

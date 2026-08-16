@@ -80,7 +80,19 @@ if (!function_exists('famijobSiteUrl')) {
         $path = ltrim((string) $path, '/');
 
         if ($host === 'student.famiformation.com') {
-            return 'https://www.famiformation.com/' . $path;
+            // ⚠️ PLUS D'ADRESSE FIGEE. Voir famicardBaseSite() : un sous-domaine
+            // peut pointer vers un deploiement qui n'est pas la production, et
+            // renvoyer vers www.famiformation.com sortait de l'installation.
+            $base = '';
+            if (function_exists('famiGetEnv')) {
+                $base = rtrim(trim((string) famiGetEnv('APP_URL', '')), '/');
+            }
+            if ($base === '') {
+                $morceaux = explode('.', $host);
+                array_shift($morceaux);          // on retire « student »
+                $base = 'https://www.' . implode('.', $morceaux);
+            }
+            return $base . '/' . $path;
         }
 
         return '../' . $path;
