@@ -1327,7 +1327,16 @@ if (!function_exists('sendStudentWelcomeEmail')) {
             return false;
         }
 
-        $loginUrl = famiGetEnv('APP_URL', 'https://famiformation.com/login.php');
+        // ⚠️ PLUS DE DOMAINE ECRIT EN DUR ICI. Le repli valait
+        // « https://famiformation.com » : sur le deploiement Railway
+        // (fami.up.railway.app), les mails renvoyaient donc vers le site LIVE,
+        // c'est-a-dire une autre installation, avec d'autres comptes. Le lien
+        // avait l'air bon et ne menait nulle part d'utile.
+        //
+        // famiAppBaseUrl() repond APP_URL si elle est posee, et sinon l'hote
+        // reellement servi : le lien suit l'endroit d'ou le mail est parti,
+        // sans reglage a faire a chaque nouvel environnement.
+        $loginUrl = famiAppBaseUrl() . '/login.php';
         $passwordBlock = '';
         $passwordMessage = '<p style="margin:0 0 18px;font-size:16px;line-height:1.7;">Si ton mot de passe ne t\'a pas encore été remis, tu peux toujours prendre contact avec <strong>' . e(famiContactRh()) . '</strong>.</p>';
         $nextStepText = 'connecte-toi, termine les formations caisse, puis réserve ton premier rendez-vous en point de vente.';
@@ -1383,7 +1392,8 @@ if (!function_exists('sendStudentEvaluationSuccessEmail')) {
             return false;
         }
 
-        $onboardingUrl = rtrim((string) famiGetEnv('APP_URL', 'https://famiformation.com'), '/');
+        // Meme raison : l'hote reel plutot qu'un domaine fige.
+        $onboardingUrl = famiAppBaseUrl();
         if (substr($onboardingUrl, -9) === 'login.php') {
             $onboardingUrl = substr($onboardingUrl, 0, -9);
         }
