@@ -782,6 +782,22 @@ affichage aurait donné une fiche où tout le monde est au garde-à-vous.
 Techniquement, le bras est en **deux segments articulés** (épaule + coude) : un bras d'une
 seule pièce ne sait faire que « le long du corps », et aucune pose n'était possible.
 
+**La tenue de travail est le défaut.** Le **gilet Famiflora** (vert bordé de vert anis,
+fermeture éclair, deux poches, fenêtre porte-badge) et le **t-shirt Famiflora** ouvrent la
+liste, et le gilet est ce qu'on voit en arrivant : quelqu'un qui ouvre l'atelier se
+reconnaît avant même d'avoir cliqué. Ces deux pièces **portent les couleurs de la maison**
+et ne les prennent pas du sélecteur — un gilet Famiflora rose ne serait plus un gilet
+Famiflora. Le gilet étant sans manches, la couleur choisie habille alors le **t-shirt porté
+dessous**, comme en vrai. Les teintes sont relevées sur les photos de l'équipe et vivent
+dans `assets/avatar3d.js` (constante `TENUE`), pas dans le catalogue : ce ne sont pas des
+choix.
+
+**Sourcils et barbe ont leur couleur, et « Comme les cheveux » est le défaut.** La valeur
+`auto` n'est pas une teinte, c'est un **renvoi** : `hex => 'auto'` est un signal que le
+moteur reconnaît pour aller chercher la couleur des cheveux. Sans lui, changer de couleur
+de cheveux laissait une barbe orpheline de l'ancienne teinte. L'atelier lui dessine une
+pastille à damier — une pastille unie aurait menti sur ce qu'elle fait.
+
 **« Morphologie », et surtout pas « sexe ».** Neutre, féminine, masculine — c'est une
 **forme de figurine**, pas une donnée d'état civil. La nuance n'est pas de la coquetterie :
 le sexe est une donnée personnelle qu'on n'a aucune raison de collecter pour dessiner un

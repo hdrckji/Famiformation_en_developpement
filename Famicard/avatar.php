@@ -147,6 +147,7 @@ if ($prenom === '') {
     .champ { margin-bottom: 22px; }
     .champ:last-child { margin-bottom: 4px; }
     .champ h3 { margin: 0 0 10px; font-size: .78rem; text-transform: uppercase; letter-spacing: .08em; color: #2d5a37; }
+    .champ .aide { margin: -6px 0 10px; font-size: .8rem; color: #6d766f; line-height: 1.45; }
 
     .choix { display: flex; flex-wrap: wrap; gap: 8px; }
     .choix button { border: 2px solid #e2eae4; background: #fff; color: #444; border-radius: 12px; padding: 9px 14px; font-family: inherit; font-size: .87rem; font-weight: 600; cursor: pointer; transition: border-color .12s, background .12s; }
@@ -157,6 +158,9 @@ if ($prenom === '') {
     .palette { display: flex; flex-wrap: wrap; gap: 10px; }
     .palette button { width: 40px; height: 40px; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 0 0 1px #d8ded9, 0 3px 6px rgba(0,0,0,.12); cursor: pointer; padding: 0; }
     .palette button[aria-pressed="true"] { box-shadow: 0 0 0 3px #2d5a37, 0 3px 8px rgba(0,0,0,.2); }
+    /* « Comme les cheveux » : un damier, parce que ce n'est pas une couleur mais
+       un renvoi. Une pastille unie aurait fait croire à une teinte de plus. */
+    .palette button.pastille-auto { background: repeating-linear-gradient(45deg, #e6ece8 0 6px, #cbd8d0 6px 12px); color: #2d5a37; font-weight: 800; font-size: 1rem; line-height: 1; }
 
     /* LA BARRE D'ENREGISTREMENT — toujours visible : le geste qui compte ne
        doit pas se mériter en faisant défiler la page. */
@@ -245,14 +249,21 @@ if ($prenom === '') {
                     <?php foreach ($onglet['champs'] as $cleChamp => $champ): ?>
                         <div class="champ">
                             <h3><?= e($champ['libelle']) ?></h3>
+                            <?php if (!empty($champ['aide'])): ?>
+                                <p class="aide"><?= e($champ['aide']) ?></p>
+                            <?php endif; ?>
                             <div class="<?= $champ['type'] === 'couleur' ? 'palette' : 'choix' ?>" data-champ="<?= e($cleChamp) ?>">
                                 <?php foreach ($champ['valeurs'] as $cleValeur => $valeur): ?>
                                     <?php if ($champ['type'] === 'couleur'): ?>
+                                        <?php // « auto » n'est pas une couleur mais un renvoi vers celle des
+                                              // cheveux : lui donner une pastille unie mentirait sur ce qu'il
+                                              // fait. Il en reçoit donc une à part, reconnaissable. ?>
                                         <button type="button" data-valeur="<?= e($cleValeur) ?>"
                                                 aria-pressed="false"
+                                                class="<?= $valeur['hex'] === 'auto' ? 'pastille-auto' : '' ?>"
                                                 title="<?= e($valeur['libelle']) ?>"
                                                 aria-label="<?= e($valeur['libelle']) ?>"
-                                                style="background: <?= e($valeur['hex']) ?>;"></button>
+                                                <?php if ($valeur['hex'] !== 'auto'): ?>style="background: <?= e($valeur['hex']) ?>;"<?php endif; ?>><?= $valeur['hex'] === 'auto' ? '=' : '' ?></button>
                                     <?php else: ?>
                                         <button type="button" data-valeur="<?= e($cleValeur) ?>" aria-pressed="false">
                                             <?= e($valeur['libelle']) ?>

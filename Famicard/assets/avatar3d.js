@@ -233,7 +233,7 @@ function construireTete(look, m, mats) {
     const penche = (look.expression === 'determine') ? 0.28
         : (look.expression === 'joyeux' ? -0.16 : -0.05);
     [-1, 1].forEach(function (s) {
-        const sourcil = boite(R * 0.42, epaisseur, R * 0.10, mats.cheveux);
+        const sourcil = boite(R * 0.42, epaisseur, R * 0.10, mats.sourcils);
         sourcil.rotation.z = s * penche;
         tete.add(place(sourcil, s * R * 0.36, R * (look.expression === 'determine' ? 0.31 : 0.35), R * 0.86));
     });
@@ -244,26 +244,62 @@ function construireTete(look, m, mats) {
     const yBouche = -R * 0.42;
     const zBouche = R * 0.90 + avanceBouche;
     if (look.expression === 'neutre') {
-        tete.add(place(boite(R * 0.36, R * 0.05, R * 0.06, mats.bouche), 0, yBouche, zBouche));
+        tete.add(place(boite(R * 0.36, R * 0.05, R * 0.06, mats.levres), 0, yBouche, zBouche));
     } else if (look.expression === 'determine') {
-        const trait = boite(R * 0.34, R * 0.055, R * 0.06, mats.bouche);
+        const trait = boite(R * 0.34, R * 0.055, R * 0.06, mats.levres);
         trait.rotation.z = 0.10;
         tete.add(place(trait, 0, yBouche, zBouche));
     } else if (look.expression === 'sourire') {
         const arc = new THREE.Mesh(
             new THREE.TorusGeometry(R * 0.24, R * 0.035, 8, 20, Math.PI * 0.9),
-            mats.bouche
+            mats.levres
         );
         arc.rotation.z = Math.PI + Math.PI * 0.05;   // ouverture vers le haut
         tete.add(place(arc, 0, yBouche + R * 0.10, zBouche));
     } else {
         // Joyeux : bouche ouverte — une demi-sphère creusée, plus une langue.
-        const ouverte = balle(R * 0.22, mats.bouche, 20);
+        const ouverte = balle(R * 0.22, mats.levres, 20);
         ouverte.scale.set(1.05, 0.75, 0.45);
         tete.add(place(ouverte, 0, yBouche, zBouche - R * 0.04));
         const langue = balle(R * 0.11, mats.langue, 14);
         langue.scale.set(1, 0.6, 0.6);
         tete.add(place(langue, 0, yBouche - R * 0.07, zBouche));
+    }
+
+    // ── LE FARD À JOUES ─────────────────────────────────────────────────────
+    // Deux disques très transparents, PLAQUÉS sur la joue et non posés devant :
+    // d'où la rotation, qui les couche le long de la surface. Un maquillage
+    // « lèvres » seul ne les pose pas — c'est justement ce qui le distingue.
+    if (look.maquillage === 'discret' || look.maquillage === 'marque') {
+        const force = (look.maquillage === 'marque') ? 1 : 0.62;
+        [-1, 1].forEach(function (s) {
+            const joue = new THREE.Mesh(new THREE.CircleGeometry(R * 0.20 * force, 18), mats.fard);
+            joue.rotation.y = s * 0.85;
+            tete.add(place(joue, s * R * 0.62, -R * 0.14, R * 0.62));
+        });
+    }
+    // Les paupières fardées : une pelure fine posée sur le haut de l'œil.
+    if (look.maquillage === 'marque') {
+        [-1, 1].forEach(function (s) {
+            const paupiere = boite(R * 0.30, R * 0.09, R * 0.05, mats.fard);
+            paupiere.rotation.z = s * 0.14;
+            tete.add(place(paupiere, s * R * 0.36, R * 0.22, R * 0.88));
+        });
+    }
+
+    // ── LES BIJOUX ──────────────────────────────────────────────────────────
+    const bijoux = look.bijoux || 'aucun';
+    if (bijoux === 'boucles' || bijoux === 'boucles_collier') {
+        [-1, 1].forEach(function (s) {
+            tete.add(place(balle(R * 0.075, mats.bijou, 14), s * R * 1.02, -R * 0.24, R * 0.02));
+        });
+    }
+    if (bijoux === 'anneaux') {
+        [-1, 1].forEach(function (s) {
+            const creole = new THREE.Mesh(new THREE.TorusGeometry(R * 0.15, R * 0.024, 8, 20), mats.bijou);
+            creole.rotation.y = Math.PI / 2;
+            tete.add(place(creole, s * R * 1.00, -R * 0.30, R * 0.02));
+        });
     }
 
     return { groupe: tete, yeux: yeux };
@@ -300,7 +336,8 @@ function construireCheveux(look, m, mats, masqueCalotte) {
     // part donc de l'autre côté.)
     const descenteBas = {
         courte: 0.60, brosse: 0.54, degrade: 0.48, coiffe: 0.60,
-        mi_long: 0.66, long: 0.66, queue: 0.62, chignon: 0.60,
+        carre: 0.66, mi_long: 0.66, long: 0.66, ondule: 0.66,
+        queue: 0.62, demi_queue: 0.64, chignon: 0.60, tresse: 0.64,
         tresses: 0.64, boucle: 0.62, afro: 0.60, crete: 0.52
     }[coupe] || 0.60;
     const HAUTE = 0.34;                      // la ligne de cheveux, au-dessus des sourcils
@@ -339,8 +376,21 @@ function construireCheveux(look, m, mats, masqueCalotte) {
         g.add(place(meche, R * 0.24, R * 0.68, R * 0.56));
     }
 
-    if (coupe === 'mi_long' || coupe === 'long') {
-        const longueur = (coupe === 'long') ? R * 3.0 : R * 1.5;
+    if (coupe === 'carre') {
+        // Le carré : une masse COURTE et FRANCHE qui s'arrête à la mâchoire, et
+        // dont le bas est droit — c'est cette coupe nette qui le distingue d'un
+        // mi-long, pas sa longueur.
+        const longueur = R * 1.25;
+        const nuque = boite(R * 1.62, longueur, R * 0.40, H);
+        g.add(place(nuque, 0, -longueur / 2 + R * 0.34, -R * 0.70));
+        [-1, 1].forEach(function (s) {
+            const cote = boite(R * 0.38, longueur, R * 0.95, H);
+            g.add(place(cote, s * R * 0.88, -longueur / 2 + R * 0.34, -R * 0.04));
+        });
+    }
+
+    if (coupe === 'mi_long' || coupe === 'long' || coupe === 'ondule') {
+        const longueur = (coupe === 'mi_long') ? R * 1.5 : R * 3.0;
         // La masse arrière : une boîte affinée qui tombe dans la nuque.
         const nuque = boite(R * 1.55, longueur, R * 0.35, H);
         g.add(place(nuque, 0, -longueur / 2 + R * 0.30, -R * 0.72));
@@ -353,6 +403,20 @@ function construireCheveux(look, m, mats, masqueCalotte) {
         const bas = balle(R * 0.70, H, 18);
         bas.scale.set(1.1, 0.45, 0.35);
         g.add(place(bas, 0, -longueur + R * 0.32, -R * 0.72));
+
+        // Les ondulations : des renflements réguliers le long de la masse. Une
+        // vraie ondulation demanderait de déformer la géométrie ; trois boules
+        // par côté donnent la même lecture pour un centième du travail.
+        if (coupe === 'ondule') {
+            for (let i = 0; i < 3; i++) {
+                const y = -R * (0.55 + i * 0.85);
+                [-1, 1].forEach(function (s) {
+                    const vague = balle(R * 0.46, H, 14);
+                    vague.scale.set(0.85, 0.75, 0.60);
+                    g.add(place(vague, s * R * 0.84, y, -R * (0.22 + (i % 2) * 0.20)));
+                });
+            }
+        }
     }
 
     if (coupe === 'queue') {
@@ -361,6 +425,37 @@ function construireCheveux(look, m, mats, masqueCalotte) {
         const queue = capsule(R * 0.20, R * 1.05, H);
         queue.rotation.x = -0.55;
         g.add(place(queue, 0, -R * 0.28, -R * 1.28));
+    }
+
+    if (coupe === 'demi_queue') {
+        // Le haut attaché, le bas lâché : deux volumes, pas un.
+        const longueur = R * 1.9;
+        const nuque = boite(R * 1.45, longueur, R * 0.34, H);
+        g.add(place(nuque, 0, -longueur / 2 + R * 0.30, -R * 0.72));
+        [-1, 1].forEach(function (s) {
+            g.add(place(boite(R * 0.32, longueur * 0.70, R * 0.80, H), s * R * 0.86, -longueur * 0.35 + R * 0.32, -R * 0.06));
+        });
+        const attache = balle(R * 0.20, mats.ruban, 14);
+        g.add(place(attache, 0, R * 0.52, -R * 0.94));
+        const meche = capsule(R * 0.17, R * 0.60, H);
+        meche.rotation.x = -0.30;
+        g.add(place(meche, 0, R * 0.10, -R * 1.10));
+    }
+
+    if (coupe === 'tresse') {
+        // Une seule natte dans le dos : des boules qui décroissent, décalées en
+        // quinconce — c'est le décalage qui fait lire « tressé » plutôt que
+        // « chapelet ».
+        const attache = balle(R * 0.22, H, 14);
+        g.add(place(attache, 0, R * 0.20, -R * 1.00));
+        for (let i = 0; i < 6; i++) {
+            const noeud = balle(R * (0.23 - i * 0.018), H, 14);
+            noeud.scale.set(1, 0.85, 1);
+            g.add(place(noeud, (i % 2 ? 1 : -1) * R * 0.05, -R * (0.10 + i * 0.34), -R * (1.08 - i * 0.03)));
+        }
+        const ruban = new THREE.Mesh(new THREE.TorusGeometry(R * 0.12, R * 0.035, 6, 14), mats.ruban);
+        ruban.rotation.x = Math.PI / 2;
+        g.add(place(ruban, 0, -R * 2.10, -R * 0.93));
     }
 
     if (coupe === 'chignon') {
@@ -443,7 +538,7 @@ function construireCheveux(look, m, mats, masqueCalotte) {
 function construireBarbe(look, m, mats) {
     const g = new THREE.Group();
     const R = m.rTete;
-    const B = mats.cheveux;
+    const B = mats.barbe;   // sa propre couleur — « auto » suit les cheveux
     const style = look.barbe;
     if (!style || style === 'aucune') {
         return g;
@@ -471,7 +566,7 @@ function construireBarbe(look, m, mats) {
         const barbe = pelure(R * (style === 'pleine' ? 1.09 : 1.045),
             Math.PI * 0.02, Math.PI * 0.96,
             Math.PI * bas, Math.PI * (1 - bas),
-            style === 'courte' ? mats.cheveuxOmbre : B);
+            style === 'courte' ? mats.barbeOmbre : B);
         barbe.scale.set(1, 1.06, 0.99);
         g.add(place(barbe, 0, 0, -R * 0.02));
     }
@@ -641,7 +736,67 @@ function construireTorse(look, m, mats) {
     const cou = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.082, 0.11, 16), mats.peau);
     g.add(place(cou, 0, yEp + 0.02, 0));
 
-    if (look.haut === 'polo' || look.haut === 'chemise' || look.haut === 'veste') {
+    // ── LE GILET FAMIFLORA ──────────────────────────────────────────────────
+    // La pièce de la maison, relevée sur les photos : vert, SANS MANCHES, bordé
+    // de vert anis au col, aux emmanchures et en bas, fermeture éclair anis au
+    // milieu, deux poches basses et une fenêtre porte-badge à gauche.
+    //
+    // Il est bâti PAR-DESSUS le t-shirt (déjà en place au-dessus) : c'est ce
+    // qui fait qu'on voit les manches courtes dépasser aux épaules, comme en
+    // vrai. Le t-shirt garde donc la couleur choisie — le gilet, non : un gilet
+    // Famiflora rose ne serait plus un gilet Famiflora.
+    if (look.haut === 'gilet_fami') {
+        const rG = rBase * 1.05;
+        const hG = m.hTorse * 0.90;
+        const yG = m.yHanche + hG / 2 + 0.01;
+        const eL = ((m.lTorse / 2) / rBase) * 0.97;   // il épouse le buste
+        const eP = ((m.pTorse / 2) / rBase) * 1.08;
+
+        const corps = capsule(rG, Math.max(0.02, hG - rG * 2), mats.gilet);
+        corps.scale.set(eL, 1, eP);
+        g.add(place(corps, 0, yG, 0));
+
+        const demiGL = m.lTorse / 2 * 0.97;
+        const demiGP = m.pTorse / 2 * 1.10;
+
+        // La fermeture éclair, du col à l'ourlet.
+        g.add(place(boite(0.026, hG * 0.92, 0.02, mats.anis), 0, yG, demiGP * 1.02));
+        // Le passepoil : col, ourlet, et les deux emmanchures.
+        const col = new THREE.Mesh(new THREE.TorusGeometry(demiGL * 0.52, 0.020, 6, 24), mats.anis);
+        col.rotation.x = Math.PI / 2;
+        col.scale.set(1, (demiGP / demiGL) * 1.35, 1);
+        g.add(place(col, 0, yEp - 0.045, 0));
+
+        const ourlet = new THREE.Mesh(new THREE.TorusGeometry(demiGL * 0.98, 0.020, 6, 28), mats.anis);
+        ourlet.rotation.x = Math.PI / 2;
+        ourlet.scale.set(1, (demiGP / demiGL) * 1.02, 1);
+        g.add(place(ourlet, 0, yG - hG / 2, 0));
+
+        [-1, 1].forEach(function (s) {
+            const emmanchure = new THREE.Mesh(new THREE.TorusGeometry(0.075, 0.018, 6, 18), mats.anis);
+            emmanchure.rotation.y = Math.PI / 2;
+            emmanchure.scale.set(1.5, 1, 1);
+            g.add(place(emmanchure, s * demiGL * 1.00, yEp - 0.085, 0));
+            // Les deux poches basses.
+            g.add(place(boite(demiGL * 0.62, 0.11, 0.02, mats.giletOmbre),
+                s * demiGL * 0.48, m.yHanche + m.hTorse * 0.20, demiGP * 1.02));
+        });
+
+        // La fenêtre porte-badge, sur la poitrine.
+        g.add(place(boite(0.13, 0.085, 0.012, mats.fenetre), demiGL * 0.44, yEp - m.hTorse * 0.28, demiGP * 1.03));
+        g.add(place(boite(0.14, 0.095, 0.010, mats.giletOmbre), demiGL * 0.44, yEp - m.hTorse * 0.28, demiGP * 1.01));
+    }
+
+    // Le t-shirt de la maison : un liseré anis à l'encolure suffit à le
+    // distinguer d'un t-shirt vert quelconque.
+    if (look.haut === 'tshirt_fami') {
+        const encolure = new THREE.Mesh(new THREE.TorusGeometry(0.098, 0.018, 6, 22), mats.anis);
+        encolure.rotation.x = Math.PI / 2;
+        g.add(place(encolure, 0, yEp - 0.020, 0.010));
+        g.add(place(boite(0.115, 0.030, 0.014, mats.anis), demiL * 0.42, yEp - m.hTorse * 0.26, demiP * 1.03));
+    }
+
+    if (look.haut === 'polo' || look.haut === 'chemise' || look.haut === 'chemisier' || look.haut === 'veste') {
         // Un col : deux pans posés à plat, légèrement écartés.
         [-1, 1].forEach(function (s) {
             const pan = boite(demiL * 0.62, 0.035, demiP * 1.5, mats.hautClair);
@@ -650,7 +805,7 @@ function construireTorse(look, m, mats) {
             g.add(place(pan, s * demiL * 0.30, yEp - 0.035, demiP * 0.62));
         });
     }
-    if (look.haut === 'chemise') {
+    if (look.haut === 'chemise' || look.haut === 'chemisier') {
         // La patte de boutonnage, plus claire, et ses boutons.
         g.add(place(boite(0.055, m.hTorse * 0.80, 0.02, mats.hautClair),
             0, m.yHanche + m.hTorse * 0.48, demiP * 0.99));
@@ -658,6 +813,18 @@ function construireTorse(look, m, mats) {
             const b = balle(0.017, mats.blanc, 10);
             g.add(place(b, 0, yEp - 0.11 - i * 0.10, demiP * 1.02));
         }
+    }
+    if (look.haut === 'chemisier') {
+        // Ce qui fait le chemisier plutôt que la chemise : un col plus fin, un
+        // volant à l'encolure, et une taille marquée par une couture.
+        const volant = new THREE.Mesh(new THREE.TorusGeometry(0.105, 0.024, 8, 24), mats.hautClair);
+        volant.rotation.x = Math.PI / 2;
+        volant.scale.set(1, 1.2, 1);
+        g.add(place(volant, 0, yEp - 0.055, 0.015));
+        const couture = new THREE.Mesh(new THREE.TorusGeometry(demiL * 0.86, 0.016, 6, 26), mats.hautOmbre);
+        couture.rotation.x = Math.PI / 2;
+        couture.scale.set(1, (demiP / demiL) * 1.05, 1);
+        g.add(place(couture, 0, m.yHanche + m.hTorse * 0.22, 0));
     }
     if (look.haut === 'pull') {
         // Les côtes du bas : c'est ce détail qui fait lire « pull » plutôt que
@@ -834,8 +1001,15 @@ function construireJambes(look, m, mats) {
     const bas = look.bas;
 
     // Jusqu'où le tissu descend. En dessous, c'est la peau.
-    const couverture = { pantalon: 1.0, jean: 1.0, bermuda: 0.52, short: 0.34, jupe: 0.0 }[bas];
+    const couverture = {
+        pantalon: 1.0, jean: 1.0, leggings: 1.0,
+        bermuda: 0.52, short: 0.34, jupe: 0.0, jupe_longue: 0.0
+    }[bas];
     const cv = (couverture === undefined) ? 1.0 : couverture;
+    // Un legging colle à la jambe : c'est son épaisseur, et rien d'autre, qui
+    // le distingue d'un pantalon.
+    const ampleur = (bas === 'leggings') ? 1.03 : 1.14;
+    const jupe = (bas === 'jupe' || bas === 'jupe_longue');
 
     [-1, 1].forEach(function (s) {
         const x = s * m.ecartJambes;
@@ -846,7 +1020,7 @@ function construireJambes(look, m, mats) {
 
         if (cv > 0) {
             const hT = m.hJambe * cv;
-            const tissu = capsule(rJ * 1.14, hT - rJ * 1.1, mats.bas);
+            const tissu = capsule(rJ * ampleur, hT - rJ * 1.1, mats.bas);
             g.add(place(tissu, x, m.yHanche - hT / 2 + rJ * 0.05, 0));
             if (bas === 'jean') {
                 // Une couture claire : le jean se reconnaît à ça.
@@ -869,17 +1043,21 @@ function construireJambes(look, m, mats) {
     // dessine une silhouette. D'où `m.lHanche`, calculé à part (voir mesures()).
     // Il vient aussi combler la jonction torse / jambes, qui sans lui se voit
     // comme une coupure nette.
-    const bassin = balle(m.lHanche * 0.42, (cv > 0 || bas === 'jupe') ? mats.bas : mats.peau, 20);
+    const bassin = balle(m.lHanche * 0.42, (cv > 0 || jupe) ? mats.bas : mats.peau, 20);
     bassin.scale.set(1, 0.62, (m.pTorse / m.lHanche) * 1.05);
     g.add(place(bassin, 0, m.yHanche - 0.03, 0));
 
-    if (bas === 'jupe') {
-        // Un tronc de cône : la seule forme qui tombe correctement.
-        const jupe = new THREE.Mesh(
-            new THREE.CylinderGeometry(m.lHanche * 0.46, m.lHanche * 0.74, m.hJambe * 0.46, 26, 1, true),
+    if (jupe) {
+        // Un tronc de cône : la seule forme qui tombe correctement. La jupe
+        // longue s'évase davantage — une jupe deux fois plus longue et aussi
+        // étroite ressemblerait à un fourreau.
+        const longue = (bas === 'jupe_longue');
+        const hauteur = m.hJambe * (longue ? 0.82 : 0.46);
+        const etoffe = new THREE.Mesh(
+            new THREE.CylinderGeometry(m.lHanche * 0.46, m.lHanche * (longue ? 0.92 : 0.74), hauteur, 26, 1, true),
             mats.basDouble
         );
-        g.add(place(jupe, 0, m.yHanche - m.hJambe * 0.20, 0));
+        g.add(place(etoffe, 0, m.yHanche - hauteur / 2 + 0.02, 0));
         const ceinture = new THREE.Mesh(new THREE.TorusGeometry(m.lHanche * 0.45, 0.028, 8, 26), mats.basOmbre);
         ceinture.rotation.x = Math.PI / 2;
         g.add(place(ceinture, 0, m.yHanche + 0.02, 0));
@@ -934,6 +1112,17 @@ function construireChaussure(look, m, mats, x) {
         const dessus = balle(largeur * 0.62, S, 16);
         dessus.scale.set(1, 0.85, 1.5);
         g.add(place(dessus, x, hauteur * 0.95, longueur * 0.30));
+    }
+    if (style === 'ballerines') {
+        // Basse et échancrée : c'est l'ÉCHANCRURE qui la fait reconnaître. On
+        // la creuse en reposant un morceau de peau sur le dessus du pied.
+        const echancrure = balle(largeur * 0.42, mats.peau, 14);
+        echancrure.scale.set(1, 0.7, 1.4);
+        g.add(place(echancrure, x, hauteur * 1.05, longueur * 0.22));
+        const bordure = new THREE.Mesh(new THREE.TorusGeometry(largeur * 0.40, 0.010, 6, 18), S);
+        bordure.rotation.x = Math.PI / 2;
+        bordure.scale.set(1, 1.45, 1);
+        g.add(place(bordure, x, hauteur * 0.98, longueur * 0.22));
     }
 
     return g;
@@ -991,6 +1180,30 @@ function construireEquipement(look, m, mats) {
             demiL * 0.45, m.yEpaule - m.hTorse * 0.30 + 0.045, demiP * 1.05));
     }
 
+    // Le collier est ici et non sur la tête : il repose sur le buste, il doit
+    // donc bouger avec lui et non avec le regard.
+    const bijoux = look.bijoux || 'aucun';
+    if (bijoux === 'collier' || bijoux === 'boucles_collier') {
+        const chaine = new THREE.Mesh(new THREE.TorusGeometry(0.088, 0.010, 6, 26), mats.bijou);
+        chaine.rotation.x = Math.PI / 2 - 0.22;
+        g.add(place(chaine, 0, m.yEpaule - 0.035, demiP * 0.30));
+        g.add(place(balle(0.022, mats.bijou, 12), 0, m.yEpaule - 0.105, demiP * 0.92));
+    }
+
+    if (style === 'sac_main') {
+        // Porté à l'épaule, pendant le long du corps : une anse fine et un
+        // corps de sac franchement plus petit qu'une sacoche de travail.
+        const anse = new THREE.Mesh(new THREE.TorusGeometry(0.085, 0.011, 6, 20), mats.cuir);
+        anse.rotation.y = Math.PI / 2;
+        anse.scale.set(1, 1.9, 1);
+        g.add(place(anse, demiL * 1.02, m.yEpaule - 0.135, 0));
+        const sac = boite(0.075, 0.13, 0.16, mats.cuir);
+        g.add(place(sac, demiL * 1.10, m.yHanche + m.hTorse * 0.22, 0));
+        g.add(place(boite(0.078, 0.035, 0.165, mats.cuirOmbre),
+            demiL * 1.10, m.yHanche + m.hTorse * 0.22 + 0.078, 0));
+        g.add(place(balle(0.015, mats.bijou, 10), demiL * 1.14, m.yHanche + m.hTorse * 0.22 + 0.030, 0.082));
+    }
+
     if (style === 'sacoche') {
         const sangle = boite(0.05, m.hTorse * 1.05, 0.035, mats.cuir);
         sangle.rotation.z = 0.42;
@@ -1013,15 +1226,60 @@ function melange(hex, versBlanc) {
     return c.lerp(cible, Math.abs(versBlanc)).getHex();
 }
 
+// ── LES COULEURS DE LA MAISON ───────────────────────────────────────────────
+// Relevées sur les photos de la tenue réelle : le gilet vert bordé de vert anis,
+// et le t-shirt d'équipe. Elles sont ÉCRITES ICI et pas dans le catalogue parce
+// que ce ne sont pas des choix — personne ne choisit la couleur de l'uniforme.
+const TENUE = {
+    gilet:      '#1B7A3F',
+    giletOmbre: '#14602F',
+    anis:       '#A9D02B',   // le passepoil et la fermeture éclair
+    tshirt:     '#1E9E52'
+};
+
+/**
+ * Une couleur de poil : « auto » n'est pas une teinte, c'est un renvoi vers les
+ * cheveux (voir le catalogue, includes/avatar.php). On le résout ici, au seul
+ * endroit qui connaît les deux.
+ */
+function poil(valeur, cheveux) {
+    return (valeur === 'auto' || !valeur) ? cheveux : valeur;
+}
+
 function fabriqueMatieres(look) {
+    const cheveux = look.couleur_cheveux;
+    // Le haut porté : l'uniforme impose sa couleur, les autres vêtements
+    // prennent celle qu'on a choisie. Sous le gilet, ce choix habille le
+    // t-shirt de dessous — donc `haut` reste la couleur choisie.
+    const couleurHaut = (look.haut === 'tshirt_fami') ? TENUE.tshirt : look.couleur_haut;
+    // Le maquillage ne repeint les lèvres que s'il est demandé.
+    const levres = (look.maquillage && look.maquillage !== 'aucun')
+        ? (look.couleur_levres || '#B4655F')
+        : '#7E3B3B';
+
     return {
         peau: matiere(look.peau),
         peauOmbre: matiere(melange(look.peau, -0.12)),
-        cheveux: matiere(look.couleur_cheveux, { roughness: 0.95, side: THREE.DoubleSide }),
-        cheveuxOmbre: matiere(melange(look.couleur_cheveux, -0.25), { roughness: 0.95, side: THREE.DoubleSide }),
-        haut: matiere(look.couleur_haut, { roughness: 0.92 }),
-        hautClair: matiere(melange(look.couleur_haut, 0.22), { roughness: 0.92 }),
-        hautOmbre: matiere(melange(look.couleur_haut, -0.20), { roughness: 0.92 }),
+        cheveux: matiere(cheveux, { roughness: 0.95, side: THREE.DoubleSide }),
+        cheveuxOmbre: matiere(melange(cheveux, -0.25), { roughness: 0.95, side: THREE.DoubleSide }),
+        sourcils: matiere(poil(look.couleur_sourcils, cheveux), { roughness: 0.95 }),
+        barbe: matiere(poil(look.couleur_barbe, cheveux), { roughness: 0.95, side: THREE.DoubleSide }),
+        barbeOmbre: matiere(melange(poil(look.couleur_barbe, cheveux), -0.25), { roughness: 0.95, side: THREE.DoubleSide }),
+        haut: matiere(couleurHaut, { roughness: 0.92 }),
+        hautClair: matiere(melange(couleurHaut, 0.22), { roughness: 0.92 }),
+        hautOmbre: matiere(melange(couleurHaut, -0.20), { roughness: 0.92 }),
+
+        gilet: matiere(TENUE.gilet, { roughness: 0.93 }),
+        giletOmbre: matiere(TENUE.giletOmbre, { roughness: 0.93 }),
+        anis: matiere(TENUE.anis, { roughness: 0.75 }),
+        // La fenêtre porte-badge du gilet : un plastique translucide.
+        fenetre: matiere('#E8EEF0', { roughness: 0.25, metalness: 0.05, transparent: true, opacity: 0.55 }),
+
+        levres: matiere(levres, { roughness: 0.45 }),
+        // Le fard : très transparent, sinon on obtient deux taches et non des
+        // pommettes.
+        fard: matiere(melange(levres, 0.35), { roughness: 0.8, transparent: true, opacity: 0.42 }),
+        bijou: matiere(look.couleur_bijoux || '#D9B45B', { roughness: 0.25, metalness: 0.85 }),
         bas: matiere(look.couleur_bas, { roughness: 0.94 }),
         basClair: matiere(melange(look.couleur_bas, 0.30), { roughness: 0.94 }),
         basOmbre: matiere(melange(look.couleur_bas, -0.22), { roughness: 0.94 }),
@@ -1033,7 +1291,6 @@ function fabriqueMatieres(look) {
 
         blanc: matiere('#F5F5F2', { roughness: 0.6 }),
         noir: matiere('#1A1A1A', { roughness: 0.5 }),
-        bouche: matiere('#7E3B3B', { roughness: 0.6 }),
         langue: matiere('#C96A6A', { roughness: 0.6 }),
         monture: matiere('#3A3A3E', { roughness: 0.4, metalness: 0.35 }),
         verre: matiere('#BFD8EA', { roughness: 0.15, metalness: 0.1, transparent: true, opacity: 0.35 }),

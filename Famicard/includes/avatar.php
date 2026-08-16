@@ -55,51 +55,51 @@ if (!function_exists('famicardAvatarCatalogue')) {
             return $catalogue;
         }
 
+        // ── LA PALETTE DES POILS, ÉCRITE UNE FOIS ───────────────────────────
+        // Cheveux, sourcils et barbe la partagent. Trois copies auraient
+        // divergé au premier ajout de couleur, et on se serait retrouvé avec un
+        // « roux » disponible pour les cheveux mais pas pour la barbe.
+        $poils = [
+            'noir'    => ['libelle' => 'Noir',    'hex' => '#1E1A18'],
+            'brun'    => ['libelle' => 'Brun',    'hex' => '#3B2418'],
+            'chatain' => ['libelle' => 'Châtain', 'hex' => '#6B4429'],
+            'miel'    => ['libelle' => 'Miel',    'hex' => '#9A6B32'],
+            'blond'   => ['libelle' => 'Blond',   'hex' => '#D8AE5C'],
+            'platine' => ['libelle' => 'Platine', 'hex' => '#E9DCC0'],
+            'roux'    => ['libelle' => 'Roux',    'hex' => '#A64B22'],
+            'gris'    => ['libelle' => 'Gris',    'hex' => '#8E8C89'],
+            'blanc'   => ['libelle' => 'Blanc',   'hex' => '#EDEDEA'],
+            'bleu'    => ['libelle' => 'Bleu',    'hex' => '#2F6DB5'],
+            'rose'    => ['libelle' => 'Rose',    'hex' => '#D2508B'],
+            'vert'    => ['libelle' => 'Vert',    'hex' => '#3E9A63'],
+        ];
+
+        // ⚠️ LE CAS « auto » — sourcils et barbe suivent les cheveux par défaut.
+        // C'est ce que veut presque tout le monde, et c'est surtout ce qui évite
+        // qu'un changement de couleur de cheveux laisse une barbe orpheline de
+        // l'ancienne teinte. `hex => 'auto'` est un SIGNAL, pas une couleur :
+        // le moteur 3D le reconnaît et va chercher la couleur des cheveux (voir
+        // fabriqueMatieres dans assets/avatar3d.js), et l'atelier lui dessine
+        // une pastille à part.
+        $poilsAuto = ['auto' => ['libelle' => 'Comme les cheveux', 'hex' => 'auto']] + $poils;
+
         $catalogue = [
 
             // ── SILHOUETTE ──────────────────────────────────────────────────
             'corps' => [
                 'libelle' => 'Silhouette',
                 'icone'   => '🧍',
+                // ⚠️ L'ORDRE DES CHAMPS EST L'ORDRE DE L'ÉCRAN, et il raconte
+                // la façon dont on fabrique quelqu'un : on décide D'ABORD de la
+                // silhouette (elle change tout le reste), et la pose EN DERNIER,
+                // parce qu'on met en scène un personnage qui existe déjà.
                 'champs'  => [
-                    // LA POSE FAIT PARTIE DE L'AVATAR, pas des réglages d'écran.
-                    // C'est ce qui fait qu'elle se retrouve toute seule sur la
-                    // vignette de la fiche : la vignette est une photo du
-                    // personnage tel qu'il est enregistré. Une pose choisie
-                    // ailleurs (un bouton d'affichage) aurait donné une fiche
-                    // où tout le monde est au garde-à-vous.
-                    'pose' => [
-                        'libelle' => 'Pose',
-                        'type'    => 'liste',
-                        'defaut'  => 'neutre',
-                        'valeurs' => [
-                            'neutre'       => ['libelle' => 'Debout'],
-                            'salut'        => ['libelle' => 'Coucou'],
-                            'hanches'      => ['libelle' => 'Mains sur les hanches'],
-                            'bras_croises' => ['libelle' => 'Bras croisés'],
-                            'victoire'     => ['libelle' => 'Bras levés'],
-                            'presente'     => ['libelle' => 'Bras tendu'],
-                        ],
-                    ],
-                    'peau' => [
-                        'libelle' => 'Teint',
-                        'type'    => 'couleur',
-                        'defaut'  => 'clair',
-                        // Une vraie amplitude de carnations : une palette qui
-                        // s'arrête au beige oblige une partie de l'équipe à
-                        // choisir un teint qui n'est pas le sien.
-                        'valeurs' => [
-                            'porcelaine' => ['libelle' => 'Porcelaine', 'hex' => '#F8E0CE'],
-                            'clair'      => ['libelle' => 'Clair',      'hex' => '#F1CBA7'],
-                            'dore'       => ['libelle' => 'Doré',       'hex' => '#E3B183'],
-                            'hale'       => ['libelle' => 'Hâlé',       'hex' => '#C98C5B'],
-                            'olive'      => ['libelle' => 'Olive',      'hex' => '#A9713F'],
-                            'ambre'      => ['libelle' => 'Ambré',      'hex' => '#8A5430'],
-                            'brun'       => ['libelle' => 'Brun',       'hex' => '#66391F'],
-                            'ebene'      => ['libelle' => 'Ébène',      'hex' => '#432414'],
-                        ],
-                    ],
                     // ── LA MORPHOLOGIE, ET PAS « LE SEXE » ──────────────────
+                    // EN PREMIER, parce qu'elle commande tout le reste : elle
+                    // change les épaules, les hanches et la façon dont chaque
+                    // vêtement tombe. La choisir après avoir composé une tenue,
+                    // c'est refaire la tenue.
+                    //
                     // C'est une FORME DE FIGURINE, pas une donnée d'état civil.
                     // La nuance n'est pas de la coquetterie : Famicard est
                     // soumis au RGPD (voir le README), et le sexe y est une
@@ -119,6 +119,24 @@ if (!function_exists('famicardAvatarCatalogue')) {
                             'neutre'    => ['libelle' => 'Neutre'],
                             'feminine'  => ['libelle' => 'Féminine'],
                             'masculine' => ['libelle' => 'Masculine'],
+                        ],
+                    ],
+                    'peau' => [
+                        'libelle' => 'Teint',
+                        'type'    => 'couleur',
+                        'defaut'  => 'clair',
+                        // Une vraie amplitude de carnations : une palette qui
+                        // s'arrête au beige oblige une partie de l'équipe à
+                        // choisir un teint qui n'est pas le sien.
+                        'valeurs' => [
+                            'porcelaine' => ['libelle' => 'Porcelaine', 'hex' => '#F8E0CE'],
+                            'clair'      => ['libelle' => 'Clair',      'hex' => '#F1CBA7'],
+                            'dore'       => ['libelle' => 'Doré',       'hex' => '#E3B183'],
+                            'hale'       => ['libelle' => 'Hâlé',       'hex' => '#C98C5B'],
+                            'olive'      => ['libelle' => 'Olive',      'hex' => '#A9713F'],
+                            'ambre'      => ['libelle' => 'Ambré',      'hex' => '#8A5430'],
+                            'brun'       => ['libelle' => 'Brun',       'hex' => '#66391F'],
+                            'ebene'      => ['libelle' => 'Ébène',      'hex' => '#432414'],
                         ],
                     ],
                     'carrure' => [
@@ -141,6 +159,30 @@ if (!function_exists('famicardAvatarCatalogue')) {
                             'grande'  => ['libelle' => 'Grande'],
                         ],
                     ],
+                    // ── LA POSE, EN DERNIER ─────────────────────────────────
+                    // On met en scène un personnage qui existe déjà : la pose
+                    // est le geste final, pas le point de départ.
+                    //
+                    // Elle FAIT PARTIE DE L'AVATAR, et pas des réglages d'écran.
+                    // C'est ce qui fait qu'elle se retrouve toute seule sur la
+                    // vignette de la fiche : la vignette est une photo du
+                    // personnage tel qu'il est enregistré. Une pose choisie
+                    // ailleurs aurait donné une fiche où tout le monde est au
+                    // garde-à-vous.
+                    'pose' => [
+                        'libelle' => 'Pose',
+                        'type'    => 'liste',
+                        'defaut'  => 'neutre',
+                        'aide'    => "C'est cette pose qu'on verra sur ta fiche.",
+                        'valeurs' => [
+                            'neutre'       => ['libelle' => 'Debout'],
+                            'salut'        => ['libelle' => 'Coucou'],
+                            'hanches'      => ['libelle' => 'Mains sur les hanches'],
+                            'bras_croises' => ['libelle' => 'Bras croisés'],
+                            'victoire'     => ['libelle' => 'Bras levés'],
+                            'presente'     => ['libelle' => 'Bras tendu'],
+                        ],
+                    ],
                 ],
             ],
 
@@ -159,10 +201,14 @@ if (!function_exists('famicardAvatarCatalogue')) {
                             'brosse'  => ['libelle' => 'En brosse'],
                             'degrade' => ['libelle' => 'Dégradé'],
                             'coiffe'  => ['libelle' => 'Coiffée sur le côté'],
+                            'carre'   => ['libelle' => 'Carré'],
                             'mi_long' => ['libelle' => 'Mi-long'],
                             'long'    => ['libelle' => 'Long'],
+                            'ondule'  => ['libelle' => 'Longue ondulée'],
                             'queue'   => ['libelle' => 'Queue de cheval'],
+                            'demi_queue' => ['libelle' => 'Demi-queue'],
                             'chignon' => ['libelle' => 'Chignon'],
+                            'tresse'  => ['libelle' => 'Tresse'],
                             'tresses' => ['libelle' => 'Couettes'],
                             'boucle'  => ['libelle' => 'Bouclée'],
                             'afro'    => ['libelle' => 'Afro'],
@@ -173,20 +219,7 @@ if (!function_exists('famicardAvatarCatalogue')) {
                         'libelle' => 'Couleur',
                         'type'    => 'couleur',
                         'defaut'  => 'chatain',
-                        'valeurs' => [
-                            'noir'    => ['libelle' => 'Noir',    'hex' => '#1E1A18'],
-                            'brun'    => ['libelle' => 'Brun',    'hex' => '#3B2418'],
-                            'chatain' => ['libelle' => 'Châtain', 'hex' => '#6B4429'],
-                            'miel'    => ['libelle' => 'Miel',    'hex' => '#9A6B32'],
-                            'blond'   => ['libelle' => 'Blond',   'hex' => '#D8AE5C'],
-                            'platine' => ['libelle' => 'Platine', 'hex' => '#E9DCC0'],
-                            'roux'    => ['libelle' => 'Roux',    'hex' => '#A64B22'],
-                            'gris'    => ['libelle' => 'Gris',    'hex' => '#8E8C89'],
-                            'blanc'   => ['libelle' => 'Blanc',   'hex' => '#EDEDEA'],
-                            'bleu'    => ['libelle' => 'Bleu',    'hex' => '#2F6DB5'],
-                            'rose'    => ['libelle' => 'Rose',    'hex' => '#D2508B'],
-                            'vert'    => ['libelle' => 'Vert',    'hex' => '#3E9A63'],
-                        ],
+                        'valeurs' => $poils,
                     ],
                 ],
             ],
@@ -244,6 +277,12 @@ if (!function_exists('famicardAvatarCatalogue')) {
                             'epais'    => ['libelle' => 'Épais'],
                         ],
                     ],
+                    'couleur_sourcils' => [
+                        'libelle' => 'Couleur des sourcils',
+                        'type'    => 'couleur',
+                        'defaut'  => 'auto',
+                        'valeurs' => $poilsAuto,
+                    ],
                     'barbe' => [
                         'libelle' => 'Barbe',
                         'type'    => 'liste',
@@ -254,6 +293,39 @@ if (!function_exists('famicardAvatarCatalogue')) {
                             'bouc'      => ['libelle' => 'Bouc'],
                             'courte'    => ['libelle' => 'Barbe de 3 jours'],
                             'pleine'    => ['libelle' => 'Barbe pleine'],
+                        ],
+                    ],
+                    'couleur_barbe' => [
+                        'libelle' => 'Couleur de la barbe',
+                        'type'    => 'couleur',
+                        'defaut'  => 'auto',
+                        'valeurs' => $poilsAuto,
+                    ],
+                    // Le maquillage est ouvert à tout le monde, comme les cils :
+                    // c'est un choix d'apparence, il n'appartient à aucune
+                    // morphologie.
+                    'maquillage' => [
+                        'libelle' => 'Maquillage',
+                        'type'    => 'liste',
+                        'defaut'  => 'aucun',
+                        'valeurs' => [
+                            'aucun'   => ['libelle' => 'Aucun'],
+                            'discret' => ['libelle' => 'Discret'],
+                            'levres'  => ['libelle' => 'Lèvres'],
+                            'marque'  => ['libelle' => 'Marqué'],
+                        ],
+                    ],
+                    'couleur_levres' => [
+                        'libelle' => 'Couleur des lèvres',
+                        'type'    => 'couleur',
+                        'defaut'  => 'naturel',
+                        'valeurs' => [
+                            'naturel'  => ['libelle' => 'Naturel',  'hex' => '#B4655F'],
+                            'rose'     => ['libelle' => 'Rosé',     'hex' => '#D4737F'],
+                            'corail'   => ['libelle' => 'Corail',   'hex' => '#E0705C'],
+                            'rouge'    => ['libelle' => 'Rouge',    'hex' => '#C1272D'],
+                            'framboise'=> ['libelle' => 'Framboise','hex' => '#9E2B4E'],
+                            'prune'    => ['libelle' => 'Prune',    'hex' => '#6E2B45'],
                         ],
                     ],
                     'lunettes' => [
@@ -276,14 +348,27 @@ if (!function_exists('famicardAvatarCatalogue')) {
                 'libelle' => 'Tenue',
                 'icone'   => '👕',
                 'champs'  => [
+                    // ⚠️ LA TENUE DE TRAVAIL EST LE DÉFAUT, ET LES DEUX PREMIÈRES.
+                    // C'est ce que porte réellement l'équipe (photos de Jimmy) :
+                    // le gilet vert bordé de vert anis par-dessus un t-shirt, ou
+                    // le t-shirt maison seul. Quelqu'un qui ouvre l'atelier se
+                    // reconnaît donc immédiatement, avant même d'avoir cliqué.
+                    //
+                    // Ces deux-là portent LEURS couleurs, celles de la maison :
+                    // un gilet Famiflora rose ne serait plus un gilet Famiflora.
+                    // Le choix de couleur du haut habille alors le t-shirt
+                    // porté DESSOUS — comme en vrai.
                     'haut' => [
                         'libelle' => 'Haut',
                         'type'    => 'liste',
-                        'defaut'  => 'polo',
+                        'defaut'  => 'gilet_fami',
                         'valeurs' => [
+                            'gilet_fami'  => ['libelle' => 'Gilet Famiflora'],
+                            'tshirt_fami' => ['libelle' => 'T-shirt Famiflora'],
                             'tshirt'  => ['libelle' => 'T-shirt'],
                             'polo'    => ['libelle' => 'Polo'],
                             'chemise' => ['libelle' => 'Chemise'],
+                            'chemisier' => ['libelle' => 'Chemisier'],
                             'pull'    => ['libelle' => 'Pull'],
                             'sweat'   => ['libelle' => 'Sweat à capuche'],
                             'veste'   => ['libelle' => 'Veste'],
@@ -293,9 +378,8 @@ if (!function_exists('famicardAvatarCatalogue')) {
                     'couleur_haut' => [
                         'libelle' => 'Couleur du haut',
                         'type'    => 'couleur',
-                        'defaut'  => 'vert_fami',
-                        // Le vert maison en premier : c'est la tenue de travail
-                        // réelle, donc le choix le plus probable.
+                        'defaut'  => 'noir',
+                        'aide'    => 'Sous le gilet Famiflora, cette couleur habille le t-shirt porté dessous. Le gilet et le t-shirt Famiflora, eux, gardent les couleurs de la maison.',
                         'valeurs' => [
                             'vert_fami' => ['libelle' => 'Vert Famiflora', 'hex' => '#2D5A37'],
                             'vert_clair'=> ['libelle' => 'Vert clair',     'hex' => '#4A8B5C'],
@@ -321,6 +405,8 @@ if (!function_exists('famicardAvatarCatalogue')) {
                             'bermuda'  => ['libelle' => 'Bermuda'],
                             'short'    => ['libelle' => 'Short'],
                             'jupe'     => ['libelle' => 'Jupe'],
+                            'jupe_longue' => ['libelle' => 'Jupe longue'],
+                            'leggings' => ['libelle' => 'Leggings'],
                         ],
                     ],
                     'couleur_bas' => [
@@ -347,6 +433,7 @@ if (!function_exists('famicardAvatarCatalogue')) {
                             'securite' => ['libelle' => 'Chaussures de sécurité'],
                             'bottes'   => ['libelle' => 'Bottes'],
                             'ville'    => ['libelle' => 'Chaussures de ville'],
+                            'ballerines' => ['libelle' => 'Ballerines'],
                             'sabots'   => ['libelle' => 'Sabots'],
                         ],
                     ],
@@ -412,6 +499,33 @@ if (!function_exists('famicardAvatarCatalogue')) {
                             'gants'      => ['libelle' => 'Gants de jardinage'],
                             'badge'      => ['libelle' => 'Badge'],
                             'sacoche'    => ['libelle' => 'Sacoche'],
+                            'sac_main'   => ['libelle' => 'Sac à main'],
+                        ],
+                    ],
+                    // Les bijoux sont un champ SÉPARÉ de l'équipement : on peut
+                    // porter des boucles d'oreilles ET un tablier. Les mettre
+                    // dans la même liste aurait forcé à choisir entre les deux.
+                    'bijoux' => [
+                        'libelle' => 'Bijoux',
+                        'type'    => 'liste',
+                        'defaut'  => 'aucun',
+                        'valeurs' => [
+                            'aucun'           => ['libelle' => 'Aucun'],
+                            'boucles'         => ['libelle' => "Boucles d'oreilles"],
+                            'anneaux'         => ['libelle' => 'Créoles'],
+                            'collier'         => ['libelle' => 'Collier'],
+                            'boucles_collier' => ['libelle' => 'Boucles + collier'],
+                        ],
+                    ],
+                    'couleur_bijoux' => [
+                        'libelle' => 'Métal',
+                        'type'    => 'couleur',
+                        'defaut'  => 'or',
+                        'valeurs' => [
+                            'or'     => ['libelle' => 'Or',      'hex' => '#D9B45B'],
+                            'argent' => ['libelle' => 'Argent',  'hex' => '#C6CBD1'],
+                            'rose'   => ['libelle' => 'Or rose', 'hex' => '#D79A86'],
+                            'noir'   => ['libelle' => 'Noir',    'hex' => '#2B2B2E'],
                         ],
                     ],
                 ],
