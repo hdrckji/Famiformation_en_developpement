@@ -40,7 +40,9 @@ $magasins = famicardMagasins($db);
 // Combien de corrections attendent une décision. Compté ici pour l'afficher
 // dans le bandeau : sans ce rappel, la page de validation n'est visitée que
 // par quelqu'un qui pense à y aller — c'est-à-dire jamais.
-$aValider = famicardCompteModificationsEnAttente($db);
+// Des PERSONNES, pas des champs : l'écran des modifications regroupe par
+// personne, la pastille doit annoncer la même chose que ce qu'on y trouvera.
+$aValider = famicardComptePersonnesEnAttente($db);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // FILTRES. Tout ce qui vient de l'URL est contraint à une liste connue ou
@@ -233,7 +235,7 @@ if ($aDesChampsLibres && $lignes) {
               // plateformes se rejoignent depuis l'accueil de Famicard. ?>
         <a class="pill" href="creer.php">➕ Nouveau</a>
         <?php if ($aValider > 0): ?>
-            <a class="pill" href="validations.php" style="background:#E9A93C; border-color:#E9A93C;">⏳ <?= (int) $aValider ?> à confirmer</a>
+            <a class="pill" href="validations.php" style="background:#E9A93C; border-color:#E9A93C;">⏳ <?= (int) $aValider ?> à relire</a>
         <?php else: ?>
             <a class="pill" href="validations.php">Modifications</a>
         <?php endif; ?>

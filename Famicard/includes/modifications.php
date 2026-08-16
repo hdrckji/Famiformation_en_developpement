@@ -185,6 +185,98 @@ if (!function_exists('famicardModificationsEnAttente')) {
     }
 }
 
+if (!function_exists('famicardModificationsParPersonne')) {
+    /**
+     * LES MODIFICATIONS EN ATTENTE, REGROUPÉES PAR PERSONNE.
+     *
+     * ⚠️ UNE LIGNE PAR PERSONNE, PAS PAR CHAMP (décision de Jimmy). Quelqu'un
+     * qui corrige quatre informations produisait quatre lignes : on tranchait
+     * son adresse sans voir qu'il avait aussi changé de secteur, et la liste
+     * donnait l'impression d'un raz-de-marée là où il n'y avait que deux
+     * personnes consciencieuses.
+     *
+     * @return array [user_id => ['personne' => …, 'modifs' => […], 'dernier' => …]]
+     */
+    function famicardModificationsParPersonne(PDO $db, $limite = 400)
+    {
+        $lignes = famicardModificationsEnAttente($db, $limite);
+
+        $par = [];
+        foreach ($lignes as $m) {
+            $uid = (int) $m['user_id'];
+            if (!isset($par[$uid])) {
+                $nom = trim(((string) ($m['prenom'] ?? '')) . ' ' . ((string) ($m['nom'] ?? '')));
+                $par[$uid] = [
+                    'user_id'  => $uid,
+                    'personne' => $nom !== '' ? $nom : (string) ($m['identifiant'] ?? ('#' . $uid)),
+                    'modifs'   => [],
+                    // La plus RÉCENTE : c'est elle qui dit depuis quand ça
+                    // attend. La liste est déjà triée du plus récent au plus
+                    // ancien, donc la première rencontrée est la bonne.
+                    'dernier'  => (string) $m['fait_le'],
+                ];
+            }
+            $par[$uid]['modifs'][] = $m;
+        }
+
+        return $par;
+    }
+}
+
+if (!function_exists('famicardModificationsEnAttentePour')) {
+    /**
+     * Ce qui attend une décision SUR UNE FICHE, indexé par champ.
+     *
+     * Sert à deux choses : la vue détaillée (qui met en évidence ce qui a
+     * changé), et l'écran d'édition — un champ dont la correction n'est pas
+     * encore tranchée s'y affiche d'une autre couleur, pour qu'on ne le
+     * recorrige pas en croyant que rien n'est parti.
+     *
+     * @return array [clé du champ => ligne de famicard_modifications]
+     */
+    function famicardModificationsEnAttentePour(PDO $db, $userId)
+    {
+        $par = [];
+        try {
+            $st = $db->prepare(
+                "SELECT * FROM famicard_modifications
+                  WHERE user_id = ? AND statut = 'a_valider'
+                  ORDER BY fait_le ASC"
+            );
+            $st->execute([(int) $userId]);
+            foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $m) {
+                // Deux corrections du même champ : on garde la DERNIÈRE, c'est
+                // elle qui est dans la fiche. Mais le « avant » doit rester
+                // celui de la PREMIÈRE, sinon rétablir ne remonterait que d'un
+                // cran et laisserait une valeur intermédiaire que personne n'a
+                // jamais validée.
+                $cle = (string) $m['champ'];
+                if (isset($par[$cle])) {
+                    $m['avant'] = $par[$cle]['avant'];
+                }
+                $par[$cle] = $m;
+            }
+        } catch (Exception $e) {
+            return [];
+        }
+        return $par;
+    }
+}
+
+if (!function_exists('famicardComptePersonnesEnAttente')) {
+    /** Combien de PERSONNES attendent une décision — pas combien de champs. */
+    function famicardComptePersonnesEnAttente(PDO $db)
+    {
+        try {
+            return (int) $db->query(
+                "SELECT COUNT(DISTINCT user_id) FROM famicard_modifications WHERE statut = 'a_valider'"
+            )->fetchColumn();
+        } catch (Exception $e) {
+            return 0;
+        }
+    }
+}
+
 if (!function_exists('famicardCompteModificationsEnAttente')) {
     /** Combien de modifications attendent une décision. 0 si la table manque. */
     function famicardCompteModificationsEnAttente(PDO $db)

@@ -229,6 +229,13 @@ if (isset($_GET['identifiant_libre'])) {
     exit();
 }
 
+// ── CE QUI ATTEND ENCORE UNE DÉCISION ────────────────────────────────────
+// Un champ corrigé mais pas encore tranché s'affiche d'une autre couleur.
+// Sans ça, on rouvre sa fiche, on voit sa correction en place, et on ne sait
+// pas si elle est acquise ou si elle peut encore être rétablie — alors on la
+// retape, ce qui produit une deuxième ligne à trancher.
+$enAttente = famicardModificationsEnAttentePour($db, $cibleId);
+
 $champRattachement = $champs['departement'] ?? null;
 $rattachementEditable = ($champRattachement !== null)
     && $arbreSecteurs
@@ -257,6 +264,8 @@ if (!empty($_SESSION['famicard_modif_flash'])) {
     $message = (string) $_SESSION['famicard_modif_flash'];
     unset($_SESSION['famicard_modif_flash']);
 }
+$enValidation = !empty($_SESSION['famicard_modif_en_validation']);
+unset($_SESSION['famicard_modif_en_validation']);
 
 /** Valeur brute actuelle d'un champ (celle qui est en base, pas celle affichée). */
 function famicardValeurBrute($cle, array $champ, array $ligne, array $libres)
@@ -271,9 +280,16 @@ function famicardValeurBrute($cle, array $champ, array $ligne, array $libres)
     return (string) ($ligne[$colonne] ?? '');
 }
 
-function famicardRetourModif($flash, $estSaPropreFiche, $cibleId)
+function famicardRetourModif($flash, $estSaPropreFiche, $cibleId, $enValidation = false)
 {
     $_SESSION['famicard_modif_flash'] = $flash;
+    // ⚠️ UN DRAPEAU À PART, et pas une phrase dans le flash. Ce qui compte
+    // ici n'est pas le texte mais l'ÉTAT : « ta correction est partie, elle
+    // sera relue ». Une bannière se lit distraitement ; une fenêtre demande
+    // un clic, donc elle a été vue.
+    if ($enValidation) {
+        $_SESSION['famicard_modif_en_validation'] = 1;
+    }
     header('Location: modifier.php' . ($estSaPropreFiche ? '' : '?id=' . (int) $cibleId));
     exit();
 }
@@ -638,7 +654,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $texte .= ' Un administrateur confirmera.';
         }
 
-        famicardRetourModif($texte . $suffixe, $estSaPropreFiche, $cibleId);
+        // La fenêtre ne s'ouvre que si quelque chose PART EN VALIDATION :
+        // un admin qui corrige la fiche de quelqu'un n'a personne à attendre.
+        famicardRetourModif($texte . $suffixe, $estSaPropreFiche, $cibleId, $aValider && $combien > 0);
     }
 
     // En cas d'erreur, on réaffiche ce que la personne a saisi plutôt que de
@@ -747,6 +765,14 @@ if ($photo !== '') {
     input[type="text"], input[type="email"], input[type="date"], input[type="password"], select, textarea { width: 100%; padding: 10px 12px; border: 1px solid #ccd6cf; border-radius: 10px; font-family: inherit; font-size: .95rem; background: #fff; }
     textarea { resize: vertical; min-height: 76px; }
     .aide { color: #888; font-size: .78rem; margin-top: 4px; line-height: 1.45; }
+
+    /* ── UN CHAMP DONT LA CORRECTION ATTEND ─────────────────────────────
+       Même ambre que partout ailleurs pour « en attente » : on reconnaît
+       l'état sans avoir à lire. */
+    .ligne.en-attente { background: #fffaf0; border-radius: 12px; padding: 10px 12px; margin-left: -12px; margin-right: -12px; }
+    .ligne.en-attente label { color: #8a5a10; }
+    .ligne.en-attente input, .ligne.en-attente select, .ligne.en-attente .fige { border-color: #f0dbac; background: #fffdf8; }
+    .attente-note { color: #8a5a10; font-size: .78rem; font-weight: 700; margin-top: 6px; }
     .fige { background: #f5f7f6; border-radius: 10px; padding: 10px 12px; color: #777; font-size: .92rem; }
 
     /* ── RATTACHEMENT : secteur, puis département facultatif ── */
@@ -763,7 +789,8 @@ if ($photo !== '') {
     .fenetre { position: fixed; inset: 0; background: rgba(20,40,28,.55); display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 50; }
     .fenetre[hidden] { display: none; }
     .fenetre-boite { background: #fff; border-radius: 20px; padding: 26px; max-width: 430px; width: 100%; box-shadow: 0 24px 60px rgba(14,40,24,.35); }
-    .fenetre-boite h2 { margin: 0 0 10px; font-size: 1.15rem; color: #2d5a37; }
+    .fenetre-boite h2 { margin: 0 0 10px; font-size: 1.2rem; color: #2d5a37; }
+    .fenetre[hidden] { display: none; }
     .fenetre-quoi { margin: 0 0 16px; font-size: .9rem; line-height: 1.6; color: #5a6b60; }
     .fenetre-message { margin-top: 12px; border-radius: 10px; padding: 9px 12px; font-size: .87rem; font-weight: 700; background: #fdeaea; color: #a3271c; }
     .fenetre-actions { display: flex; gap: 10px; margin-top: 18px; }
@@ -783,6 +810,49 @@ if ($photo !== '') {
 </style>
 </head>
 <body>
+
+<?php // ── « C'EST ENREGISTRÉ, UN ADMIN VA LE RELIRE » ─────────────────────
+      // Une fenêtre et pas une bannière (demande de Jimmy) : une bannière se
+      // lit distraitement, une fenêtre demande un clic — donc elle a été vue.
+      // Elle ne s'ouvre que quand quelque chose PART EN VALIDATION, jamais
+      // pour un admin qui corrige une fiche : il n'attend personne.
+      //
+      // Rendue par le serveur et non par du JavaScript : elle s'affiche même
+      // si un script ne part pas, et le bouton n'est qu'un lien. ?>
+<?php if ($enValidation): ?>
+    <div class="fenetre" id="fenetreEnvoye" role="dialog" aria-modal="true" aria-labelledby="titreEnvoye">
+        <div class="fenetre-boite">
+            <div style="font-size:2.4rem;line-height:1;margin-bottom:10px;">✅</div>
+            <h2 id="titreEnvoye">C'est enregistré</h2>
+            <p class="fenetre-quoi">
+                Tes corrections sont <b>déjà en place</b> sur ta fiche.
+                Un administrateur va les relire et les confirmer — c'est la marche normale,
+                tu n'as rien d'autre à faire.
+            </p>
+            <p class="fenetre-quoi">
+                En attendant, les champs concernés sont <b style="color:#8a5a10;">marqués en orange</b>
+                ci-dessous. S'il y avait une erreur, tu peux encore les corriger.
+            </p>
+            <div class="fenetre-actions">
+                <button type="button" class="bouton bouton-plein" id="fermeEnvoye">J'ai compris</button>
+            </div>
+        </div>
+    </div>
+    <script>
+        // Le bouton ferme la fenêtre. Sans script elle reste ouverte, mais la
+        // page est dessous et reste lisible — on ne bloque personne.
+        (function () {
+            var f = document.getElementById('fenetreEnvoye');
+            var b = document.getElementById('fermeEnvoye');
+            if (!f || !b) { return; }
+            function ferme() { f.setAttribute('hidden', ''); }
+            b.addEventListener('click', ferme);
+            f.addEventListener('click', function (e) { if (e.target === f) { ferme(); } });
+            document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { ferme(); } });
+            b.focus();
+        }());
+    </script>
+<?php endif; ?>
 
 <div class="top-nav">
     <?php if ($estSaPropreFiche): ?>
@@ -890,7 +960,8 @@ if ($photo !== '') {
                         $brute    = famicardValeurBrute($cle, $champ, $cible, $libres);
                         $affichee = famicardValeurAffichee($cle, $champ, $cible, $magasins, $libres);
                         ?>
-                        <div class="ligne">
+                        <?php $attend = isset($enAttente[$cle]); ?>
+                        <div class="ligne<?= $attend ? ' en-attente' : '' ?>">
                             <label for="champ_<?= e($cle) ?>">
                                 <?= e($champ['libelle']) ?><?php if (!empty($champ['requis'])): ?> <span class="obl">*</span><?php endif; ?>
                             </label>
@@ -1075,6 +1146,18 @@ if ($photo !== '') {
                                   // dit déjà « modifiable par un administrateur ». ?>
                             <?php if ($editable && $saisie !== 'rattachement' && !empty($champ['aide'])): ?>
                                 <div class="aide"><?= e((string) $champ['aide']) ?></div>
+                            <?php endif; ?>
+
+                            <?php // La correction est partie, elle n'est pas encore tranchée.
+                                  // On dit AUSSI l'ancienne valeur : c'est ce qui reviendrait
+                                  // si un administrateur rétablissait. ?>
+                            <?php if ($attend): ?>
+                                <div class="attente-note">
+                                    ⏳ En attente de confirmation
+                                    <?php if ((string) $enAttente[$cle]['avant'] !== ''): ?>
+                                        — précédemment « <?= e((string) $enAttente[$cle]['avant']) ?> »
+                                    <?php endif; ?>
+                                </div>
                             <?php endif; ?>
                         </div>
                     <?php endforeach; ?>

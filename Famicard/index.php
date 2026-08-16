@@ -78,7 +78,10 @@ $mesServices = famicardServicesDuCollaborateur($db, (int) $moi['id'], $roleMoi);
 // Corrections en attente de décision (admins). Affichées sur la tuile plutôt
 // que sur une cinquième : l'accueil doit rester à quatre entrées, et une
 // pastille se voit sans rien ajouter.
-$aValider = $estAdmin ? famicardCompteModificationsEnAttente($db) : 0;
+// ⚠️ ON COMPTE LES PERSONNES, PAS LES CHAMPS. Quelqu'un qui corrige quatre
+// informations affichait « 4 à confirmer » : la pastille annonçait un travail
+// quatre fois plus gros qu'il n'était, et on repoussait d'autant.
+$aValider = $estAdmin ? famicardComptePersonnesEnAttente($db) : 0;
 
 // Combien de fiches n'ont pas encore de type de contrat. Le chiffre disparaît
 // quand le travail est fini : c'est la seule façon qu'une reprise se termine.
@@ -367,7 +370,35 @@ $avatarUrl = ($avatar['existe'] && $avatar['image'] !== '')
           // Les outils qui agissent sur les PERSONNES : leur profil, leur accès,
           // leur fiche. Ils étaient dispersés sur l'accueil de FamiFormation ;
           // ils appartiennent ici (voir README.md, « LE TRI »). ?>
+    <?php // ── LES MODIFICATIONS, LEUR PROPRE MODULE ────────────────────
+          // Elles étaient rangées dans « Administration », entre la création
+          // d'un compte et les libellés : on y arrivait par la base des
+          // collaborateurs, qui n'est pas l'endroit — c'est une file d'attente,
+          // pas un annuaire.
+          //
+          // COLLABORATEURS ET AGENCES ENSEMBLE : ce sont les mêmes corrections,
+          // elles suivent le même chemin, et les séparer obligerait à regarder
+          // à deux endroits pour être sûr de n'avoir rien laissé passer. ?>
     <?php if ($estAdmin): ?>
+        <div class="titre-groupe">À relire</div>
+
+        <div class="tuiles">
+            <a class="tuile" href="validations.php">
+                <?php if ($aValider > 0): ?>
+                    <span class="pastille"><?= (int) $aValider ?> <?= $aValider > 1 ? 'personnes' : 'personne' ?></span>
+                <?php endif; ?>
+                <span class="ico">✅</span>
+                <div class="nom">Modifications de profil</div>
+                <div class="quoi">
+                    <?php if ($aValider > 0): ?>
+                        Ce que les collaborateurs et les agences ont corrigé sur leur fiche, et qui attend ta confirmation.
+                    <?php else: ?>
+                        Rien n'attend : toutes les corrections ont été relues.
+                    <?php endif; ?>
+                </div>
+            </a>
+        </div>
+
         <div class="titre-groupe">Administration</div>
 
         <div class="tuiles">
@@ -378,13 +409,6 @@ $avatarUrl = ($avatar['existe'] && $avatar['image'] !== '')
                 <span class="ico">➕</span>
                 <div class="nom">Nouveau collaborateur</div>
                 <div class="quoi">Créer le compte d'un arrivant : identifiant, profil, accès, et son mail d'activation.</div>
-            </a>
-
-            <a class="tuile" href="validations.php">
-                <?php if ($aValider > 0): ?><span class="pastille"><?= (int) $aValider ?></span><?php endif; ?>
-                <span class="ico">✅</span>
-                <div class="nom">Modifications à confirmer</div>
-                <div class="quoi">Les corrections faites par les collaborateurs sur leur propre fiche.</div>
             </a>
 
             <?php // Interne / intérim / indépendant, et le type de contrat. Deux
