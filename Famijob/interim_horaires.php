@@ -127,20 +127,6 @@ if (!$isAdmin) {
 // colonne : une saisie plus longue serait tronquee par MySQL sans rien dire.
 $commentaireAgence = mb_substr(trim((string) ($_POST['agency_comment'] ?? '')), 0, 500);
 
-// ── LE PLANNING VALIDE EST VERROUILLE ───────────────────────────────────────
-// Une semaine validee est une semaine dont les horaires sont PARTIS : chez les
-// etudiants, chez les agences. La modifier en douce ferait travailler des gens
-// sur un planning qui n'est plus celui qu'ils ont recu.
-//
-// On ne l'interdit pas pour autant — la vie change les plannings. Il faut
-// seulement le vouloir : « Modifier » rouvre la semaine, et la validation
-// suivante ne previendra QUE ceux dont l'horaire a change.
-//
-// ⚠️ Le verrou est teste dans le TRAITEMENT, pas seulement a l'affichage. Un
-// bouton cache n'empeche pas un POST.
-$etatSemaine = famijobStatutSemaine($db, $selectedWeek['start']);
-$planningVerrouille = ($etatSemaine['statut'] === 'valide');
-
 $message = '';
 $pendingConfirm = null; // Confirmation "modale" en attente (par nom ET par liste) : ['message','request_id','student_name','student_id','matching_mode']
 
@@ -162,6 +148,24 @@ if (!isset($weekOptions[$selectedWeekKey])) {
     $selectedWeekKey = array_key_first($weekOptions);
 }
 $selectedWeek = $weekOptions[$selectedWeekKey];
+
+// ── LE PLANNING VALIDE EST VERROUILLE ───────────────────────────────────────
+// Une semaine validee est une semaine dont les horaires sont PARTIS : chez les
+// etudiants, chez les agences. La modifier en douce ferait travailler des gens
+// sur un planning qui n'est plus celui qu'ils ont recu.
+//
+// On ne l'interdit pas pour autant — la vie change les plannings. Il faut
+// seulement le vouloir : « Modifier » rouvre la semaine, et la validation
+// suivante ne previendra QUE ceux dont l'horaire a change.
+//
+// ⚠️ ICI ET PAS PLUS HAUT : $selectedWeek n'existe qu'a partir de cette ligne.
+// Place avant, l'appel recevait null et la page mourait avant d'afficher quoi
+// que ce soit.
+//
+// ⚠️ Le verrou est teste dans le TRAITEMENT, pas seulement a l'affichage. Un
+// bouton cache n'empeche pas un POST.
+$etatSemaine = famijobStatutSemaine($db, $selectedWeek['start']);
+$planningVerrouille = ($etatSemaine['statut'] === 'valide');
 
 $departmentFilterOptions = [];
 $departmentFilterStmt = $db->query(
