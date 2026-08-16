@@ -645,8 +645,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
  */
 function famicardRolesProposes(array $cible)
 {
-    $roles = ['beta', 'betalapanne', 'etudiant', 'employe_magasin', 'employe_logistique', 'teamcoach', 'mentor', 'evaluateur', 'admin'];
     $actuel = (string) ($cible['role'] ?? '');
+
+    // ⚠️ ON NE MÉLANGE PAS LES DEUX (décision de Jimmy). Un compte agence ne se
+    // propose à personne, et il ne se transforme pas non plus en collaborateur :
+    // il n'a ni fiche, ni photo, ni contrat, et le basculer en « étudiant »
+    // ferait apparaître une ligne vide dans la base des collaborateurs — avec
+    // un accès de société derrière. Les deux se créent dans deux écrans
+    // distincts et y restent.
+    if ($actuel === 'agence_interim') {
+        return ['agence_interim'];
+    }
+
+    $roles = ['beta', 'betalapanne', 'etudiant', 'employe_magasin', 'employe_logistique', 'teamcoach', 'mentor', 'evaluateur', 'admin'];
     if ($actuel !== '' && !in_array($actuel, $roles, true)) {
         $roles[] = $actuel;
     }

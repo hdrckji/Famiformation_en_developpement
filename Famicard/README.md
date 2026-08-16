@@ -303,6 +303,21 @@ supprime pas du tout** : ce n'est pas une agence, c'est le suivi interne.
 Décision de Jimmy : **les agences entrent dans Famicard.** Elles y trouvent deux choses,
 et deux seulement — leur propre fiche, et la liste des personnes qu'elles nous envoient.
 
+### ⚠️ On ne mélange pas les deux
+
+Décision de Jimmy : **« dans mes collaborateurs, que mes collaborateurs ; dans agences, que
+mes agences »**. La séparation tient sur trois verrous, et il faut les trois :
+
+- **`creer.php` ne propose pas le profil « agence intérim »** — un compte agence n'a ni
+  employeur, ni contrat, ni rayon, ni photo ; le proposer là obligeait à débrancher la
+  moitié des exigences de l'écran pour un cas qui n'y a pas sa place. Ces comptes se créent
+  dans `agences.php`, où l'on sait quoi leur demander : de quelle agence il s'agit ;
+- **`modifier.php` ne transforme pas une agence en personne** : sur une fiche d'agence, le
+  seul profil proposé est « agence intérim ». La basculer en « étudiant » ferait apparaître
+  une ligne vide dans la base des collaborateurs, avec un accès de société derrière ;
+- **les écrans de collaborateurs les excluent** (`admin.php`, `export.php`, `contrats.php`,
+  et les compteurs de contrats et de rattachements).
+
 ### Ce qu'elles voient de ces personnes
 
 | | |

@@ -104,24 +104,17 @@ $aContrat    = isset($colonnes['contrat']);
 
 // Profils, dans l'ordre de la liste du site.
 //
-// `agence_interim` EN FAIT PARTIE DEPUIS QUE FAMICARD EST LE CENTRE DES
-// COMPTES. Il y était exclu tant que ces comptes se créaient depuis la page
-// « Agences Intérim » du site — deux endroits pour créer un compte, c'est un
-// endroit de trop.
-//
-// ⚠️ CE N'EST PAS UN COLLABORATEUR, et ça change ce qu'on lui demande : ni
-// employeur, ni contrat, ni lieu de travail, ni secteur — ces questions n'ont
-// pas de réponse pour une agence. Une seule compte : LAQUELLE. Voir
-// $ROLE_AGENCE plus bas, qui débranche les exigences une par une.
+// ⚠️ `agence_interim` N'EN FAIT PAS PARTIE, et c'est une décision de Jimmy :
+// « dans mes collaborateurs je n'ai que mes collaborateurs, dans agences que
+// mes agences ». Un compte agence n'est pas quelqu'un de la maison — il n'a ni
+// employeur, ni contrat, ni rayon, ni photo. Le proposer ici obligeait à
+// débrancher la moitié des exigences de l'écran pour un cas qui n'y a pas sa
+// place. Ces comptes se créent dans agences.php, où l'on sait quoi leur
+// demander : de quelle agence il s'agit.
 $ROLES_CREATION = [
     'beta', 'betalapanne', 'etudiant', 'employe_magasin',
     'employe_logistique', 'teamcoach', 'mentor', 'evaluateur', 'admin',
-    'agence_interim',
 ];
-
-// Le code de ce profil, écrit une fois : le comparer à la main dans six tests
-// finit toujours par en laisser un derrière.
-$ROLE_AGENCE = 'agence_interim';
 
 // Les agences viennent de `interim_agences` (la page « Agences Intérim » du
 // site), jamais d'une seconde liste tenue ici. « Famiflora » en fait partie et
@@ -214,32 +207,16 @@ if (($_POST['action'] ?? '') === 'creer') {
     //
     // Chaque exigence est conditionnée à l'existence du champ : sur une base
     // qui n'a pas encore la colonne, on ne réclame pas l'impossible.
-    // Un compte agence n'a ni employeur, ni contrat, ni rayon : il ne travaille
-    // pas ici, il consulte le planning. Lui réclamer ces champs empêcherait
-    // simplement de le créer.
-    $estCompteAgence = ($role === $ROLE_AGENCE);
-
-    if (!$estCompteAgence) {
-        if ($aEmployeur && !isset($employeurs[$employeur])) { $erreurs[] = "l'employeur (interne ou externe)"; }
-        if ($aContrat && !isset($contrats[$contrat]))       { $erreurs[] = 'le type de contrat'; }
-        if ($aSiteId && $magasins && $siteId === '')        { $erreurs[] = 'le lieu de travail'; }
-        if ($arbreSecteurs && $secteur <= 0)                { $erreurs[] = 'le secteur'; }
-    } elseif ($interim === '') {
-        // La seule question qui compte pour ce profil, et elle est vitale :
-        // c'est ce nom qui décide quels intérimaires le compte verra, et quels
-        // noms lui seront masqués dans le matching.
-        $erreurs[] = "l'agence";
-    }
+    if ($aEmployeur && !isset($employeurs[$employeur])) { $erreurs[] = "l'employeur (interne ou externe)"; }
+    if ($aContrat && !isset($contrats[$contrat]))       { $erreurs[] = 'le type de contrat'; }
+    if ($aSiteId && $magasins && $siteId === '')        { $erreurs[] = 'le lieu de travail'; }
+    if ($arbreSecteurs && $secteur <= 0)                { $erreurs[] = 'le secteur'; }
 
     // ── CE QUI NE PEUT PAS ÊTRE VRAI EN MÊME TEMPS ───────────────────────
     // Les trois questions sont indépendantes, mais pas n'importe quelles
     // réponses vont ensemble. On refuse ici plutôt que de laisser naître une
     // fiche qu'il faudra corriger — et que personne ne relira.
     $contradictions = [];
-    if ($estCompteAgence && $interim !== '' && famicardEstAgenceInterne($interim)) {
-        $contradictions[] = 'Famiflora est l\'entreprise, pas une agence extérieure :'
-                          . ' un compte agence se rattache à une agence d\'intérim.';
-    }
     if ($aContrat && $contrat !== '' && !isset($contrats[$contrat])) {
         $contradictions[] = "Ce type de contrat n'existe pas.";
     }
@@ -253,7 +230,7 @@ if (($_POST['action'] ?? '') === 'creer') {
             $contradictions[] = 'Famiflora est l\'entreprise, pas une agence : un intérimaire vient d\'une agence extérieure.';
         }
     }
-    if (!$estCompteAgence && $aEmployeur && $employeur !== 'interim' && $interim !== '' && !famicardEstAgenceInterne($interim)) {
+    if ($aEmployeur && $employeur !== 'interim' && $interim !== '' && !famicardEstAgenceInterne($interim)) {
         $contradictions[] = 'Employeur « ' . ($employeurs[$employeur] ?? $employeur) . ' » mais dossier suivi par '
                           . $interim . ' : une agence extérieure ne suit que des intérimaires.';
     }
@@ -344,29 +321,6 @@ if (($_POST['action'] ?? '') === 'creer') {
                 // FamiJob, qui connaît les priorités.
                 if ($userId > 0 && $secteur > 0) {
                     famicardEcritRattachementRh($db, $userId, $secteur, $departement, $moiId);
-                }
-
-                // ── LE COMPTE AGENCE SE RATTACHE A SON AGENCE ────────────────
-                // La page « Agences Intérim » du site liste ses comptes via
-                // `interim_agence_users`. Sans cette ligne, un compte cree ici
-                // fonctionnerait mais n'apparaitrait nulle part la-bas : on le
-                // croirait absent, et quelqu'un en recreerait un second.
-                //
-                // Le rattachement est un CONFORT d'affichage, pas la source de
-                // verite : c'est `utilisateurs.interim` que FamiJob compare. On
-                // n'echoue donc pas la creation si la table manque.
-                if ($userId > 0 && $estCompteAgence && $interimStore !== null) {
-                    try {
-                        $idAg = $db->prepare('SELECT id FROM interim_agences WHERE nom_agence = ? LIMIT 1');
-                        $idAg->execute([$interimStore]);
-                        $agenceId = (int) $idAg->fetchColumn();
-                        if ($agenceId > 0) {
-                            $db->prepare('INSERT INTO interim_agence_users (agence_id, user_id) VALUES (?, ?)')
-                               ->execute([$agenceId, $userId]);
-                        }
-                    } catch (Exception $e) {
-                        // Table absente ou lien deja pose : le compte reste valable.
-                    }
                 }
 
                 // Accès explicites — seulement si quelque chose a été coché.
