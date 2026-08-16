@@ -15,6 +15,7 @@
 // taille qui dépend de l'écran et du navigateur, donc jamais à 75 × 36.
 // ============================================================
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/includes/agence.php';
 
 $moi = famicardExigeConnexion($db);
 $estAdmin = famicardEstAdmin();
@@ -31,6 +32,19 @@ if ($estAdmin && isset($_GET['id']) && (int) $_GET['id'] > 0 && (int) $_GET['id'
     if ($trouve) {
         $cible = $trouve;
     }
+}
+
+// ⚠️ UNE AGENCE N'A PAS DE BADGE (décision de Jimmy), et le refus est ICI, pas
+// seulement dans le bouton qui n'est plus affiché : un badge se porte, il dit
+// « voici quelqu'un de la maison, à votre disposition ». Une société extérieure
+// n'a rien à porter, et son compte n'a même pas de prénom à y écrire — le
+// carton serait vide ou porterait un identifiant technique.
+//
+// Un formulaire n'est pas une autorisation : retirer le bouton ne suffit pas,
+// l'adresse reste tapable.
+if (famicardEstCompteAgence($cible['role'] ?? '')) {
+    header('Location: fiche.php');
+    exit();
 }
 
 $prenom  = trim((string) ($cible['prenom'] ?? ''));

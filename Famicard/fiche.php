@@ -226,7 +226,12 @@ $avatarUrl = ($avatar['existe'] && $avatar['image'] !== '')
             <?php if (!$estAgence): ?>
                 <a class="bouton bouton-vide" href="avatar.php">🧍 <?= $avatar['existe'] ? 'Mon avatar' : 'Créer mon avatar' ?></a>
             <?php endif; ?>
-            <a class="bouton bouton-vide" href="badge.php">🖨️ Imprimer mon badge</a>
+            <?php // Pas de badge pour une agence : un badge se porte, et une
+                  // société extérieure n'a rien à porter (voir badge.php, qui
+                  // refuse aussi l'adresse tapée à la main). ?>
+            <?php if (!$estAgence): ?>
+                <a class="bouton bouton-vide" href="badge.php">🖨️ Imprimer mon badge</a>
+            <?php endif; ?>
             <?php if ($estAdmin): ?>
                 <a class="bouton bouton-vide" href="export.php">📊 Exporter en Excel</a>
                 <a class="bouton bouton-vide" href="admin_champs.php">⚙️ Libellés de la fiche</a>
@@ -237,10 +242,15 @@ $avatarUrl = ($avatar['existe'] && $avatar['image'] !== '')
     <?php // Les accès aux autres plateformes sont sur l'accueil (index.php),
           // pas ici : cette page montre la carte, rien d'autre. ?>
     <div class="encart">
-        <h3>🔒 Tes données</h3>
-        Famicard n'ouvre <b>aucune nouvelle base</b> : ta carte affiche des informations qui
-        existent déjà et que les services de la maison utilisent.
-        Ton badge ne porte que ton <b>prénom</b> et la mention bilingue — rien d'autre.
+        <h3>🔒 <?= $estAgence ? 'Vos données' : 'Tes données' ?></h3>
+        Famicard n'ouvre <b>aucune nouvelle base</b> :
+        <?php if ($estAgence): ?>
+            cette carte affiche ce que Famiflora sait de votre agence. Le nom du contact et les
+            adresses se règlent avec l'administration ; la ville, vous pouvez la corriger vous-même.
+        <?php else: ?>
+            ta carte affiche des informations qui existent déjà et que les services de la maison
+            utilisent. Ton badge ne porte que ton <b>prénom</b> et la mention bilingue — rien d'autre.
+        <?php endif; ?>
     </div>
 
 </div>
