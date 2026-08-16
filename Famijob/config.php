@@ -133,6 +133,70 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// LES COMPTES AGENCE N'ONT ACCES QU'A LEUR ECRAN.
+//
+// La regle etait posee page par page : chacune verifiait le role et redirigeait.
+// Ca marche tant que personne n'oublie — et il suffit d'UNE page ajoutee sans y
+// penser pour qu'une agence se retrouve sur l'accueil FamiJob, ou pire.
+//
+// Elle est donc ici, dans le fichier que TOUTE page FamiJob inclut avant la
+// premiere ligne de son propre code. Une page nouvelle est protegee par
+// construction ; il faut un geste explicite pour l'ouvrir aux agences (ajouter
+// son nom a la liste ci-dessous), pas un oubli pour la fermer.
+//
+// ⚠️ LISTE BLANCHE, PAS LISTE NOIRE. On enumere ce qui est permis. Une liste
+// d'interdits laisse passer tout ce qu'on n'a pas prevu, c'est-a-dire tout ce
+// qui sera ecrit demain.
+//
+// ⚠️ ET RIEN N'EST MIS EN CACHE. Une redirection peut etre gardee par le
+// navigateur ou un intermediaire ; l'ecran d'accueil, lui, ne doit jamais
+// rester dans un cache partage — sur un poste ou deux personnes se connectent
+// l'une apres l'autre, la seconde verrait la page de la premiere.
+if (PHP_SAPI !== 'cli' && isset($_SESSION['user_id'])
+    && (($_SESSION['role'] ?? '') === 'agence_interim')) {
+
+    $famijobPagesAgence = [
+        'interim_horaires.php',   // son ecran de travail, et le seul
+        'export_matching.php',    // le classeur qu'elle emporte
+        'avis.php',               // ecrire a l'equipe
+        'logout.php',
+        'login.php',
+    ];
+
+    $famijobScriptDemande = basename((string) parse_url((string) ($_SERVER['REQUEST_URI'] ?? ''), PHP_URL_PATH));
+    if ($famijobScriptDemande === '') {
+        $famijobScriptDemande = basename((string) ($_SERVER['SCRIPT_NAME'] ?? ''));
+    }
+
+    // Une URL de dossier (« /famijob/ ») ne porte pas de nom de fichier : le
+    // serveur y sert index.php. Sans cette ligne, c'etait la porte ouverte.
+    if ($famijobScriptDemande === '' || substr($famijobScriptDemande, -4) !== '.php') {
+        $famijobScriptDemande = 'index.php';
+    }
+
+    if (!in_array($famijobScriptDemande, $famijobPagesAgence, true)) {
+        header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+        header('Pragma: no-cache');
+        header('Location: interim_horaires.php', true, 302);
+        exit();
+    }
+}
+
+// ⚠️ AUCUNE PAGE CONNECTEE NE SE MET EN CACHE. Le garde-fou ci-dessus s'execute
+// a chaque requete — mais une page deja affichee peut etre RESSERVIE par le
+// navigateur sans qu'aucune requete ne parte : bouton « precedent », onglet
+// restaure, page gardee par un intermediaire. Sur un poste partage, la personne
+// suivante verrait l'ecran de la precedente, role compris.
+//
+// no-store le rend impossible : le navigateur doit redemander la page, et c'est
+// la session du moment qui repond. Le cout est nul — ces pages sont construites
+// a chaque appel de toute facon.
+if (PHP_SAPI !== 'cli' && isset($_SESSION['user_id']) && !headers_sent()) {
+    header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+    header('Pragma: no-cache');
+}
+
 if (!function_exists('famiSupportedLanguages')) {
     function famiSupportedLanguages()
     {

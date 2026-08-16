@@ -297,7 +297,17 @@ $avatarUrl = ($avatar['existe'] && $avatar['image'] !== '')
 
         <div class="tuiles">
             <?php foreach ($mesServices as $service): ?>
-                <a class="tuile" href="<?= e(famicardSiteUrl((string) $service['url'])) ?>">
+                <?php
+                // ⚠️ UN COMPTE AGENCE ENTRE PAR SON ECRAN, PAS PAR L'ACCUEIL.
+                // FamiJob le redirigerait de toute facon, mais un aller-retour
+                // visible donne l'impression d'avoir clique au mauvais endroit —
+                // et laisse croire que l'accueil existe pour elle.
+                $urlService = (string) $service['url'];
+                if ((string) $service['code'] === 'famijob' && $roleMoi === 'agence_interim') {
+                    $urlService = 'famijob/interim_horaires.php';
+                }
+                ?>
+                <a class="tuile" href="<?= e(famicardSiteUrl($urlService)) ?>">
                     <span class="ico"><?= e((string) ($service['icone'] ?: '🔗')) ?></span>
                     <div class="nom"><?= e((string) $service['nom']) ?></div>
                     <div class="quoi"><?= e((string) ($service['description'] ?? '')) ?></div>

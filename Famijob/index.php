@@ -7,11 +7,13 @@ verifierConnexion($db);
 // horaire et leurs disponibilités. Ce qu'ils voient est décidé plus bas, tuile
 // par tuile — la porte s'ouvre, pas les droits.
 $role = isset($_SESSION['role']) ? $_SESSION['role'] : '';
-// Une agence n'a pas d'accueil : sa page, c'est le matching. Elle arrive ici
-// par un vieux lien ou par le bouton « retour » d'un autre ecran — on la remet
-// simplement au travail au lieu de lui montrer une grille de tuiles vide.
+// Ceinture ET bretelles. config.php ferme deja cette page aux comptes agence,
+// pour toutes les pages d'un coup. Ce test reste parce qu'il ne coute rien et
+// qu'il protege le jour ou quelqu'un allegerait la regle centrale sans voir que
+// l'accueil en dependait.
 if ($role === 'agence_interim') {
-    header('Location: interim_horaires.php');
+    header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+    header('Location: interim_horaires.php', true, 302);
     exit();
 }
 
