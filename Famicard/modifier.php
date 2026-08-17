@@ -264,7 +264,9 @@ if (!empty($_SESSION['famicard_modif_flash'])) {
     $message = (string) $_SESSION['famicard_modif_flash'];
     unset($_SESSION['famicard_modif_flash']);
 }
-$enValidation = !empty($_SESSION['famicard_modif_en_validation']);
+// Le drapeau « ça part en validation » se lit sur fiche.php, pas ici. On le
+// balaie quand même en passant : un drapeau oublié rouvrirait la fenêtre au
+// mauvais moment, longtemps après.
 unset($_SESSION['famicard_modif_en_validation']);
 
 /** Valeur brute actuelle d'un champ (celle qui est en base, pas celle affichée). */
@@ -290,7 +292,16 @@ function famicardRetourModif($flash, $estSaPropreFiche, $cibleId, $enValidation 
     if ($enValidation) {
         $_SESSION['famicard_modif_en_validation'] = 1;
     }
-    header('Location: modifier.php' . ($estSaPropreFiche ? '' : '?id=' . (int) $cibleId));
+    // ⚠️ ON REVIENT SUR LA FICHE, PAS SUR LE FORMULAIRE. Enregistrer puis se
+    // retrouver devant les mêmes cases, c'est ne pas savoir si quelque chose
+    // s'est passé — on relisait son propre brouillon. La fiche, elle, montre
+    // le résultat : la nouvelle valeur, et l'ambre de ce qui attend encore.
+    //
+    // Sauf pour un ADMIN sur la fiche de quelqu'un d'autre : fiche.php n'est
+    // que « ma fiche », il n'y a nulle part où l'envoyer. Il reste donc là,
+    // ce qui lui va — il enchaîne souvent plusieurs corrections.
+    $ou = $estSaPropreFiche ? 'fiche.php' : ('modifier.php?id=' . (int) $cibleId);
+    header('Location: ' . $ou);
     exit();
 }
 
@@ -812,49 +823,11 @@ if ($photo !== '') {
 </head>
 <body>
 
-<?php // ── « C'EST ENREGISTRÉ, UN ADMIN VA LE RELIRE » ─────────────────────
-      // Une fenêtre et pas une bannière (demande de Jimmy) : une bannière se
-      // lit distraitement, une fenêtre demande un clic — donc elle a été vue.
-      // Elle ne s'ouvre que quand quelque chose PART EN VALIDATION, jamais
-      // pour un admin qui corrige une fiche : il n'attend personne.
-      //
-      // Rendue par le serveur et non par du JavaScript : elle s'affiche même
-      // si un script ne part pas, et le bouton n'est qu'un lien. ?>
-<?php if ($enValidation): ?>
-    <div class="fenetre" id="fenetreEnvoye" role="dialog" aria-modal="true" aria-labelledby="titreEnvoye">
-        <div class="fenetre-boite">
-            <div style="font-size:2.4rem;line-height:1;margin-bottom:10px;">✅</div>
-            <h2 id="titreEnvoye">C'est enregistré</h2>
-            <p class="fenetre-quoi">
-                Tes corrections sont <b>déjà en place</b> sur ta fiche.
-                Un administrateur va les relire et les confirmer — c'est la marche normale,
-                tu n'as rien d'autre à faire.
-            </p>
-            <p class="fenetre-quoi">
-                En attendant, les champs concernés sont <b style="color:#8a5a10;">marqués en orange</b>
-                ci-dessous. S'il y avait une erreur, tu peux encore les corriger.
-            </p>
-            <div class="fenetre-actions">
-                <button type="button" class="bouton bouton-plein" id="fermeEnvoye">J'ai compris</button>
-            </div>
-        </div>
-    </div>
-    <script>
-        // Le bouton ferme la fenêtre. Sans script elle reste ouverte, mais la
-        // page est dessous et reste lisible — on ne bloque personne.
-        (function () {
-            var f = document.getElementById('fenetreEnvoye');
-            var b = document.getElementById('fermeEnvoye');
-            if (!f || !b) { return; }
-            function ferme() { f.setAttribute('hidden', ''); }
-            b.addEventListener('click', ferme);
-            f.addEventListener('click', function (e) { if (e.target === f) { ferme(); } });
-            document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { ferme(); } });
-            b.focus();
-        }());
-    </script>
-<?php endif; ?>
-
+<?php // ── OÙ EST PASSÉE LA FENÊTRE « C'EST ENREGISTRÉ » ? ────────────────
+      // Sur fiche.php. On y est renvoyé après avoir enregistré (voir
+      // famicardRetourModif), et c'est là qu'elle a un sens : elle annonce
+      // l'ambre des champs en attente, qu'on voit justement sur la fiche.
+      // La garder ici en aurait fait deux copies à tenir d'accord. ?>
 <div class="top-nav">
     <?php if ($estSaPropreFiche): ?>
         <a class="pill" href="fiche.php">&larr; Ma fiche</a>

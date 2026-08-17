@@ -15,10 +15,28 @@ require_once __DIR__ . '/includes/agence.php';
 // famicardPhotoUrl() : Famicard sert ses photos lui-meme, media.php du site
 // exigeant une session que le sous-domaine ne lui transmet pas.
 require_once __DIR__ . '/includes/photo.php';
+require_once __DIR__ . '/includes/modifications.php';
 require_once __DIR__ . '/includes/avatar.php';
 
 $moi = famicardExigeConnexion($db);
 $estAdmin = famicardEstAdmin();
+
+// ── CE QUI ATTEND ENCORE UNE DÉCISION ────────────────────────────────────
+// Les corrections apparaissaient en couleur sur l'écran d'ÉDITION seulement.
+// Or on relit sa carte bien plus souvent qu'on ne l'ouvre pour la modifier :
+// on voyait sa nouvelle valeur en place, sans savoir qu'elle pouvait encore
+// être rétablie. Elle se signale donc ici aussi.
+$enAttente = famicardModificationsEnAttentePour($db, (int) $moi['id']);
+
+// Le compte rendu de l'enregistrement : on arrive maintenant ICI après avoir
+// modifié sa fiche, plus sur le formulaire qu'on vient de quitter.
+$message = '';
+if (!empty($_SESSION['famicard_modif_flash'])) {
+    $message = (string) $_SESSION['famicard_modif_flash'];
+    unset($_SESSION['famicard_modif_flash']);
+}
+$enValidation = !empty($_SESSION['famicard_modif_en_validation']);
+unset($_SESSION['famicard_modif_en_validation']);
 
 // ⚠️ UNE AGENCE N'A PAS LA MÊME CARTE. Pas de rattachement, pas de photo, pas
 // de prénom : à la place, ce qui l'identifie vraiment — son nom, sa personne de
@@ -48,6 +66,32 @@ if ($estAgence) {
 }
 
 $magasins  = famicardMagasins($db);
+
+/**
+ * L'ANCIENNE VALEUR, ÉCRITE COMME ON L'AURAIT LUE.
+ *
+ * Le journal garde la valeur BRUTE — « 3 » pour un magasin, « interim » pour
+ * un employeur. L'afficher telle quelle donnerait « avant : 3 », qui n'apprend
+ * rien à personne. On la fait donc repasser par le même traducteur que la
+ * valeur actuelle, en lui présentant une ligne d'une seule case.
+ *
+ * Si ce champ ne vit pas dans une colonne (le rattachement, par exemple), le
+ * traducteur rend vide : on retombe alors sur le texte du journal, qui pour
+ * ces champs-là est déjà lisible.
+ */
+$ancienneLisible = static function ($cle, array $champ, $brute) use ($magasins) {
+    $brute = (string) $brute;
+    if ($brute === '') {
+        return '';
+    }
+    if (!empty($champ['champ_id'])) {
+        $lu = famicardValeurAffichee($cle, $champ, [], $magasins, [(int) $champ['champ_id'] => $brute]);
+    } else {
+        $colonne = (string) ($champ['colonne'] ?? '');
+        $lu = $colonne === '' ? '' : famicardValeurAffichee($cle, $champ, [$colonne => $brute], $magasins, []);
+    }
+    return $lu !== '' ? $lu : $brute;
+};
 
 // Le titre de la carte : le nom de l'agence pour une agence, celui de la
 // personne sinon. « Prénom Nom » sur un compte de société donne une carte vide.
@@ -130,6 +174,15 @@ $avatarUrl = ($avatar['existe'] && $avatar['image'] !== '')
     .ligne .cle { color: #666; }
     .ligne .obl { color: #c0392b; font-weight: 700; }
     .ligne .val { font-weight: 600; text-align: right; word-break: break-word; }
+    .val-bloc { text-align: right; min-width: 0; }
+    .val-bloc .avant { display: block; color: #8a5a10; font-size: .76rem; font-weight: 600; margin-top: 2px; }
+
+    /* ── UNE CORRECTION QUI ATTEND ─────────────────────────────────────
+       Même ambre que sur l'écran d'édition et dans la file de relecture :
+       on reconnaît l'état d'un écran à l'autre sans avoir à lire. */
+    .ligne.en-attente { background: #fffaf0; border-radius: 10px; padding: 9px 12px; margin: 0 -12px; border-bottom-color: #f0dbac; }
+    .ligne.en-attente .cle { color: #8a5a10; }
+    .marque { display: inline-block; background: #E9A93C; color: #fff; border-radius: 999px; padding: 1px 9px; font-size: .68rem; font-weight: 800; margin-left: 6px; white-space: nowrap; }
     .vide { color: #b0b0b0; font-weight: 400; font-style: italic; }
 
     .actions { display: flex; gap: 12px; flex-wrap: wrap; padding: 22px 26px; background: #f7faf8; border-top: 1px solid #eee; }
@@ -139,6 +192,14 @@ $avatarUrl = ($avatar['existe'] && $avatar['image'] !== '')
 
     .encart { background: rgba(255,255,255,.95); border-left: 5px solid #2d5a37; border-radius: 14px; padding: 16px 20px; margin-top: 22px; font-size: .9rem; line-height: 1.55; box-shadow: 0 6px 18px rgba(0,0,0,.08); }
     .encart h3 { margin: 0 0 8px; font-size: .95rem; color: #2d5a37; }
+
+    .flash { border-radius: 12px; padding: 12px 16px; margin: 0 0 16px; font-size: .9rem; font-weight: 600; background: #e8f5e9; color: #1e5128; box-shadow: 0 4px 12px rgba(0,0,0,.06); }
+    .fenetre { position: fixed; inset: 0; background: rgba(20,40,28,.55); display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 50; }
+    .fenetre[hidden] { display: none; }
+    .fenetre-boite { background: #fff; border-radius: 20px; padding: 26px; max-width: 430px; width: 100%; box-shadow: 0 24px 60px rgba(14,40,24,.35); }
+    .fenetre-boite h2 { margin: 0 0 10px; font-size: 1.2rem; color: #2d5a37; }
+    .fenetre-quoi { margin: 0 0 16px; font-size: .9rem; line-height: 1.6; color: #5a6b60; }
+    .fenetre-actions { display: flex; gap: 10px; margin-top: 18px; }
 </style>
 </head>
 <body>
@@ -148,6 +209,49 @@ $avatarUrl = ($avatar['existe'] && $avatar['image'] !== '')
       // une annexe et que la maison est ailleurs. C'est l'inverse. Les autres
       // plateformes se rejoignent depuis l'accueil (index.php), comme des
       // portes que la carte ouvre. ?>
+<?php // ── « C'EST ENREGISTRÉ, UN ADMIN VA LE RELIRE » ─────────────────────
+      // Elle s'ouvrait sur l'écran d'édition, là où l'on venait d'appuyer sur
+      // « Enregistrer ». Mais on y restait, devant le même formulaire, sans
+      // voir le résultat. On revient maintenant SUR SA FICHE — l'endroit où
+      // l'on constate ce qu'on a changé — et la fenêtre a suivi.
+      //
+      // Rendue par le serveur et non par du JavaScript : elle s'affiche même
+      // si un script ne part pas, et le bouton n'est qu'un lien. ?>
+<?php if ($enValidation): ?>
+    <div class="fenetre" id="fenetreEnvoye" role="dialog" aria-modal="true" aria-labelledby="titreEnvoye">
+        <div class="fenetre-boite">
+            <div style="font-size:2.4rem;line-height:1;margin-bottom:10px;">✅</div>
+            <h2 id="titreEnvoye">C'est enregistré</h2>
+            <p class="fenetre-quoi">
+                Tes corrections sont <b>déjà en place</b> sur ta fiche.
+                Un administrateur va les relire et les confirmer — c'est la marche normale,
+                tu n'as rien d'autre à faire.
+            </p>
+            <p class="fenetre-quoi">
+                En attendant, les champs concernés sont <b style="color:#8a5a10;">marqués en orange</b>
+                ci-dessous. S'il y avait une erreur, tu peux encore les corriger.
+            </p>
+            <div class="fenetre-actions">
+                <button type="button" class="bouton bouton-plein" id="fermeEnvoye">J'ai compris</button>
+            </div>
+        </div>
+    </div>
+    <script>
+        // Le bouton ferme la fenêtre. Sans script elle reste ouverte, mais la
+        // page est dessous et reste lisible — on ne bloque personne.
+        (function () {
+            var f = document.getElementById('fenetreEnvoye');
+            var b = document.getElementById('fermeEnvoye');
+            if (!f || !b) { return; }
+            function ferme() { f.setAttribute('hidden', ''); }
+            b.addEventListener('click', ferme);
+            f.addEventListener('click', function (e) { if (e.target === f) { ferme(); } });
+            document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { ferme(); } });
+            b.focus();
+        }());
+    </script>
+<?php endif; ?>
+
 <div class="top-nav">
     <a class="pill" href="index.php">&larr; Accueil</a>
     <?php if ($estAdmin): ?>
@@ -156,6 +260,10 @@ $avatarUrl = ($avatar['existe'] && $avatar['image'] !== '')
 </div>
 
 <div class="wrap">
+
+    <?php if ($message !== ''): ?>
+        <div class="flash"><?= e($message) ?></div>
+    <?php endif; ?>
 
     <div class="carte">
         <div class="carte-tete">
@@ -211,16 +319,33 @@ $avatarUrl = ($avatar['existe'] && $avatar['image'] !== '')
             <div class="groupe">
                 <h2><?= e($groupe['libelle']) ?></h2>
                 <?php foreach ($lignes as $cle => $champ): ?>
-                    <?php $valeur = famicardValeurAffichee($cle, $champ, $moi, $magasins, $libres); ?>
-                    <div class="ligne">
+                    <?php
+                        $valeur = famicardValeurAffichee($cle, $champ, $moi, $magasins, $libres);
+                        $attend = $enAttente[$cle] ?? null;
+                    ?>
+                    <div class="ligne<?= $attend ? ' en-attente' : '' ?>">
                         <span class="cle">
                             <?= e($champ['libelle']) ?><?php if (!empty($champ['requis'])): ?> <span class="obl" title="Obligatoire">*</span><?php endif; ?>
+                            <?php if ($attend): ?>
+                                <span class="marque" title="Un administrateur doit encore confirmer cette correction">⏳ à confirmer</span>
+                            <?php endif; ?>
                         </span>
-                        <?php if ($valeur === ''): ?>
-                            <span class="val vide">non renseigné</span>
-                        <?php else: ?>
-                            <span class="val"><?= e($valeur) ?></span>
-                        <?php endif; ?>
+                        <span class="val-bloc">
+                            <?php if ($valeur === ''): ?>
+                                <span class="val vide">non renseigné</span>
+                            <?php else: ?>
+                                <span class="val"><?= e($valeur) ?></span>
+                            <?php endif; ?>
+                            <?php // L'ancienne valeur : c'est elle qui reviendrait si la
+                                  // correction était rétablie. La taire laisserait croire
+                                  // que la nouvelle est déjà acquise. ?>
+                            <?php if ($attend): ?>
+                                <?php $avant = $ancienneLisible($cle, $champ, $attend['avant']); ?>
+                                <?php if ($avant !== ''): ?>
+                                    <span class="avant">avant : <?= e($avant) ?></span>
+                                <?php endif; ?>
+                            <?php endif; ?>
+                        </span>
                     </div>
                 <?php endforeach; ?>
             </div>
