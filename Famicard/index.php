@@ -22,6 +22,9 @@ require_once __DIR__ . '/includes/modifications.php';
 require_once __DIR__ . '/includes/services.php';
 require_once __DIR__ . '/includes/validation.php';
 require_once __DIR__ . '/includes/agence.php';
+// famicardPhotoUrl() : Famicard sert ses photos lui-meme, media.php du site
+// exigeant une session que le sous-domaine ne lui transmet pas.
+require_once __DIR__ . '/includes/photo.php';
 require_once __DIR__ . '/includes/avatar.php';
 
 $moi = famicardExigeConnexion($db);
@@ -125,10 +128,11 @@ if ($prenom === '') {
 $photo = (string) ($moi['photo_profil'] ?? '');
 $photoUrl = '';
 if ($photo !== '') {
-    $photoUrl = function_exists('moduleFileUrl') ? moduleFileUrl($photo) : $photo;
-    if ($photoUrl !== '' && !preg_match('#^(https?:)?//#i', $photoUrl)) {
-        $photoUrl = famicardSiteUrl($photoUrl);
-    }
+    // Servie par Famicard (photo.php) et non par media.php du site : le
+    // cookie de session ne franchit pas le sous-domaine, media.php
+    // repondait 403, et la photo ne s'affichait pas. Voir
+    // includes/photo.php.
+    $photoUrl = famicardPhotoUrl((int) $moi['id'], (string) $photo);
 }
 
 // L'AVATAR — sa figurine, à côté de sa photo et jamais à sa place. On ne fait
@@ -321,8 +325,37 @@ $avatarUrl = ($avatar['existe'] && $avatar['image'] !== '')
         <?php endif; ?>
 
         <?php if ($estAdmin): ?>
+        <?php // ── LES MODIFICATIONS DE PROFIL, EN PREMIERE PARTIE ─────────
+              // Demande de Jimmy : c'est ce qu'un administrateur vient traiter,
+              // pas ce qu'il vient consulter. La ranger plus bas revenait a la
+              // decouvrir apres avoir fait autre chose.
+              //
+              // COLLABORATEURS ET AGENCES ENSEMBLE : ce sont les memes
+              // corrections, elles suivent le meme chemin, et les separer
+              // obligerait a regarder a deux endroits pour etre sur de n'avoir
+              // rien laisse passer. ?>
+        <?php if ($estAdmin): ?>
+        <a class="tuile" href="validations.php">
+            <?php if ($aValider > 0): ?>
+                <span class="pastille"><?= (int) $aValider ?> <?= $aValider > 1 ? 'personnes' : 'personne' ?></span>
+            <?php endif; ?>
+            <span class="ico">✅</span>
+            <div class="nom">Modifications de profil</div>
+            <div class="quoi">
+                <?php if ($aValider > 0): ?>
+                    Ce que les collaborateurs et les agences ont corrigé sur leur fiche, et qui attend ta confirmation.
+                <?php else: ?>
+                    Rien n'attend : toutes les corrections ont été relues.
+                <?php endif; ?>
+            </div>
+        </a>
+        <?php endif; ?>
+
+        <?php // ⚠️ PLUS DE PASTILLE ICI. Elle annoncait « N a confirmer » sur la
+              // base des collaborateurs, qui est un ANNUAIRE et pas une file
+              // d'attente — et elle comptait les agences, qui n'y figurent
+              // meme pas. Les corrections ont leur propre tuile, juste avant. ?>
         <a class="tuile" href="admin.php">
-            <?php if ($aValider > 0): ?><span class="pastille"><?= (int) $aValider ?> à confirmer</span><?php endif; ?>
             <span class="ico">📇</span>
             <div class="nom">Mes collaborateurs</div>
             <div class="quoi">Les fiches de l'équipe, leur badge et l'export.</div>
@@ -370,35 +403,7 @@ $avatarUrl = ($avatar['existe'] && $avatar['image'] !== '')
           // Les outils qui agissent sur les PERSONNES : leur profil, leur accès,
           // leur fiche. Ils étaient dispersés sur l'accueil de FamiFormation ;
           // ils appartiennent ici (voir README.md, « LE TRI »). ?>
-    <?php // ── LES MODIFICATIONS, LEUR PROPRE MODULE ────────────────────
-          // Elles étaient rangées dans « Administration », entre la création
-          // d'un compte et les libellés : on y arrivait par la base des
-          // collaborateurs, qui n'est pas l'endroit — c'est une file d'attente,
-          // pas un annuaire.
-          //
-          // COLLABORATEURS ET AGENCES ENSEMBLE : ce sont les mêmes corrections,
-          // elles suivent le même chemin, et les séparer obligerait à regarder
-          // à deux endroits pour être sûr de n'avoir rien laissé passer. ?>
     <?php if ($estAdmin): ?>
-        <div class="titre-groupe">À relire</div>
-
-        <div class="tuiles">
-            <a class="tuile" href="validations.php">
-                <?php if ($aValider > 0): ?>
-                    <span class="pastille"><?= (int) $aValider ?> <?= $aValider > 1 ? 'personnes' : 'personne' ?></span>
-                <?php endif; ?>
-                <span class="ico">✅</span>
-                <div class="nom">Modifications de profil</div>
-                <div class="quoi">
-                    <?php if ($aValider > 0): ?>
-                        Ce que les collaborateurs et les agences ont corrigé sur leur fiche, et qui attend ta confirmation.
-                    <?php else: ?>
-                        Rien n'attend : toutes les corrections ont été relues.
-                    <?php endif; ?>
-                </div>
-            </a>
-        </div>
-
         <div class="titre-groupe">Administration</div>
 
         <div class="tuiles">

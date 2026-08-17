@@ -137,3 +137,35 @@ if (!function_exists('famicardEnregistrePhoto')) {
         return $cheminRelatif;
     }
 }
+
+if (!function_exists('famicardPhotoUrl')) {
+    /**
+     * L'ADRESSE DE LA PHOTO DE QUELQU'UN — une seule façon de la construire.
+     *
+     * ⚠️ ELLE PASSAIT PAR `media.php` DU SITE PRINCIPAL, en URL absolue vers
+     * www. Or media.php exige une session, et le cookie de session est
+     * host-only : depuis famicard.famiformation.com, le navigateur n'envoie
+     * rien à www, media.php répond 403, et la photo ne s'affiche pas. On voyait
+     * la silhouette grise en croyant que l'envoi avait échoué.
+     *
+     * Famicard sert donc ses photos lui-même (photo.php), par une adresse
+     * RELATIVE : elle marche sur les deux hôtes, avec la session de l'hôte où
+     * l'on se trouve.
+     *
+     * @param string $repere un marqueur de fraîcheur. Sans lui, le navigateur
+     *                       réaffiche l'image qu'il a en cache après un
+     *                       changement, et l'on croit que l'envoi n'a rien fait.
+     */
+    function famicardPhotoUrl($userId, $repere = '')
+    {
+        $userId = (int) $userId;
+        if ($userId <= 0) {
+            return '';
+        }
+        $url = 'photo.php?id=' . $userId;
+        if ((string) $repere !== '') {
+            $url .= '&v=' . rawurlencode((string) $repere);
+        }
+        return $url;
+    }
+}

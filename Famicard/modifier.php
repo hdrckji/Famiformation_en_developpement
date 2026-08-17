@@ -602,7 +602,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // mon contrat est faux » ne veut pas dire « tout est juste ». Il part
         // simplement à l'administration, marqué non lu.
         $motLaisse = trim((string) ($_POST['commentaire'] ?? ''));
-        if ($motLaisse !== '' && $estSaPropreFiche) {
+        if ($motLaisse !== '' && $estSaPropreFiche && !$estAdmin) {
             famicardLaisseCommentaire($db, $cibleId, $motLaisse);
         }
 
@@ -631,7 +631,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $combien = count($aEcrire);
         $suffixe = $avertissements ? ' ⚠️ ' . implode(' ', $avertissements) : '';
-        if ($motLaisse !== '' && $estSaPropreFiche) {
+        if ($motLaisse !== '' && $estSaPropreFiche && !$estAdmin) {
             $suffixe = ' 💬 Ton message est transmis à l\'administration.' . $suffixe;
         }
 
@@ -711,10 +711,11 @@ if ($nomCible === '') {
 $photo = (string) ($cible['photo_profil'] ?? '');
 $photoUrl = '';
 if ($photo !== '') {
-    $photoUrl = function_exists('moduleFileUrl') ? moduleFileUrl($photo) : $photo;
-    if ($photoUrl !== '' && !preg_match('#^(https?:)?//#i', $photoUrl)) {
-        $photoUrl = famicardSiteUrl($photoUrl);
-    }
+    // Servie par Famicard (photo.php) et non par media.php du site : le
+    // cookie de session ne franchit pas le sous-domaine, media.php
+    // repondait 403, et la photo ne s'affichait pas. Voir
+    // includes/photo.php.
+    $photoUrl = famicardPhotoUrl($cibleId, (string) $photo);
     $photoUrl .= (strpos($photoUrl, '?') === false ? '?' : '&') . 'v=' . time();
 }
 ?>
@@ -1169,7 +1170,11 @@ if ($photo !== '') {
                   // d'un autre n'a personne à qui écrire — il se parlerait à
                   // lui-même. Facultatif, et il ne vaut pas validation de la
                   // fiche (voir famicardLaisseCommentaire). ?>
-            <?php if ($estSaPropreFiche): ?>
+            <?php // ⚠️ PAS POUR UN ADMIN (demande de Jimmy) : il EST
+                  // l'administration, il s'écrirait à lui-même. Et sa
+                  // modification ne part pas en validation — le mot n'aurait
+                  // personne à accompagner. ?>
+            <?php if ($estSaPropreFiche && !$estAdmin): ?>
                 <div class="groupe">
                     <h2>💬 Un mot pour l'administration</h2>
                     <div class="ligne">

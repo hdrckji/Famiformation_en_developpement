@@ -153,10 +153,11 @@ $premiere   = empty($validation['valide_le']);
 $photo = (string) ($moi['photo_profil'] ?? '');
 $photoUrl = '';
 if ($photo !== '') {
-    $photoUrl = function_exists('moduleFileUrl') ? moduleFileUrl($photo) : $photo;
-    if ($photoUrl !== '' && !preg_match('#^(https?:)?//#i', $photoUrl)) {
-        $photoUrl = famicardSiteUrl($photoUrl);
-    }
+    // Servie par Famicard (photo.php) et non par media.php du site : le
+    // cookie de session ne franchit pas le sous-domaine, media.php
+    // repondait 403, et la photo ne s'affichait pas. Voir
+    // includes/photo.php.
+    $photoUrl = famicardPhotoUrl($moiId, (string) $photo);
     $photoUrl .= (strpos($photoUrl, '?') === false ? '?' : '&') . 'v=' . time();
 }
 

@@ -12,6 +12,9 @@
 // ============================================================
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/includes/agence.php';
+// famicardPhotoUrl() : Famicard sert ses photos lui-meme, media.php du site
+// exigeant une session que le sous-domaine ne lui transmet pas.
+require_once __DIR__ . '/includes/photo.php';
 require_once __DIR__ . '/includes/avatar.php';
 
 $moi = famicardExigeConnexion($db);
@@ -59,12 +62,11 @@ if ($nomComplet === '') {
 $photo = (string) ($moi['photo_profil'] ?? '');
 $photoUrl = '';
 if ($photo !== '') {
-    $photoUrl = function_exists('moduleFileUrl') ? moduleFileUrl($photo) : $photo;
-    // moduleFileUrl() rend un chemin relatif à la racine du site ; depuis
-    // /famicard/ il faut le rendre absolu, sinon l'image est cherchée ici.
-    if ($photoUrl !== '' && !preg_match('#^(https?:)?//#i', $photoUrl)) {
-        $photoUrl = famicardSiteUrl($photoUrl);
-    }
+    // Servie par Famicard (photo.php) et non par media.php du site : le
+    // cookie de session ne franchit pas le sous-domaine, media.php
+    // repondait 403, et la photo ne s'affichait pas. Voir
+    // includes/photo.php.
+    $photoUrl = famicardPhotoUrl((int) $moi['id'], (string) $photo);
 }
 
 // ── L'AVATAR, À CÔTÉ DE LA PHOTO ────────────────────────────────────────────

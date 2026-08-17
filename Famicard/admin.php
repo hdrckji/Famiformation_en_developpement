@@ -40,9 +40,11 @@ $magasins = famicardMagasins($db);
 // Combien de corrections attendent une décision. Compté ici pour l'afficher
 // dans le bandeau : sans ce rappel, la page de validation n'est visitée que
 // par quelqu'un qui pense à y aller — c'est-à-dire jamais.
-// Des PERSONNES, pas des champs : l'écran des modifications regroupe par
-// personne, la pastille doit annoncer la même chose que ce qu'on y trouvera.
-$aValider = famicardComptePersonnesEnAttente($db);
+// ⚠️ SEULEMENT LES COLLABORATEURS. Cet écran n'affiche aucun compte d'agence :
+// y annoncer « 1 a relire » pour une agence envoyait chercher une ligne qui ne
+// pouvait pas s'y trouver. Les corrections d'agence se voient dans agences.php.
+$enAttenteIds = famicardIdsEnAttente($db, 'collaborateurs');
+$aValider = count($enAttenteIds);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // FILTRES. Tout ce qui vient de l'URL est contraint à une liste connue ou
@@ -219,6 +221,14 @@ if ($aDesChampsLibres && $lignes) {
     tr:last-child td { border-bottom: 0; }
     tr:hover td { background: #fafcfb; }
     .vide { color: #b8b8b8; font-style: italic; }
+
+    /* ── UNE FICHE DONT LA CORRECTION ATTEND ────────────────────────────
+       Meme ambre que partout ailleurs pour « en attente » : on reconnait
+       l'etat sans lire. Le liseré a gauche tient meme quand la ligne est
+       survolee, et il survit au defilement horizontal du tableau. */
+    tr.attend td { background: #fffaf0; }
+    tr.attend:hover td { background: #fff6e6; }
+    tr.attend td:first-child { box-shadow: inset 4px 0 0 #E9A93C; }
     .rien { padding: 40px; text-align: center; color: #888; }
     .badge-lien { text-decoration: none; font-size: 1.05rem; }
     .lien-fiche { color: #2d5a37; font-weight: 700; text-decoration: none; }
@@ -235,7 +245,7 @@ if ($aDesChampsLibres && $lignes) {
               // plateformes se rejoignent depuis l'accueil de Famicard. ?>
         <a class="pill" href="creer.php">➕ Nouveau</a>
         <?php if ($aValider > 0): ?>
-            <a class="pill" href="validations.php" style="background:#E9A93C; border-color:#E9A93C;">⏳ <?= (int) $aValider ?> à relire</a>
+            <a class="pill" href="validations.php" style="background:#E9A93C; border-color:#E9A93C;">⏳ <?= (int) $aValider ?> fiche(s) à relire</a>
         <?php else: ?>
             <a class="pill" href="validations.php">Modifications</a>
         <?php endif; ?>
@@ -308,8 +318,15 @@ if ($aDesChampsLibres && $lignes) {
                 </thead>
                 <tbody>
                 <?php foreach ($lignes as $ligne): ?>
-                    <?php $libres = $libresParUser[(int) $ligne['id']] ?? []; ?>
-                    <tr>
+                    <?php
+                        $libres = $libresParUser[(int) $ligne['id']] ?? [];
+                        // Une correction attend une decision sur cette fiche :
+                        // la LIGNE le dit (demande de Jimmy), plutot qu'une
+                        // pastille en haut d'ecran qui n'indique pas laquelle.
+                        $nAttend = $enAttenteIds[(int) $ligne['id']] ?? 0;
+                    ?>
+                    <tr class="<?= $nAttend > 0 ? 'attend' : '' ?>"
+                        <?= $nAttend > 0 ? 'title="' . (int) $nAttend . ' correction(s) en attente de confirmation"' : '' ?>>
                         <?php $premiere = true; ?>
                         <?php foreach ($colonnesTableau as $cle => $champ): ?>
                             <?php $valeur = famicardValeurAffichee($cle, $champ, $ligne, $magasins, $libres); ?>

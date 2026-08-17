@@ -30,6 +30,7 @@
 // ne se supprime pas depuis ici (voir includes/emploi.php).
 // ============================================================
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/includes/modifications.php';
 
 famicardExigeConnexion($db);
 
@@ -73,6 +74,11 @@ try {
 } catch (Exception $e) {
     $tablesOk = false;
 }
+
+// ⚠️ LES CORRECTIONS D'AGENCE SE VOIENT ICI, ET NULLE PART AILLEURS. Elles
+// remontaient dans la base des collaborateurs, qui n'affiche justement aucun
+// compte d'agence : on y cherchait une ligne qui ne pouvait pas s'y trouver.
+$attenteParCompte = famicardIdsEnAttente($db, 'agences');
 
 $flash = '';
 if (!empty($_SESSION['famicard_agences_flash'])) {
@@ -393,6 +399,10 @@ foreach ($accesParAgence as $nom => $liste) {
     .etiquette { border-radius: 999px; padding: 3px 11px; font-size: .74rem; font-weight: 800; background: #eef4ef; color: #3d6b48; }
     .etiquette.interne { background: #e7f6ea; color: #1E7A46; }
     .etiquette.vide { background: #f3f0ea; color: #8a7f68; }
+    .etiquette.attente { background: #E9A93C; color: #fff; text-decoration: none; }
+    /* Le liseré ambré, le même que dans la base des collaborateurs : on
+       reconnaît « en attente » d'un écran à l'autre sans avoir à lire. */
+    .boite.attend { box-shadow: 0 6px 18px rgba(0,0,0,.07), inset 5px 0 0 #E9A93C; }
     .corps { padding: 16px 20px; }
     .corps h3 { margin: 0 0 10px; font-size: .78rem; text-transform: uppercase; letter-spacing: .07em; color: #2d5a37; }
 
@@ -485,10 +495,24 @@ foreach ($accesParAgence as $nom => $liste) {
             $interne = famicardEstAgenceInterne($nom);
             $acces = $accesParAgence[$nom] ?? [];
             $combien = $comptesParAgence[$nom] ?? 0;
+            // Une correction en attente sur l'un de ses acces : c'est SON
+            // encadre qui le dit, pas un compteur en haut de page — on voit
+            // laquelle sans avoir a chercher.
+            $attend = 0;
+            $attendId = 0;
+            foreach ($acces as $u) {
+                $n = $attenteParCompte[(int) $u['id']] ?? 0;
+                if ($n > 0) { $attend += $n; if ($attendId === 0) { $attendId = (int) $u['id']; } }
+            }
         ?>
-        <div class="boite">
+        <div class="boite<?= $attend > 0 ? ' attend' : '' ?>">
             <div class="boite-tete">
                 <span class="nom"><?= e($nom) ?></span>
+                <?php if ($attend > 0): ?>
+                    <a class="etiquette attente" href="validations.php?id=<?= (int) $attendId ?>">
+                        ⏳ <?= (int) $attend ?> correction<?= $attend > 1 ? 's' : '' ?> à relire
+                    </a>
+                <?php endif; ?>
                 <?php if ($interne): ?>
                     <span class="etiquette interne">Suivi interne — pas une agence</span>
                 <?php endif; ?>

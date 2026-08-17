@@ -263,17 +263,54 @@ if (!function_exists('famicardModificationsEnAttentePour')) {
     }
 }
 
-if (!function_exists('famicardComptePersonnesEnAttente')) {
-    /** Combien de PERSONNES attendent une décision — pas combien de champs. */
-    function famicardComptePersonnesEnAttente(PDO $db)
+if (!function_exists('famicardIdsEnAttente')) {
+    /**
+     * QUI attend une décision, en UNE requête : [user_id => nombre de champs].
+     *
+     * Sert à colorer une ligne dans une liste — la base des collaborateurs, les
+     * agences — sans poser une requête par ligne. Sur 400 collaborateurs, la
+     * différence n'est pas theorique.
+     *
+     * @param string $population 'tous' | 'collaborateurs' | 'agences'
+     */
+    function famicardIdsEnAttente(PDO $db, $population = 'tous')
     {
-        try {
-            return (int) $db->query(
-                "SELECT COUNT(DISTINCT user_id) FROM famicard_modifications WHERE statut = 'a_valider'"
-            )->fetchColumn();
-        } catch (Exception $e) {
-            return 0;
+        $filtre = '';
+        if ($population === 'agences') {
+            $filtre = " AND u.role = 'agence_interim'";
+        } elseif ($population === 'collaborateurs') {
+            $filtre = " AND u.role <> 'agence_interim'";
         }
+
+        $par = [];
+        try {
+            $sql = "SELECT m.user_id, COUNT(*) AS n
+                      FROM famicard_modifications m
+                      JOIN utilisateurs u ON u.id = m.user_id
+                     WHERE m.statut = 'a_valider'" . $filtre . "
+                     GROUP BY m.user_id";
+            foreach ($db->query($sql)->fetchAll(PDO::FETCH_ASSOC) as $l) {
+                $par[(int) $l['user_id']] = (int) $l['n'];
+            }
+        } catch (Exception $e) {
+            return [];
+        }
+        return $par;
+    }
+}
+
+if (!function_exists('famicardComptePersonnesEnAttente')) {
+    /**
+     * Combien de PERSONNES attendent une decision — pas combien de champs.
+     *
+     * SEPARABLE PAR POPULATION (decision de Jimmy). Une agence qui corrige son
+     * contact n'a rien a faire dans le compteur des collaborateurs : on
+     * cherchait la correction dans la base des fiches, elle n'y etait pas —
+     * puisque cet ecran exclut justement les comptes d'agence.
+     */
+    function famicardComptePersonnesEnAttente(PDO $db, $population = 'tous')
+    {
+        return count(famicardIdsEnAttente($db, $population));
     }
 }
 
