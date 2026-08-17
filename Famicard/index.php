@@ -113,6 +113,14 @@ $estAgence = famicardEstCompteAgence($roleMoi);
 // l'identifiant technique de son compte.
 $nomAgence = $estAgence ? trim((string) ($moi['interim'] ?? '')) : '';
 
+// Le secteur de la personne : la tuile « Mon équipe » l'annonce, et invite à le
+// renseigner quand il manque — sans lui, cette page ne peut rien montrer.
+$monSecteur = '';
+if (!$estAgence) {
+    $__r = famicardRattachementsRh($db, [(int) $moi['id']]);
+    $monSecteur = trim((string) ($__r[(int) $moi['id']]['secteur_nom'] ?? ''));
+}
+
 $champs    = famicardChamps($db);
 $magasins  = famicardMagasins($db);
 $libres    = famicardValeursLibres($db, (int) $moi['id']);
@@ -308,6 +316,27 @@ $avatarUrl = ($avatar['existe'] && $avatar['image'] !== '')
                 <?= $avatar['existe']
                     ? "Ta figurine 3D : change de coupe, de tenue, d'équipement."
                     : "Crée ton personnage en 3D : coupe, teint, tenue, équipement." ?>
+            </div>
+        </a>
+        <?php endif; ?>
+
+        <?php // ── MON ÉQUIPE ──────────────────────────────────────────────
+              // Il manquait la question qu'on se pose en arrivant : « qui
+              // travaille avec moi ? ». Un collaborateur avait sa fiche et sa
+              // figurine, mais rien qui parle des autres.
+              //
+              // Pas pour une agence : elle a ses intérimaires, c'est un autre
+              // écran. Et la pastille invite a renseigner son secteur quand il
+              // manque — sans lui, la page ne peut rien montrer. ?>
+        <?php if (!$estAgence): ?>
+        <a class="tuile" href="mon_equipe.php">
+            <?php if ($monSecteur === ''): ?><span class="pastille">à renseigner</span><?php endif; ?>
+            <span class="ico">👥</span>
+            <div class="nom">Mon équipe</div>
+            <div class="quoi">
+                <?= $monSecteur !== ''
+                    ? 'Les personnes de ton secteur — ' . e($monSecteur) . ' — rayon par rayon.'
+                    : 'Les personnes de ton secteur. Indique le tien pour les voir.' ?>
             </div>
         </a>
         <?php endif; ?>

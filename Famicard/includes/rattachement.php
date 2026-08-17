@@ -382,3 +382,63 @@ if (!function_exists('famicardRetrouveRattachementParNom')) {
         return null;
     }
 }
+
+if (!function_exists('famicardEquipeDe')) {
+    /**
+     * MON ÉQUIPE — les gens de MON secteur.
+     *
+     * ⚠️ LE PÉRIMÈTRE VIENT DU COMPTE, jamais d'un paramètre. Un secteur accepté
+     * depuis l'URL laisserait n'importe qui parcourir l'organisation entière en
+     * changeant un chiffre dans la barre d'adresse. Ici, on lit le rattachement
+     * de la personne connectée, et c'est tout.
+     *
+     * ⚠️ ON LIT LE SECTEUR, PAS LE DÉPARTEMENT. Quelqu'un rattaché à
+     * « Décoration > Bougies » voit tout le secteur Décoration : c'est le sens
+     * du mot « équipe » ici — les gens qu'on croise, pas seulement ceux du
+     * rayon d'à côté. Le tri par département se fait ensuite, à l'écran.
+     *
+     * ⚠️ LES COMPTES D'AGENCE SONT EXCLUS : ce ne sont pas des collègues, et
+     * ils n'ont ni prénom ni photo à montrer. Les comptes inactifs aussi — une
+     * équipe, c'est qui est là.
+     *
+     * @return array ['secteur_id','secteur_nom','gens' => [...]] ; 'gens' vide
+     *               si la personne n'a pas encore de rattachement.
+     */
+    function famicardEquipeDe(PDO $db, $userId)
+    {
+        $vide = ['secteur_id' => 0, 'secteur_nom' => '', 'gens' => []];
+
+        $mien = famicardRattachementsRh($db, [(int) $userId]);
+        $mien = $mien[(int) $userId] ?? null;
+        if (!$mien || empty($mien['secteur_id'])) {
+            return $vide;
+        }
+
+        try {
+            // Une seule requête : la liste, son département, et rien de plus
+            // que ce que le modèle autorise à montrer à un collègue (voir
+            // l'appel à famicardPeutVoir dans mon_equipe.php).
+            $st = $db->prepare(
+                "SELECT u.id, u.prenom, u.nom, u.role, u.photo_profil, u.site_id,
+                        r.departement_id, d.department_name AS departement_nom
+                   FROM famicard_rattachement r
+                   JOIN utilisateurs u ON u.id = r.user_id
+                   LEFT JOIN departments d ON d.id = r.departement_id
+                  WHERE r.secteur_id = ?
+                    AND u.role <> 'agence_interim'
+                    AND (u.statut IS NULL OR u.statut <> 'inactif')
+                  ORDER BY d.department_name ASC, u.nom ASC, u.prenom ASC"
+            );
+            $st->execute([(int) $mien['secteur_id']]);
+            $gens = $st->fetchAll(PDO::FETCH_ASSOC);
+        } catch (Exception $e) {
+            return $vide;
+        }
+
+        return [
+            'secteur_id'  => (int) $mien['secteur_id'],
+            'secteur_nom' => (string) $mien['secteur_nom'],
+            'gens'        => $gens,
+        ];
+    }
+}
