@@ -369,6 +369,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $cells = $_POST['cell_text'] ?? [];
         if (!is_array($cells)) { $cells = []; }
 
+        // COMBIEN DE FOIS ce creneau ? La petite case au bout de chaque saisie.
+        // « 9h-18h » avec 3 au bout, c'est trois places d'un coup — au lieu de
+        // taper trois fois la meme ligne, ou de revenir trois fois sur la case.
+        $quantites = $_POST['cell_nb'] ?? [];
+        if (!is_array($quantites)) { $quantites = []; }
+
         $weekStartStr = $selectedWeek['start']->format('Y-m-d');
         $weekEndStr   = $selectedWeek['end']->format('Y-m-d');
 
@@ -436,8 +442,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $counts[$slot]++;
                 }
 
+                // La quantite saisie au bout de la case. Vide ou absurde = 1 :
+                // on ne refuse pas la saisie pour un chiffre mal tape, on prend
+                // le cas le plus courant.
+                $fois = (int) ($quantites[$dept][$dateKey] ?? 1);
+                if ($fois < 1) { $fois = 1; }
+                if ($fois > 30) { $fois = 30; }
+
                 foreach ($counts as $slot => $cnt) {
-                    $places = max(1, min(30, (int) $cnt));
+                    // Le nombre de lignes identiques SE MULTIPLIE par la
+                    // quantite : deux fois « 9h-18h » avec 3 au bout font six
+                    // places. Les deux facons de dire « plusieurs » se cumulent
+                    // au lieu de s'annuler.
+                    $places = max(1, min(30, (int) $cnt * $fois));
 
                     $lireCreneauStmt->execute([$dateKey, $dept, $slot]);
                     $enAttente = $lireCreneauStmt->fetch(PDO::FETCH_ASSOC);
@@ -1103,6 +1120,21 @@ while ($vueCursor <= $selectedWeek['end']) {
         .vue-jeton { border-radius: 5px; padding: 1px 5px; margin-bottom: 2px; font-size: .68rem; font-weight: 700; white-space: nowrap; }
         .vue-jeton.est-valide { background: #e7f6ea; color: #1d6a39; border: 1px solid #b7e0c1; }
         .vue-jeton.est-attente { background: #fff4e2; color: #a16a1e; border: 1px solid #f0d5a8; }
+        /* La saisie et sa quantite sur UNE ligne : elles vont ensemble, les
+           separer ferait chercher a quel horaire se rapporte le chiffre.
+           La case des chiffres est etroite — deux caracteres suffisent — pour
+           ne pas manger la place du texte, qui est ce qu'on lit. */
+        .vue-saisie-ligne { display: flex; gap: 3px; align-items: stretch; }
+        .vue-saisie-ligne .vue-saisie { flex: 1; min-width: 0; }
+        .vue-nb { width: 34px; flex: 0 0 34px; text-align: center; font-size: .68rem;
+            border: 1px dashed #c9d6cd; border-radius: 4px; padding: 1px 2px; font-family: inherit;
+            background: #fbfdfb; color: #33443a; }
+        .vue-nb:focus { outline: 2px solid #2d5a37; outline-offset: -1px; background: #fff; }
+        /* Les fleches du champ nombre prennent la moitie d'une case aussi
+           etroite : on les retire, le clavier suffit. */
+        .vue-nb::-webkit-outer-spin-button, .vue-nb::-webkit-inner-spin-button {
+            -webkit-appearance: none; margin: 0; }
+        .vue-nb { -moz-appearance: textfield; appearance: textfield; }
         /* HORS NORMES : moins de 3 h ou plus de 9 h de travail effectif. Le
            creneau a ete enregistre malgre l'avertissement — il reste donc
            visible, mais il ne peut pas passer pour un creneau ordinaire.
@@ -1673,10 +1705,24 @@ while ($vueCursor <= $selectedWeek['end']) {
                                                                   // envoie le formulaire, comme dans un tableur. Un
                                                                   // textarea aurait avale la touche pour sauter une
                                                                   // ligne. ?>
-                                                            <input type="text" class="vue-saisie"
-                                                                   name="cell_text[<?php echo e($cleEcriture); ?>][<?php echo e($j['key']); ?>]"
-                                                                   value="" autocomplete="off" spellcheck="false"
-                                                                   placeholder="<?php echo e(fjdT('+ horaire', '+ uur')); ?>">
+                                                            <div class="vue-saisie-ligne">
+                                                                <input type="text" class="vue-saisie"
+                                                                       name="cell_text[<?php echo e($cleEcriture); ?>][<?php echo e($j['key']); ?>]"
+                                                                       value="" autocomplete="off" spellcheck="false"
+                                                                       placeholder="<?php echo e(fjdT('+ horaire', '+ uur')); ?>">
+                                                                <?php // COMBIEN DE FOIS. Vide = une fois : c'est le cas
+                                                                      // courant, et un « 1 » a retaper a chaque case
+                                                                      // serait une corvee pour rien.
+                                                                      //
+                                                                      // Pas de « min=1 » impose au navigateur : on veut
+                                                                      // pouvoir laisser la case vide. C'est le
+                                                                      // traitement qui ramene a 1. ?>
+                                                                <input type="number" class="vue-nb" min="1" max="30" step="1"
+                                                                       name="cell_nb[<?php echo e($cleEcriture); ?>][<?php echo e($j['key']); ?>]"
+                                                                       value="" autocomplete="off"
+                                                                       title="<?php echo e(fjdT('Nombre de fois (vide = 1)', 'Aantal keer (leeg = 1)')); ?>"
+                                                                       placeholder="1">
+                                                            </div>
                                                         <?php else: ?>
                                                             <?php // Un libellé que la liste des départements ne connaît
                                                                   // pas ne peut pas servir de cible d'écriture : le
